@@ -1,6 +1,6 @@
 /* Shared look for the login, subject and placeholder pages: exercise book on graph paper. */
 :root{
-  --paper:#f6f8fc; --card:#ffffff; --ink:#18202f; --muted:#566077; --line:#e2e8f2; --rule:#c9d3e4;
+  --paper:#ffffff; --card:#ffffff; --ink:#18202f; --muted:#566077; --line:#e2e8f2; --rule:#c9d3e4;
   --accent:#2443c2; --accent-ink:#ffffff; --accent-soft:#e5eafb;
   --pen:#c42f28; --pen-soft:#fbe4e2; --good:#16774a; --good-soft:#e0f2e7; --sci:#0f7a6c; --sci-soft:#ddf3ef;
   --f-display:"Bricolage Grotesque","Segoe UI",system-ui,sans-serif;
@@ -8,20 +8,9 @@
   --f-mono:"JetBrains Mono",ui-monospace,Menlo,Consolas,monospace;
   color-scheme:light;
 }
-@media (prefers-color-scheme: dark){
-  :root:not([data-theme="light"]){
-    --paper:#0e1219; --card:#161b24; --ink:#e6e9f0; --muted:#9aa3b6; --line:#1a212c; --rule:#2c3546;
-    --accent:#8fa4ff; --accent-ink:#0c1230; --accent-soft:#1c2547; --pen:#ff7f75; --pen-soft:#37130f; --good:#5bd393; --good-soft:#10291b; --sci:#5fd4c3; --sci-soft:#0f2b27; color-scheme:dark;
-  }
-}
-:root[data-theme="dark"]{
-  --paper:#0e1219; --card:#161b24; --ink:#e6e9f0; --muted:#9aa3b6; --line:#1a212c; --rule:#2c3546;
-  --accent:#8fa4ff; --accent-ink:#0c1230; --accent-soft:#1c2547; --pen:#ff7f75; --pen-soft:#37130f; --good:#5bd393; --good-soft:#10291b; --sci:#5fd4c3; --sci-soft:#0f2b27; color-scheme:dark;
-}
 *{box-sizing:border-box}
 html{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);-webkit-text-size-adjust:100%}
-body{margin:0;min-height:100vh;background-color:var(--paper);color:var(--ink);font-family:var(--f-body);font-size:15.5px;line-height:1.6;
-  background-image:linear-gradient(var(--line) 1px,transparent 1px),linear-gradient(90deg,var(--line) 1px,transparent 1px);background-size:26px 26px;background-attachment:fixed}
+body{margin:0;min-height:100vh;background-color:var(--paper);color:var(--ink);font-family:var(--f-body);font-size:16.5px;line-height:1.65}
 [hidden]{display:none!important}
 h1,h2,h3{font-family:var(--f-display);line-height:1.12;margin:0;text-wrap:balance}
 p{margin:0}

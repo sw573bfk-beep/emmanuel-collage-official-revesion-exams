@@ -114,32 +114,30 @@ RENDER.home = () => {
   const ckItems = CHECKLIST.flatMap(c => c[1]); const ckGot = ckItems.filter((_, i) => ckStore['k' + i] === 2).length;
   const examDate = store.get('examDate', '');
   let days = null; if (examDate) { const d = new Date(examDate + 'T09:00'); days = Math.ceil((d - new Date()) / 864e5); }
-  const hero = h('<div class="hero"></div>');
-  hero.appendChild(h(`<div class="card stack">
-    <span class="eyebrow">Your revision base</span>
-    <h2>Everything for the Year 8 exam, in one place</h2>
-    <p class="muted">Notes and worked examples for every topic, unlimited practice questions with full working, all ${allParts.length} parts of the revision booklet with answers, a timed exam mode, interactive tools and a solver that shows every step.</p>
-    <div class="row">
-      <button type="button" class="btn" data-go="practice-mix">Start mixed practice</button>
-      <button type="button" class="btn ghost" data-go="exam">Take a practice exam</button>
-      <button type="button" class="btn ghost" data-go="booklet">Open the booklet</button>
-      <button type="button" class="btn ghost" data-go="ask">Ask a question</button>
-    </div></div>`));
-  hero.appendChild(h(`<div class="card stack">
-    <span class="eyebrow">Exam countdown</span>
-    <div class="row" style="align-items:baseline"><span class="bignum">${days === null ? '—' : days < 0 ? 'Done' : days}</span><span class="muted">${days === null ? 'Set your exam date' : days === 1 ? 'day to go' : days < 0 ? 'Exam date has passed' : 'days to go'}</span></div>
-    <label class="f">Exam date<input type="date" id="examDate" value="${examDate}"></label>
-    <div class="grid3" style="grid-template-columns:repeat(3,minmax(0,1fr));gap:8px">
-      <div><div class="bignum" style="font-size:1.6rem">${totalA ? Math.round(totalC / totalA * 100) + '%' : '—'}</div><div class="small muted">practice accuracy (${totalA} answered)</div></div>
-      <div><div class="bignum" style="font-size:1.6rem">${bkRight}/${allParts.length}</div><div class="small muted">booklet parts right</div></div>
-      <div><div class="bignum" style="font-size:1.6rem">${ckGot}/${ckItems.length}</div><div class="small muted">skills marked “Got it”</div></div>
-    </div></div>`));
-  v.appendChild(hero);
-  $$('[data-go]', hero).forEach(b => b.onclick = () => { const g = b.dataset.go; if (g === 'practice-mix') openPractice('mix'); else go(g); });
-  $('#examDate', hero).onchange = e => { store.set('examDate', e.target.value); RENDER.home(); };
+  const start = h(`<div class="card stack">
+    <h2>Start here</h2>
+    <ol class="start-steps">
+      <li><span class="n">1</span><div class="stack" style="gap:6px"><h3>Learn</h3><p>Pick a topic and read the quick version.</p><button type="button" class="btn" data-go="learn">Learn a topic</button></div></li>
+      <li><span class="n">2</span><div class="stack" style="gap:6px"><h3>Practise</h3><p>Answer questions until you can get 5 in a row.</p><button type="button" class="btn" data-go="practice-mix">Practise</button></div></li>
+      <li><span class="n">3</span><div class="stack" style="gap:6px"><h3>Test yourself</h3><p>Do the revision booklet, then a timed practice exam.</p><div class="row"><button type="button" class="btn" data-go="booklet">Booklet</button><button type="button" class="btn ghost" data-go="exam">Practice exam</button></div></div></li>
+    </ol>
+    <p class="small muted">Stuck on a question? Use <button type="button" class="reflink" data-go="ask">Ask a question</button> to see every step.</p>
+  </div>`);
+  v.appendChild(start);
+  const stats = h(`<div class="card row" style="justify-content:space-between;gap:18px">
+    <div class="row" style="gap:22px">
+      <div><div class="bignum" style="font-size:1.6rem">${totalA ? Math.round(totalC / totalA * 100) + '%' : '—'}</div><div class="small muted">practice right (${totalA} done)</div></div>
+      <div><div class="bignum" style="font-size:1.6rem">${bkRight}/${allParts.length}</div><div class="small muted">booklet right</div></div>
+      <div><div class="bignum" style="font-size:1.6rem">${ckGot}/${ckItems.length}</div><div class="small muted">skills “Got it”</div></div>
+    </div>
+    <label class="f">${days === null ? 'When is your exam?' : days < 0 ? 'Exam date has passed' : '<b style="color:var(--ink);font-size:1.05rem">' + days + (days === 1 ? ' day' : ' days') + ' until your exam</b>'}<input type="date" id="examDate" value="${examDate}"></label>
+  </div>`);
+  v.appendChild(stats);
+  $$('[data-go]', start).forEach(b => b.onclick = () => { const g = b.dataset.go; if (g === 'practice-mix') openPractice('mix'); else go(g); });
+  $('#examDate', stats).onchange = e => { store.set('examDate', e.target.value); RENDER.home(); };
 
   // topic progress
-  const prog = h('<div class="card stack"><div class="row" style="justify-content:space-between"><h3>Topics</h3><span class="small muted">Accuracy from Practice and Exam mode. Tap a topic to study it.</span></div><div class="grid2" id="unitGrid"></div></div>');
+  const prog = h('<div class="card stack"><div class="row" style="justify-content:space-between"><h3>All topics</h3><span class="small muted">Tap a topic to learn it. The bar shows how many you’ve got right.</span></div><div class="grid2" id="unitGrid"></div></div>');
   UNITS.forEach(u => {
     const box = h('<div class="stack" style="gap:8px"><div><span class="eyebrow">' + u.ch + '</span><h4>' + u.name + '</h4></div><div class="unit-prog"></div></div>');
     TOPICS.filter(t => t.unit === u.id).forEach(t => {
@@ -154,7 +152,7 @@ RENDER.home = () => {
   v.appendChild(prog);
 
   // checklist
-  const ck = h('<div class="card stack"><div class="stack" style="gap:4px"><h3>Skills checklist</h3><p class="muted small">From the revision booklet. Tick how confident you feel before you start, then again after the practice questions. Focus on anything you cannot yet tick “Got it”. Tap a question number to jump to it, or “Practise” for unlimited questions on that skill.</p></div><div class="scroll-x"><table class="check"><thead><tr><th>Skill</th><th>Practise with</th><th>Confidence</th><th></th></tr></thead><tbody></tbody></table></div></div>');
+  const ck = h('<div class="card stack"><div class="stack" style="gap:4px"><h3>Skills checklist</h3><p class="muted small">From the revision booklet. Tap how sure you feel about each skill. Work on anything that isn’t “Got it” yet.</p></div><div class="scroll-x"><table class="check"><thead><tr><th>Skill</th><th>Practise with</th><th>Confidence</th><th></th></tr></thead><tbody></tbody></table></div></div>');
   const tb = $('tbody', ck); let idx = 0;
   CHECKLIST.forEach(([sec, items]) => {
     tb.appendChild(h('<tr class="sec"><td colspan="4">' + sec + '</td></tr>'));
@@ -167,12 +165,7 @@ RENDER.home = () => {
   });
   v.appendChild(ck);
 
-  const tips = h(`<div class="card stack"><h3>How to use this in the last week</h3><div class="grid3">
-    <div class="stack" style="gap:4px"><h4>1. Check the list</h4><p class="small">Rate every skill above. Anything on “Not yet” is where your marks are.</p></div>
-    <div class="stack" style="gap:4px"><h4>2. Learn, then practise</h4><p class="small">Read the topic notes and worked examples, then do practice questions until you get five in a row.</p></div>
-    <div class="stack" style="gap:4px"><h4>3. Do the booklet</h4><p class="small">Attempt each booklet question first, then check it. Use “Solve it” to see every step if you are stuck.</p></div>
-    <div class="stack" style="gap:4px"><h4>4. Exam conditions</h4><p class="small">Run a timed mixed exam. Review every wrong answer and re-practise those topics.</p></div></div>
-    <div class="row"><button type="button" class="btn quiet sm" id="resetAll">Reset all my progress</button><span class="small muted" id="resetMsg"></span></div></div>`);
+  const tips = h(`<div class="row"><button type="button" class="btn quiet sm" id="resetAll">Reset all my progress</button><span class="small muted" id="resetMsg"></span></div>`);
   let armed = false;
   $('#resetAll', tips).onclick = () => {
     if (!armed) { armed = true; $('#resetMsg', tips).textContent = 'Tap again to erase practice stats, booklet marks, checklist and flashcards.'; $('#resetAll', tips).textContent = 'Yes, reset everything'; return; }
@@ -186,7 +179,7 @@ RENDER.home = () => {
 /* ================= LEARN ================= */
 RENDER.learn = () => {
   const v = $('#v-learn'); v.innerHTML = '';
-  v.appendChild(h('<div class="view-head"><h2>Learn</h2><p>Key ideas, rules, worked examples and common mistakes for every topic. Rate each “I can” statement, then try a quick question.</p></div>'));
+  v.appendChild(h('<div class="view-head"><h2>Learn</h2><p>Pick a topic. Read the quick version, look at an example, then try a question.</p></div>'));
   const wrap = h('<div class="learn"><nav class="toc card" aria-label="Topics"></nav><div class="stack" style="min-width:0"><select class="toc-select" id="tocSel" aria-label="Choose a topic"></select><div id="learnBody" class="stack"></div></div></div>');
   const toc = $('.toc', wrap), sel = $('#tocSel', wrap);
   UNITS.forEach(u => {
@@ -208,18 +201,23 @@ RENDER.learn = () => {
     const btns = $('.row .row', head) || head.querySelector('.row > .row');
     const pb = h('<button type="button" class="btn">Practise ' + t.id + '</button>'); pb.onclick = () => openPractice(t.id); btns.appendChild(pb);
     if (t.tool) { const tb = h('<button type="button" class="btn ghost">Open tool</button>'); tb.onclick = () => openTool(t.tool); btns.appendChild(tb); }
-    const cans = h('<ul class="cans"></ul>'); t.cans.forEach((c, i) => { const li = h('<li><span>I can… ' + c.charAt(0).toLowerCase() + c.slice(1) + '</span></li>'); li.appendChild(confButtons(t.id + ':' + i, canStore, 'can')); cans.appendChild(li); });
-    head.appendChild(cans);
-    if (t.bk.length) { const r = h('<p class="small">Booklet questions on this topic: </p>'); r.appendChild(bkRefLinks(t.bk.join(', '))); head.appendChild(r); }
     body.appendChild(head);
-    const notes = h('<div class="card notes"><h3>Key ideas</h3></div>'); notes.insertAdjacentHTML('beforeend', t.notes()); body.appendChild(notes);
-    const exs = h('<div class="card stack"><h3>Worked examples</h3></div>');
+    const Qk = QUICK[id];
+    if (Qk) body.appendChild(h('<div class="card quick stack"><span class="eyebrow">The quick version</span><p class="quick-what">' + Qk.what + '</p><ol class="quick-steps">' + Qk.steps.map(x => '<li>' + x + '</li>').join('') + '</ol><p class="quick-eg"><b>Example:</b> <span class="m">' + Qk.eg + '</span></p></div>'));
+    const exs = h('<div class="card stack"><h3>Worked examples</h3><p class="small muted">Tap an example to see every step.</p></div>');
     t.ex.forEach(e => { const d = h('<details class="ex"><summary>' + e.q + '</summary></details>'); d.insertAdjacentHTML('beforeend', stepsHTML(e.s)); exs.appendChild(d); });
     body.appendChild(exs);
-    if (t.mistakes) body.appendChild(h('<div class="card stack"><h3>Common mistakes</h3>' + t.mistakes.map(m => '<p class="mistake">' + m + '</p>').join('') + '</div>'));
-    const qc = h('<div class="card stack"><div class="row" style="justify-content:space-between"><h3>Quick check</h3><button type="button" class="btn quiet sm">New question</button></div><div class="qhost"></div></div>');
+    if (t.mistakes) body.appendChild(h('<div class="card stack"><h3>Watch out for</h3>' + t.mistakes.map(m => '<p class="mistake">' + m + '</p>').join('') + '</div>'));
+    const qc = h('<div class="card stack"><div class="row" style="justify-content:space-between"><h3>Try one</h3><button type="button" class="btn quiet sm">New question</button></div><div class="qhost"></div></div>');
     const load = () => { const host = $('.qhost', qc); host.innerHTML = ''; const Q = makeQ(pick(TOPIC_GENS[id])); host.appendChild(questionCard(Q, { onAnswer: (ok, partial) => { if (!partial) record(id, ok); } }).el); };
     $('button', qc).onclick = load; load(); body.appendChild(qc);
+    const more = h('<details class="card more"><summary><b>More detail</b> <span class="muted small">All the rules, tables and diagrams for this topic</span></summary><div class="notes" style="margin-top:12px"></div></details>');
+    $('.notes', more).insertAdjacentHTML('beforeend', t.notes()); body.appendChild(more);
+    const rate = h('<div class="card stack"><h3>How confident are you?</h3><p class="small muted">Tap one for each. Your answers are saved.</p></div>');
+    const cans = h('<ul class="cans"></ul>'); t.cans.forEach((c, i) => { const li = h('<li><span>I can ' + c.charAt(0).toLowerCase() + c.slice(1) + '</span></li>'); li.appendChild(confButtons(t.id + ':' + i, canStore, 'can')); cans.appendChild(li); });
+    rate.appendChild(cans);
+    if (t.bk.length) { const r = h('<p class="small">Booklet questions on this topic: </p>'); r.appendChild(bkRefLinks(t.bk.join(', '))); rate.appendChild(r); }
+    body.appendChild(rate);
     const nav = h('<div class="row" style="justify-content:space-between"></div>'); const i = TOPICS.findIndex(x => x.id === id);
     if (i > 0) { const b = h('<button type="button" class="btn quiet">← ' + TOPICS[i - 1].id + ' ' + TOPICS[i - 1].name + '</button>'); b.onclick = () => { showTopic(TOPICS[i - 1].id); window.scrollTo(0, 0); }; nav.appendChild(b); } else nav.appendChild(h('<span></span>'));
     if (i < TOPICS.length - 1) { const b = h('<button type="button" class="btn quiet">' + TOPICS[i + 1].id + ' ' + TOPICS[i + 1].name + ' →</button>'); b.onclick = () => { showTopic(TOPICS[i + 1].id); window.scrollTo(0, 0); }; nav.appendChild(b); }
@@ -246,7 +244,7 @@ function pickTopic(sel) {
 const sess = { n: 0, c: 0, streak: 0, best: store.get('best', 0) };
 RENDER.practice = () => {
   const v = $('#v-practice'); v.innerHTML = '';
-  v.appendChild(h('<div class="view-head"><h2>Practice</h2><p>Unlimited questions with a new set of numbers every time. Each one is marked instantly with full working. You get two tries on typed answers.</p></div>'));
+  v.appendChild(h('<div class="view-head"><h2>Practice</h2><p>Pick a topic, answer the question, press <b>Check</b>. You get two tries, and you can always see the working.</p></div>'));
   const ctr = h('<div class="card row" style="justify-content:space-between"><label class="f" style="flex:1 1 260px">Topic' + topicSelect('pSel', state.practice) + '</label><div class="row" id="pStats" style="gap:18px"></div></div>');
   v.appendChild(ctr);
   const sel = $('#pSel', ctr); sel.value = state.practice;
@@ -293,7 +291,7 @@ function markRow(key, row, onChange) {
 }
 RENDER.booklet = () => {
   const v = $('#v-booklet'); v.innerHTML = '';
-  v.appendChild(h('<div class="view-head"><h2>Exam revision booklet</h2><p>Every question from the booklet (Parts A–E) with the answers. Attempt each part first, then type your answer and press Check, or reveal the answer and mark yourself. “Solve it” shows every step. Diagrams are not to scale.</p></div>'));
+  v.appendChild(h('<div class="view-head"><h2>Revision booklet</h2><p>Every booklet question with answers. Try it first, then press <b>Check</b> or <b>Answer</b>. Stuck? <b>Solve it</b> shows every step.</p></div>'));
   const bar = h('<div class="card row" style="justify-content:space-between"><div class="row" id="bkTabs" role="tablist"></div><div class="row"><span class="small muted" id="bkSum"></span><button type="button" class="btn quiet sm" id="bkAll">Show all answers</button></div></div>');
   v.appendChild(bar);
   const list = h('<div class="stack"></div>'); v.appendChild(list);
@@ -354,7 +352,7 @@ RENDER.booklet = () => {
 let examTimer = null;
 RENDER.exam = () => {
   const v = $('#v-exam'); v.innerHTML = ''; clearInterval(examTimer);
-  v.appendChild(h('<div class="view-head"><h2>Exam mode</h2><p>A timed test of fresh questions. Nothing is marked until you submit, just like the real exam. Afterwards you get your score, a topic-by-topic breakdown and full working for every question.</p></div>'));
+  v.appendChild(h('<div class="view-head"><h2>Test yourself</h2><p>A timed practice exam. Nothing is marked until you press <b>Submit</b>. Then you see your score and the working for every question.</p></div>'));
   const setup = h('<div class="card stack"><h3>Set up your exam</h3><div class="row"><label class="f">Questions<select id="exN"><option>10</option><option selected>20</option><option>30</option><option>40</option></select></label><label class="f">Time limit<select id="exT"><option value="0">No timer</option><option value="10">10 min</option><option value="20">20 min</option><option value="30" selected>30 min</option><option value="45">45 min</option><option value="60">60 min</option></select></label></div><div class="stack" id="exTopics"></div><div class="row"><button type="button" class="btn quiet sm" id="exAll">Select all</button><button type="button" class="btn quiet sm" id="exNone">Clear</button><button type="button" class="btn quiet sm" id="exWeak">My weakest 5</button></div><div><button type="button" class="btn" id="exGo">Start exam</button> <span class="small muted" id="exMsg"></span></div></div>');
   const tbox = $('#exTopics', setup);
   UNITS.forEach(u => { const g = h('<div><div class="eyebrow" style="margin-bottom:4px">' + u.name + '</div><div class="row" style="gap:6px"></div></div>'); TOPICS.filter(t => t.unit === u.id).forEach(t => { const c = h('<button type="button" class="chip on" data-t="' + t.id + '" aria-pressed="true">' + t.id + ' ' + t.name + '</button>'); c.onclick = () => { c.classList.toggle('on'); c.setAttribute('aria-pressed', c.classList.contains('on')); }; g.lastChild.appendChild(c); }); tbox.appendChild(g); });
@@ -575,7 +573,7 @@ function runAsk(q) {
 }
 RENDER.ask = () => {
   const v = $('#v-ask'); v.innerHTML = '';
-  v.appendChild(h('<div class="view-head"><h2>Ask a question</h2><p>Type a maths question in plain words and get the answer with every step: equations, inequalities, gradients, rules of lines, reflections, rotations, translations, percentages, GST, fractions, decimals, rounding and definitions. It all runs on this page, so it works offline.</p></div>'));
+  v.appendChild(h('<div class="view-head"><h2>Ask a question</h2><p>Type a maths question and get the answer with every step. Not sure how to type it? Tap one of the examples.</p></div>'));
   const box = h('<div class="card stack"><form class="ask-box" id="askForm"><label class="sr" for="askIn">Your question</label><input id="askIn" type="text" autocomplete="off" spellcheck="false" placeholder="e.g. 5 − 2x < 11   or   increase 250 by 12%"><button class="btn" type="submit">Ask</button></form><div class="stack" style="gap:6px"><span class="small muted">Try one:</span><div class="row" id="askEx" style="gap:6px"></div></div></div>');
   v.appendChild(box);
   ASK_EXAMPLES.forEach(e => { const c = h('<button type="button" class="chip">' + esc(pretty(e)) + '</button>'); c.onclick = () => runAsk(e); $('#askEx', box).appendChild(c); });
@@ -592,7 +590,7 @@ const TOOLS = [
 ];
 RENDER.tools = () => {
   const v = $('#v-tools'); v.innerHTML = '';
-  v.appendChild(h('<div class="view-head"><h2>Tools</h2><p>Interactive tools for every topic. Change the numbers and watch the working update.</p></div>'));
+  v.appendChild(h('<div class="view-head"><h2>Tools</h2><p>Pick a tool, change the numbers, and the answer and working update straight away.</p></div>'));
   const chips = h('<div class="row" role="tablist" style="gap:6px"></div>'); v.appendChild(chips);
   const panel = h('<div class="card stack"></div>'); v.appendChild(panel);
   TOOLS.forEach(([id, name]) => { const c = h('<button type="button" class="chip" role="tab" data-t="' + id + '">' + name + '</button>'); c.onclick = () => open(id); chips.appendChild(c); });
@@ -749,7 +747,7 @@ const TOOL_FN = {
 /* ================= FLASHCARDS ================= */
 RENDER.cards = () => {
   const v = $('#v-cards'); v.innerHTML = '';
-  v.appendChild(h('<div class="view-head"><h2>Flashcards</h2><p>Quick-recall facts, rules and definitions. Tap the card to flip it, then say whether you knew it. Cards you miss come back sooner.</p></div>'));
+  v.appendChild(h('<div class="view-head"><h2>Flashcards</h2><p>Tap the card to flip it. Then tap <b>I knew it</b> or <b>Still learning</b>.</p></div>'));
   const known = store.get('cards', {});
   const ctr = h('<div class="card row" style="justify-content:space-between"><label class="f">Deck<select id="fcDeck"><option value="all">All topics</option>' + UNITS.map(u => '<option value="' + u.id + '">' + u.name + '</option>').join('') + '<option value="learning">Only cards I’m still learning</option></select></label><span class="small muted" id="fcProg"></span><button type="button" class="btn quiet sm" id="fcShuf">Shuffle</button></div>');
   v.appendChild(ctr);
@@ -777,7 +775,7 @@ RENDER.cards = () => {
 /* ================= GLOSSARY ================= */
 RENDER.glossary = () => {
   const v = $('#v-glossary'); v.innerHTML = '';
-  v.appendChild(h('<div class="view-head"><h2>Glossary</h2><p>Every key word, with its meaning and topic. Tap a topic code to read the notes.</p></div>'));
+  v.appendChild(h('<div class="view-head"><h2>Maths words</h2><p>What every maths word means. Tap the topic code to learn more.</p></div>'));
   const s = h('<div class="card row"><label class="sr" for="glS">Search the glossary</label><input type="search" id="glS" placeholder="Search, e.g. gradient, kite, GST" style="flex:1 1 260px"></div>'); v.appendChild(s);
   const list = h('<dl class="gl-list"></dl>'); v.appendChild(list);
   const draw = () => {
@@ -791,10 +789,6 @@ RENDER.glossary = () => {
 };
 
 /* ================= theme + boot ================= */
-(function theme() {
-  const btn = $('#themeBtn'); const order = ['auto', 'light', 'dark']; let t = store.get('theme', 'auto');
-  const apply = () => { if (t === 'auto') document.documentElement.removeAttribute('data-theme'); else document.documentElement.setAttribute('data-theme', t); btn.textContent = 'Theme: ' + t; };
-  btn.onclick = () => { t = order[(order.indexOf(t) + 1) % 3]; store.set('theme', t); apply(); }; apply();
-})();
+document.documentElement.removeAttribute('data-theme');
 const boot = () => show(location.hash.slice(1) || 'home');
 if (window.claude && window.claude.hot && window.claude.hot.ready) window.claude.hot.ready(boot); else boot();

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-build="1794023058">
+<html lang="en" data-build="1794025047">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -12,7 +12,7 @@
 <style>
 /* Layout: an exercise book on graph paper. Sticky tab strip, one working column, a topic rail on wide screens. */
 :root{
-  --paper:#f6f8fc; --card:#ffffff; --ink:#18202f; --muted:#566077; --line:#e2e8f2; --rule:#c9d3e4;
+  --paper:#ffffff; --card:#ffffff; --ink:#18202f; --muted:#566077; --line:#e2e8f2; --rule:#c9d3e4;
   --accent:#2443c2; --accent-ink:#ffffff; --accent-soft:#e5eafb;
   --hi:#fff066; --pen:#c42f28; --pen-soft:#fbe4e2;
   --good:#16774a; --good-soft:#e0f2e7; --warn:#935800; --warn-soft:#fdefd6;
@@ -20,27 +20,12 @@
   --f-body:"Lexend","Segoe UI",system-ui,sans-serif;
   --f-mono:"JetBrains Mono",ui-monospace,"SFMono-Regular",Menlo,Consolas,monospace;
   --r:10px;
-}
-@media (prefers-color-scheme: dark){
-  :root:not([data-theme="light"]){
-    --paper:#0e1219; --card:#161b24; --ink:#e6e9f0; --muted:#9aa3b6; --line:#1a212c; --rule:#2c3546;
-    --accent:#8fa4ff; --accent-ink:#0c1230; --accent-soft:#1c2547;
-    --hi:#5b4d00; --pen:#ff7f75; --pen-soft:#37130f;
-    --good:#5bd393; --good-soft:#10291b; --warn:#f0b257; --warn-soft:#33240a; color-scheme:dark;
-  }
-}
-:root[data-theme="dark"]{
-  --paper:#0e1219; --card:#161b24; --ink:#e6e9f0; --muted:#9aa3b6; --line:#1a212c; --rule:#2c3546;
-  --accent:#8fa4ff; --accent-ink:#0c1230; --accent-soft:#1c2547;
-  --hi:#5b4d00; --pen:#ff7f75; --pen-soft:#37130f;
-  --good:#5bd393; --good-soft:#10291b; --warn:#f0b257; --warn-soft:#33240a; color-scheme:dark;
+  color-scheme:light;
 }
 *{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%}
 body{
-  margin:0; background-color:var(--paper); color:var(--ink); font-family:var(--f-body); font-size:15.5px; line-height:1.6; font-weight:400;
-  background-image:linear-gradient(var(--line) 1px,transparent 1px),linear-gradient(90deg,var(--line) 1px,transparent 1px);
-  background-size:26px 26px; background-attachment:fixed;
+  margin:0; background-color:var(--paper); color:var(--ink); font-family:var(--f-body); font-size:16.5px; line-height:1.65; font-weight:400;
 }
 body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:30;background:var(--card)}
 h1,h2,h3,h4{font-family:var(--f-display);line-height:1.15;text-wrap:balance;margin:0}
@@ -178,6 +163,16 @@ svg{max-width:100%;height:auto}
 .dia .tick{stroke:var(--pen);stroke-width:1.6}
 .dia .pt3{fill:var(--accent)}
 
+/* simple layout helpers */
+.start-steps{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:14px}
+.start-steps li{display:flex;gap:12px;align-items:flex-start;border:1.5px solid var(--rule);border-radius:12px;padding:16px}
+.start-steps .n{flex:0 0 auto;width:36px;height:36px;border-radius:50%;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;font-family:var(--f-display);font-weight:800;font-size:1.15rem}
+.quick{border:2px solid var(--accent);background:var(--accent-soft)}
+.quick-what{font-size:1.15rem;font-weight:500}
+.quick-steps{margin:0;padding-left:1.4em;display:flex;flex-direction:column;gap:6px;font-size:1.03rem}
+.quick-steps li::marker{font-weight:700;color:var(--accent)}
+.quick-eg{background:var(--card);border-radius:8px;padding:10px 12px}
+details.more>summary{cursor:pointer}
 /* home */
 .hero{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);gap:18px}
 @media (max-width:760px){.hero{grid-template-columns:1fr}}
@@ -286,12 +281,11 @@ footer.foot{max-width:1180px;margin:0 auto;padding-block:0 40px;padding-left:max
   <div class="top-in">
     <div class="brand">
       <span class="brand-mark">EC Revisions · maths</span>
-      <h1>Year 8 Maths Revision Hub</h1>
-      <p class="sub">Inequalities · Linear relations · Transformations &amp; congruence · Similarity · Percentages · 3D coordinates</p>
+      <h1>Year 8 Maths</h1>
+      <p class="sub">Everything for the Year 8 maths exam, one step at a time.</p>
     </div>
     <div class="top-tools">
       <span class="acct"><span class="acct-name" id="acctName"></span><span class="small muted" id="syncStatus" aria-live="polite"></span></span><a class="btn quiet sm" href="/">Subjects</a><button id="logoutBtn" class="btn quiet sm" type="button">Log out</button>
-      <button id="themeBtn" class="btn quiet sm" type="button" aria-label="Switch light or dark theme">Theme: auto</button>
     </div>
   </div>
 </header>
@@ -300,12 +294,12 @@ footer.foot{max-width:1180px;margin:0 auto;padding-block:0 40px;padding-left:max
     <a href="#home" data-v="home">Home</a>
     <a href="#learn" data-v="learn">Learn</a>
     <a href="#practice" data-v="practice">Practice</a>
-    <a href="#booklet" data-v="booklet">Revision booklet</a>
-    <a href="#exam" data-v="exam">Exam mode</a>
+    <a href="#booklet" data-v="booklet">Booklet</a>
+    <a href="#exam" data-v="exam">Test yourself</a>
     <a href="#tools" data-v="tools">Tools</a>
-    <a href="#ask" data-v="ask">Ask a question</a>
+    <a href="#ask" data-v="ask">Ask</a>
     <a href="#cards" data-v="cards">Flashcards</a>
-    <a href="#glossary" data-v="glossary">Glossary</a>
+    <a href="#glossary" data-v="glossary">Maths words</a>
   </div>
 </nav>
 <main class="wrap">
