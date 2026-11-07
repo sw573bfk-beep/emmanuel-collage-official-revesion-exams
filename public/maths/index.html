@@ -1,9 +1,10 @@
 <!DOCTYPE html>
-<html lang="en" data-build="1794044470">
+<html lang="en" data-build="1794046074">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex">
+<script src="/acct.js"></script>
 <title>EC Revisions Maths</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -330,7 +331,7 @@ footer.foot{max-width:1180px;margin:0 auto;padding-block:0 40px;padding-left:max
 // Runs before the maths app: checks you are logged in, loads your saved progress from the
 // server into this browser, then starts the app and saves changes back automatically.
 (async function gate() {
-  const P = 'y8m:', LOCAL_ONLY = new Set(['theme']);
+  const P = window.ecAcct ? ecAcct.prefix('m') : 'y8m:', LOCAL_ONLY = new Set(['theme']);
   const status = t => { const el = document.getElementById('syncStatus'); if (el) el.textContent = t; };
   const ours = k => k.startsWith(P) && !LOCAL_ONLY.has(k.slice(P.length));
   const clearLocal = () => { try { Object.keys(localStorage).filter(ours).forEach(k => localStorage.removeItem(k)); } catch (e) { /* storage blocked */ } };

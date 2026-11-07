@@ -9,7 +9,7 @@
   const topBar = [
     { h: 'Feedback', t: 'Found a mistake, got an idea or something confusing? Tap <b>Feedback</b> to tell Beau. Every message is read.', sel: '.top-tools a[href^="/feedback"]' },
     { h: 'Switch subject', t: '<b>Subjects</b> takes you back to pick Maths or Science. Your progress in each one is kept.', sel: '.top-tools a[href="/"]' },
-    { h: 'Your progress is saved', t: 'Everything you do is saved to your account, so it follows you to any phone or computer. Under your name it says when it last saved.', sel: '.top-tools .acct' }
+    { h: 'Your progress is saved', t: 'Everything you do is saved to your account, so it follows you to any phone or computer. Your name shows which account this tab is using, and under it it says when it last saved. To use another account, go to <b>Subjects</b> and tap <b>Switch account</b>.', sel: '.top-tools .acct' }
   ];
   const helpStep = { h: 'This help button', t: 'Tap this any time to see this help again or take the tour.', sel: '#ecHelpBtn' };
 
@@ -20,6 +20,7 @@
       steps: [
         { h: 'Make an account', t: 'New here? Tap <b>Create account</b>. Please use your real name. Already have one? Just log in. Your progress is saved to your account.', sel: '#authCard' },
         { h: 'Pick a subject', t: 'Once you’re logged in, pick <b>Maths</b> or <b>Science</b> to start studying.', sel: ['#pickView .card:has(a[href="/maths/"])', '#pickView a[href="/maths/"]'] },
+        { h: 'More than one account', t: 'Tap <b>Switch account</b> to add another account or swap between them. Each tab can use a different account, so you can be logged into two at once.', sel: '#switchBtn' },
         { h: 'Send feedback', t: 'Found a mistake or have an idea? Tell Beau here.', sel: ['#pickView a.card[href="/feedback/"]', '#whoBox a[href="/feedback/"]'] },
         { h: 'Account settings', t: 'Change your password or delete your account here.', sel: '#pickView details.acct' },
         helpStep

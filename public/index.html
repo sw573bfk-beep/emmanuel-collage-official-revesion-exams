@@ -2,6 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<script src="/acct.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>EC Revisions</title>
 <meta name="description" content="EC Revisions: Year 8 exam revision for Maths and Science. Make an account, pick a subject and your progress is saved.">
@@ -26,6 +27,10 @@
 .top{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap}
 details.acct summary{cursor:pointer;font-weight:500}
 details.acct[open] summary{margin-bottom:12px}
+.accts{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:8px}
+.accts li{display:flex;align-items:center;justify-content:space-between;gap:10px;border:1px solid var(--line);border-radius:10px;padding:8px 12px}
+.accts .pill{font-size:.78rem;font-weight:600;background:var(--accent-soft);color:var(--accent);border-radius:999px;padding:2px 10px}
+.still{border:1px solid var(--line);border-radius:12px;padding:10px 14px;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
 .acct-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:18px}
 </style>
 </head>
@@ -33,12 +38,15 @@ details.acct[open] summary{margin-bottom:12px}
 <main class="wrap">
   <div class="top">
     <div class="brand"><span class="mark">year 8 · week 7</span><h1>EC Revisions</h1><p id="tagline">Year 8 Maths and Science exam revision. Make a free account so your progress is saved and follows you to any device.</p></div>
-    <div class="row" id="whoBox" hidden><span class="muted small">Logged in as <b id="who"></b></span><a class="btn quiet sm" href="/feedback/">Feedback</a><button class="btn quiet sm" type="button" id="logout">Log out</button></div>
+    <div class="row" id="whoBox" hidden><span class="muted small">Logged in as <b id="who"></b></span><button class="btn quiet sm" type="button" id="switchBtn" aria-expanded="false" aria-controls="acctsCard">Switch account</button><a class="btn quiet sm" href="/feedback/">Feedback</a><button class="btn quiet sm" type="button" id="logout">Log out</button></div>
   </div>
 
   <!-- step 1: account -->
   <section id="authView" class="split" hidden>
+    <div class="stack" style="gap:12px">
+    <div class="still" id="stillIn" hidden></div>
     <div class="card stack" id="authCard">
+      <p class="small hint" id="addingNote" hidden></p>
       <div class="tabs" role="tablist"><button type="button" role="tab" id="tabLogin" class="on" aria-selected="true">Log in</button><button type="button" role="tab" id="tabSignup" aria-selected="false">Create account</button></div>
       <form id="authForm" class="stack" novalidate>
         <label class="f"><span id="nameLabel">Your name</span><input id="username" name="username" autocomplete="username" autocapitalize="words" spellcheck="false" maxlength="30" required></label>
@@ -50,6 +58,7 @@ details.acct[open] summary{margin-bottom:12px}
         <div id="authMsg" class="msg bad" role="alert" hidden></div>
         <button class="btn" type="submit" id="authBtn">Log in</button>
       </form>
+    </div>
     </div>
     <div class="card stack pitch">
       <span class="eyebrow">How it works</span>
@@ -63,6 +72,11 @@ details.acct[open] summary{margin-bottom:12px}
 
   <!-- step 2: pick a subject -->
   <section id="pickView" class="stack" hidden>
+    <div class="card stack" id="acctsCard" hidden>
+      <div class="stack" style="gap:4px"><h3 style="margin:0">Accounts in this browser</h3><p class="small muted" style="margin:0">You can be logged into up to 5 accounts at once. <b>Each tab can use a different account</b>: open a new tab, then pick the other account here.</p></div>
+      <ul class="accts" id="acctList"></ul>
+      <div class="row"><button class="btn quiet" type="button" id="addAcct">+ Add another account</button></div>
+    </div>
     <a class="card row" id="adminCard" href="/admin/" hidden style="justify-content:space-between;text-decoration:none;color:var(--ink);border-color:var(--accent)"><span><span class="eyebrow">Admin</span><br><b>Open the dashboard</b> <span class="muted small">See who is using EC Revisions, for how long, and who is online now.</span></span><span class="btn">Dashboard →</span></a>
     <h2 style="font-size:1.6rem">What do you want to study, <span id="who2"></span>?</h2>
     <div class="subjects">
@@ -120,8 +134,39 @@ details.acct[open] summary{margin-bottom:12px}
   // The name and password are saved in this browser (as asked) and filled in on the login form.
   const LK = { u: 'ec:username', p: 'ec:password' };
   function saveLogin(u, pw) { try { if (u == null) { localStorage.removeItem(LK.u); localStorage.removeItem(LK.p); } else { localStorage.setItem(LK.u, u); if (pw != null) localStorage.setItem(LK.p, pw); } } catch (e) { /* storage blocked */ } }
-  function fillSaved() { try { const u = localStorage.getItem(LK.u), pw = localStorage.getItem(LK.p); if (u && !$('#username').value) $('#username').value = u; if (pw && !$('#password').value) $('#password').value = pw; } catch (e) { /* storage blocked */ } }
-  function clearProgress() { try { Object.keys(localStorage).filter(k => /^y8[ms]:/.test(k) && !/:theme$/.test(k)).forEach(k => localStorage.removeItem(k)); } catch (e) { /* storage blocked */ } }
+  function fillSaved() { if (adding) return; try { const u = localStorage.getItem(LK.u), pw = localStorage.getItem(LK.p); if (u && !$('#username').value) $('#username').value = u; if (pw && !$('#password').value) $('#password').value = pw; } catch (e) { /* storage blocked */ } }
+  function clearProgress() { const pre = window.ecAcct ? [ecAcct.prefix('m'), ecAcct.prefix('s')] : ['y8m:', 'y8s:']; try { Object.keys(localStorage).filter(k => pre.some(p => k.startsWith(p)) && !/:theme$/.test(k)).forEach(k => localStorage.removeItem(k)); } catch (e) { /* storage blocked */ } }
+  // Several accounts at once: each tab uses one "slot" (see /acct.js).
+  let accounts = [], adding = false;
+  const slot = () => (window.ecAcct ? ecAcct.slot() : 0);
+  const mk = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+  async function refreshAccounts() { accounts = window.ecAcct ? await ecAcct.list() : []; renderAccounts(); }
+  function useSlot(n) { ecAcct.use(n); location.reload(); }
+  function renderAccounts() {
+    const list = $('#acctList'); list.innerHTML = '';
+    accounts.forEach(a => {
+      const li = mk('li'); li.appendChild(mk('b', '', a.username));
+      if (a.slot === slot()) li.appendChild(mk('span', 'pill', 'This tab'));
+      else { const b = mk('button', 'btn sm', 'Use this account'); b.type = 'button'; b.onclick = () => useSlot(a.slot); li.appendChild(b); }
+      list.appendChild(li);
+    });
+    $('#addAcct').hidden = accounts.length >= (window.ecAcct ? ecAcct.max : 1);
+    const others = accounts.filter(a => a.slot !== slot()), still = $('#stillIn'); still.innerHTML = '';
+    still.hidden = !others.length;
+    if (others.length) {
+      still.appendChild(mk('span', 'small muted', 'Already logged in on this browser:'));
+      others.forEach(a => { const b = mk('button', 'btn quiet sm', 'Use ' + a.username); b.type = 'button'; b.onclick = () => useSlot(a.slot); still.appendChild(b); });
+    }
+    const note = $('#addingNote'); note.hidden = !(adding && others.length);
+    if (adding && others.length) note.textContent = 'Adding another account. ' + others.map(a => a.username).join(', ') + (others.length > 1 ? ' stay' : ' stays') + ' logged in. Log in or create the new account below.';
+  }
+  function addAccount() {
+    const used = new Set(accounts.map(a => a.slot)); let free = 0; while (used.has(free)) free++;
+    if (!window.ecAcct || free >= ecAcct.max) return;
+    ecAcct.use(free); adding = true;
+    $('#username').value = ''; $('#password').value = ''; $('#confirm').value = '';
+    $('#acctsCard').hidden = true; setMode('login'); show('auth'); renderAccounts(); $('#username').focus();
+  }
   function show(view) { $('#loading').hidden = true; $('#authView').hidden = view !== 'auth'; $('#pickView').hidden = view !== 'pick'; $('#whoBox').hidden = view !== 'pick'; }
   function setMode(m) {
     mode = m; const su = m === 'signup';
@@ -143,6 +188,8 @@ details.acct[open] summary{margin-bottom:12px}
     $('#sciLast').textContent = ts ? 'Last saved ' + new Date(ts * 1000).toLocaleString('en-AU', { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }) : 'Not started yet';
     show('pick');
   }
+  $('#switchBtn').onclick = () => { const c = $('#acctsCard'); c.hidden = !c.hidden; $('#switchBtn').setAttribute('aria-expanded', !c.hidden); if (!c.hidden) { refreshAccounts(); c.scrollIntoView({ block: 'nearest' }); } };
+  $('#addAcct').onclick = addAccount;
   $('#tabLogin').onclick = () => setMode('login');
   $('#tabSignup').onclick = () => setMode('signup');
   $('#authForm').onsubmit = async e => {
@@ -161,15 +208,20 @@ details.acct[open] summary{margin-bottom:12px}
       const r = await api(mode === 'signup' ? '/api/signup' : '/api/login', 'POST', { username, password });
       if (!r.ok) return fail(r.data.error || 'Something went wrong. Try again.');
       saveLogin(username, password);
-      $('#password').value = ''; $('#confirm').value = '';
-      const me = await api('/api/me'); picked(me.data);
+      $('#password').value = ''; $('#confirm').value = ''; adding = false;
+      const me = await api('/api/me');
+      await refreshAccounts();
+      const dup = accounts.find(a => a.slot !== slot() && a.username.toLowerCase() === String(me.data.username).toLowerCase());
+      if (dup) { await api('/api/logout', 'POST', {}); return useSlot(dup.slot); }
+      picked(me.data);
     } catch (err) { fail('Can’t reach the server. Check your internet connection.'); }
     finally { btn.disabled = false; btn.textContent = mode === 'signup' ? 'Create account' : 'Log in'; }
   };
   $('#logout').onclick = async () => {
     if (!(window.ecConfirmLogout ? await window.ecConfirmLogout() : confirm('Are you sure you want to log out?'))) return;
     await api('/api/logout', 'POST', {});
-    clearProgress();
+    clearProgress(); $('#acctsCard').hidden = true;
+    await refreshAccounts();
     setMode('login'); fillSaved(); show('auth');
   };
   $('#pwForm').onsubmit = async e => {
@@ -186,10 +238,10 @@ details.acct[open] summary{margin-bottom:12px}
     if (!r.ok) { m.textContent = r.data.error || 'Couldn’t delete the account.'; m.hidden = false; return; }
     clearProgress(); saveLogin(null);
     $('#username').value = ''; $('#password').value = '';
-    setMode('login'); show('auth');
+    await refreshAccounts(); setMode('login'); show('auth');
   };
   (async () => {
-    try { const me = await api('/api/me'); if (me.ok) return picked(me.data); } catch (e) { /* offline: show the form */ }
+    try { const me = await api('/api/me'); refreshAccounts(); if (me.ok) return picked(me.data); } catch (e) { /* offline: show the form */ }
     setMode('login'); show('auth');
   })();
 })();

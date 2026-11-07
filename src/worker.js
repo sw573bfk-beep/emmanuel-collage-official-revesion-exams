@@ -17,12 +17,14 @@ import adminHtml from '../public/admin/index.html';
 import feedbackHtml from '../public/feedback/index.html';
 import notFoundHtml from '../public/404.html';
 import helpJs from '../public/help.js';
+import acctJs from '../public/acct.js';
 
 const HTML = 'text/html; charset=utf-8';
 const PAGES = {
   '/': [indexHtml, HTML], '/index.html': [indexHtml, HTML],
   '/site.css': [siteCss, 'text/css; charset=utf-8'],
   '/help.js': [helpJs, 'text/javascript; charset=utf-8'],
+  '/acct.js': [acctJs, 'text/javascript; charset=utf-8'],
   '/maths/': [mathsHtml, HTML], '/maths/index.html': [mathsHtml, HTML], '/maths/app.js': [mathsJs, 'text/javascript; charset=utf-8'],
   '/science/': [scienceHtml, HTML], '/science/index.html': [scienceHtml, HTML], '/science/app.js': [scienceJs, 'text/javascript; charset=utf-8'],
   '/admin/': [adminHtml, HTML], '/admin/index.html': [adminHtml, HTML],
@@ -78,20 +80,25 @@ function getCookie(req, name) {
   for (const part of c.split(';')) { const [k, ...v] = part.trim().split('='); if (k === name) return v.join('='); }
   return null;
 }
-function sessionCookie(token, url, maxAge) {
+// Several accounts can be logged in at once in one browser (like Google). Each one has its own
+// "slot" cookie: sid, sid1 … sid4. Every page sends the slot its tab is using in the x-ec-acct header.
+const MAX_SLOTS = 5;
+const slotOf = req => { const n = parseInt(req.headers.get('x-ec-acct') || '0', 10); return n >= 0 && n < MAX_SLOTS ? n : 0; };
+const sidName = slot => slot ? 'sid' + slot : 'sid';
+function sessionCookie(token, url, maxAge, slot = 0) {
   const secure = url.protocol === 'https:' ? '; Secure' : '';
-  return `sid=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${secure}`;
+  return `${sidName(slot)}=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${secure}`;
 }
 
-async function startSession(env, userId, url) {
+async function startSession(env, userId, url, slot = 0) {
   const token = randomHex(32);
   await env.DB.prepare('INSERT INTO sessions (token_hash, user_id, expires_at) VALUES (?, ?, ?)').bind(await sha256(token), userId, now() + SESSION_DAYS * 86400).run();
   // Tidy up: drop this user's expired sessions.
   await env.DB.prepare('DELETE FROM sessions WHERE user_id = ? AND expires_at < ?').bind(userId, now()).run();
-  return sessionCookie(token, url, SESSION_DAYS * 86400);
+  return sessionCookie(token, url, SESSION_DAYS * 86400, slot);
 }
-async function currentUser(req, env) {
-  const token = getCookie(req, 'sid'); if (!token || !/^[0-9a-f]{64}$/.test(token)) return null;
+async function currentUser(req, env, slot = slotOf(req)) {
+  const token = getCookie(req, sidName(slot)); if (!token || !/^[0-9a-f]{64}$/.test(token)) return null;
   const row = await env.DB.prepare('SELECT u.id, u.username, s.expires_at FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token_hash = ?').bind(await sha256(token)).first();
   if (!row || row.expires_at < now()) return null;
   return { id: row.id, username: row.username, tokenHash: await sha256(token) };
@@ -117,7 +124,7 @@ async function handleApi(req, env, url) {
     if (exists) return err(409, 'That name is already taken. If two people share a name, add a last initial or a number (e.g. Sam Smith 2).');
     const salt = randomHex(16); const hash = await hashPassword(password, salt);
     const res = await env.DB.prepare('INSERT INTO users (username, pass_hash, salt, created_at, last_login, login_count, last_seen) VALUES (?, ?, ?, ?, ?, 1, ?)').bind(username, hash, salt, now(), now(), now()).run();
-    const cookie = await startSession(env, res.meta.last_row_id, url);
+    const cookie = await startSession(env, res.meta.last_row_id, url, slotOf(req));
     return json({ username }, 201, { 'set-cookie': cookie });
   }
 
@@ -134,9 +141,15 @@ async function handleApi(req, env, url) {
       return err(401, 'Wrong username or password.');
     }
     await env.DB.prepare('UPDATE users SET failed_logins = 0, locked_until = 0, last_login = ?, login_count = login_count + 1, last_seen = ? WHERE id = ?').bind(now(), now(), user.id).run();
-    return json({ username: user.username }, 200, { 'set-cookie': await startSession(env, user.id, url) });
+    return json({ username: user.username }, 200, { 'set-cookie': await startSession(env, user.id, url, slotOf(req)) });
   }
 
+  if (path === '/api/accounts' && method === 'GET') {
+    // which accounts are logged in in this browser, and in which slot
+    const out = [];
+    for (let s = 0; s < MAX_SLOTS; s++) { const u = await currentUser(req, env, s); if (u) out.push({ slot: s, username: u.username }); }
+    return json({ accounts: out, max: MAX_SLOTS });
+  }
   const user = await currentUser(req, env);
   if (path === '/api/me' && method === 'GET') {
     if (!user) return err(401, 'Not logged in');
@@ -145,7 +158,7 @@ async function handleApi(req, env, url) {
   }
   if (path === '/api/logout' && method === 'POST') {
     if (user) await env.DB.prepare('DELETE FROM sessions WHERE token_hash = ?').bind(user.tokenHash).run();
-    return json({ ok: true }, 200, { 'set-cookie': sessionCookie('', url, 0) });
+    return json({ ok: true }, 200, { 'set-cookie': sessionCookie('', url, 0, slotOf(req)) });
   }
   if (!user) return err(401, 'Not logged in');
 
@@ -256,7 +269,7 @@ async function handleApi(req, env, url) {
       env.DB.prepare('DELETE FROM sessions WHERE user_id = ?').bind(user.id),
       env.DB.prepare('DELETE FROM users WHERE id = ?').bind(user.id)
     ]);
-    return json({ ok: true }, 200, { 'set-cookie': sessionCookie('', url, 0) });
+    return json({ ok: true }, 200, { 'set-cookie': sessionCookie('', url, 0, slotOf(req)) });
   }
   return err(404, 'Not found');
 }
