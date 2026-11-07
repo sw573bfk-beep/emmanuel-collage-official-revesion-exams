@@ -4,7 +4,7 @@
 //           GET /api/unlock/theory, POST /api/unlock, GET /api/theory (locked content), POST /api/feedback.
 // Admin (the ADMIN_USERNAME account only): GET /api/admin/overview, GET /api/admin/user/:id,
 //           POST /api/admin/reset-password, POST /api/admin/delete-user,
-//           GET|POST /api/admin/codes, POST /api/admin/set-unlock, GET /api/admin/feedback, POST /api/admin/feedback-status.
+//           GET|POST /api/admin/codes, POST /api/admin/set-unlock, POST /api/admin/set-stats, GET /api/admin/feedback, POST /api/admin/feedback-status.
 // Everything else is one of the pages in ./public, bundled into this Worker below.
 
 import indexHtml from '../public/index.html';
@@ -304,13 +304,13 @@ async function handleAdmin(req, env, path, method, me) {
   if (path === '/api/admin/overview' && method === 'GET') {
     const since30 = dayKey(t - 29 * 86400), since7 = dayKey(t - 6 * 86400);
     const [users, perUser, perUser7, today_, visits, daily, signups, progress, sciProgress, unlockRows, codeCount, fbCount] = await env.DB.batch([
-      env.DB.prepare('SELECT id, username, created_at, last_login, login_count, last_seen, last_subject FROM users ORDER BY last_seen DESC'),
+      env.DB.prepare('SELECT id, username, created_at, last_login, login_count, last_seen, last_subject, in_stats FROM users ORDER BY last_seen DESC'),
       env.DB.prepare('SELECT user_id, SUM(seconds) AS s FROM daily GROUP BY user_id'),
       env.DB.prepare('SELECT user_id, SUM(seconds) AS s FROM daily WHERE day >= ? GROUP BY user_id').bind(since7),
       env.DB.prepare('SELECT user_id, SUM(seconds) AS s FROM daily WHERE day = ? GROUP BY user_id').bind(today),
       env.DB.prepare('SELECT user_id, COUNT(*) AS n, MAX(device) AS device FROM visits GROUP BY user_id'),
-      env.DB.prepare('SELECT day, COUNT(DISTINCT user_id) AS people, SUM(seconds) AS s FROM daily WHERE day >= ? GROUP BY day ORDER BY day').bind(since30),
-      env.DB.prepare('SELECT created_at FROM users WHERE created_at >= ?').bind(t - 30 * 86400),
+      env.DB.prepare('SELECT day, user_id, SUM(seconds) AS s FROM daily WHERE day >= ? GROUP BY day, user_id').bind(since30),
+      env.DB.prepare('SELECT created_at FROM users WHERE created_at >= ? AND in_stats = 1').bind(t - 30 * 86400),
       env.DB.prepare("SELECT user_id, data FROM progress WHERE subject = 'maths'"),
       env.DB.prepare("SELECT user_id, data FROM progress WHERE subject = 'science'"),
       env.DB.prepare("SELECT user_id FROM unlocks WHERE feature = 'theory'"),
@@ -319,22 +319,26 @@ async function handleAdmin(req, env, path, method, me) {
     ]);
     const map = r => Object.fromEntries(r.results.map(x => [x.user_id, x]));
     const all = map(perUser), wk = map(perUser7), td = map(today_), vs = map(visits), pr = map(progress), spr = map(sciProgress);
-    const unlocked = new Set(unlockRows.results.map(r => r.user_id));
+    // accounts left out of the stats (the admin's own, test accounts) still show in the table, but count for nothing
+    const left = new Set(users.results.filter(u => !u.in_stats).map(u => u.id));
+    const unlocked = new Set(unlockRows.results.map(r => r.user_id).filter(id => !left.has(id)));
     const list = users.results.map(u => {
       let data = null; try { data = pr[u.id] ? JSON.parse(pr[u.id].data) : null; } catch { /* bad row */ }
       let sdata = null; try { sdata = spr[u.id] ? JSON.parse(spr[u.id].data) : null; } catch { /* bad row */ }
       return { id: u.id, name: u.username, joined: u.created_at, lastLogin: u.last_login, logins: u.login_count, lastSeen: u.last_seen, lastSubject: u.last_subject,
         online: t - u.last_seen <= 120 && !!u.last_subject, totalSeconds: (all[u.id] || {}).s || 0, weekSeconds: (wk[u.id] || {}).s || 0, todaySeconds: (td[u.id] || {}).s || 0,
-        visits: (vs[u.id] || {}).n || 0, device: (vs[u.id] || {}).device || null, maths: mathsStats(data), science: mathsStats(sdata), unlocked: unlocked.has(u.id), admin: u.username.toLowerCase() === String(env.ADMIN_USERNAME || '').toLowerCase() };
+        visits: (vs[u.id] || {}).n || 0, device: (vs[u.id] || {}).device || null, maths: mathsStats(data), science: mathsStats(sdata), unlocked: unlockRows.results.some(r => r.user_id === u.id), inStats: !left.has(u.id), admin: u.username.toLowerCase() === String(env.ADMIN_USERNAME || '').toLowerCase() };
     });
     const signupDays = {}; signups.results.forEach(r => { const d = dayKey(r.created_at); signupDays[d] = (signupDays[d] || 0) + 1; });
-    const days = []; for (let i = 29; i >= 0; i--) { const d = dayKey(t - i * 86400); const row = daily.results.find(r => r.day === d); days.push({ day: d, people: row ? row.people : 0, seconds: row ? row.s : 0, signups: signupDays[d] || 0 }); }
+    const counted = daily.results.filter(r => !left.has(r.user_id));
+    const days = []; for (let i = 29; i >= 0; i--) { const d = dayKey(t - i * 86400); const rows = counted.filter(r => r.day === d); days.push({ day: d, people: rows.length, seconds: rows.reduce((a, r) => a + r.s, 0), signups: signupDays[d] || 0 }); }
+    const inc = list.filter(u => u.inStats);
     const sum = (arr, k) => arr.reduce((a, x) => a + (x[k] || 0), 0);
     return json({
       now: t, today,
-      totals: { users: list.length, online: list.filter(u => u.online).length, activeToday: list.filter(u => u.todaySeconds > 0).length, activeWeek: list.filter(u => u.weekSeconds > 0).length,
-        signupsToday: signupDays[today] || 0, signupsWeek: days.slice(-7).reduce((a, d) => a + d.signups, 0), secondsToday: sum(list, 'todaySeconds'), secondsWeek: sum(list, 'weekSeconds'), secondsAll: sum(list, 'totalSeconds'),
-        questions: list.reduce((a, u) => a + u.maths.answered, 0), scienceQuestions: list.reduce((a, u) => a + u.science.answered, 0),
+      totals: { users: inc.length, leftOut: list.length - inc.length, online: inc.filter(u => u.online).length, activeToday: inc.filter(u => u.todaySeconds > 0).length, activeWeek: inc.filter(u => u.weekSeconds > 0).length,
+        signupsToday: signupDays[today] || 0, signupsWeek: days.slice(-7).reduce((a, d) => a + d.signups, 0), secondsToday: sum(inc, 'todaySeconds'), secondsWeek: sum(inc, 'weekSeconds'), secondsAll: sum(inc, 'totalSeconds'),
+        questions: inc.reduce((a, u) => a + u.maths.answered, 0), scienceQuestions: inc.reduce((a, u) => a + u.science.answered, 0),
         unlocked: unlocked.size, codesTotal: codeCount.results[0].total || 0, codesUsed: codeCount.results[0].used || 0, feedback: fbCount.results[0].n || 0, feedbackNew: fbCount.results[0].fresh || 0 },
       days, users: list
     });
@@ -384,6 +388,11 @@ async function handleAdmin(req, env, path, method, me) {
     if (body.status === 'delete') await env.DB.prepare('DELETE FROM feedback WHERE id = ?').bind(id).run();
     else if (['new', 'done'].includes(body.status)) await env.DB.prepare('UPDATE feedback SET status = ? WHERE id = ?').bind(body.status, id).run();
     else return err(400, 'Bad status');
+    return json({ ok: true });
+  }
+  if (path === '/api/admin/set-stats') {
+    const r = await env.DB.prepare('UPDATE users SET in_stats = ? WHERE id = ?').bind(body.inStats ? 1 : 0, id).run();
+    if (!r.meta.changes) return err(404, 'No such user');
     return json({ ok: true });
   }
   if (path === '/api/admin/set-unlock') {
