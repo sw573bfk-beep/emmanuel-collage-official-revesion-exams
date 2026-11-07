@@ -89,9 +89,13 @@ function questionCard(Q, opts = {}) {
 }
 
 /* ================= router ================= */
-const VIEWS = ['home', 'need', 'learn', 'practice', 'booklet', 'graph', 'exam', 'cards', 'glossary', 'theory'];
+const VIEWS = ['home', 't1', 't2', 't3', 't4', 't5', 't6', 't7', 't8', 't9', 'practice', 'booklet'];
+const topicTab = tid => 't' + (Math.max(0, TOPICS.findIndex(x => x.id === tid)) + 1);
+// old addresses and buttons still work: they go to where that thing lives now
+const ALIAS = { need: 'home', learn: () => topicTab(state.learn), exam: () => { state.pmode = 'test'; return 'practice'; }, graph: () => { state.bmode = 'graph'; return 'booklet'; }, theory: () => { state.bmode = 'theory'; return 'booklet'; }, cards: 'home', glossary: 'home', tools: 'home', ask: 'home' };
 const RENDER = {}; const rendered = {};
 function show(view, force) {
+  if (ALIAS[view]) { const tgt = typeof ALIAS[view] === 'function' ? ALIAS[view]() : ALIAS[view]; rendered[tgt] = false; location.replace('#' + tgt); return; }
   if (!VIEWS.includes(view)) view = 'home';
   $$('.view').forEach(s => { s.hidden = s.id !== 'v-' + view; });
   $$('#tabs a').forEach(a => { const on = a.dataset.v === view; a.classList.toggle('on', on); if (on) { a.setAttribute('aria-current', 'page'); a.scrollIntoView({ block: 'nearest', inline: 'nearest' }); } else a.removeAttribute('aria-current'); });
@@ -121,12 +125,12 @@ function bkRefLinks(ref) {
 }
 function openBooklet(id) {
   const q = BOOKLET.find(x => x.id === id) || BOOKLET.find(x => x.part === id[0]);
-  state.bkPart = q ? q.part : 'A';
+  state.bkPart = q ? q.part : 'A'; state.bmode = 'work';
   go('booklet', () => { const t = document.getElementById('bk-' + id); if (t) { t.scrollIntoView({ behavior: 'smooth', block: 'start' }); t.animate?.([{ outline: '3px solid var(--accent)' }, { outline: '3px solid transparent' }], { duration: 1600 }); } });
 }
-function openPractice(tid) { state.practice = tid; go('practice'); }
-function openLearn(tid) { state.learn = tid; store.set('learnTopic', tid); go('learn'); }
-function openTool() { go('graph'); }
+function openPractice(tid) { state.practice = tid; state.pmode = tid === 'mix' || tid === 'weak' ? 'mix' : 'topic'; go('practice'); }
+function openLearn(tid) { state.learn = tid; store.set('learnTopic', tid); go(topicTab(tid)); }
+function openTool() { state.bmode = 'graph'; go('booklet'); }
 RENDER.home = () => {
   const v = $('#v-home'); v.innerHTML = '';
   const totalA = Object.values(tstats).reduce((s, x) => s + x.a, 0), totalC = Object.values(tstats).reduce((s, x) => s + x.c, 0);
@@ -146,7 +150,7 @@ RENDER.home = () => {
     <div><span class="eyebrow">Today’s plan</span><h2>${allDone ? 'All done for today!' : 'Do these 3 things today'}</h2>
     <p class="muted">${allDone ? 'Great work. Come back tomorrow for a new plan, or keep going with anything below.' : 'Today’s focus is <b>' + ft.name + '</b>, because ' + pl.why + '.'}</p></div>
     <ol class="plan-steps">${steps.map((x, i) => '<li class="' + (x.done ? 'done' : '') + '"><span class="n">' + (x.done ? '✓' : i + 1) + '</span><div class="stack" style="gap:6px"><h3>' + x.title + '</h3><p>' + x.text + '</p>' + (x.done ? '<span class="small" style="color:var(--good);font-weight:600">Done</span>' : x.btn) + '</div></li>').join('')}</ol>
-    <p class="small muted">Want something else? Everything is still in the tabs above: <button type="button" class="reflink" data-go="need">Need to know</button>, <button type="button" class="reflink" data-go="booklet">Workbook Qs</button>, <button type="button" class="reflink" data-go="graph">Graph task</button>, <button type="button" class="reflink" data-go="theory">Completed booklet</button>.</p>
+    <p class="small muted">Want something else? Pick a topic below or in the tabs, or open <button type="button" class="reflink" data-go="practice">Practice</button> or the <button type="button" class="reflink" data-go="booklet">Booklet</button> (workbook questions, graph task and the completed booklet).</p>
   </div>`);
   v.appendChild(start);
   const rd = $('[data-plan="read"]', start); if (rd) rd.onclick = () => openLearn(pl.focus);
@@ -163,18 +167,12 @@ RENDER.home = () => {
   $$('[data-go]', start).forEach(b => b.onclick = () => { const g = b.dataset.go; if (g === 'practice-mix') openPractice('mix'); else go(g); });
   $('#examDate', stats).onchange = e => { store.set('examDate', e.target.value); RENDER.home(); };
 
-  // topic progress
-  const prog = h('<div class="card stack"><div class="row" style="justify-content:space-between"><h3>All topics</h3><span class="small muted">Tap a topic to learn it. The bar shows how many you’ve got right.</span></div><div class="grid2" id="unitGrid"></div></div>');
-  UNITS.forEach(u => {
-    const box = h('<div class="stack" style="gap:8px"><div><span class="eyebrow">' + u.ch + '</span><h4>' + u.name + '</h4></div><div class="unit-prog"></div></div>');
-    TOPICS.filter(t => t.unit === u.id).forEach(t => {
-      const a = acc(t.id), s = tstats[t.id];
-      const left = h('<div><button type="button" class="reflink" style="font-family:var(--f-body);font-size:.92rem;text-decoration:none;color:var(--ink);text-align:left"><span class="tag">' + t.id + '</span> ' + t.name + '</button><div class="bar ' + (a !== null && a >= 0.8 ? 'good' : '') + '" style="margin-top:4px"><i style="width:' + (a === null ? 0 : Math.round(a * 100)) + '%"></i></div></div>');
-      $('button', left).onclick = () => openLearn(t.id);
-      box.lastChild.appendChild(left);
-      box.lastChild.appendChild(h('<span class="small muted" style="font-variant-numeric:tabular-nums">' + (s ? Math.round(a * 100) + '% of ' + s.a : 'not started') + '</span>'));
-    });
-    $('#unitGrid', prog).appendChild(box);
+  // the 9 topics as big buttons
+  const prog = h('<div class="card stack"><div class="row" style="justify-content:space-between"><h3>The 9 topics</h3><span class="small muted">Tap a topic to open everything for it. The bar shows how many you’ve got right.</span></div><div class="topic-btns"></div></div>');
+  TOPICS.forEach((t, i) => {
+    const a = acc(t.id), st = tstats[t.id];
+    const btn = h('<button type="button" class="topic-btn"><span class="tn">' + (i + 1) + '</span><span class="tt">' + t.name + '</span><span class="bar ' + (a !== null && a >= 0.8 ? 'good' : '') + '"><i style="width:' + (a === null ? 0 : Math.round(a * 100)) + '%"></i></span><span class="small muted">' + (st ? Math.round(a * 100) + '% right of ' + st.a : 'not started') + '</span></button>');
+    btn.onclick = () => go('t' + (i + 1)); $('.topic-btns', prog).appendChild(btn);
   });
   v.appendChild(prog);
 
@@ -270,8 +268,8 @@ function pickTopic(sel) {
   return pick(TOPICS).id;
 }
 const sess = { n: 0, c: 0, streak: 0, best: store.get('best', 0) };
-RENDER.practice = () => {
-  const v = $('#v-practice'); v.innerHTML = '';
+const practiceInto = (v) => {
+  v.innerHTML = '';
   v.appendChild(h('<div class="view-head"><h2>Practice</h2><p>Pick a topic, answer the question, press <b>Check</b>. For word equations, type them like <i>magnesium + oxygen → magnesium oxide</i>. You get two tries, and you can always see the working.</p></div>'));
   const ctr = h('<div class="card row" style="justify-content:space-between"><label class="f" style="flex:1 1 260px">Topic' + topicSelect('pSel', state.practice) + '</label><div class="row" id="pStats" style="gap:18px"></div></div>');
   v.appendChild(ctr);
@@ -319,8 +317,8 @@ function markRow(key, row, onChange) {
   no.onclick = () => { bkMarks[key] = bkMarks[key] === 0 ? undefined : 0; store.set('bk', bkMarks); paint(); onChange(); };
   paint(); box.paint = paint; return box;
 }
-RENDER.booklet = () => {
-  const v = $('#v-booklet'); v.innerHTML = '';
+const bookletInto = (v) => {
+  v.innerHTML = '';
   v.appendChild(h('<div class="view-head"><h2>Workbook questions</h2><p>Questions from your Chemistry theory workbook (Part 2) plus the mass number questions. Try it first, then press <b>Check</b> or <b>Answer</b>. For full worked answers at three levels, open the <b>Completed booklet</b> tab.</p></div>'));
   const bar = h('<div class="card row" style="justify-content:space-between"><div class="row" id="bkTabs" role="tablist"></div><div class="row"><span class="small muted" id="bkSum"></span><button type="button" class="btn quiet sm" id="bkAll">Show all answers</button></div></div>');
   v.appendChild(bar);
@@ -380,8 +378,8 @@ RENDER.booklet = () => {
 
 /* ================= EXAM ================= */
 let examTimer = null;
-RENDER.exam = () => {
-  const v = $('#v-exam'); v.innerHTML = ''; clearInterval(examTimer);
+const examInto = (v) => {
+  v.innerHTML = ''; clearInterval(examTimer);
   v.appendChild(h('<div class="view-head"><h2>Test yourself</h2><p>A timed practice exam. Nothing is marked until you press <b>Submit</b>. Then you see your score and the working for every question.</p></div>'));
   const setup = h('<div class="card stack"><h3>Set up your exam</h3><div class="row"><label class="f">Questions<select id="exN"><option>10</option><option selected>20</option><option>30</option><option>40</option></select></label><label class="f">Time limit<select id="exT"><option value="0">No timer</option><option value="10">10 min</option><option value="20">20 min</option><option value="30" selected>30 min</option><option value="45">45 min</option><option value="60">60 min</option></select></label></div><div class="stack" id="exTopics"></div><div class="row"><button type="button" class="btn quiet sm" id="exAll">Select all</button><button type="button" class="btn quiet sm" id="exNone">Clear</button><button type="button" class="btn quiet sm" id="exWeak">My weakest 5</button></div><div><button type="button" class="btn" id="exGo">Start exam</button> <span class="small muted" id="exMsg"></span></div></div>');
   const tbox = $('#exTopics', setup);
@@ -411,7 +409,7 @@ RENDER.exam = () => {
     let armed = false;
     const trySubmit = btn => { const un = n - cards.filter(c => c.answered()).length; if (!armed && un > 0) { armed = true; btn.textContent = un + ' unanswered: tap again to submit'; setTimeout(() => { armed = false; btn.textContent = 'Submit exam'; }, 4000); return; } submit(); };
     $('#exSub', bar).onclick = e => trySubmit(e.target); $('button', bottom).onclick = e => trySubmit(e.target);
-    $('#exQuit', bar).onclick = () => { clearInterval(examTimer); RENDER.exam(); };
+    $('#exQuit', bar).onclick = () => { clearInterval(examTimer); examInto(v); };
     let done = false;
     function submit() {
       if (done) return; done = true; clearInterval(examTimer);
@@ -424,7 +422,7 @@ RENDER.exam = () => {
       const weak = Object.entries(by).filter(([, [a, b]]) => a / b < 0.7).map(([t]) => t);
       const sum = h('<div class="card stack"><span class="eyebrow">Result</span><div class="row" style="align-items:baseline"><span class="bignum ' + (p >= 70 ? 'result-good' : 'result-bad') + '">' + s + '/' + n + '</span><span class="muted">' + p + '% · ' + Math.floor(used / 60) + ' min ' + used % 60 + ' s</span></div><p>' + (p >= 90 ? 'Excellent. You are exam ready on these topics.' : p >= 70 ? 'Solid work. Review the questions you missed below.' : p >= 50 ? 'Getting there. Re-read the notes for your weaker topics and practise them.' : 'Keep going. Start with the notes and worked examples for the topics below, then practise.') + '</p><div class="scroll-x"><table class="res"><tr><th>Topic</th><th>Score</th><th></th></tr>' + Object.entries(by).map(([t, [a, b]]) => '<tr><td><span class="tag">' + t + '</span> ' + TOPIC[t].name + '</td><td class="' + (a / b >= 0.7 ? 'result-good' : 'result-bad') + '">' + a + '/' + b + '</td><td><button type="button" class="btn quiet sm" data-p="' + t + '">Practise</button></td></tr>').join('') + '</table></div><div class="row"><button type="button" class="btn" id="exAgain">New exam</button>' + (weak.length ? '<button type="button" class="btn ghost" id="exWeakAgain">Exam on my weak topics (' + weak.join(', ') + ')</button>' : '') + '</div><p class="small muted">Scroll down to see every question marked, with full working.</p></div>');
       $$('[data-p]', sum).forEach(b => b.onclick = () => openPractice(b.dataset.p));
-      $('#exAgain', sum).onclick = () => RENDER.exam();
+      $('#exAgain', sum).onclick = () => examInto(v);
       if (weak.length) $('#exWeakAgain', sum).onclick = () => runExam(weak, Math.max(10, weak.length * 3), mins);
       v.prepend(sum); window.scrollTo({ top: 0, behavior: 'smooth' });
     }
@@ -495,8 +493,8 @@ const GRAPH_QS = [
   { id: 'g7', q: '<b>7. Describe</b> the trend shown for Salt A. Use data to support your answer. (2 marks)', a: 'The temperature rose quickly at first, from 21.0 °C to 35.2 °C in the first 90 s, peaked at about 36.1 °C at 120 s, then slowly fell to 33.0 °C by 300 s as heat was lost to the surroundings.' },
   { id: 'g8', q: '<b>Extra:</b> is there a result that doesn’t fit the pattern?', a: 'Salt B at 150 s (17.9 °C) looks like an <b>anomaly</b>: the readings around it are 13.4 °C and 14.1 °C. It may be a recording or measuring error, so it is best left out of the trend line.' }
 ];
-RENDER.graph = () => {
-  const v = $('#v-graph'); v.innerHTML = '';
+const graphInto = (v) => {
+  v.innerHTML = '';
   v.appendChild(h('<div class="view-head"><h2>Graph task</h2><p>The salts worksheet: temperature changes when two salts dissolve. Answer the questions, then build the graph by tapping the grid.</p></div>'));
   const tbl = (rows) => '<div class="scroll-x"><table class="vals">' + rows + '</table></div>';
   v.appendChild(h('<div class="card stack"><h3>The investigation</h3><p>5.0 g of each salt was added to 50 mL of distilled water at room temperature in a polystyrene cup. The mixture was stirred and the temperature was recorded every 30 s for 5 minutes. Each experiment was repeated three times and the mean was calculated. <b>Salt A:</b> calcium chloride. <b>Salt B:</b> ammonium nitrate.</p><p class="small"><b>Table 1:</b> Mean temperature (°C)</p>' +
@@ -551,8 +549,8 @@ RENDER.graph = () => {
 /* ================= COMPLETED THEORY BOOKLET (locked) ================= */
 const LEVELS = [['min', 'Minimal'], ['norm', 'Normal'], ['extra', 'Extra info']];
 let theoryData = null;
-RENDER.theory = async () => {
-  const v = $('#v-theory'); v.innerHTML = '';
+const theoryInto = async (v) => {
+  v.innerHTML = '';
   v.appendChild(h('<div class="view-head"><h2>Completed theory booklet</h2><p>The whole Year 8 Chemistry theory workbook, completed. Switch between <b>Minimal</b>, <b>Normal</b> and <b>Extra info</b> answers.</p></div>'));
   const body = h('<div class="stack"><p class="muted">Checking access…</p></div>'); v.appendChild(body);
   let st; try { st = await (await fetch('/api/unlock/theory', { credentials: 'same-origin' })).json(); } catch (e) { body.innerHTML = '<div class="fb bad">Can’t reach the server. Check your connection and try again.</div>'; return; }
@@ -652,6 +650,81 @@ RENDER.need = () => {
   };
   $('#needNew', qq).onclick = () => { load(); document.getElementById('needQs').scrollIntoView({ behavior: 'smooth', block: 'start' }); };
   load();
+};
+
+
+/* ================= TOPIC TABS (1–9): everything for one topic on one page ================= */
+function topicPage(id, v) {
+  const t = TOPIC[id]; const n = TOPICS.indexOf(t) + 1; const Q = QUICK[id];
+  v.innerHTML = ''; planTick('read', id); state.learn = id; store.set('learnTopic', id);
+  const head = h('<div class="card stack"><div class="row" style="justify-content:space-between;align-items:flex-end"><div><span class="eyebrow">Topic ' + n + ' of ' + TOPICS.length + ' · Checklist section ' + n + '</span><h2>' + t.name + '</h2></div><div class="row"></div></div><div class="row topic-jump" style="gap:6px"></div></div>');
+  const btns = $('.row .row', head);
+  const pb = h('<button type="button" class="btn">Practise this topic</button>'); pb.onclick = () => openPractice(id); btns.appendChild(pb);
+  if (t.tool) { const gb = h('<button type="button" class="btn ghost">Graph task</button>'); gb.onclick = () => openTool(); btns.appendChild(gb); }
+  [['tq', 'Quick version'], ['tn', 'Notes'], ['tx', 'Examples'], ['tw', 'Key words'], ['tf', 'Flashcards'], ['tp', 'Questions'], ['tb', 'Workbook']].forEach(([k, l]) => { const c = h('<button type="button" class="chip">' + l + '</button>'); c.onclick = () => document.getElementById(k + '-' + id).scrollIntoView({ behavior: 'smooth', block: 'start' }); $('.topic-jump', head).appendChild(c); });
+  v.appendChild(head);
+  if (Q) v.appendChild(h('<div class="card quick stack topic-sec" id="tq-' + id + '"><span class="eyebrow">1 · The quick version</span><p class="quick-what">' + Q.what + '</p><ol class="quick-steps">' + Q.steps.map(x => '<li>' + x + '</li>').join('') + '</ol><p class="quick-eg"><b>Example:</b> ' + Q.eg + '</p></div>'));
+  const notes = h('<div class="card notes topic-sec" id="tn-' + id + '"><span class="eyebrow">2 · Notes and diagrams</span></div>'); notes.insertAdjacentHTML('beforeend', t.notes()); v.appendChild(notes);
+  const ex = h('<div class="card stack topic-sec" id="tx-' + id + '"><span class="eyebrow">3 · Worked examples</span><p class="small muted">Tap an example to see every step.</p></div>');
+  t.ex.forEach(e => { const d = h('<details class="ex"><summary>' + e.q + '</summary></details>'); d.insertAdjacentHTML('beforeend', stepsHTML(e.s)); ex.appendChild(d); });
+  if (t.mistakes) ex.insertAdjacentHTML('beforeend', '<h4 style="margin-top:6px">Watch out for</h4>' + t.mistakes.map(m => '<p class="mistake">' + m + '</p>').join(''));
+  v.appendChild(ex);
+  const words = GLOSS.filter(g => g[2] === id);
+  const wc = h('<div class="card stack topic-sec" id="tw-' + id + '"><span class="eyebrow">4 · Key words</span><dl class="gl-list"></dl></div>');
+  if (!words.length) wc.appendChild(h('<p class="muted small">No special words for this topic.</p>'));
+  words.forEach(g => { const it = h('<div class="gl-item"><dt><span></span></dt><dd></dd></div>'); $('dt span', it).textContent = g[0]; $('dd', it).textContent = g[1]; $('dl', wc).appendChild(it); });
+  v.appendChild(wc);
+  const cards = FLASH.filter(f => f[0] === id);
+  const fc = h('<div class="card stack topic-sec" id="tf-' + id + '"><span class="eyebrow">5 · Flashcards</span><p class="small muted">Tap a card to flip it.</p><div class="mini-cards"></div></div>');
+  cards.forEach(c => { const b = h('<button type="button" class="mini-card"><span class="front"></span><span class="back" hidden></span></button>'); $('.front', b).innerHTML = c[1]; $('.back', b).innerHTML = c[2]; b.onclick = () => { const f = $('.front', b), k = $('.back', b); f.hidden = !f.hidden; k.hidden = !k.hidden; b.classList.toggle('flipped', !k.hidden); }; $('.mini-cards', fc).appendChild(b); });
+  if (!cards.length) fc.appendChild(h('<p class="muted small">No flashcards for this topic.</p>'));
+  v.appendChild(fc);
+  const qc = h('<div class="card stack topic-sec" id="tp-' + id + '"><div class="row" style="justify-content:space-between"><span class="eyebrow">6 · Practice questions</span><button type="button" class="btn quiet sm">New questions</button></div><div class="stack tq-list" style="gap:16px"></div><button type="button" class="btn ghost sm" style="align-self:flex-start">Keep practising this topic in Practice →</button></div>');
+  const loadQs = () => { const host = $('.tq-list', qc); host.innerHTML = ''; for (let i = 0; i < 3; i++) { const w = h('<div class="need-q"></div>'); w.appendChild(questionCard(makeQ(pick(TOPIC_GENS[id])), { num: (i + 1) + ' of 3', onAnswer: (ok, partial) => { if (!partial) record(id, ok); } }).el); host.appendChild(w); } };
+  $('.row .btn', qc).onclick = loadQs; qc.lastElementChild.onclick = () => openPractice(id); loadQs(); v.appendChild(qc);
+  const bq = BOOKLET.filter(q => t.bk.includes(q.id));
+  const bc = h('<div class="card stack topic-sec" id="tb-' + id + '"><span class="eyebrow">7 · Workbook questions on this topic</span></div>');
+  if (!bq.length) bc.appendChild(h('<p class="muted small">No workbook questions for this topic. Use the practice questions above.</p>'));
+  bq.forEach(q => { const r = h('<div class="row" style="justify-content:space-between;border-top:1px dotted var(--rule);padding-top:8px"><span><b>' + q.id + '</b> ' + q.text + '</span><button type="button" class="btn quiet sm">Open in Booklet</button></div>'); $('button', r).onclick = () => openBooklet(q.id); bc.appendChild(r); });
+  const cans = h('<div class="stack" style="gap:6px;margin-top:6px"><h4>Checklist: how confident are you?</h4><ul class="cans"></ul></div>');
+  t.cans.forEach((c, i) => { const li = h('<li><span>I can ' + c.charAt(0).toLowerCase() + c.slice(1) + '</span></li>'); li.appendChild(confButtons(t.id + ':' + i, canStore, 'can')); $('ul', cans).appendChild(li); });
+  bc.appendChild(cans); v.appendChild(bc);
+  const nav = h('<div class="row" style="justify-content:space-between"></div>');
+  if (n > 1) { const b = h('<button type="button" class="btn quiet">← ' + (n - 1) + '. ' + TOPICS[n - 2].name + '</button>'); b.onclick = () => go('t' + (n - 1)); nav.appendChild(b); } else nav.appendChild(h('<span></span>'));
+  if (n < TOPICS.length) { const b = h('<button type="button" class="btn quiet">' + (n + 1) + '. ' + TOPICS[n].name + ' →</button>'); b.onclick = () => go('t' + (n + 1)); nav.appendChild(b); }
+  v.appendChild(nav);
+}
+TOPICS.forEach((t, i) => { RENDER['t' + (i + 1)] = () => topicPage(t.id, $('#v-t' + (i + 1))); });
+
+/* ================= PRACTICE tab: Mixed / One topic / Timed test ================= */
+RENDER.practice = () => {
+  const v = $('#v-practice'); v.innerHTML = '';
+  const modes = [['mix', 'Mixed', 'Questions from all 9 topics'], ['topic', 'One topic', 'Pick a topic'], ['test', 'Timed test', 'Marked at the end, like the exam']];
+  if (!state.pmode) state.pmode = 'mix';
+  const bar = h('<div class="mode-bar" role="tablist" aria-label="Practice mode"></div>'); v.appendChild(bar);
+  const host = h('<div class="view"></div>'); v.appendChild(host);
+  const draw = () => {
+    bar.innerHTML = '';
+    modes.forEach(([k, l, sub]) => { const b = h('<button type="button" class="mode" role="tab"><b>' + l + '</b><span>' + sub + '</span></button>'); b.classList.toggle('on', state.pmode === k); b.setAttribute('aria-selected', state.pmode === k); b.onclick = () => { state.pmode = k; if (k === 'mix') state.practice = 'mix'; if (k === 'topic' && !TOPIC[state.practice]) state.practice = getPlan().focus; draw(); }; bar.appendChild(b); });
+    if (state.pmode === 'test') examInto(host);
+    else { if (state.pmode === 'mix' && TOPIC[state.practice]) state.practice = 'mix'; if (state.pmode === 'topic' && !TOPIC[state.practice]) state.practice = getPlan().focus; practiceInto(host); }
+  };
+  draw();
+};
+
+/* ================= BOOKLET tab: Workbook questions / Graph task / Completed booklet ================= */
+RENDER.booklet = () => {
+  const v = $('#v-booklet'); v.innerHTML = '';
+  const modes = [['work', 'Workbook questions', 'Part 2 and mass number'], ['graph', 'Graph task', 'The salts worksheet'], ['theory', 'Completed booklet 🔒', 'Needs an unlock code']];
+  if (!state.bmode) state.bmode = 'work';
+  const bar = h('<div class="mode-bar" role="tablist" aria-label="Booklet section"></div>'); v.appendChild(bar);
+  const host = h('<div class="view"></div>'); v.appendChild(host);
+  const draw = () => {
+    bar.innerHTML = '';
+    modes.forEach(([k, l, sub]) => { const b = h('<button type="button" class="mode" role="tab"><b>' + l + '</b><span>' + sub + '</span></button>'); b.classList.toggle('on', state.bmode === k); b.setAttribute('aria-selected', state.bmode === k); b.onclick = () => { state.bmode = k; draw(); }; bar.appendChild(b); });
+    if (state.bmode === 'graph') graphInto(host); else if (state.bmode === 'theory') theoryInto(host); else bookletInto(host);
+  };
+  draw();
 };
 
 /* ================= theme + boot ================= */

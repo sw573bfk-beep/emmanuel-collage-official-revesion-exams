@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-build="1794028701">
+<html lang="en" data-build="1794042420">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -189,6 +189,26 @@ svg{max-width:100%;height:auto}
 .th-foot{display:flex;justify-content:space-between;border-top:1px solid var(--rule);padding-top:8px;font-size:.8rem;color:var(--muted)}
 .th-foot b{color:var(--ink)}
 .chart-svg .pl{stroke-width:2.2}
+/* 12-tab layout */
+.tabs a .tabn{display:inline-grid;place-items:center;width:20px;height:20px;border-radius:50%;background:var(--accent-soft);color:var(--accent);font-size:.75rem;font-weight:700;margin-right:2px}
+.tabs a.on .tabn{background:var(--accent);color:var(--accent-ink)}
+.topic-btns{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,230px),1fr));gap:10px}
+.topic-btn{display:grid;grid-template-columns:auto 1fr;gap:4px 10px;align-items:center;text-align:left;font:inherit;color:var(--ink);background:var(--card);border:1.5px solid var(--rule);border-radius:12px;padding:12px 14px;cursor:pointer}
+.topic-btn:hover{border-color:var(--accent)}
+.topic-btn .tn{grid-row:span 3;width:34px;height:34px;border-radius:50%;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;font-family:var(--f-display);font-weight:800}
+.topic-btn .tt{font-weight:600;line-height:1.3}
+.topic-btn .bar{height:8px}
+.topic-sec{scroll-margin-top:70px}
+.mode-bar{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,180px),1fr));gap:8px}
+.mode{display:flex;flex-direction:column;gap:2px;text-align:left;font:inherit;color:var(--ink);background:var(--card);border:1.5px solid var(--rule);border-radius:10px;padding:10px 14px;cursor:pointer}
+.mode:hover{border-color:var(--accent)}
+.mode.on{border-color:var(--accent);background:var(--accent);color:var(--accent-ink)}
+.mode span{font-size:.8rem;opacity:.8}
+.mini-cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:10px}
+.mini-card{min-height:96px;text-align:center;font:inherit;color:var(--ink);background:var(--card);border:1.5px solid var(--rule);border-radius:12px;padding:14px;cursor:pointer;display:grid;place-items:center}
+.mini-card:hover{border-color:var(--accent)}
+.mini-card.flipped{background:var(--accent-soft);border-color:var(--accent)}
+.mini-card .front{font-weight:600}
 /* today's plan */
 .plan{border:2px solid var(--accent)}
 .plan-steps{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:14px}
@@ -335,28 +355,32 @@ footer.foot{max-width:1180px;margin:0 auto;padding-block:0 40px;padding-left:max
 <nav class="tabs" aria-label="Sections">
   <div class="tabs-in" id="tabs">
     <a href="#home" data-v="home">Home</a>
-    <a href="#need" data-v="need">Need to know</a>
-    <a href="#learn" data-v="learn">Learn</a>
+    <a href="#t1" data-v="t1"><span class="tabn">1</span> Changes</a>
+    <a href="#t2" data-v="t2"><span class="tabn">2</span> Observing</a>
+    <a href="#t3" data-v="t3"><span class="tabn">3</span> Reactants &amp; products</a>
+    <a href="#t4" data-v="t4"><span class="tabn">4</span> Word equations</a>
+    <a href="#t5" data-v="t5"><span class="tabn">5</span> Conservation of mass</a>
+    <a href="#t6" data-v="t6"><span class="tabn">6</span> Exo &amp; endo</a>
+    <a href="#t7" data-v="t7"><span class="tabn">7</span> Combustion</a>
+    <a href="#t8" data-v="t8"><span class="tabn">8</span> Corrosion</a>
+    <a href="#t9" data-v="t9"><span class="tabn">9</span> Exam skills</a>
     <a href="#practice" data-v="practice">Practice</a>
-    <a href="#booklet" data-v="booklet">Workbook Qs</a>
-    <a href="#graph" data-v="graph">Graph task</a>
-    <a href="#exam" data-v="exam">Test yourself</a>
-    <a href="#cards" data-v="cards">Flashcards</a>
-    <a href="#glossary" data-v="glossary">Science words</a>
-    <a href="#theory" data-v="theory">Completed booklet 🔒</a>
+    <a href="#booklet" data-v="booklet">Booklet</a>
   </div>
 </nav>
 <main class="wrap">
   <section id="v-home" class="view"><p class="muted">Loading your progress…</p></section>
-  <section id="v-need" class="view" hidden></section>
-  <section id="v-learn" class="view" hidden></section>
+  <section id="v-t1" class="view" hidden></section>
+  <section id="v-t2" class="view" hidden></section>
+  <section id="v-t3" class="view" hidden></section>
+  <section id="v-t4" class="view" hidden></section>
+  <section id="v-t5" class="view" hidden></section>
+  <section id="v-t6" class="view" hidden></section>
+  <section id="v-t7" class="view" hidden></section>
+  <section id="v-t8" class="view" hidden></section>
+  <section id="v-t9" class="view" hidden></section>
   <section id="v-practice" class="view" hidden></section>
   <section id="v-booklet" class="view" hidden></section>
-  <section id="v-exam" class="view" hidden></section>
-  <section id="v-graph" class="view" hidden></section>
-  <section id="v-theory" class="view" hidden></section>
-  <section id="v-cards" class="view" hidden></section>
-  <section id="v-glossary" class="view" hidden></section>
 </main>
 <footer class="foot">Year 8 Chemistry revision (Exam Checklist 2: chemical changes and reactions). Your progress is saved to your account. Beau, who runs EC Revisions, can see your name, when you study and for how long, and your scores.</footer>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
