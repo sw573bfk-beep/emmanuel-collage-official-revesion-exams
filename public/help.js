@@ -185,3 +185,27 @@
   if (!seen) setTimeout(() => { if (!T) openPanel(); }, PAGE === 'start' || PAGE === 'feedback' ? 600 : 1300);
   window.ecHelp = { open: openPanel, tour: () => tour(0) };
 })();
+
+/* Shared "Are you sure?" box, used by the Log out buttons. Resolves true or false. */
+window.ecConfirm = ({ title = 'Are you sure?', text = '', yes = 'Yes', no = 'Cancel' } = {}) => new Promise(resolve => {
+  if (!document.getElementById('ecConfirmCss')) {
+    const st = document.createElement('style'); st.id = 'ecConfirmCss';
+    st.textContent = `.ecc-back{position:fixed;inset:0;z-index:1100;background:rgba(10,15,30,.5);display:grid;place-items:center;padding:16px}
+.ecc{width:min(380px,100%);background:var(--card,#fff);color:var(--ink,#18202f);border-radius:14px;box-shadow:0 12px 40px rgba(0,0,0,.3);padding:20px;font-family:var(--f-body,system-ui,sans-serif)}
+.ecc h2{margin:0 0 6px;font-family:var(--f-display,inherit);font-size:1.25rem}.ecc p{margin:0 0 16px;line-height:1.5;color:var(--muted,#566077)}
+.ecc .r{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
+.ecc button{font:600 1rem var(--f-body,system-ui,sans-serif);border-radius:10px;padding:10px 16px;cursor:pointer;border:1px solid var(--rule,#c9d3e4);background:var(--card,#fff);color:inherit}
+.ecc button.y{background:var(--accent,#2453d6);border-color:var(--accent,#2453d6);color:var(--accent-ink,#fff)}`;
+    document.head.appendChild(st);
+  }
+  const back = document.createElement('div'); back.className = 'ecc-back';
+  back.innerHTML = '<div class="ecc" role="alertdialog" aria-modal="true" aria-labelledby="eccT" aria-describedby="eccP"><h2 id="eccT"></h2><p id="eccP"></p><div class="r"><button type="button" class="n"></button><button type="button" class="y"></button></div></div>';
+  back.querySelector('h2').textContent = title; back.querySelector('p').textContent = text; back.querySelector('.n').textContent = no; back.querySelector('.y').textContent = yes;
+  const prev = document.activeElement;
+  const done = v => { document.removeEventListener('keydown', key, true); back.remove(); if (prev && prev.focus) prev.focus(); resolve(v); };
+  const key = e => { if (e.key === 'Escape') { e.preventDefault(); done(false); } else if (e.key === 'Tab') { const b = [...back.querySelectorAll('button')]; const i = b.indexOf(document.activeElement); e.preventDefault(); b[(i + (e.shiftKey ? b.length - 1 : 1)) % b.length].focus(); } };
+  back.querySelector('.n').onclick = () => done(false); back.querySelector('.y').onclick = () => done(true);
+  back.onclick = e => { if (e.target === back) done(false); };
+  document.addEventListener('keydown', key, true); document.body.appendChild(back); back.querySelector('.n').focus();
+});
+window.ecConfirmLogout = () => window.ecConfirm({ title: 'Log out?', text: 'Are you sure you want to log out? Your progress is saved to your account.', yes: 'Yes, log out', no: 'Stay logged in' });

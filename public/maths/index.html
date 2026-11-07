@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-build="1794043716">
+<html lang="en" data-build="1794044470">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -367,6 +367,7 @@ footer.foot{max-width:1180px;margin:0 auto;padding-block:0 40px;padding-left:max
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') save(true); });
   window.addEventListener('pagehide', () => save(true));
   document.getElementById('logoutBtn').onclick = async () => {
+    if (!(window.ecConfirmLogout ? await window.ecConfirmLogout() : confirm('Are you sure you want to log out?'))) return;
     await save(true);
     try { await fetch('/api/logout', { method: 'POST', credentials: 'same-origin', headers: { 'content-type': 'application/json' }, body: '{}' }); } catch (e) { /* offline */ }
     clearLocal(); location.href = '/';

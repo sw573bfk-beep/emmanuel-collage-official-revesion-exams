@@ -38,6 +38,7 @@
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') save(true); });
   window.addEventListener('pagehide', () => save(true));
   document.getElementById('logoutBtn').onclick = async () => {
+    if (!(window.ecConfirmLogout ? await window.ecConfirmLogout() : confirm('Are you sure you want to log out?'))) return;
     await save(true);
     try { await fetch('/api/logout', { method: 'POST', credentials: 'same-origin', headers: { 'content-type': 'application/json' }, body: '{}' }); } catch (e) { /* offline */ }
     clearLocal(); location.href = '/';

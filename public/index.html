@@ -117,6 +117,11 @@ details.acct[open] summary{margin-bottom:12px}
     let data = {}; try { data = await r.json(); } catch (e) { /* empty body */ }
     return { ok: r.ok, status: r.status, data };
   }
+  // The name and password are saved in this browser (as asked) and filled in on the login form.
+  const LK = { u: 'ec:username', p: 'ec:password' };
+  function saveLogin(u, pw) { try { if (u == null) { localStorage.removeItem(LK.u); localStorage.removeItem(LK.p); } else { localStorage.setItem(LK.u, u); if (pw != null) localStorage.setItem(LK.p, pw); } } catch (e) { /* storage blocked */ } }
+  function fillSaved() { try { const u = localStorage.getItem(LK.u), pw = localStorage.getItem(LK.p); if (u && !$('#username').value) $('#username').value = u; if (pw && !$('#password').value) $('#password').value = pw; } catch (e) { /* storage blocked */ } }
+  function clearProgress() { try { Object.keys(localStorage).filter(k => /^y8[ms]:/.test(k) && !/:theme$/.test(k)).forEach(k => localStorage.removeItem(k)); } catch (e) { /* storage blocked */ } }
   function show(view) { $('#loading').hidden = true; $('#authView').hidden = view !== 'auth'; $('#pickView').hidden = view !== 'pick'; $('#whoBox').hidden = view !== 'pick'; }
   function setMode(m) {
     mode = m; const su = m === 'signup';
@@ -125,6 +130,7 @@ details.acct[open] summary{margin-bottom:12px}
     $('#confirmWrap').hidden = !su; $('#rules').hidden = !su; $('#nameHint').hidden = !su; $('#notice').hidden = !su; $('#authMsg').hidden = true;
     $('#authBtn').textContent = su ? 'Create account' : 'Log in';
     $('#password').autocomplete = su ? 'new-password' : 'current-password';
+    if (su) { $('#password').value = ''; $('#confirm').value = ''; } else fillSaved();
   }
   function picked(me) {
     if (next === 'maths' || next === 'science' || next === 'feedback') { location.replace('/' + next + '/'); return; }
@@ -154,21 +160,23 @@ details.acct[open] summary{margin-bottom:12px}
     try {
       const r = await api(mode === 'signup' ? '/api/signup' : '/api/login', 'POST', { username, password });
       if (!r.ok) return fail(r.data.error || 'Something went wrong. Try again.');
+      saveLogin(username, password);
       $('#password').value = ''; $('#confirm').value = '';
       const me = await api('/api/me'); picked(me.data);
     } catch (err) { fail('Can’t reach the server. Check your internet connection.'); }
     finally { btn.disabled = false; btn.textContent = mode === 'signup' ? 'Create account' : 'Log in'; }
   };
   $('#logout').onclick = async () => {
+    if (!(window.ecConfirmLogout ? await window.ecConfirmLogout() : confirm('Are you sure you want to log out?'))) return;
     await api('/api/logout', 'POST', {});
-    try { Object.keys(localStorage).filter(k => k.startsWith('y8m:') && k !== 'y8m:theme').forEach(k => localStorage.removeItem(k)); } catch (e) { /* storage blocked */ }
-    setMode('login'); show('auth');
+    clearProgress();
+    setMode('login'); fillSaved(); show('auth');
   };
   $('#pwForm').onsubmit = async e => {
     e.preventDefault(); const m = $('#pwMsg');
     const r = await api('/api/password', 'POST', { current: $('#pwCur').value, next: $('#pwNew').value });
     m.className = 'msg ' + (r.ok ? 'good' : 'bad'); m.textContent = r.ok ? 'Password changed. Other devices have been logged out.' : (r.data.error || 'Couldn’t change the password.'); m.hidden = false;
-    if (r.ok) { $('#pwCur').value = ''; $('#pwNew').value = ''; }
+    if (r.ok) { try { if (localStorage.getItem(LK.p) !== null) saveLogin($('#who').textContent, $('#pwNew').value); } catch (e2) { /* storage blocked */ } $('#pwCur').value = ''; $('#pwNew').value = ''; }
   };
   let armed = false;
   $('#delForm').onsubmit = async e => {
@@ -176,12 +184,13 @@ details.acct[open] summary{margin-bottom:12px}
     if (!armed) { armed = true; $('#delBtn').textContent = 'Tap again to delete everything'; setTimeout(() => { armed = false; $('#delBtn').textContent = 'Delete my account'; }, 5000); return; }
     const r = await api('/api/delete-account', 'POST', { password: $('#delPw').value });
     if (!r.ok) { m.textContent = r.data.error || 'Couldn’t delete the account.'; m.hidden = false; return; }
-    try { Object.keys(localStorage).filter(k => k.startsWith('y8m:') && k !== 'y8m:theme').forEach(k => localStorage.removeItem(k)); } catch (e2) { /* storage blocked */ }
+    clearProgress(); saveLogin(null);
+    $('#username').value = ''; $('#password').value = '';
     setMode('login'); show('auth');
   };
   (async () => {
     try { const me = await api('/api/me'); if (me.ok) return picked(me.data); } catch (e) { /* offline: show the form */ }
-    setMode(next ? 'login' : 'login'); show('auth');
+    setMode('login'); show('auth');
   })();
 })();
 </script>
