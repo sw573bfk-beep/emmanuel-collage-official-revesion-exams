@@ -592,14 +592,16 @@ const theoryInto = async (v) => {
 };
 function lockedView(body) {
   body.innerHTML = '';
-  const c = h('<div class="card stack lock-card"><span class="eyebrow">Locked</span><h3>Enter your unlock code</h3><p>Got a 6-digit code? Type it below. Each code works once, and then this account can open the completed booklet forever.</p><form class="row" id="unlockForm"><label class="sr" for="codeIn">Unlock code</label><input id="codeIn" class="ans" inputmode="numeric" autocomplete="one-time-code" maxlength="7" placeholder="e.g. 482913" style="width:min(100%,200px);font-size:1.2rem;letter-spacing:.15em"><button class="btn" type="submit">Unlock</button></form><div id="unlockMsg"></div></div>');
+  const c = h('<div class="card stack lock-card"><span class="eyebrow">Locked</span><h3>Enter your unlock code</h3><p>Got a 6-digit code? Type it below. Each code works once, and then this account can open the completed booklet forever.</p><form class="row" id="unlockForm"><label class="sr" for="codeIn">Unlock code</label><input id="codeIn" class="ans" inputmode="numeric" autocomplete="one-time-code" maxlength="7" placeholder="e.g. 482913" style="width:min(100%,200px);font-size:1.2rem;letter-spacing:.15em"><button class="btn" type="submit">Unlock</button></form><p class="small muted" id="askBeau" hidden>Don’t have a code? Ask Beau for one.</p><div id="unlockMsg"></div></div>');
   body.appendChild(c);
+  const ask = () => { $('#askBeau', c).hidden = false; };
+  $('#codeIn', c).addEventListener('focus', ask); $('#codeIn', c).addEventListener('click', ask);
   $('#unlockForm', c).onsubmit = async e => {
     e.preventDefault(); const m = $('#unlockMsg', c); m.innerHTML = '';
     try {
       const r = await fetch('/api/unlock', { method: 'POST', credentials: 'same-origin', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ code: $('#codeIn', c).value }) });
       const j = await r.json();
-      if (!r.ok) { m.innerHTML = '<div class="fb bad">' + esc(j.error || 'That didn’t work.') + '</div>'; return; }
+      if (!r.ok) { ask(); m.innerHTML = '<div class="fb bad">' + esc(j.error || 'That didn’t work.') + '</div>'; return; }
       toast('Unlocked'); loadTheory(body);
     } catch (err) { m.innerHTML = '<div class="fb bad">Can’t reach the server. Try again.</div>'; }
   };

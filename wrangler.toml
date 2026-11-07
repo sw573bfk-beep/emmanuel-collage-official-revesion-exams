@@ -15,7 +15,7 @@ ADMIN_USERNAME = "Beau"
 # so a deploy is a single upload.
 [[rules]]
 type = "Text"
-globs = ["**/*.html", "**/*.css", "**/public/**/*.js"]
+globs = ["**/*.html", "**/*.css", "**/public/**/*.js", "**/public/*.js"]
 fallthrough = false
 
 # Created with:  npx wrangler d1 create ec-revisions-db --location oc (Oceania, close to Queensland)
