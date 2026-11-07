@@ -32,7 +32,7 @@ details.acct[open] summary{margin-bottom:12px}
 <body>
 <main class="wrap">
   <div class="top">
-    <div class="brand"><span class="mark">year 8 · week 7</span><h1>EC Revisions</h1><p id="tagline">Maths and Science exam revision. Make a free account so your progress is saved and follows you to any device.</p></div>
+    <div class="brand"><span class="mark">year 8 · week 7</span><h1>EC Revisions</h1><p id="tagline">Year 8 Maths and Science exam revision. Make a free account so your progress is saved and follows you to any device.</p></div>
     <div class="row" id="whoBox" hidden><span class="muted small">Logged in as <b id="who"></b></span><button class="btn quiet sm" type="button" id="logout">Log out</button></div>
   </div>
 
@@ -76,9 +76,11 @@ details.acct[open] summary{margin-bottom:12px}
       </article>
       <article class="card subject science">
         <span class="glyph">H₂O</span>
-        <h2>Science <span class="soon">Coming soon</span></h2>
-        <p class="muted">Science revision is being built next. It will use the same account, so your progress will be saved here too.</p>
-        <button class="btn sci" type="button" disabled>Not ready yet</button>
+        <h2>Science</h2>
+        <p class="muted">Chemistry exam revision: physical and chemical change, reactions, word equations, conservation of mass, exothermic and endothermic, combustion and corrosion.</p>
+        <ul><li>Quick notes for every checklist section</li><li>Practice questions and workbook questions</li><li>The salts graph task</li><li>Completed theory booklet (unlock code needed)</li></ul>
+        <p class="small muted" id="sciLast"></p>
+        <a class="btn sci" href="/science/">Study Science →</a>
       </article>
     </div>
     <details class="card acct">
@@ -124,12 +126,14 @@ details.acct[open] summary{margin-bottom:12px}
     $('#password').autocomplete = su ? 'new-password' : 'current-password';
   }
   function picked(me) {
-    if (next === 'maths') { location.replace('/maths/'); return; }
+    if (next === 'maths' || next === 'science') { location.replace('/' + next + '/'); return; }
     if (next === 'admin' && me.admin) { location.replace('/admin/'); return; }
     $('#adminCard').hidden = !me.admin;
     $('#who').textContent = me.username; $('#who2').textContent = me.username;
     const t = me.subjects && me.subjects.maths;
     $('#mathsLast').textContent = t ? 'Last saved ' + new Date(t * 1000).toLocaleString('en-AU', { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }) : 'Not started yet';
+    const ts = me.subjects && me.subjects.science;
+    $('#sciLast').textContent = ts ? 'Last saved ' + new Date(ts * 1000).toLocaleString('en-AU', { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }) : 'Not started yet';
     show('pick');
   }
   $('#tabLogin').onclick = () => setMode('login');

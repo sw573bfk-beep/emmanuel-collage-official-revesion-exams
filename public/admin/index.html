@@ -70,6 +70,8 @@ details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
       <div class="tile"><span class="v" id="tTimeWeek">0</span><span class="l">study time, last 7 days</span></div>
       <div class="tile"><span class="v" id="tTimeAll">0</span><span class="l">study time, all time</span></div>
       <div class="tile"><span class="v" id="tQs">0</span><span class="l">maths questions answered</span></div>
+      <div class="tile"><span class="v" id="tSciQs">0</span><span class="l">science questions answered</span></div>
+      <div class="tile"><span class="v" id="tCodes">0</span><span class="l" id="tCodesL">unlock codes used</span></div>
     </section>
     <section class="card stack" id="onlineCard"><span class="eyebrow">Online now</span><div class="online-list" id="onlineList"></div></section>
     <section class="charts">
@@ -77,6 +79,12 @@ details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
       <div class="card stack chart"><div><span class="eyebrow">Last 30 days</span><h3>People who studied per day</h3></div><div id="chPeople"></div></div>
     </section>
     <details class="card"><summary>Show the daily numbers as a table</summary><div class="tablewrap" style="margin-top:10px"><table class="mini" id="dayTable"></table></div></details>
+    <section class="card stack" id="codesCard">
+      <div class="toolbar"><h3>Unlock codes: completed theory booklet</h3><div class="row"><button class="btn quiet sm" type="button" id="copyCodes">Copy unused codes</button><button class="btn sm" type="button" id="moreCodes">Make 10 more codes</button></div></div>
+      <p class="small muted">Each 6-digit code works once. Whoever enters it can open the completed booklet on their account forever. Only you can see this list. You can also unlock or lock someone by tapping their name below.</p>
+      <p class="small" id="codesMsg"></p>
+      <div class="tablewrap" style="max-height:420px;overflow-y:auto"><table class="mini" id="codesTable"></table></div>
+    </section>
     <section class="card stack">
       <div class="toolbar"><h3>Everyone</h3><input type="search" id="search" placeholder="Search names" aria-label="Search names"></div>
       <p class="small muted">Study time counts only while someone has a subject open and is active (not when the tab is in the background or left idle). Tap a person for their visit history, to reset their password, or to delete their account.</p>
@@ -129,9 +137,9 @@ details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
   function niceStep(max) { const raw = max / 4; const p = 10 ** Math.floor(Math.log10(raw)); const m = raw / p; return (m <= 1 ? 1 : m <= 2 ? 2 : m <= 5 ? 5 : 10) * p; }
   const COLS = [
     ['name', 'Name'], ['status', 'Status'], ['lastSeen', 'Last on', 1], ['todaySeconds', 'Today', 1], ['weekSeconds', '7 days', 1], ['totalSeconds', 'Total time', 1], ['visits', 'Visits', 1], ['logins', 'Logins', 1],
-    ['answered', 'Questions', 1], ['accuracy', 'Accuracy', 1], ['booklet', 'Booklet', 1], ['examAvg', 'Exam avg', 1], ['joined', 'Joined', 1]
+    ['answered', 'Maths Qs', 1], ['accuracy', 'Accuracy', 1], ['sciAnswered', 'Science Qs', 1], ['unlocked', 'Booklet', 1], ['examAvg', 'Exam avg', 1], ['joined', 'Joined', 1]
   ];
-  const sortVal = (u, k) => k === 'name' ? u.name.toLowerCase() : k === 'status' ? (u.online ? 1 : 0) : k === 'answered' ? u.maths.answered : k === 'accuracy' ? (u.maths.answered ? u.maths.correct / u.maths.answered : -1) : k === 'booklet' ? u.maths.bookletDone : k === 'examAvg' ? (u.maths.examAvg ?? -1) : u[k];
+  const sortVal = (u, k) => k === 'name' ? u.name.toLowerCase() : k === 'status' ? (u.online ? 1 : 0) : k === 'answered' ? u.maths.answered : k === 'accuracy' ? (u.maths.answered ? u.maths.correct / u.maths.answered : -1) : k === 'booklet' ? u.maths.bookletDone : k === 'sciAnswered' ? u.science.answered : k === 'unlocked' ? (u.unlocked ? 1 : 0) : k === 'examAvg' ? (u.maths.examAvg ?? -1) : u[k];
   function drawTable() {
     const head = $('#thead'); head.replaceChildren();
     COLS.forEach(([k, label, num]) => { const th = document.createElement('th'); th.textContent = label; if (num) th.className = 'num'; th.tabIndex = 0; if (k === sortKey) th.setAttribute('aria-sort', sortDir > 0 ? 'ascending' : 'descending'); const go = () => { if (sortKey === k) sortDir = -sortDir; else { sortKey = k; sortDir = k === 'name' ? 1 : -1; } drawTable(); }; th.onclick = go; th.onkeydown = e => { if (e.key === 'Enter') go(); }; head.appendChild(th); });
@@ -142,7 +150,7 @@ details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
       const n = cell(tr, u.name); if (u.admin) { const p = document.createElement('span'); p.className = 'pill admin'; p.textContent = 'admin'; n.append(' ', p); }
       const st = cell(tr, ''); if (u.online) { const p = document.createElement('span'); p.className = 'pill on'; p.textContent = 'online · ' + (u.lastSubject || ''); st.appendChild(p); } else st.textContent = '—';
       cell(tr, ago(u.lastSeen), 'num'); cell(tr, dur(u.todaySeconds), 'num'); cell(tr, dur(u.weekSeconds), 'num'); cell(tr, dur(u.totalSeconds), 'num'); cell(tr, u.visits, 'num'); cell(tr, u.logins, 'num');
-      cell(tr, u.maths.answered, 'num'); cell(tr, pct(u.maths.correct, u.maths.answered), 'num'); cell(tr, u.maths.bookletDone ? u.maths.bookletRight + '/' + u.maths.bookletDone + ' right' : '—', 'num'); cell(tr, u.maths.examAvg == null ? '—' : u.maths.examAvg + '%', 'num'); cell(tr, when(u.joined), 'num');
+      cell(tr, u.maths.answered, 'num'); cell(tr, pct(u.maths.correct, u.maths.answered), 'num'); cell(tr, u.science.answered, 'num'); cell(tr, u.admin ? 'admin' : u.unlocked ? 'unlocked' : '—', 'num'); cell(tr, u.maths.examAvg == null ? '—' : u.maths.examAvg + '%', 'num'); cell(tr, when(u.joined), 'num');
       tr.onclick = () => openUser(u); tr.onkeydown = e => { if (e.key === 'Enter') openUser(u); };
       tb.appendChild(tr);
     });
@@ -158,7 +166,7 @@ details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
     data = r.data; const T = data.totals;
     $('#dash').hidden = false;
     $('#tOnline').textContent = T.online; $('#tUsers').textContent = T.users; $('#tUsersL').textContent = 'accounts (' + T.signupsToday + ' new today, ' + T.signupsWeek + ' this week)';
-    $('#tToday').textContent = T.activeToday; $('#tWeek').textContent = T.activeWeek; $('#tTimeToday').textContent = dur(T.secondsToday); $('#tTimeWeek').textContent = dur(T.secondsWeek); $('#tTimeAll').textContent = dur(T.secondsAll); $('#tQs').textContent = T.questions;
+    $('#tToday').textContent = T.activeToday; $('#tWeek').textContent = T.activeWeek; $('#tTimeToday').textContent = dur(T.secondsToday); $('#tTimeWeek').textContent = dur(T.secondsWeek); $('#tTimeAll').textContent = dur(T.secondsAll); $('#tQs').textContent = T.questions; $('#tSciQs').textContent = T.scienceQuestions; $('#tCodes').textContent = T.codesUsed + '/' + T.codesTotal; $('#tCodesL').textContent = 'unlock codes used (' + T.unlocked + ' accounts unlocked)';
     const on = data.users.filter(u => u.online); const ol = $('#onlineList'); ol.replaceChildren();
     if (!on.length) { const p = document.createElement('p'); p.className = 'muted small'; p.textContent = 'Nobody is studying right now.'; ol.appendChild(p); }
     on.forEach(u => { const s = document.createElement('span'); s.textContent = u.name + ' · ' + (u.lastSubject || ''); ol.appendChild(s); });
@@ -166,7 +174,7 @@ details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
     barChart($('#chPeople'), data.days, d => d.people, v => v + (v === 1 ? ' person' : ' people'), 'People');
     const dt = $('#dayTable'); dt.replaceChildren(); const hr = document.createElement('tr'); ['Day', 'People', 'Minutes', 'New accounts'].forEach(h => { const th = document.createElement('th'); th.textContent = h; hr.appendChild(th); }); dt.appendChild(hr);
     data.days.slice().reverse().forEach(d => { const tr = document.createElement('tr'); [dayLabel(d.day), d.people, Math.round(d.seconds / 60), d.signups].forEach(v => cell(tr, v)); dt.appendChild(tr); });
-    drawTable();
+    drawTable(); loadCodes();
     $('#updated').textContent = 'Updated ' + new Date().toLocaleTimeString('en-AU', { timeZone: TZ, hour: 'numeric', minute: '2-digit' }) + ' (Queensland time). Refreshes every 30 seconds.';
   }
   async function openUser(u) {
@@ -176,7 +184,7 @@ details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
     const h = document.createElement('div'); h.className = 'row'; h.style.justifyContent = 'space-between';
     const h2 = document.createElement('h2'); h2.textContent = u.name; const close = document.createElement('button'); close.className = 'btn quiet sm'; close.type = 'button'; close.textContent = 'Close'; close.onclick = () => dlg.close(); h.append(h2, close); b.appendChild(h);
     const kv = document.createElement('div'); kv.className = 'kv';
-    [['Total study time', dur(u.totalSeconds)], ['Last 7 days', dur(u.weekSeconds)], ['Today', dur(u.todaySeconds)], ['Visits', u.visits], ['Logins', u.logins], ['Last on', ago(u.lastSeen)], ['Joined', when(u.joined)], ['Questions', u.maths.answered ? u.maths.answered + ' (' + pct(u.maths.correct, u.maths.answered) + ' right)' : 0], ['Booklet parts done', u.maths.bookletDone], ['Exams taken', u.maths.exams + (u.maths.examAvg != null ? ' (avg ' + u.maths.examAvg + '%)' : '')], ['Skills “Got it”', u.maths.gotIt + '/25'], ['Device', u.device || '—']]
+    [['Total study time', dur(u.totalSeconds)], ['Last 7 days', dur(u.weekSeconds)], ['Today', dur(u.todaySeconds)], ['Visits', u.visits], ['Logins', u.logins], ['Last on', ago(u.lastSeen)], ['Joined', when(u.joined)], ['Questions', u.maths.answered ? u.maths.answered + ' (' + pct(u.maths.correct, u.maths.answered) + ' right)' : 0], ['Booklet parts done', u.maths.bookletDone], ['Exams taken', u.maths.exams + (u.maths.examAvg != null ? ' (avg ' + u.maths.examAvg + '%)' : '')], ['Skills “Got it”', u.maths.gotIt + '/25'], ['Science questions', u.science.answered ? u.science.answered + ' (' + pct(u.science.correct, u.science.answered) + ' right)' : 0], ['Completed booklet', u.admin ? 'admin' : u.unlocked ? 'unlocked' : 'locked'], ['Device', u.device || '—']]
       .forEach(([l, v]) => { const d = document.createElement('div'); const bb = document.createElement('b'); bb.textContent = v; const s = document.createElement('span'); s.textContent = l; d.append(bb, s); kv.appendChild(d); });
     b.appendChild(kv);
     const vt = document.createElement('div'); vt.className = 'tablewrap'; const t = document.createElement('table'); t.className = 'mini'; const hr = document.createElement('tr'); ['Started', 'Subject', 'Active time', 'Device'].forEach(x => { const th = document.createElement('th'); th.textContent = x; hr.appendChild(th); }); t.appendChild(hr);
@@ -185,13 +193,23 @@ details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
     const vh = document.createElement('h3'); vh.textContent = 'Visit history (latest 60)'; vt.appendChild(t); b.append(vh, vt);
     if (!u.admin) {
       const box = document.createElement('div'); box.className = 'row'; box.style.alignItems = 'flex-end';
-      box.innerHTML = '<label class="f" style="flex:1 1 220px">New password for this person (8+ characters)<input type="text" id="rpw" autocomplete="off"></label><button class="btn quiet" type="button" id="rpwBtn">Reset password</button><button class="btn danger" type="button" id="delU">Delete account</button>';
+      box.innerHTML = '<label class="f" style="flex:1 1 220px">New password for this person (8+ characters)<input type="text" id="rpw" autocomplete="off"></label><button class="btn quiet" type="button" id="rpwBtn">Reset password</button><button class="btn quiet" type="button" id="unlockBtn">' + (u.unlocked ? 'Lock completed booklet' : 'Unlock completed booklet') + '</button><button class="btn danger" type="button" id="delU">Delete account</button>';
       const msg = document.createElement('p'); msg.className = 'small'; b.append(box, msg);
       box.querySelector('#rpwBtn').onclick = async () => { const pw = box.querySelector('#rpw').value; const rr = await api('/api/admin/reset-password', 'POST', { id: u.id, password: pw }); msg.textContent = rr.ok ? 'Password reset. Tell ' + u.name + ' their new password; they can change it in Account settings.' : (rr.data.error || 'Couldn’t reset it.'); };
+      box.querySelector('#unlockBtn').onclick = async () => { const rr = await api('/api/admin/set-unlock', 'POST', { id: u.id, unlock: !u.unlocked }); if (rr.ok) { u.unlocked = !u.unlocked; box.querySelector('#unlockBtn').textContent = u.unlocked ? 'Lock completed booklet' : 'Unlock completed booklet'; msg.textContent = u.unlocked ? u.name + ' can now open the completed booklet.' : u.name + ' can no longer open the completed booklet.'; load(); } else msg.textContent = rr.data.error || 'Couldn’t change it.'; };
       let armed = false; const del = box.querySelector('#delU');
       del.onclick = async () => { if (!armed) { armed = true; del.textContent = 'Tap again to delete ' + u.name; setTimeout(() => { armed = false; del.textContent = 'Delete account'; }, 5000); return; } const rr = await api('/api/admin/delete-user', 'POST', { id: u.id }); if (rr.ok) { dlg.close(); load(); } else msg.textContent = rr.data.error || 'Couldn’t delete.'; };
     }
   }
+  let codes = [];
+  async function loadCodes() {
+    const r = await api('/api/admin/codes'); if (!r.ok) return; codes = r.data.codes;
+    const t = $('#codesTable'); t.replaceChildren(); const hr = document.createElement('tr'); ['Code', 'Status', 'Used by', 'When'].forEach(x => { const th = document.createElement('th'); th.textContent = x; hr.appendChild(th); }); t.appendChild(hr);
+    codes.forEach(c => { const tr = document.createElement('tr'); const code = cell(tr, c.code); code.style.fontFamily = 'var(--f-mono)'; code.style.fontWeight = '600'; code.style.letterSpacing = '.08em'; cell(tr, c.redeemed_at ? 'used' : 'unused'); cell(tr, c.redeemed_at ? (c.redeemed_name || '(deleted account)') : '—'); cell(tr, c.redeemed_at ? when(c.redeemed_at) : '—'); if (c.redeemed_at) tr.style.color = 'var(--muted)'; t.appendChild(tr); });
+    if (!codes.length) { const tr = document.createElement('tr'); cell(tr, 'No codes yet. Press “Make 10 more codes”.').colSpan = 4; t.appendChild(tr); }
+  }
+  $('#moreCodes').onclick = async () => { const r = await api('/api/admin/codes', 'POST', { count: 10 }); $('#codesMsg').textContent = r.ok ? 'Made ' + r.data.codes.length + ' new codes: ' + r.data.codes.join(', ') : (r.data.error || 'Couldn’t make codes.'); loadCodes(); load(); };
+  $('#copyCodes').onclick = async () => { const list = codes.filter(c => !c.redeemed_at).map(c => c.code).join('\n'); try { await navigator.clipboard.writeText(list); $('#codesMsg').textContent = 'Copied ' + list.split('\n').filter(Boolean).length + ' unused codes.'; } catch (e) { $('#codesMsg').textContent = list.replace(/\n/g, ', '); } };
   $('#dlg').addEventListener('click', e => { if (e.target === $('#dlg')) $('#dlg').close(); });
   $('#search').oninput = e => { query = e.target.value.trim().toLowerCase(); drawTable(); };
   $('#refresh').onclick = load;

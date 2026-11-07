@@ -1,8 +1,10 @@
 // EC Revisions API on Cloudflare Workers + D1.
 // Students: POST /api/signup, POST /api/login, POST /api/logout, GET /api/me, POST /api/ping,
 //           GET|PUT /api/progress/:subject, POST /api/password, POST /api/delete-account.
+//           GET /api/unlock/theory, POST /api/unlock, GET /api/theory (locked content).
 // Admin (the ADMIN_USERNAME account only): GET /api/admin/overview, GET /api/admin/user/:id,
-//           POST /api/admin/reset-password, POST /api/admin/delete-user.
+//           POST /api/admin/reset-password, POST /api/admin/delete-user,
+//           GET|POST /api/admin/codes, POST /api/admin/set-unlock.
 // Everything else is one of the pages in ./public, bundled into this Worker below.
 
 import indexHtml from '../public/index.html';
@@ -10,6 +12,7 @@ import siteCss from '../public/site.css';
 import mathsHtml from '../public/maths/index.html';
 import mathsJs from '../public/maths/app.js';
 import scienceHtml from '../public/science/index.html';
+import scienceJs from '../public/science/app.js';
 import adminHtml from '../public/admin/index.html';
 import notFoundHtml from '../public/404.html';
 
@@ -18,7 +21,7 @@ const PAGES = {
   '/': [indexHtml, HTML], '/index.html': [indexHtml, HTML],
   '/site.css': [siteCss, 'text/css; charset=utf-8'],
   '/maths/': [mathsHtml, HTML], '/maths/index.html': [mathsHtml, HTML], '/maths/app.js': [mathsJs, 'text/javascript; charset=utf-8'],
-  '/science/': [scienceHtml, HTML], '/science/index.html': [scienceHtml, HTML],
+  '/science/': [scienceHtml, HTML], '/science/index.html': [scienceHtml, HTML], '/science/app.js': [scienceJs, 'text/javascript; charset=utf-8'],
   '/admin/': [adminHtml, HTML], '/admin/index.html': [adminHtml, HTML]
 };
 const SECURITY_HEADERS = { 'x-content-type-options': 'nosniff', 'referrer-policy': 'same-origin', 'x-frame-options': 'DENY' };
@@ -164,6 +167,30 @@ async function handleApi(req, env, url) {
     return json({ ok: true, counted: add });
   }
 
+  if (path === '/api/unlock/theory' && method === 'GET') return json({ unlocked: await hasUnlock(env, user, 'theory') });
+  if (path === '/api/unlock' && method === 'POST') {
+    let body; try { body = await readJson(req); } catch { return err(400, 'Bad request'); }
+    if (await hasUnlock(env, user, 'theory')) return json({ ok: true, already: true });
+    const t = now();
+    const fails = await env.DB.prepare('SELECT COUNT(*) AS n FROM unlock_attempts WHERE user_id = ? AND at > ?').bind(user.id, t - 3600).first();
+    if (fails.n >= 5) return err(429, 'Too many wrong codes. Wait an hour and try again.');
+    const code = String(body.code || '').replace(/\D/g, '');
+    const fail = async msg => { await env.DB.prepare('INSERT INTO unlock_attempts (user_id, at) VALUES (?, ?)').bind(user.id, t).run(); return err(400, msg + ' (' + (4 - fails.n) + ' tries left this hour)'); };
+    if (!/^\d{6}$/.test(code)) return fail('Codes are 6 digits.');
+    const row = await env.DB.prepare("SELECT code, redeemed_by FROM codes WHERE code = ? AND feature = 'theory'").bind(code).first();
+    if (!row) return fail('That code isn’t right.');
+    if (row.redeemed_by !== null) return fail('That code has already been used.');
+    const claim = await env.DB.prepare('UPDATE codes SET redeemed_by = ?, redeemed_at = ? WHERE code = ? AND redeemed_by IS NULL').bind(user.id, t, code).run();
+    if (!claim.meta.changes) return fail('That code has already been used.');
+    await env.DB.prepare("INSERT OR IGNORE INTO unlocks (user_id, feature, unlocked_at, code) VALUES (?, 'theory', ?, ?)").bind(user.id, t, code).run();
+    return json({ ok: true });
+  }
+  if (path === '/api/theory' && method === 'GET') {
+    if (!(await hasUnlock(env, user, 'theory'))) return err(403, 'Locked. Enter a code to unlock the completed booklet.');
+    const rows = await env.DB.prepare('SELECT key, body FROM content ORDER BY ord').all();
+    return new Response('{"sections":[' + rows.results.map(r => r.body).join(',') + ']}', { headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'private, no-store' } });
+  }
+
   if (path.startsWith('/api/admin/')) {
     if (!isAdmin(user, env)) return err(403, 'Only the site admin can see this.');
     return handleAdmin(req, env, path, method, user);
@@ -201,6 +228,9 @@ async function handleApi(req, env, url) {
     const row = await env.DB.prepare('SELECT pass_hash, salt FROM users WHERE id = ?').bind(user.id).first();
     if (!safeEqual(await hashPassword(String(body.password || ''), row.salt), row.pass_hash)) return err(401, 'That password is wrong.');
     await env.DB.batch([
+      env.DB.prepare('UPDATE codes SET redeemed_by = NULL WHERE redeemed_by = ?').bind(user.id),
+      env.DB.prepare('DELETE FROM unlocks WHERE user_id = ?').bind(user.id),
+      env.DB.prepare('DELETE FROM unlock_attempts WHERE user_id = ?').bind(user.id),
       env.DB.prepare('DELETE FROM visits WHERE user_id = ?').bind(user.id),
       env.DB.prepare('DELETE FROM daily WHERE user_id = ?').bind(user.id),
       env.DB.prepare('DELETE FROM progress WHERE user_id = ?').bind(user.id),
@@ -211,6 +241,13 @@ async function handleApi(req, env, url) {
   }
   return err(404, 'Not found');
 }
+
+async function hasUnlock(env, user, feature) {
+  if (isAdmin(user, env)) return true;
+  const row = await env.DB.prepare('SELECT 1 AS ok FROM unlocks WHERE user_id = ? AND feature = ?').bind(user.id, feature).first();
+  return !!row;
+}
+function newCode() { const n = crypto.getRandomValues(new Uint32Array(1))[0] % 1000000; return String(n).padStart(6, '0'); }
 
 // Summarise one student's saved maths progress for the dashboard.
 function mathsStats(data) {
@@ -228,7 +265,7 @@ async function handleAdmin(req, env, path, method, me) {
   const t = now(), today = dayKey(t);
   if (path === '/api/admin/overview' && method === 'GET') {
     const since30 = dayKey(t - 29 * 86400), since7 = dayKey(t - 6 * 86400);
-    const [users, perUser, perUser7, today_, visits, daily, signups, progress] = await env.DB.batch([
+    const [users, perUser, perUser7, today_, visits, daily, signups, progress, sciProgress, unlockRows, codeCount] = await env.DB.batch([
       env.DB.prepare('SELECT id, username, created_at, last_login, login_count, last_seen, last_subject FROM users ORDER BY last_seen DESC'),
       env.DB.prepare('SELECT user_id, SUM(seconds) AS s FROM daily GROUP BY user_id'),
       env.DB.prepare('SELECT user_id, SUM(seconds) AS s FROM daily WHERE day >= ? GROUP BY user_id').bind(since7),
@@ -236,15 +273,20 @@ async function handleAdmin(req, env, path, method, me) {
       env.DB.prepare('SELECT user_id, COUNT(*) AS n, MAX(device) AS device FROM visits GROUP BY user_id'),
       env.DB.prepare('SELECT day, COUNT(DISTINCT user_id) AS people, SUM(seconds) AS s FROM daily WHERE day >= ? GROUP BY day ORDER BY day').bind(since30),
       env.DB.prepare('SELECT created_at FROM users WHERE created_at >= ?').bind(t - 30 * 86400),
-      env.DB.prepare("SELECT user_id, data FROM progress WHERE subject = 'maths'")
+      env.DB.prepare("SELECT user_id, data FROM progress WHERE subject = 'maths'"),
+      env.DB.prepare("SELECT user_id, data FROM progress WHERE subject = 'science'"),
+      env.DB.prepare("SELECT user_id FROM unlocks WHERE feature = 'theory'"),
+      env.DB.prepare("SELECT COUNT(*) AS total, SUM(CASE WHEN redeemed_by IS NULL THEN 0 ELSE 1 END) AS used FROM codes")
     ]);
     const map = r => Object.fromEntries(r.results.map(x => [x.user_id, x]));
-    const all = map(perUser), wk = map(perUser7), td = map(today_), vs = map(visits), pr = map(progress);
+    const all = map(perUser), wk = map(perUser7), td = map(today_), vs = map(visits), pr = map(progress), spr = map(sciProgress);
+    const unlocked = new Set(unlockRows.results.map(r => r.user_id));
     const list = users.results.map(u => {
       let data = null; try { data = pr[u.id] ? JSON.parse(pr[u.id].data) : null; } catch { /* bad row */ }
+      let sdata = null; try { sdata = spr[u.id] ? JSON.parse(spr[u.id].data) : null; } catch { /* bad row */ }
       return { id: u.id, name: u.username, joined: u.created_at, lastLogin: u.last_login, logins: u.login_count, lastSeen: u.last_seen, lastSubject: u.last_subject,
         online: t - u.last_seen <= 120 && !!u.last_subject, totalSeconds: (all[u.id] || {}).s || 0, weekSeconds: (wk[u.id] || {}).s || 0, todaySeconds: (td[u.id] || {}).s || 0,
-        visits: (vs[u.id] || {}).n || 0, device: (vs[u.id] || {}).device || null, maths: mathsStats(data), admin: u.username.toLowerCase() === String(env.ADMIN_USERNAME || '').toLowerCase() };
+        visits: (vs[u.id] || {}).n || 0, device: (vs[u.id] || {}).device || null, maths: mathsStats(data), science: mathsStats(sdata), unlocked: unlocked.has(u.id), admin: u.username.toLowerCase() === String(env.ADMIN_USERNAME || '').toLowerCase() };
     });
     const signupDays = {}; signups.results.forEach(r => { const d = dayKey(r.created_at); signupDays[d] = (signupDays[d] || 0) + 1; });
     const days = []; for (let i = 29; i >= 0; i--) { const d = dayKey(t - i * 86400); const row = daily.results.find(r => r.day === d); days.push({ day: d, people: row ? row.people : 0, seconds: row ? row.s : 0, signups: signupDays[d] || 0 }); }
@@ -253,9 +295,25 @@ async function handleAdmin(req, env, path, method, me) {
       now: t, today,
       totals: { users: list.length, online: list.filter(u => u.online).length, activeToday: list.filter(u => u.todaySeconds > 0).length, activeWeek: list.filter(u => u.weekSeconds > 0).length,
         signupsToday: signupDays[today] || 0, signupsWeek: days.slice(-7).reduce((a, d) => a + d.signups, 0), secondsToday: sum(list, 'todaySeconds'), secondsWeek: sum(list, 'weekSeconds'), secondsAll: sum(list, 'totalSeconds'),
-        questions: list.reduce((a, u) => a + u.maths.answered, 0) },
+        questions: list.reduce((a, u) => a + u.maths.answered, 0), scienceQuestions: list.reduce((a, u) => a + u.science.answered, 0),
+        unlocked: unlocked.size, codesTotal: codeCount.results[0].total || 0, codesUsed: codeCount.results[0].used || 0 },
       days, users: list
     });
+  }
+  if (path === '/api/admin/codes' && method === 'GET') {
+    const rows = await env.DB.prepare("SELECT c.code, c.created_at, c.redeemed_at, u.username AS redeemed_name FROM codes c LEFT JOIN users u ON u.id = c.redeemed_by WHERE c.feature = 'theory' ORDER BY c.redeemed_at IS NOT NULL, c.redeemed_at DESC, c.created_at, c.code").all();
+    return json({ codes: rows.results });
+  }
+  if (path === '/api/admin/codes' && method === 'POST') {
+    let body; try { body = await readJson(req); } catch { return err(400, 'Bad request'); }
+    const want = Math.max(1, Math.min(100, Math.floor(+body.count || 0)));
+    const made = [];
+    for (let tries = 0; made.length < want && tries < want * 20; tries++) {
+      const c = newCode();
+      const r = await env.DB.prepare("INSERT OR IGNORE INTO codes (code, feature, created_at) VALUES (?, 'theory', ?)").bind(c, t).run();
+      if (r.meta.changes) made.push(c);
+    }
+    return json({ ok: true, codes: made });
   }
   const um = path.match(/^\/api\/admin\/user\/(\d+)$/);
   if (um && method === 'GET') {
@@ -279,9 +337,15 @@ async function handleAdmin(req, env, path, method, me) {
     await env.DB.prepare('DELETE FROM sessions WHERE user_id = ?').bind(id).run();
     return json({ ok: true });
   }
+  if (path === '/api/admin/set-unlock') {
+    if (body.unlock) await env.DB.prepare("INSERT OR IGNORE INTO unlocks (user_id, feature, unlocked_at, code) VALUES (?, 'theory', ?, 'admin')").bind(id, t).run();
+    else await env.DB.prepare("DELETE FROM unlocks WHERE user_id = ? AND feature = 'theory'").bind(id).run();
+    return json({ ok: true });
+  }
   if (path === '/api/admin/delete-user') {
     if (id === me.id) return err(400, 'You can’t delete your own admin account here.');
-    await env.DB.batch(['progress', 'sessions', 'visits', 'daily'].map(tb => env.DB.prepare('DELETE FROM ' + tb + ' WHERE user_id = ?').bind(id)).concat([env.DB.prepare('DELETE FROM users WHERE id = ?').bind(id)]));
+    await env.DB.prepare('UPDATE codes SET redeemed_by = NULL WHERE redeemed_by = ?').bind(id).run();
+    await env.DB.batch(['progress', 'sessions', 'visits', 'daily', 'unlocks', 'unlock_attempts'].map(tb => env.DB.prepare('DELETE FROM ' + tb + ' WHERE user_id = ?').bind(id)).concat([env.DB.prepare('DELETE FROM users WHERE id = ?').bind(id)]));
     return json({ ok: true });
   }
   return err(404, 'Not found');

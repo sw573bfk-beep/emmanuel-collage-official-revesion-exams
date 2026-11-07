@@ -3,7 +3,7 @@
   "private": true,
   "description": "EC Revisions: Year 8 Maths and Science revision with accounts and a usage dashboard, on Cloudflare Workers + D1",
   "scripts": {
-    "build": "bash scripts/build-maths.sh",
+    "build": "bash scripts/build-maths.sh && bash scripts/build-science.sh",
     "dev": "wrangler d1 migrations apply ec-revisions-db --local && wrangler dev",
     "db:migrate": "wrangler d1 migrations apply ec-revisions-db --remote",
     "deploy": "wrangler d1 migrations apply ec-revisions-db --remote && wrangler deploy"

@@ -1,3 +1,5 @@
 node_modules/
 .wrangler/
 .dev.vars
+# The completed theory booklet and unlock codes are kept out of this public repo.
+private/
