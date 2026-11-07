@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<script src="/acct.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Message Beau</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Lexend:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="/site.css">
+<style>
+.wrap{max-width:720px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.chat{display:flex;flex-direction:column;gap:8px;min-height:240px;max-height:min(60vh,560px);overflow-y:auto;padding:4px 2px}
+.bubble{max-width:82%;padding:9px 13px;border-radius:16px;line-height:1.45;white-space:pre-wrap;overflow-wrap:anywhere}
+.bubble.me{align-self:flex-end;background:var(--accent);color:var(--accent-ink);border-bottom-right-radius:5px}
+.bubble.them{align-self:flex-start;background:var(--accent-soft);color:var(--ink);border-bottom-left-radius:5px}
+.when{font-size:.74rem;color:var(--muted);margin:0 4px}
+.when.me{align-self:flex-end}.when.them{align-self:flex-start}
+.empty{margin:auto;text-align:center;color:var(--muted);max-width:340px}
+.compose{display:flex;gap:8px;align-items:flex-end}
+.compose textarea{flex:1;font:inherit;color:var(--ink);background:var(--card);border:1.5px solid var(--rule);border-radius:12px;padding:10px 12px;min-height:46px;max-height:160px;resize:none}
+.compose textarea:focus{border-color:var(--accent);outline:none;box-shadow:0 0 0 3px var(--accent-soft)}
+</style>
+</head>
+<body>
+<main class="wrap">
+  <div class="brand"><span class="mark">EC Revisions</span><h1>Message Beau</h1><p>A private chat between you and Beau, who runs EC Revisions. Ask anything about the site or your revision.</p></div>
+  <p id="loading" class="muted">Loading…</p>
+  <section id="ownerNote" class="card stack" hidden><p>You’re Beau, so this is where students message <b>you</b>. Read and reply to them in the dashboard.</p><a class="btn" href="/admin/#messages" style="align-self:flex-start">Open messages in the dashboard</a></section>
+  <section id="chatCard" class="card stack" hidden>
+    <div class="chat" id="chat" aria-live="polite" aria-label="Messages"></div>
+    <form class="compose" id="form" novalidate>
+      <label class="sr" for="text">Your message</label>
+      <textarea id="text" rows="1" maxlength="1000" placeholder="Type a message…"></textarea>
+      <button class="btn" type="submit" id="send">Send</button>
+    </form>
+    <div id="out" role="status"></div>
+    <p class="small muted">Only you and Beau can see this chat. Press Enter to send, Shift + Enter for a new line.</p>
+  </section>
+  <div class="row"><a class="btn quiet" href="/" id="back">Back to subjects</a></div>
+</main>
+<script>
+(function () {
+  const $ = s => document.querySelector(s);
+  const from = new URLSearchParams(location.search).get('from');
+  if (from === 'maths' || from === 'science') { $('#back').href = '/' + from + '/'; $('#back').textContent = 'Back to ' + (from === 'maths' ? 'Maths' : 'Science'); }
+  const chat = $('#chat'); let last = 0, timer = null;
+  const fmt = s => new Date(s * 1000).toLocaleString('en-AU', { timeZone: 'Australia/Brisbane', weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' });
+  function add(m) {
+    const empty = chat.querySelector('.empty'); if (empty) empty.remove();
+    const side = m.mine ? 'me' : 'them';
+    const b = document.createElement('div'); b.className = 'bubble ' + side; b.textContent = m.body;
+    const w = document.createElement('div'); w.className = 'when ' + side; w.textContent = (m.mine ? 'You' : 'Beau') + ' · ' + fmt(m.at);
+    chat.append(b, w); last = Math.max(last, m.id);
+  }
+  async function poll() {
+    try {
+      const r = await fetch('/api/messages?after=' + last + (document.visibilityState === 'visible' ? '&read=1' : ''), { credentials: 'same-origin' });
+      if (r.status === 401) { location.replace('/?next=message'); return false; }
+      const j = await r.json();
+      if (j.admin) { $('#loading').hidden = true; $('#ownerNote').hidden = false; return false; }
+      const near = chat.scrollHeight - chat.scrollTop - chat.clientHeight < 80;
+      j.messages.forEach(add);
+      if (j.messages.length && near) chat.scrollTop = chat.scrollHeight;
+      return true;
+    } catch (e) { return true; }
+  }
+  const text = $('#text');
+  const grow = () => { text.style.height = 'auto'; text.style.height = Math.min(160, text.scrollHeight + 2) + 'px'; };
+  text.addEventListener('input', grow);
+  text.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); $('#form').requestSubmit(); } });
+  $('#form').onsubmit = async e => {
+    e.preventDefault(); const out = $('#out'); out.innerHTML = '';
+    const body = text.value.trim(); if (!body) return;
+    $('#send').disabled = true;
+    try {
+      const r = await fetch('/api/messages', { method: 'POST', credentials: 'same-origin', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ body }) });
+      const j = await r.json().catch(() => ({}));
+      if (r.status === 401) { location.replace('/?next=message'); return; }
+      if (!r.ok) { const d = document.createElement('div'); d.className = 'msg bad'; d.textContent = j.error || 'Couldn’t send it. Try again.'; out.appendChild(d); return; }
+      text.value = ''; grow(); await poll(); chat.scrollTop = chat.scrollHeight;
+    } catch (err) { const d = document.createElement('div'); d.className = 'msg bad'; d.textContent = 'Can’t reach the server. Check your connection and try again.'; out.appendChild(d); }
+    finally { $('#send').disabled = false; text.focus(); }
+  };
+  (async () => {
+    const ok = await poll(); if (!ok) return;
+    $('#loading').hidden = true; $('#chatCard').hidden = false;
+    if (!last) { const p = document.createElement('p'); p.className = 'empty'; p.textContent = 'No messages yet. Say hi, or ask Beau a question. You’ll see a red number on the Message Beau button when Beau replies.'; chat.appendChild(p); }
+    chat.scrollTop = chat.scrollHeight; text.focus();
+    timer = setInterval(() => { if (document.visibilityState === 'visible') poll(); }, 8000);
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') poll(); });
+  })();
+})();
+</script>
+<script src="/help.js" defer></script>
+</body>
+</html>

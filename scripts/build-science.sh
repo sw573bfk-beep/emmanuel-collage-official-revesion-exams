@@ -4,7 +4,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 SRC=src/science; OUT=public/science; mkdir -p "$OUT"
 BUILD=$(date +%s)
-ACCOUNT='<span class="acct"><span class="acct-name" id="acctName"></span><span class="small muted" id="syncStatus" aria-live="polite"></span></span><a class="btn quiet sm" href="/feedback/?from=science">Feedback</a><a class="btn quiet sm" href="/">Subjects</a><button id="logoutBtn" class="btn quiet sm" type="button">Log out</button>'
+ACCOUNT='<span class="acct"><span class="acct-name" id="acctName"></span><span class="small muted" id="syncStatus" aria-live="polite"></span></span><a class="btn quiet sm" href="/feedback/?from=science">Feedback</a><a class="btn quiet sm" href="/message/?from=science" data-msg><span class="msg-label">Message Beau</span></a><a class="btn quiet sm" href="/">Subjects</a><button id="logoutBtn" class="btn quiet sm" type="button">Log out</button>'
 {
   echo '<!DOCTYPE html>'
   echo "<html lang=\"en\" data-build=\"$BUILD\">"
@@ -23,6 +23,7 @@ ACCOUNT='<span class="acct"><span class="acct-name" id="acctName"></span><span c
       "$SRC/body.html"
   echo '<script>'; cat "$SRC/gate.js"; echo '</script>'
   echo '<script src="/tabbar.js" defer></script>'
+  echo '<script src="/msg.js" defer></script>'
   echo '<script src="/help.js" defer></script>'
   echo '</body>'
   echo '</html>'

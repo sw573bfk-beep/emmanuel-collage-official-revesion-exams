@@ -38,7 +38,7 @@ details.acct[open] summary{margin-bottom:12px}
 <main class="wrap">
   <div class="top">
     <div class="brand"><span class="mark">year 8 · week 7</span><h1>EC Revisions</h1><p id="tagline">Year 8 Maths and Science exam revision. Make a free account so your progress is saved and follows you to any device.</p></div>
-    <div class="row" id="whoBox" hidden><span class="muted small">Logged in as <b id="who"></b></span><button class="btn quiet sm" type="button" id="switchBtn" aria-expanded="false" aria-controls="acctsCard">Switch account</button><a class="btn quiet sm" href="/feedback/">Feedback</a><button class="btn quiet sm" type="button" id="logout">Log out</button></div>
+    <div class="row" id="whoBox" hidden><span class="muted small">Logged in as <b id="who"></b></span><button class="btn quiet sm" type="button" id="switchBtn" aria-expanded="false" aria-controls="acctsCard">Switch account</button><a class="btn quiet sm" href="/feedback/">Feedback</a><a class="btn quiet sm" href="/message/" data-msg><span class="msg-label">Message Beau</span></a><button class="btn quiet sm" type="button" id="logout">Log out</button></div>
   </div>
 
   <!-- step 1: account -->
@@ -98,6 +98,7 @@ details.acct[open] summary{margin-bottom:12px}
       </article>
     </div>
     <a class="card row" href="/feedback/" style="justify-content:space-between;text-decoration:none;color:var(--ink)"><span><b>Got feedback?</b> <span class="muted small">Found a mistake or have an idea? Tell Beau.</span></span><span class="btn quiet sm">Send feedback →</span></a>
+    <a class="card row" href="/message/" data-msg style="justify-content:space-between;text-decoration:none;color:var(--ink)"><span><b class="msg-label">Message Beau</b> <span class="muted small">A private chat with Beau. Ask anything.</span></span><span class="btn quiet sm">Open chat →</span></a>
     <details class="card acct">
       <summary>Account settings</summary>
       <div class="acct-grid">
@@ -178,7 +179,7 @@ details.acct[open] summary{margin-bottom:12px}
     if (su) { $('#password').value = ''; $('#confirm').value = ''; } else fillSaved();
   }
   function picked(me) {
-    if (next === 'maths' || next === 'science' || next === 'feedback') { location.replace('/' + next + '/'); return; }
+    if (next === 'maths' || next === 'science' || next === 'feedback' || next === 'message') { location.replace('/' + next + '/'); return; }
     if (next === 'admin' && me.admin) { location.replace('/admin/'); return; }
     $('#adminCard').hidden = !me.admin;
     $('#who').textContent = me.username; $('#who2').textContent = me.username;
@@ -186,7 +187,7 @@ details.acct[open] summary{margin-bottom:12px}
     $('#mathsLast').textContent = t ? 'Last saved ' + new Date(t * 1000).toLocaleString('en-AU', { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }) : 'Not started yet';
     const ts = me.subjects && me.subjects.science;
     $('#sciLast').textContent = ts ? 'Last saved ' + new Date(ts * 1000).toLocaleString('en-AU', { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }) : 'Not started yet';
-    show('pick');
+    show('pick'); if (window.ecMsgCheck) window.ecMsgCheck();
   }
   $('#switchBtn').onclick = () => { const c = $('#acctsCard'); c.hidden = !c.hidden; $('#switchBtn').setAttribute('aria-expanded', !c.hidden); if (!c.hidden) { refreshAccounts(); c.scrollIntoView({ block: 'nearest' }); } };
   $('#addAcct').onclick = addAccount;
@@ -252,6 +253,7 @@ details.acct[open] summary{margin-bottom:12px}
   })();
 })();
 </script>
+<script src="/msg.js" defer></script>
 <script src="/help.js" defer></script>
 </body>
 </html>

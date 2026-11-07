@@ -46,6 +46,21 @@ table.users td.num{text-align:right} table.users th.num{text-align:right}
 .pill.on{background:var(--good-soft);color:var(--good)} .pill.admin{background:var(--accent-soft);color:var(--accent)}
 tr.out td{color:var(--muted)}
 .pill.out{background:var(--line);color:var(--muted)}
+.msgs{display:grid;grid-template-columns:minmax(0,260px) minmax(0,1fr);gap:14px;align-items:start}
+@media (max-width:720px){.msgs{grid-template-columns:1fr}}
+.convs{display:flex;flex-direction:column;gap:6px;max-height:460px;overflow-y:auto}
+.conv{display:flex;flex-direction:column;gap:2px;text-align:left;font:inherit;color:var(--ink);background:var(--card);border:1.5px solid var(--line);border-radius:10px;padding:9px 12px;cursor:pointer}
+.conv:hover{border-color:var(--accent)}.conv.on{border-color:var(--accent);background:var(--accent-soft)}
+.conv .top{display:flex;justify-content:space-between;gap:8px}.conv .prev{font-size:.84rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.conv .n{background:#d93025;color:#fff;border-radius:999px;font-size:.72rem;font-weight:700;padding:1px 7px}
+.thread{border:1px solid var(--line);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:10px}
+.chat{display:flex;flex-direction:column;gap:6px;min-height:200px;max-height:420px;overflow-y:auto}
+.bubble{max-width:82%;padding:8px 12px;border-radius:15px;line-height:1.45;white-space:pre-wrap;overflow-wrap:anywhere}
+.bubble.me{align-self:flex-end;background:var(--accent);color:var(--accent-ink);border-bottom-right-radius:5px}
+.bubble.them{align-self:flex-start;background:var(--accent-soft);color:var(--ink);border-bottom-left-radius:5px}
+.when{font-size:.72rem;color:var(--muted);margin:0 4px}.when.me{align-self:flex-end}.when.them{align-self:flex-start}
+.compose{display:flex;gap:8px;align-items:flex-end}
+.compose textarea{flex:1;font:inherit;color:var(--ink);background:var(--card);border:1.5px solid var(--rule);border-radius:10px;padding:9px 12px;min-height:44px;max-height:150px;resize:none}
 .online-list{display:flex;flex-wrap:wrap;gap:8px}
 .online-list span{background:var(--good-soft);color:var(--good);border-radius:999px;padding:3px 12px;font-size:.9rem}
 dialog{border:1px solid var(--rule);border-radius:14px;background:var(--card);color:var(--ink);padding:0;width:min(720px,calc(100vw - 32px));max-height:calc(100vh - 40px)}
@@ -80,6 +95,7 @@ details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
       <div class="tile"><span class="v" id="tTimeAll">0</span><span class="l">study time, all time</span></div>
       <div class="tile"><span class="v" id="tQs">0</span><span class="l">maths questions answered</span></div>
       <div class="tile"><span class="v" id="tSciQs">0</span><span class="l">science questions answered</span></div>
+      <div class="tile"><span class="v" id="tMsg">0</span><span class="l">unread messages</span></div>
       <div class="tile"><span class="v" id="tFb">0</span><span class="l" id="tFbL">new feedback</span></div>
       <div class="tile"><span class="v" id="tCodes">0</span><span class="l" id="tCodesL">unlock codes used</span></div>
     </section>
@@ -89,6 +105,10 @@ details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
       <div class="card stack chart"><div><span class="eyebrow">Last 30 days</span><h3>People who studied per day</h3></div><div id="chPeople"></div></div>
     </section>
     <details class="card"><summary>Show the daily numbers as a table</summary><div class="tablewrap" style="margin-top:10px"><table class="mini" id="dayTable"></table></div></details>
+    <section class="card stack" id="messages">
+      <div class="toolbar"><h3>Messages</h3><span class="small muted">Private chats from “Message Beau”. Tap a person to read and reply.</span></div>
+      <div class="msgs"><div class="convs" id="convs"></div><div class="thread" id="thread"><p class="muted small">Pick a chat on the left.</p></div></div>
+    </section>
     <section class="card stack" id="fbCard">
       <div class="toolbar"><h3>Feedback</h3><div class="row" id="fbFilter"><button type="button" class="chip on" data-f="new">New</button><button type="button" class="chip" data-f="done">Done</button><button type="button" class="chip" data-f="all">All</button></div></div>
       <div class="stack" id="fbList" style="gap:10px"></div>
@@ -190,7 +210,7 @@ details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
     barChart($('#chPeople'), data.days, d => d.people, v => v + (v === 1 ? ' person' : ' people'), 'People');
     const dt = $('#dayTable'); dt.replaceChildren(); const hr = document.createElement('tr'); ['Day', 'People', 'Minutes', 'New accounts'].forEach(h => { const th = document.createElement('th'); th.textContent = h; hr.appendChild(th); }); dt.appendChild(hr);
     data.days.slice().reverse().forEach(d => { const tr = document.createElement('tr'); [dayLabel(d.day), d.people, Math.round(d.seconds / 60), d.signups].forEach(v => cell(tr, v)); dt.appendChild(tr); });
-    drawTable(); loadCodes(); loadFeedback();
+    drawTable(); loadCodes(); loadFeedback(); loadConvs();
     $('#updated').textContent = 'Updated ' + new Date().toLocaleTimeString('en-AU', { timeZone: TZ, hour: 'numeric', minute: '2-digit' }) + ' (Queensland time). Refreshes every 30 seconds.';
   }
   async function openUser(u) {
@@ -214,6 +234,9 @@ details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
     sShow(); sb.append(sbtn, sl); b.appendChild(sb);
     if (!u.admin) {
       const box = document.createElement('div'); box.className = 'row'; box.style.alignItems = 'flex-end';
+      const mb = document.createElement('button'); mb.type = 'button'; mb.className = 'btn'; mb.textContent = 'Message ' + u.name;
+      mb.onclick = () => { dlg.close(); openConv({ id: u.id, name: u.name }); $('#messages').scrollIntoView({ behavior: 'smooth', block: 'start' }); };
+      b.appendChild(mb);
       box.innerHTML = '<label class="f" style="flex:1 1 220px">New password for this person (8+ characters)<input type="text" id="rpw" autocomplete="off"></label><button class="btn quiet" type="button" id="rpwBtn">Reset password</button><button class="btn quiet" type="button" id="unlockBtn">' + (u.unlocked ? 'Lock completed booklet' : 'Unlock completed booklet') + '</button><button class="btn danger" type="button" id="delU">Delete account</button>';
       const msg = document.createElement('p'); msg.className = 'small'; b.append(box, msg);
       box.querySelector('#rpwBtn').onclick = async () => { const pw = box.querySelector('#rpw').value; const rr = await api('/api/admin/reset-password', 'POST', { id: u.id, password: pw }); msg.textContent = rr.ok ? 'Password reset. Tell ' + u.name + ' their new password; they can change it in Account settings.' : (rr.data.error || 'Couldn’t reset it.'); };
@@ -225,6 +248,63 @@ details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
   let fbFilter = 'new';
   const FB_KIND = { problem: 'Something’s wrong', idea: 'Idea', question: 'Question', compliment: 'Compliment', other: 'Other' };
   const FB_SUBJ = { maths: 'Maths', science: 'Science', site: 'Whole site' };
+  /* ---------- messages ---------- */
+  let convOpen = null, convLast = 0, convTimer = null;
+  const fmtAt = s => new Date(s * 1000).toLocaleString('en-AU', { timeZone: TZ, weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' });
+  async function loadConvs() {
+    const r = await api('/api/admin/messages'); if (!r.ok) return;
+    const list = r.data.conversations, box = $('#convs'); box.replaceChildren();
+    $('#tMsg').textContent = list.reduce((a, c) => a + c.unread, 0);
+    if (!list.length) { const p = document.createElement('p'); p.className = 'muted small'; p.textContent = 'No messages yet. When someone uses “Message Beau”, their chat appears here.'; box.appendChild(p); }
+    list.forEach(c => {
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'conv' + (convOpen && convOpen.id === c.id ? ' on' : '');
+      const top = document.createElement('span'); top.className = 'top'; const nm = document.createElement('b'); nm.textContent = c.username; top.appendChild(nm);
+      if (c.unread) { const n = document.createElement('span'); n.className = 'n'; n.textContent = c.unread; top.appendChild(n); }
+      const pv = document.createElement('span'); pv.className = 'prev'; pv.textContent = (c.lastFromAdmin ? 'You: ' : '') + c.last;
+      const w = document.createElement('span'); w.className = 'small muted'; w.textContent = ago(c.at);
+      b.append(top, pv, w); b.onclick = () => openConv({ id: c.id, name: c.username }); box.appendChild(b);
+    });
+  }
+  function addBubble(chat, m, name) {
+    const side = m.mine ? 'me' : 'them';
+    const b = document.createElement('div'); b.className = 'bubble ' + side; b.textContent = m.body;
+    const w = document.createElement('div'); w.className = 'when ' + side; w.textContent = (m.mine ? 'You' : name) + ' · ' + fmtAt(m.at) + (m.mine ? (m.read ? ' · seen' : ' · not seen yet') : '');
+    chat.append(b, w); convLast = Math.max(convLast, m.id);
+  }
+  let convSig = '';
+  async function pollConv() {
+    if (!convOpen) return; const chat = $('#chat'); if (!chat) return;
+    // fetch the whole chat (they're short) so "seen" updates too; redraw only when something changed
+    const r = await api('/api/admin/messages/' + convOpen.id); if (!r.ok) return;
+    const sig = r.data.messages.map(m => m.id + (m.read ? 'r' : '')).join(',');
+    if (sig === convSig) return; convSig = sig;
+    const near = chat.scrollHeight - chat.scrollTop - chat.clientHeight < 80, top = chat.scrollTop;
+    if (r.data.messages.length) chat.replaceChildren();
+    r.data.messages.forEach(m => addBubble(chat, m, convOpen.name));
+    chat.scrollTop = near ? chat.scrollHeight : top;
+  }
+  async function openConv(u) {
+    convOpen = u; convLast = 0; convSig = ''; clearInterval(convTimer);
+    const th = $('#thread'); th.replaceChildren();
+    const h = document.createElement('b'); h.textContent = 'Chat with ' + u.name;
+    const chat = document.createElement('div'); chat.className = 'chat'; chat.id = 'chat';
+    const empty = document.createElement('p'); empty.className = 'muted small empty'; empty.textContent = 'No messages yet. Write the first one below.'; chat.appendChild(empty);
+    const f = document.createElement('form'); f.className = 'compose'; f.noValidate = true;
+    const ta = document.createElement('textarea'); ta.rows = 1; ta.maxLength = 2000; ta.placeholder = 'Reply to ' + u.name + '…'; ta.setAttribute('aria-label', 'Reply to ' + u.name);
+    const sb = document.createElement('button'); sb.className = 'btn'; sb.type = 'submit'; sb.textContent = 'Send';
+    const out = document.createElement('p'); out.className = 'small';
+    f.append(ta, sb); th.append(h, chat, f, out);
+    ta.addEventListener('input', () => { ta.style.height = 'auto'; ta.style.height = Math.min(150, ta.scrollHeight + 2) + 'px'; });
+    ta.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); f.requestSubmit(); } });
+    f.onsubmit = async e => {
+      e.preventDefault(); const body = ta.value.trim(); if (!body) return; sb.disabled = true; out.textContent = '';
+      const r = await api('/api/admin/messages', 'POST', { id: u.id, body }); sb.disabled = false;
+      if (!r.ok) { out.textContent = r.data.error || 'Couldn’t send it.'; return; }
+      ta.value = ''; ta.style.height = 'auto'; await pollConv(); chat.scrollTop = chat.scrollHeight; loadConvs(); ta.focus();
+    };
+    await pollConv(); chat.scrollTop = chat.scrollHeight; loadConvs();
+    convTimer = setInterval(() => { if (document.visibilityState === 'visible') pollConv(); }, 8000);
+  }
   async function loadFeedback() {
     const r = await api('/api/admin/feedback'); if (!r.ok) return;
     const list = $('#fbList'); list.replaceChildren();
@@ -265,7 +345,7 @@ details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
       .concat(data.users.map(u => [u.name, when(u.joined), when(u.lastSeen), u.logins, u.visits, Math.round(u.todaySeconds / 60), Math.round(u.weekSeconds / 60), Math.round(u.totalSeconds / 60), u.maths.answered, u.maths.correct, u.maths.bookletDone, u.maths.bookletRight, u.maths.exams, u.maths.examAvg ?? ''].map(q).join(',')));
     const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([lines.join('\n')], { type: 'text/csv' })); a.download = 'ec-revisions-users-' + data.today + '.csv'; a.click();
   };
-  load(); setInterval(() => { if (document.visibilityState === 'visible') load(); }, 30000);
+  load().then(() => { if (location.hash === '#messages') $('#messages').scrollIntoView({ block: 'start' }); }); setInterval(() => { if (document.visibilityState === 'visible') load(); }, 30000);
 })();
 </script>
 </body>

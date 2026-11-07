@@ -36,6 +36,7 @@ textarea:focus{border-color:var(--accent);outline:none;box-shadow:0 0 0 3px var(
     <label class="f"><span class="label" style="color:var(--ink)">4. Tell us more</span><textarea id="msg" maxlength="2000" placeholder="e.g. Practice question about gradient said my answer was wrong but I think it’s right. The question was…"></textarea><span class="small muted" id="count">0 / 2000</span></label>
     <div id="out" role="status"></div>
     <div class="row"><button class="btn" type="submit" id="send">Send feedback</button><a class="btn quiet" href="/" id="back">Back to subjects</a></div>
+    <p class="small muted">Want a reply? <a href="/message/" data-msg>Message Beau</a> for a private chat instead.</p>
     <p class="small muted">Your name (<b id="who"></b>) is sent with your feedback so Beau can follow it up.</p>
   </form>
 </main>
@@ -84,6 +85,7 @@ textarea:focus{border-color:var(--accent);outline:none;box-shadow:0 0 0 3px var(
   })();
 })();
 </script>
+<script src="/msg.js" defer></script>
 <script src="/help.js" defer></script>
 </body>
 </html>

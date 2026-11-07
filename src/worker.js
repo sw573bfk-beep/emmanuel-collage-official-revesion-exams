@@ -4,7 +4,8 @@
 //           GET /api/unlock/theory, POST /api/unlock, GET /api/theory (locked content), POST /api/feedback.
 // Admin (the ADMIN_USERNAME account only): GET /api/admin/overview, GET /api/admin/user/:id,
 //           POST /api/admin/reset-password, POST /api/admin/delete-user,
-//           GET|POST /api/admin/codes, POST /api/admin/set-unlock, POST /api/admin/set-stats, GET /api/admin/feedback, POST /api/admin/feedback-status.
+//           GET|POST /api/admin/codes, POST /api/admin/set-unlock, POST /api/admin/set-stats,
+//           GET /api/admin/messages, GET /api/admin/messages/:id, POST /api/admin/messages, GET /api/admin/feedback, POST /api/admin/feedback-status.
 // Everything else is one of the pages in ./public, bundled into this Worker below.
 
 import indexHtml from '../public/index.html';
@@ -19,6 +20,8 @@ import notFoundHtml from '../public/404.html';
 import helpJs from '../public/help.js';
 import acctJs from '../public/acct.js';
 import tabbarJs from '../public/tabbar.js';
+import messageHtml from '../public/message/index.html';
+import msgJs from '../public/msg.js';
 
 const HTML = 'text/html; charset=utf-8';
 const PAGES = {
@@ -27,6 +30,8 @@ const PAGES = {
   '/help.js': [helpJs, 'text/javascript; charset=utf-8'],
   '/acct.js': [acctJs, 'text/javascript; charset=utf-8'],
   '/tabbar.js': [tabbarJs, 'text/javascript; charset=utf-8'],
+  '/msg.js': [msgJs, 'text/javascript; charset=utf-8'],
+  '/message/': [messageHtml, HTML], '/message/index.html': [messageHtml, HTML],
   '/maths/': [mathsHtml, HTML], '/maths/index.html': [mathsHtml, HTML], '/maths/app.js': [mathsJs, 'text/javascript; charset=utf-8'],
   '/science/': [scienceHtml, HTML], '/science/index.html': [scienceHtml, HTML], '/science/app.js': [scienceJs, 'text/javascript; charset=utf-8'],
   '/admin/': [adminHtml, HTML], '/admin/index.html': [adminHtml, HTML],
@@ -34,7 +39,7 @@ const PAGES = {
 };
 const SECURITY_HEADERS = { 'x-content-type-options': 'nosniff', 'referrer-policy': 'same-origin', 'x-frame-options': 'DENY' };
 function servePage(url) {
-  if (['/maths', '/science', '/admin', '/feedback'].includes(url.pathname)) return Response.redirect(url.origin + url.pathname + '/' + url.search, 301);
+  if (['/maths', '/science', '/admin', '/feedback', '/message'].includes(url.pathname)) return Response.redirect(url.origin + url.pathname + '/' + url.search, 301);
   const page = PAGES[url.pathname];
   if (!page) return new Response(notFoundHtml, { status: 404, headers: { 'content-type': HTML, ...SECURITY_HEADERS } });
   const [body, type] = page;
@@ -228,6 +233,30 @@ async function handleApi(req, env, url) {
     return json({ ok: true }, 201);
   }
 
+  // "Message Beau" chat. GET returns the conversation (and marks Beau's replies read when read=1).
+  if (path === '/api/messages/unread' && method === 'GET') {
+    if (isAdmin(user, env)) { const r = await env.DB.prepare('SELECT COUNT(*) AS n FROM messages WHERE from_admin = 0 AND read_at IS NULL').first(); return json({ unread: r.n || 0, admin: true }); }
+    const r = await env.DB.prepare('SELECT COUNT(*) AS n FROM messages WHERE user_id = ? AND from_admin = 1 AND read_at IS NULL').bind(user.id).first();
+    return json({ unread: r.n || 0, admin: false });
+  }
+  if (path === '/api/messages' && method === 'GET') {
+    const after = Math.max(0, parseInt(url.searchParams.get('after') || '0', 10) || 0);
+    const rows = await env.DB.prepare('SELECT id, from_admin, body, created_at, read_at FROM messages WHERE user_id = ? AND id > ? ORDER BY id LIMIT 500').bind(user.id, after).all();
+    if (url.searchParams.get('read') === '1') await env.DB.prepare('UPDATE messages SET read_at = ? WHERE user_id = ? AND from_admin = 1 AND read_at IS NULL').bind(now(), user.id).run();
+    return json({ messages: rows.results.map(r => ({ id: r.id, mine: !r.from_admin, body: r.body, at: r.created_at, read: !!r.read_at })), admin: isAdmin(user, env) });
+  }
+  if (path === '/api/messages' && method === 'POST') {
+    if (isAdmin(user, env)) return err(400, 'Reply to people from the dashboard.');
+    let body; try { body = await readJson(req); } catch { return err(400, 'Bad request'); }
+    const text = String(body.body || '').replace(/\r\n?/g, '\n').trim();
+    if (!text) return err(400, 'Type a message first.');
+    if (text.length > 1000) return err(400, 'Messages can be up to 1000 characters.');
+    const recent = await env.DB.prepare('SELECT COUNT(*) AS n FROM messages WHERE user_id = ? AND from_admin = 0 AND created_at > ?').bind(user.id, now() - 3600).first();
+    if (recent.n >= 30) return err(429, 'That’s a lot of messages. Wait a little and try again.');
+    const r = await env.DB.prepare('INSERT INTO messages (user_id, from_admin, body, created_at) VALUES (?, 0, ?, ?)').bind(user.id, text, now()).run();
+    return json({ ok: true, id: r.meta.last_row_id }, 201);
+  }
+
   if (path.startsWith('/api/admin/')) {
     if (!isAdmin(user, env)) return err(403, 'Only the site admin can see this.');
     return handleAdmin(req, env, path, method, user);
@@ -272,6 +301,7 @@ async function handleApi(req, env, url) {
       env.DB.prepare('DELETE FROM visits WHERE user_id = ?').bind(user.id),
       env.DB.prepare('DELETE FROM daily WHERE user_id = ?').bind(user.id),
       env.DB.prepare('DELETE FROM progress WHERE user_id = ?').bind(user.id),
+      env.DB.prepare('DELETE FROM messages WHERE user_id = ?').bind(user.id),
       env.DB.prepare('DELETE FROM sessions WHERE user_id = ?').bind(user.id),
       env.DB.prepare('DELETE FROM users WHERE id = ?').bind(user.id)
     ]);
@@ -300,7 +330,7 @@ function mathsStats(data) {
 }
 
 async function handleAdmin(req, env, path, method, me) {
-  const t = now(), today = dayKey(t);
+  const t = now(), today = dayKey(t), url = new URL(req.url);
   if (path === '/api/admin/overview' && method === 'GET') {
     const since30 = dayKey(t - 29 * 86400), since7 = dayKey(t - 6 * 86400);
     const [users, perUser, perUser7, today_, visits, daily, signups, progress, sciProgress, unlockRows, codeCount, fbCount] = await env.DB.batch([
@@ -362,6 +392,20 @@ async function handleAdmin(req, env, path, method, me) {
     }
     return json({ ok: true, codes: made });
   }
+  if (path === '/api/admin/messages' && method === 'GET') {
+    const rows = await env.DB.prepare(`SELECT u.id, u.username, m.body AS last, m.from_admin AS lastFromAdmin, m.created_at AS at,
+        (SELECT COUNT(*) FROM messages x WHERE x.user_id = u.id AND x.from_admin = 0 AND x.read_at IS NULL) AS unread
+      FROM users u JOIN messages m ON m.id = (SELECT MAX(id) FROM messages WHERE user_id = u.id) ORDER BY m.id DESC`).all();
+    return json({ conversations: rows.results });
+  }
+  const mm = path.match(/^\/api\/admin\/messages\/(\d+)$/);
+  if (mm && method === 'GET') {
+    const uid = +mm[1], after = Math.max(0, parseInt(url.searchParams.get('after') || '0', 10) || 0);
+    const who = await env.DB.prepare('SELECT id, username FROM users WHERE id = ?').bind(uid).first(); if (!who) return err(404, 'No such user');
+    const rows = await env.DB.prepare('SELECT id, from_admin, body, created_at, read_at FROM messages WHERE user_id = ? AND id > ? ORDER BY id LIMIT 500').bind(uid, after).all();
+    await env.DB.prepare('UPDATE messages SET read_at = ? WHERE user_id = ? AND from_admin = 0 AND read_at IS NULL').bind(t, uid).run();
+    return json({ user: who, messages: rows.results.map(r => ({ id: r.id, mine: !!r.from_admin, body: r.body, at: r.created_at, read: !!r.read_at })) });
+  }
   const um = path.match(/^\/api\/admin\/user\/(\d+)$/);
   if (um && method === 'GET') {
     const id = +um[1];
@@ -390,6 +434,14 @@ async function handleAdmin(req, env, path, method, me) {
     else return err(400, 'Bad status');
     return json({ ok: true });
   }
+  if (path === '/api/admin/messages') {
+    const text = String(body.body || '').replace(/\r\n?/g, '\n').trim();
+    if (!text) return err(400, 'Type a message first.'); if (text.length > 2000) return err(400, 'Messages can be up to 2000 characters.');
+    if (id === me.id) return err(400, 'You can’t message yourself.');
+    if (!await env.DB.prepare('SELECT id FROM users WHERE id = ?').bind(id).first()) return err(404, 'No such user');
+    const r = await env.DB.prepare('INSERT INTO messages (user_id, from_admin, body, created_at) VALUES (?, 1, ?, ?)').bind(id, text, t).run();
+    return json({ ok: true, id: r.meta.last_row_id }, 201);
+  }
   if (path === '/api/admin/set-stats') {
     const r = await env.DB.prepare('UPDATE users SET in_stats = ? WHERE id = ?').bind(body.inStats ? 1 : 0, id).run();
     if (!r.meta.changes) return err(404, 'No such user');
@@ -404,7 +456,7 @@ async function handleAdmin(req, env, path, method, me) {
     if (id === me.id) return err(400, 'You can’t delete your own admin account here.');
     await env.DB.prepare('UPDATE codes SET redeemed_by = NULL WHERE redeemed_by = ?').bind(id).run();
     await env.DB.prepare('UPDATE feedback SET user_id = NULL WHERE user_id = ?').bind(id).run();
-    await env.DB.batch(['progress', 'sessions', 'visits', 'daily', 'unlocks', 'unlock_attempts'].map(tb => env.DB.prepare('DELETE FROM ' + tb + ' WHERE user_id = ?').bind(id)).concat([env.DB.prepare('DELETE FROM users WHERE id = ?').bind(id)]));
+    await env.DB.batch(['progress', 'sessions', 'visits', 'daily', 'unlocks', 'unlock_attempts', 'messages'].map(tb => env.DB.prepare('DELETE FROM ' + tb + ' WHERE user_id = ?').bind(id)).concat([env.DB.prepare('DELETE FROM users WHERE id = ?').bind(id)]));
     return json({ ok: true });
   }
   return err(404, 'Not found');
