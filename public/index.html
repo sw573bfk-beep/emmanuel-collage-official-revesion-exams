@@ -141,21 +141,21 @@ details.acct[open] summary{margin-bottom:12px}
   const slot = () => (window.ecAcct ? ecAcct.slot() : 0);
   const mk = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
   async function refreshAccounts() { accounts = window.ecAcct ? await ecAcct.list() : []; renderAccounts(); }
-  function useSlot(n) { ecAcct.use(n); location.reload(); }
+  function useSlot(n, who) { ecAcct.use(n, who); location.reload(); }
   function renderAccounts() {
     const list = $('#acctList'); list.innerHTML = '';
     accounts.forEach(a => {
       const li = mk('li'); li.appendChild(mk('b', '', a.username));
       if (a.slot === slot()) li.appendChild(mk('span', 'pill', 'This tab'));
-      else { const b = mk('button', 'btn sm', 'Use this account'); b.type = 'button'; b.onclick = () => useSlot(a.slot); li.appendChild(b); }
+      else { const b = mk('button', 'btn sm', 'Use this account'); b.type = 'button'; b.onclick = () => useSlot(a.slot, a.username); li.appendChild(b); }
       list.appendChild(li);
     });
     $('#addAcct').hidden = accounts.length >= (window.ecAcct ? ecAcct.max : 1);
-    const others = accounts.filter(a => a.slot !== slot()), still = $('#stillIn'); still.innerHTML = '';
+    const others = accounts, still = $('#stillIn'); still.innerHTML = '';
     still.hidden = !others.length;
     if (others.length) {
       still.appendChild(mk('span', 'small muted', 'Already logged in on this browser:'));
-      others.forEach(a => { const b = mk('button', 'btn quiet sm', 'Use ' + a.username); b.type = 'button'; b.onclick = () => useSlot(a.slot); still.appendChild(b); });
+      others.forEach(a => { const b = mk('button', 'btn quiet sm', 'Use ' + a.username); b.type = 'button'; b.onclick = () => useSlot(a.slot, a.username); still.appendChild(b); });
     }
     const note = $('#addingNote'); note.hidden = !(adding && others.length);
     if (adding && others.length) note.textContent = 'Adding another account. ' + others.map(a => a.username).join(', ') + (others.length > 1 ? ' stay' : ' stays') + ' logged in. Log in or create the new account below.';
@@ -163,7 +163,7 @@ details.acct[open] summary{margin-bottom:12px}
   function addAccount() {
     const used = new Set(accounts.map(a => a.slot)); let free = 0; while (used.has(free)) free++;
     if (!window.ecAcct || free >= ecAcct.max) return;
-    ecAcct.use(free); adding = true;
+    ecAcct.use(free, ''); adding = true;
     $('#username').value = ''; $('#password').value = ''; $('#confirm').value = '';
     $('#acctsCard').hidden = true; setMode('login'); show('auth'); renderAccounts(); $('#username').focus();
   }
@@ -203,6 +203,12 @@ details.acct[open] summary{margin-bottom:12px}
       if (password.length < 8) return fail('Passwords need at least 8 characters.');
       if (password !== $('#confirm').value) return fail('The two passwords don’t match.');
     }
+    await refreshAccounts();
+    if (accounts.some(a => a.slot === slot())) {
+      const used = new Set(accounts.map(a => a.slot)); let free = 0; while (used.has(free)) free++;
+      if (free >= ecAcct.max) return fail('There are already ' + ecAcct.max + ' accounts logged in on this browser. Log one of them out first.');
+      ecAcct.use(free, '');
+    }
     const btn = $('#authBtn'); btn.disabled = true; btn.textContent = mode === 'signup' ? 'Creating account…' : 'Logging in…';
     try {
       const r = await api(mode === 'signup' ? '/api/signup' : '/api/login', 'POST', { username, password });
@@ -212,7 +218,7 @@ details.acct[open] summary{margin-bottom:12px}
       const me = await api('/api/me');
       await refreshAccounts();
       const dup = accounts.find(a => a.slot !== slot() && a.username.toLowerCase() === String(me.data.username).toLowerCase());
-      if (dup) { await api('/api/logout', 'POST', {}); return useSlot(dup.slot); }
+      if (dup) { await api('/api/logout', 'POST', {}); return useSlot(dup.slot, dup.username); }
       picked(me.data);
     } catch (err) { fail('Can’t reach the server. Check your internet connection.'); }
     finally { btn.disabled = false; btn.textContent = mode === 'signup' ? 'Create account' : 'Log in'; }

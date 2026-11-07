@@ -209,4 +209,4 @@ window.ecConfirm = ({ title = 'Are you sure?', text = '', yes = 'Yes', no = 'Can
   back.onclick = e => { if (e.target === back) done(false); };
   document.addEventListener('keydown', key, true); document.body.appendChild(back); back.querySelector('.n').focus();
 });
-window.ecConfirmLogout = () => window.ecConfirm({ title: 'Log out?', text: 'Are you sure you want to log out? Your progress is saved to your account.', yes: 'Yes, log out', no: 'Stay logged in' });
+window.ecConfirmLogout = () => window.ecConfirm({ title: 'Log out?', text: 'Are you sure you want to log out? Your progress is saved to your account. (Want to be in two accounts at once? Use Switch account on the Subjects page instead.)', yes: 'Yes, log out', no: 'Stay logged in' });

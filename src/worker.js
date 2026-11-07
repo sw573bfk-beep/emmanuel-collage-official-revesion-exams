@@ -153,6 +153,10 @@ async function handleApi(req, env, url) {
     return json({ accounts: out, max: MAX_SLOTS });
   }
   const user = await currentUser(req, env);
+  // A tab says which person it thinks it is. If a different person is now logged in on its slot
+  // (another tab logged out and in as someone else), refuse, so it can't save into the wrong account.
+  let expect = null; try { expect = decodeURIComponent(req.headers.get('x-ec-who') || ''); } catch { expect = null; }
+  if (user && expect && expect !== user.username && path !== '/api/me') return err(401, 'Not logged in');
   if (path === '/api/me' && method === 'GET') {
     if (!user) return err(401, 'Not logged in');
     const rows = await env.DB.prepare('SELECT subject, updated_at FROM progress WHERE user_id = ?').bind(user.id).all();
