@@ -5,6 +5,8 @@ Year 8 exam revision with accounts. Students make an account (ideally with their
 - **Maths:** ready. Notes, unlimited auto-marked practice, the full revision booklet with answers, exam mode, interactive tools and a step-by-step solver.
 - **Science:** coming soon (the page, account support and tracking are already in place).
 
+**Live site: <https://ec-revisions.sw573bfk.workers.dev>** (this is the link to share).
+
 Everything runs on **Cloudflare** (free plan): a Worker serves the website and its API, and a D1 database stores accounts, progress and usage. This GitHub repo holds the code; the link you share is the Cloudflare one.
 
 ## Pages
@@ -40,16 +42,19 @@ The sign-up form tells students that Beau can see their name, when they use the 
 
 Passwords are stored as salted PBKDF2 hashes, logins use an HttpOnly cookie, cross-site writes are blocked, and an account locks for 5 minutes after 8 wrong passwords.
 
-## Putting it online
+## Updating the live site
 
-1. Make a free Cloudflare account at <https://dash.cloudflare.com/sign-up>.
-2. `npm install`, then `npx wrangler login`.
-3. `npx wrangler d1 create ec-revisions-db` and paste the `database_id` it prints into `wrangler.toml`.
-4. `npm run deploy`. It prints the site's address, e.g. `https://ec-revisions.<your-subdomain>.workers.dev`.
+The database (`ec-revisions-db`, Oceania region) and the Worker are already set up. After changing anything:
 
-### Automatic updates from GitHub
+1. `npm install` (first time only)
+2. If you changed the maths content: `npm run build`
+3. `npm run deploy` (needs `npx wrangler login` first on a new computer)
 
-Add two repository secrets (**Settings → Secrets and variables → Actions**): `CLOUDFLARE_API_TOKEN` (a token from the "Edit Cloudflare Workers" template, plus **Account → D1 → Edit**) and `CLOUDFLARE_ACCOUNT_ID`. After that, every push to `main` updates the live site.
+The pages in `public/` are bundled into the Worker, so a deploy is one upload.
+
+### Automatic updates from GitHub (optional)
+
+Add two repository secrets (**Settings → Secrets and variables → Actions**): `CLOUDFLARE_API_TOKEN` (a token from the "Edit Cloudflare Workers" template, plus **Account → D1 → Edit**) and `CLOUDFLARE_ACCOUNT_ID` (`8859192e3ec70410341f57569d7da75f`). After that, every push to `main` updates the live site.
 
 ## Working on it locally
 

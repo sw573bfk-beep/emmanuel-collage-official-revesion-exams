@@ -3,20 +3,25 @@
 name = "ec-revisions"
 main = "src/worker.js"
 compatibility_date = "2025-09-01"
+# Live at https://ec-revisions.sw573bfk.workers.dev
+workers_dev = true
+preview_urls = false
 
 [vars]
 # This account can open the admin dashboard at /admin/. Case doesn't matter when logging in.
 ADMIN_USERNAME = "Beau"
 
-[assets]
-directory = "./public"
-binding = "ASSETS"
-not_found_handling = "404-page"
+# The pages in public/ are bundled into the Worker itself (see the imports at the top of src/worker.js),
+# so a deploy is a single upload.
+[[rules]]
+type = "Text"
+globs = ["**/*.html", "**/*.css", "**/public/**/*.js"]
+fallthrough = false
 
-# Create the database once with:  npx wrangler d1 create ec-revisions-db
-# then paste the database_id it prints below.
+# Created with:  npx wrangler d1 create ec-revisions-db --location oc (Oceania, close to Queensland)
+
 [[d1_databases]]
 binding = "DB"
 database_name = "ec-revisions-db"
-database_id = "REPLACE_WITH_YOUR_DATABASE_ID"
+database_id = "b7b26faf-65cf-4d7b-98ad-da731ff695c3"
 migrations_dir = "migrations"

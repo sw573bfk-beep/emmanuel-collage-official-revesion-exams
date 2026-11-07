@@ -3,7 +3,33 @@
 //           GET|PUT /api/progress/:subject, POST /api/password, POST /api/delete-account.
 // Admin (the ADMIN_USERNAME account only): GET /api/admin/overview, GET /api/admin/user/:id,
 //           POST /api/admin/reset-password, POST /api/admin/delete-user.
-// Everything else is served from ./public by the static assets binding.
+// Everything else is one of the pages in ./public, bundled into this Worker below.
+
+import indexHtml from '../public/index.html';
+import siteCss from '../public/site.css';
+import mathsHtml from '../public/maths/index.html';
+import mathsJs from '../public/maths/app.js';
+import scienceHtml from '../public/science/index.html';
+import adminHtml from '../public/admin/index.html';
+import notFoundHtml from '../public/404.html';
+
+const HTML = 'text/html; charset=utf-8';
+const PAGES = {
+  '/': [indexHtml, HTML], '/index.html': [indexHtml, HTML],
+  '/site.css': [siteCss, 'text/css; charset=utf-8'],
+  '/maths/': [mathsHtml, HTML], '/maths/index.html': [mathsHtml, HTML], '/maths/app.js': [mathsJs, 'text/javascript; charset=utf-8'],
+  '/science/': [scienceHtml, HTML], '/science/index.html': [scienceHtml, HTML],
+  '/admin/': [adminHtml, HTML], '/admin/index.html': [adminHtml, HTML]
+};
+const SECURITY_HEADERS = { 'x-content-type-options': 'nosniff', 'referrer-policy': 'same-origin', 'x-frame-options': 'DENY' };
+function servePage(url) {
+  if (['/maths', '/science', '/admin'].includes(url.pathname)) return Response.redirect(url.origin + url.pathname + '/' + url.search, 301);
+  const page = PAGES[url.pathname];
+  if (!page) return new Response(notFoundHtml, { status: 404, headers: { 'content-type': HTML, ...SECURITY_HEADERS } });
+  const [body, type] = page;
+  const cache = type === HTML ? 'no-cache' : 'public, max-age=300';
+  return new Response(body, { headers: { 'content-type': type, 'cache-control': cache, ...SECURITY_HEADERS } });
+}
 
 const SESSION_DAYS = 30;
 const PBKDF2_ITERATIONS = 100000; // the maximum Workers allows
@@ -268,6 +294,7 @@ export default {
       try { return await handleApi(req, env, url); }
       catch (e) { console.error(e); return err(500, 'Something went wrong on the server. Try again.'); }
     }
-    return env.ASSETS.fetch(req);
+    if (req.method !== 'GET' && req.method !== 'HEAD') return new Response('Method not allowed', { status: 405 });
+    return servePage(url);
   }
 };
