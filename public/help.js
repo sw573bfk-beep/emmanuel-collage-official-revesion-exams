@@ -58,7 +58,7 @@
         { h: 'Start here', t: 'Three steps: <b>Learn</b> a topic, <b>Practise</b> until you get 5 in a row, then <b>Test yourself</b>.', sel: '.start-steps' },
         { h: 'Short on time?', t: '<b>Need to know</b> has everything on one page, plus a question on every topic.', sel: ['.need-tip', '#tabs a[data-v="need"]'] },
         { h: 'Exam countdown', t: 'Put in your exam date and it counts down the days.', sel: '#examDate', get: label },
-        { h: 'Skills checklist', t: 'Tap how sure you feel about each skill. The blue links jump to the matching booklet question.', sel: 'table.check' },
+        { h: 'Skills checklist', t: 'Tap any skill (the underlined writing) for a simple explanation and practice questions, one at a time. Tap how sure you feel about each skill. The blue links jump to the matching booklet question.', sel: ['table.check .skill-link', 'table.check'] },
         { h: 'Test yourself', t: 'A timed practice exam. Nothing is marked until you finish.', sel: '#tabs a[data-v="exam"]' },
         { h: 'Tools', t: 'Change the numbers and the answer and working update straight away.', sel: '#tabs a[data-v="tools"]' },
         { h: 'Ask', t: 'Type any maths question and get the answer with every step.', sel: '#tabs a[data-v="ask"]' },

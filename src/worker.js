@@ -18,6 +18,7 @@ import feedbackHtml from '../public/feedback/index.html';
 import notFoundHtml from '../public/404.html';
 import helpJs from '../public/help.js';
 import acctJs from '../public/acct.js';
+import tabbarJs from '../public/tabbar.js';
 
 const HTML = 'text/html; charset=utf-8';
 const PAGES = {
@@ -25,6 +26,7 @@ const PAGES = {
   '/site.css': [siteCss, 'text/css; charset=utf-8'],
   '/help.js': [helpJs, 'text/javascript; charset=utf-8'],
   '/acct.js': [acctJs, 'text/javascript; charset=utf-8'],
+  '/tabbar.js': [tabbarJs, 'text/javascript; charset=utf-8'],
   '/maths/': [mathsHtml, HTML], '/maths/index.html': [mathsHtml, HTML], '/maths/app.js': [mathsJs, 'text/javascript; charset=utf-8'],
   '/science/': [scienceHtml, HTML], '/science/index.html': [scienceHtml, HTML], '/science/app.js': [scienceJs, 'text/javascript; charset=utf-8'],
   '/admin/': [adminHtml, HTML], '/admin/index.html': [adminHtml, HTML],

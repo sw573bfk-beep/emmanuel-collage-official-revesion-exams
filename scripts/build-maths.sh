@@ -23,6 +23,7 @@ ACCOUNT='<span class="acct"><span class="acct-name" id="acctName"></span><span c
       -e 's#<span class="brand-mark">y = mx + c</span>#<span class="brand-mark">EC Revisions · maths</span>#' \
       "$SRC/body.html"
   echo '<script>'; cat "$SRC/gate.js"; echo '</script>'
+  echo '<script src="/tabbar.js" defer></script>'
   echo '<script src="/help.js" defer></script>'
   echo '</body>'
   echo '</html>'

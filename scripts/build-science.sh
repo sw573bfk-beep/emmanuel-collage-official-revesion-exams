@@ -22,6 +22,7 @@ ACCOUNT='<span class="acct"><span class="acct-name" id="acctName"></span><span c
       -e 's#Your progress is saved in this browser only.#Your progress is saved to your account. Beau, who runs EC Revisions, can see your name, when you study and for how long, and your scores.#' \
       "$SRC/body.html"
   echo '<script>'; cat "$SRC/gate.js"; echo '</script>'
+  echo '<script src="/tabbar.js" defer></script>'
   echo '<script src="/help.js" defer></script>'
   echo '</body>'
   echo '</html>'

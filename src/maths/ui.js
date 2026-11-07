@@ -68,7 +68,7 @@ function questionCard(Q, opts = {}) {
 }
 
 /* ================= router ================= */
-const VIEWS = ['home', 'need', 'learn', 'practice', 'booklet', 'exam', 'tools', 'ask', 'cards', 'glossary'];
+const VIEWS = ['home', 'need', 'learn', 'practice', 'booklet', 'exam', 'tools', 'ask', 'cards', 'glossary', 'skill'];
 const RENDER = {}; const rendered = {};
 function show(view, force) {
   if (!VIEWS.includes(view)) view = 'home';
@@ -103,6 +103,38 @@ function openBooklet(id) {
   state.bkPart = q ? q.part : 'A';
   go('booklet', () => { const t = document.getElementById('bk-' + id); if (t) { t.scrollIntoView({ behavior: 'smooth', block: 'start' }); t.animate?.([{ outline: '3px solid var(--accent)' }, { outline: '3px solid transparent' }], { duration: 1600 }); } });
 }
+/* ---------- one skill (opened from the checklist): explanation, then one question at a time ---------- */
+const SKILLS = CHECKLIST.flatMap(c => c[1].map(it => [c[0], ...it]));
+function openSkill(i) { state.skill = i; store.set('skillOpen', i); go('skill'); }
+function backHome(i) { state.ckReturn = i; go('home'); }
+RENDER.skill = () => {
+  const v = $('#v-skill'); v.innerHTML = '';
+  let i = state.skill ?? store.get('skillOpen', 0); if (!(i >= 0 && i < SKILLS.length)) i = 0;
+  const [sec, skill, ref, tid] = SKILLS[i], info = SKILL_INFO[i], t = TOPIC[tid];
+  const back = h('<button type="button" class="btn quiet sm" style="align-self:flex-start">← Back to home</button>'); back.onclick = () => backHome(i);
+  v.appendChild(back);
+  v.appendChild(h('<div class="view-head"><span class="eyebrow">' + sec + '</span><h2>' + skill.replace(/^I can (.)/, (_, c) => c.toUpperCase()) + '</h2></div>'));
+  v.appendChild(h('<div class="card stack"><h3>In simple words</h3><div class="skill-x">' + info.x + '</div><div class="skill-eg"><b>Example:</b> ' + info.eg + '</div></div>'));
+  const qc = h('<div class="card stack"><div class="row" style="justify-content:space-between"><h3>Try a question</h3><span class="small muted skill-score"></span></div><div class="skill-q"></div><div class="row"><button type="button" class="btn" data-next>Next question →</button></div></div>');
+  let n = 0, done = 0, right = 0, last = '';
+  const upd = () => { $('.skill-score', qc).textContent = done ? right + ' right out of ' + done : 'Question ' + n; };
+  const next = () => {
+    let Q; for (let k = 0; k < 12; k++) { Q = makeQ(pick(info.g)); if (Q.q !== last) break; } last = Q.q; n++;
+    const host = $('.skill-q', qc); host.innerHTML = '';
+    host.appendChild(questionCard(Q, { num: n, onAnswer: (ok, partial) => { if (partial) return; record(tid, ok); done++; if (ok) right++; upd(); } }).el);
+    upd();
+  };
+  $('[data-next]', qc).onclick = () => { next(); const inp = $('.skill-q input', qc); if (inp) inp.focus(); };
+  next(); v.appendChild(qc);
+  const cf = h('<div class="card stack"><h3>How sure are you now?</h3><p class="small muted">This updates the skills checklist on Home.</p><div class="cf-host"></div></div>');
+  $('.cf-host', cf).appendChild(confButtons('k' + i, ckStore, 'check'));
+  v.appendChild(cf);
+  const more = h('<p class="small muted">Want more? <button type="button" class="reflink" data-learn>Learn ' + tid + (t ? ': ' + t.name : '') + '</button>, or try the booklet questions: </p>');
+  $('[data-learn]', more).onclick = () => openLearn(tid); more.appendChild(bkRefLinks(ref));
+  v.appendChild(more);
+  const big = h('<button type="button" class="btn skill-home">← Back to home</button>'); big.onclick = () => backHome(i);
+  v.appendChild(big);
+};
 function openPractice(tid) { state.practice = tid; go('practice'); }
 function openLearn(tid) { state.learn = tid; store.set('learnTopic', tid); go('learn'); }
 function openTool(t) { state.tool = t; go('tools'); }
@@ -153,18 +185,20 @@ RENDER.home = () => {
   v.appendChild(prog);
 
   // checklist
-  const ck = h('<div class="card stack"><div class="stack" style="gap:4px"><h3>Skills checklist</h3><p class="muted small">From the revision booklet. Tap how sure you feel about each skill. Work on anything that isn’t “Got it” yet.</p></div><div class="scroll-x"><table class="check"><thead><tr><th>Skill</th><th>Practise with</th><th>Confidence</th><th></th></tr></thead><tbody></tbody></table></div></div>');
+  const ck = h('<div class="card stack"><div class="stack" style="gap:4px"><h3>Skills checklist</h3><p class="muted small">From the revision booklet. <b>Tap a skill</b> for a simple explanation and practice questions. Tap how sure you feel about each skill. Work on anything that isn’t “Got it” yet.</p></div><div class="scroll-x"><table class="check"><thead><tr><th>Skill</th><th>Practise with</th><th>Confidence</th><th></th></tr></thead><tbody></tbody></table></div></div>');
   const tb = $('tbody', ck); let idx = 0;
   CHECKLIST.forEach(([sec, items]) => {
     tb.appendChild(h('<tr class="sec"><td colspan="4">' + sec + '</td></tr>'));
     items.forEach(([skill, ref, tid]) => {
-      const i = idx++; const tr = h('<tr><td>' + skill + '</td><td></td><td></td><td></td></tr>');
+      const i = idx++; const tr = h('<tr id="ck-' + i + '"><td><button type="button" class="skill-link" title="Tap for a simple explanation and practice questions">' + skill + '</button></td><td></td><td></td><td></td></tr>');
+      $('.skill-link', tr).onclick = () => openSkill(i);
       tr.children[1].appendChild(bkRefLinks(ref)); tr.children[2].appendChild(confButtons('k' + i, ckStore, 'check'));
       const pb = h('<button type="button" class="btn quiet sm">Practise ' + tid + '</button>'); pb.onclick = () => openPractice(tid); tr.children[3].appendChild(pb);
       tb.appendChild(tr);
     });
   });
   v.appendChild(ck);
+  if (state.ckReturn != null) { const r = state.ckReturn; state.ckReturn = null; setTimeout(() => { const row = document.getElementById('ck-' + r); if (row) { row.scrollIntoView({ block: 'center' }); row.classList.add('ck-flash'); setTimeout(() => row.classList.remove('ck-flash'), 1800); } }, 80); }
 
   const tips = h(`<div class="row"><button type="button" class="btn quiet sm" id="resetAll">Reset all my progress</button><span class="small muted" id="resetMsg"></span></div>`);
   let armed = false;

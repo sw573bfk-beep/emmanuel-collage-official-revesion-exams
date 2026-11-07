@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-build="1794046074">
+<html lang="en" data-build="1794046476">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -191,6 +191,13 @@ details.more>summary{cursor:pointer}
 .bar>i{display:block;height:100%;background:var(--accent);border-radius:99px}
 .bar.good>i{background:var(--good)}
 .unit-prog{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 12px;align-items:center}
+.skill-link{all:unset;cursor:pointer;color:var(--ink);text-decoration:underline dotted var(--muted);text-underline-offset:3px;line-height:1.4}
+.skill-link:hover{color:var(--accent);text-decoration-color:var(--accent)}
+.skill-link:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:3px}
+tr.ck-flash td{background:color-mix(in srgb,var(--accent) 14%,transparent);transition:background .4s}
+.skill-x ul{margin:.4em 0 0 1.2em}.skill-x li{margin:.15em 0}
+.skill-eg{background:color-mix(in srgb,var(--accent) 7%,var(--card));border-left:4px solid var(--accent);border-radius:8px;padding:10px 12px}
+.skill-home{align-self:flex-start;font-size:1.05rem;padding:12px 20px}
 table.check{width:100%;border-collapse:collapse;font-size:.92rem}
 table.check td,table.check th{border-bottom:1px solid var(--rule);padding:7px 6px;text-align:left;vertical-align:middle}
 table.check th{font-size:.74rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:600}
@@ -324,6 +331,7 @@ footer.foot{max-width:1180px;margin:0 auto;padding-block:0 40px;padding-left:max
   <section id="v-ask" class="view" hidden></section>
   <section id="v-cards" class="view" hidden></section>
   <section id="v-glossary" class="view" hidden></section>
+  <section id="v-skill" class="view" hidden></section>
 </main>
 <footer class="foot">Year 8 (Australian Curriculum, QLD) revision covering 3F–3K, 7I–7J, 9A–9H and 10A–10I, plus every question from the exam revision booklet. Your progress is saved to your account, so it follows you to any device. Beau, who runs EC Revisions, can see your name, when you study and for how long, and your scores.</footer>
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
@@ -388,6 +396,7 @@ footer.foot{max-width:1180px;margin:0 auto;padding-block:0 40px;padding-left:max
   const s = document.createElement('script'); s.src = 'app.js?v=' + (document.documentElement.dataset.build || '1'); document.body.appendChild(s);
 })();
 </script>
+<script src="/tabbar.js" defer></script>
 <script src="/help.js" defer></script>
 </body>
 </html>

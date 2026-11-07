@@ -1745,6 +1745,40 @@ const QUICK = {
   '3J': { what: 'How much did it change, as a percentage?', steps: ['Change = new − old.', 'Divide by the <b>old</b> amount.', 'Multiply by 100.', 'Say whether it’s an increase or a decrease.'], eg: '$80 → $100: 20 ÷ 80 × 100 = 25% increase' },
   '3K': { what: 'Find 1% first, then work out anything else.', steps: ['Divide to find 1%.', 'Multiply up to the % you want.', 'Original price before a change: new price ÷ multiplier.'], eg: '8% = 36 → 1% = 4.5 → 100% = 450' }
 };
+
+/* ================= skill pages (tap a skill in the Home checklist) =================
+   One entry per checklist skill, in the same order: x = the simple explanation,
+   eg = a worked example, g = the question generators used for its practice questions. */
+const SKILL_INFO = [
+  // Linear relations
+  { x: 'Gradient tells you how steep a line is. <b>Gradient = rise ÷ run</b> = (y₂ − y₁) ÷ (x₂ − x₁). Take away the two y-values, then the two x-values in the same order, then divide.', eg: '(1, 2) and (4, 11): rise = 11 − 2 = 9, run = 4 − 1 = 3, gradient = 9 ÷ 3 = <b>3</b>.', g: ['gradient2', 'gradientType'] },
+  { x: 'Write the rule as <b>y = mx + c</b>.<ul><li>The number in front of x is the <b>gradient (m)</b>.</li><li>The number on its own is the <b>y-intercept (c)</b>: where the line crosses the y-axis.</li></ul>Keep the sign that is in front of each number.', eg: 'y = 9 − 2x is the same as y = −2x + 9, so <b>m = −2</b> and <b>c = 9</b>.', g: ['mcRule'] },
+  { x: 'Find two things:<ul><li>the <b>starting amount</b> (the value when x = 0). This is c.</li><li>how much it <b>goes up or down each step</b>. This is the gradient, m.</li></ul>Then write <b>y = mx + c</b>. In a table, the change from one y-value to the next is the gradient.', eg: 'A taxi charges a $4 fee plus $2.50 per km → <b>C = 2.5d + 4</b>.', g: ['ruleTable', 'ruleWords'] },
+  { x: 'Put each x-value into the rule to work out y. Plot each (x, y) point, then join them with a ruler. If the points make a straight line, it is a linear relation.', eg: 'y = 2x − 3. When x = 2: y = 2 × 2 − 3 = 1, so plot the point <b>(2, 1)</b>.', g: ['tableFill', 'plotRead', 'isLinear'] },
+  { x: '<b>To find y:</b> put the x-value into the rule.<br><b>To find x:</b> put in the y-value, then solve by undoing each step.<br>Finish with a sentence that answers the question, with units.', eg: 'A = 45 + 15w. When does A = 300? 15w = 255, so w = 17. <b>After 17 weeks.</b>', g: ['ruleUse', 'evalRule', 'solveRule', 'breakEven'] },
+  { x: 'Words to signs:<ul><li><b>at least</b> → ≥ &nbsp; <b>at most / no more than</b> → ≤</li><li><b>more than</b> → &gt; &nbsp; <b>less than</b> → &lt;</li></ul>On a number line use an <b>open circle</b> for &lt; or &gt;, a <b>filled circle</b> for ≤ or ≥, and an arrow pointing to the numbers that work.', eg: 'You must be at least 12 → <b>a ≥ 12</b>: filled circle on 12, arrow to the right.', g: ['ineqWords', 'ineqRead', 'ineqConcept'] },
+  { x: 'Solve it just like an equation. The one extra rule: if you <b>multiply or divide by a negative number, flip the sign</b> (&lt; becomes &gt;). Adding or subtracting never flips it.', eg: '−3x &gt; 12 → divide both sides by −3 and flip → <b>x &lt; −4</b>.', g: ['ineqSolve', 'ineqSolveGraph', 'ineqNeg', 'ineqFlip'] },
+  { x: 'Undo what was done to x, in reverse order. Whatever you do to one side, do to the other side too. If the answer is a fraction, that’s fine: leave it as a fraction.', eg: '4x + 3 = 13 → take away 3: 4x = 10 → divide by 4: <b>x = 5/2</b> (2.5).', g: ['eqSolve', 'eqWord'] },
+  { x: '<b>From a graph:</b> c is where the line crosses the y-axis. Pick two points on the line and find the gradient (rise ÷ run). Write y = mx + c.<br><b>Is a point on the line?</b> Put its x into the rule. If you get its y, it is on the line.', eg: 'The line goes through (0, 3) and (1, 1): m = −2, c = 3, so <b>y = −2x + 3</b>. Is (2, −1) on it? −2 × 2 + 3 = −1 ✓ yes.', g: ['ruleGraph', 'gradientGraph', 'onLine', 'rule2pts'] },
+  // Percentage
+  { x: 'Change the percentage to a decimal (divide by 100), then multiply by the amount.', eg: '15% of $80 = 0.15 × 80 = <b>$12</b>.', g: ['pctOf'] },
+  { x: '<b>(part ÷ whole) × 100</b>. Make both amounts the same units first.', eg: '30 cm out of 2 m: 2 m = 200 cm, so 30 ÷ 200 × 100 = <b>15%</b>.', g: ['asPct'] },
+  { x: 'Use a multiplier:<ul><li><b>Increase</b> by 20% → × 1.2 (100% + 20%)</li><li><b>Decrease</b> by 20% → × 0.8 (100% − 20%)</li></ul>', eg: '$50 decreased by 20% = 50 × 0.8 = <b>$40</b>.', g: ['incDec'] },
+  { x: '<b>% change = change ÷ original × 100</b>. Always divide by the <b>original</b> (starting) amount, not the new one.', eg: '$40 goes up to $50: change = 10, so 10 ÷ 40 × 100 = <b>25% increase</b>.', g: ['pctChange', 'pctChangeMcq'] },
+  { x: 'Find <b>1%</b> first (divide by the percentage), then multiply to get the percentage you want.', eg: '12% is $36 → 1% = 36 ÷ 12 = $3 → 100% = <b>$300</b>.', g: ['unitary'] },
+  { x: '<ul><li><b>Profit</b> = selling price − cost price</li><li><b>Loss</b> = cost price − selling price</li><li><b>Discount</b> takes a percentage off the price</li><li><b>GST</b> adds 10%: multiply by 1.1</li></ul>', eg: '$200 plus GST = 200 × 1.1 = <b>$220</b>.', g: ['shopping', 'vocab'] },
+  { x: 'Work out what percentage the new amount is of the original. Then divide by that multiplier (or use the unitary method).', eg: 'After a 20% discount a shirt costs $64. $64 is 80% of the original, so 64 ÷ 0.8 = <b>$80</b>.', g: ['reversePct'] },
+  { x: 'Do one step at a time and write each answer down. For changes that happen one after another, multiply by each multiplier in turn. Don’t just add the percentages.', eg: '$100 goes up 10%, then down 10%: 100 × 1.1 × 0.9 = <b>$99</b> (not $100).', g: ['multiStepPct', 'successive'] },
+  // Space
+  { x: '<ul><li><b>Reflect in the x-axis:</b> (x, y) → (x, −y)</li><li><b>Reflect in the y-axis:</b> (x, y) → (−x, y)</li><li><b>Translate:</b> left/right changes x, up/down changes y</li></ul>', eg: '(2, 3) moved 4 left and 1 up → <b>(−2, 4)</b>.', g: ['reflectPt', 'translatePt', 'reflectShape', 'translateShape'] },
+  { x: 'Name the type, then the details:<ul><li>a <b>reflection</b>: say the mirror line</li><li>a <b>translation</b>: say how far left/right and up/down</li></ul>For two moves, describe each one in order.', eg: '“Reflected in the y-axis, then translated 3 units down.”', g: ['reflectWhich', 'findVector', 'vectorWords'] },
+  { x: 'Congruent means exactly the same shape and size. The tests:<ul><li><b>SSS</b>: all 3 sides match</li><li><b>SAS</b>: 2 sides and the angle between them</li><li><b>AAS</b>: 2 angles and a side</li><li><b>RHS</b>: right angle, hypotenuse and one side</li></ul>Say which parts match.', eg: 'Both triangles have sides 5, 7 and 9 → congruent by <b>SSS</b>.', g: ['congTest', 'congTestNamed', 'congConcept'] },
+  { x: 'Match the corresponding parts: the letters are in the same order in the name. Matching sides are equal, and matching angles are equal.', eg: 'If △ABC ≡ △DEF, then <b>AB = DE</b> and <b>∠C = ∠F</b>.', g: ['corrParts', 'congFind'] },
+  { x: 'Similar means the same shape but a different size.<ul><li><b>Scale factor</b> = big side ÷ matching small side</li><li>Tests: <b>AAA</b>, <b>SSS</b> (all sides in the same ratio), <b>SAS</b> (two sides in ratio and the angle between them equal), <b>RHS</b></li></ul>Write it with the letters in matching order, like △ABC ~ △DEF.', eg: 'Sides 6, 8, 10 and 9, 12, 15: every side × 1.5, so the scale factor is <b>1.5</b> → similar (SSS).', g: ['simTest', 'shadow'] },
+  { x: 'Find the scale factor from one pair of matching sides, then multiply (or divide) to find the missing side.<ul><li><b>Overlapping</b> triangles: draw them separately first.</li><li><b>Crossing</b> (hourglass) triangles: match the sides opposite equal angles.</li></ul>', eg: 'Small side 4, matching big side 6 → scale factor 1.5. Missing big side = 1.5 × 5 = <b>7.5</b>.', g: ['parallelTri', 'hourglass', 'shadow'] },
+  { x: '<ul><li><b>Parallelogram:</b> opposite sides parallel and equal, opposite angles equal</li><li><b>Rhombus:</b> all sides equal, diagonals cross at 90°</li><li><b>Rectangle:</b> all angles 90°, diagonals equal</li><li><b>Kite:</b> two pairs of equal sides next to each other, diagonals cross at 90°</li><li><b>Trapezium:</b> one pair of parallel sides</li></ul>', eg: 'A parallelogram has a 70° angle → the opposite angle is <b>70°</b>, and the other two are <b>110°</b> (70 + 110 = 180).', g: ['quadAngles', 'quadFacts', 'kiteTF', 'quadProof'] },
+  { x: 'In 3D every point has three coordinates <b>(x, y, z)</b>. In the booklet the x-axis comes towards you, the y-axis goes to the right and the z-axis goes up. The origin is (0, 0, 0).', eg: 'Come 2 towards you, go 4 right and 3 up → <b>(2, 4, 3)</b>.', g: ['boxCorner', 'axisPlane', 'move3d'] }
+];
 /* ================= small UI helpers ================= */
 function h(html) { const t = document.createElement('template'); t.innerHTML = html.trim(); return t.content.firstElementChild; }
 let toastT;
@@ -1815,7 +1849,7 @@ function questionCard(Q, opts = {}) {
 }
 
 /* ================= router ================= */
-const VIEWS = ['home', 'need', 'learn', 'practice', 'booklet', 'exam', 'tools', 'ask', 'cards', 'glossary'];
+const VIEWS = ['home', 'need', 'learn', 'practice', 'booklet', 'exam', 'tools', 'ask', 'cards', 'glossary', 'skill'];
 const RENDER = {}; const rendered = {};
 function show(view, force) {
   if (!VIEWS.includes(view)) view = 'home';
@@ -1850,6 +1884,38 @@ function openBooklet(id) {
   state.bkPart = q ? q.part : 'A';
   go('booklet', () => { const t = document.getElementById('bk-' + id); if (t) { t.scrollIntoView({ behavior: 'smooth', block: 'start' }); t.animate?.([{ outline: '3px solid var(--accent)' }, { outline: '3px solid transparent' }], { duration: 1600 }); } });
 }
+/* ---------- one skill (opened from the checklist): explanation, then one question at a time ---------- */
+const SKILLS = CHECKLIST.flatMap(c => c[1].map(it => [c[0], ...it]));
+function openSkill(i) { state.skill = i; store.set('skillOpen', i); go('skill'); }
+function backHome(i) { state.ckReturn = i; go('home'); }
+RENDER.skill = () => {
+  const v = $('#v-skill'); v.innerHTML = '';
+  let i = state.skill ?? store.get('skillOpen', 0); if (!(i >= 0 && i < SKILLS.length)) i = 0;
+  const [sec, skill, ref, tid] = SKILLS[i], info = SKILL_INFO[i], t = TOPIC[tid];
+  const back = h('<button type="button" class="btn quiet sm" style="align-self:flex-start">← Back to home</button>'); back.onclick = () => backHome(i);
+  v.appendChild(back);
+  v.appendChild(h('<div class="view-head"><span class="eyebrow">' + sec + '</span><h2>' + skill.replace(/^I can (.)/, (_, c) => c.toUpperCase()) + '</h2></div>'));
+  v.appendChild(h('<div class="card stack"><h3>In simple words</h3><div class="skill-x">' + info.x + '</div><div class="skill-eg"><b>Example:</b> ' + info.eg + '</div></div>'));
+  const qc = h('<div class="card stack"><div class="row" style="justify-content:space-between"><h3>Try a question</h3><span class="small muted skill-score"></span></div><div class="skill-q"></div><div class="row"><button type="button" class="btn" data-next>Next question →</button></div></div>');
+  let n = 0, done = 0, right = 0, last = '';
+  const upd = () => { $('.skill-score', qc).textContent = done ? right + ' right out of ' + done : 'Question ' + n; };
+  const next = () => {
+    let Q; for (let k = 0; k < 12; k++) { Q = makeQ(pick(info.g)); if (Q.q !== last) break; } last = Q.q; n++;
+    const host = $('.skill-q', qc); host.innerHTML = '';
+    host.appendChild(questionCard(Q, { num: n, onAnswer: (ok, partial) => { if (partial) return; record(tid, ok); done++; if (ok) right++; upd(); } }).el);
+    upd();
+  };
+  $('[data-next]', qc).onclick = () => { next(); const inp = $('.skill-q input', qc); if (inp) inp.focus(); };
+  next(); v.appendChild(qc);
+  const cf = h('<div class="card stack"><h3>How sure are you now?</h3><p class="small muted">This updates the skills checklist on Home.</p><div class="cf-host"></div></div>');
+  $('.cf-host', cf).appendChild(confButtons('k' + i, ckStore, 'check'));
+  v.appendChild(cf);
+  const more = h('<p class="small muted">Want more? <button type="button" class="reflink" data-learn>Learn ' + tid + (t ? ': ' + t.name : '') + '</button>, or try the booklet questions: </p>');
+  $('[data-learn]', more).onclick = () => openLearn(tid); more.appendChild(bkRefLinks(ref));
+  v.appendChild(more);
+  const big = h('<button type="button" class="btn skill-home">← Back to home</button>'); big.onclick = () => backHome(i);
+  v.appendChild(big);
+};
 function openPractice(tid) { state.practice = tid; go('practice'); }
 function openLearn(tid) { state.learn = tid; store.set('learnTopic', tid); go('learn'); }
 function openTool(t) { state.tool = t; go('tools'); }
@@ -1900,18 +1966,20 @@ RENDER.home = () => {
   v.appendChild(prog);
 
   // checklist
-  const ck = h('<div class="card stack"><div class="stack" style="gap:4px"><h3>Skills checklist</h3><p class="muted small">From the revision booklet. Tap how sure you feel about each skill. Work on anything that isn’t “Got it” yet.</p></div><div class="scroll-x"><table class="check"><thead><tr><th>Skill</th><th>Practise with</th><th>Confidence</th><th></th></tr></thead><tbody></tbody></table></div></div>');
+  const ck = h('<div class="card stack"><div class="stack" style="gap:4px"><h3>Skills checklist</h3><p class="muted small">From the revision booklet. <b>Tap a skill</b> for a simple explanation and practice questions. Tap how sure you feel about each skill. Work on anything that isn’t “Got it” yet.</p></div><div class="scroll-x"><table class="check"><thead><tr><th>Skill</th><th>Practise with</th><th>Confidence</th><th></th></tr></thead><tbody></tbody></table></div></div>');
   const tb = $('tbody', ck); let idx = 0;
   CHECKLIST.forEach(([sec, items]) => {
     tb.appendChild(h('<tr class="sec"><td colspan="4">' + sec + '</td></tr>'));
     items.forEach(([skill, ref, tid]) => {
-      const i = idx++; const tr = h('<tr><td>' + skill + '</td><td></td><td></td><td></td></tr>');
+      const i = idx++; const tr = h('<tr id="ck-' + i + '"><td><button type="button" class="skill-link" title="Tap for a simple explanation and practice questions">' + skill + '</button></td><td></td><td></td><td></td></tr>');
+      $('.skill-link', tr).onclick = () => openSkill(i);
       tr.children[1].appendChild(bkRefLinks(ref)); tr.children[2].appendChild(confButtons('k' + i, ckStore, 'check'));
       const pb = h('<button type="button" class="btn quiet sm">Practise ' + tid + '</button>'); pb.onclick = () => openPractice(tid); tr.children[3].appendChild(pb);
       tb.appendChild(tr);
     });
   });
   v.appendChild(ck);
+  if (state.ckReturn != null) { const r = state.ckReturn; state.ckReturn = null; setTimeout(() => { const row = document.getElementById('ck-' + r); if (row) { row.scrollIntoView({ block: 'center' }); row.classList.add('ck-flash'); setTimeout(() => row.classList.remove('ck-flash'), 1800); } }, 80); }
 
   const tips = h(`<div class="row"><button type="button" class="btn quiet sm" id="resetAll">Reset all my progress</button><span class="small muted" id="resetMsg"></span></div>`);
   let armed = false;
