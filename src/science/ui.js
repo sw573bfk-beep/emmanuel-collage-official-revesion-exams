@@ -4,7 +4,28 @@ let toastT;
 function toast(msg) { const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), 1800); }
 const state = { learn: store.get('learnTopic', 'C1'), practice: 'mix', tool: 'solver', bkPart: 'A' };
 const tstats = store.get('tstats', {});
-function record(topic, ok) { const s = tstats[topic] || (tstats[topic] = { a: 0, c: 0 }); s.a++; if (ok) s.c++; store.set('tstats', tstats); }
+function record(topic, ok) { const s = tstats[topic] || (tstats[topic] = { a: 0, c: 0 }); s.a++; if (ok) s.c++; store.set('tstats', tstats); if (ok) planTick('right', topic); }
+/* ---------- today's plan (Home) ---------- */
+const todayKey = () => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
+function pickFocus() {
+  const rows = TOPICS.map(t => ({ t, s: tstats[t.id] }));
+  const tried = rows.filter(x => x.s && x.s.a >= 3).sort((a, b) => a.s.c / a.s.a - b.s.c / b.s.a);
+  const fresh = rows.find(x => !x.s || x.s.a < 3);
+  if (tried.length && tried[0].s.c / tried[0].s.a < 0.8) return { id: tried[0].t.id, why: 'it’s your lowest score so far (' + Math.round(tried[0].s.c / tried[0].s.a * 100) + '% right)' };
+  if (fresh) return { id: fresh.t.id, why: 'you haven’t practised it yet' };
+  return { id: tried[0].t.id, why: 'it’s your lowest score, so keep it sharp' };
+}
+function getPlan() {
+  let pl = store.get('plan', null);
+  if (!pl || pl.d !== todayKey() || !TOPIC[pl.focus]) { const f = pickFocus(); pl = { d: todayKey(), focus: f.id, why: f.why, read: false, right: 0, tested: false }; store.set('plan', pl); }
+  return pl;
+}
+function planTick(what, topic) {
+  const pl = getPlan();
+  if (what === 'read' && topic === pl.focus && !pl.read) { pl.read = true; store.set('plan', pl); }
+  if (what === 'right' && topic === pl.focus) { pl.right = (pl.right || 0) + 1; store.set('plan', pl); }
+  if (what === 'tested' && !pl.tested) { pl.tested = true; store.set('plan', pl); }
+}
 const acc = tid => { const s = tstats[tid]; return s && s.a ? s.c / s.a : null; };
 const canStore = store.get('can', {});
 const ckStore = store.get('check', {});
@@ -114,17 +135,22 @@ RENDER.home = () => {
   const ckItems = CHECKLIST.flatMap(c => c[1]); const ckGot = ckItems.filter((_, i) => ckStore['k' + i] === 2).length;
   const examDate = store.get('examDate', '');
   let days = null; if (examDate) { const d = new Date(examDate + 'T09:00'); days = Math.ceil((d - new Date()) / 864e5); }
-  const start = h(`<div class="card stack">
-    <h2>Start here</h2>
-    <p class="need-tip">Short on time? <button type="button" class="btn sm" data-go="need">Need to know</button> has everything on one page, plus a question on every topic.</p>
-    <ol class="start-steps">
-      <li><span class="n">1</span><div class="stack" style="gap:6px"><h3>Learn</h3><p>Pick a topic and read the quick version.</p><button type="button" class="btn" data-go="learn">Learn a topic</button></div></li>
-      <li><span class="n">2</span><div class="stack" style="gap:6px"><h3>Practise</h3><p>Answer questions until you can get 5 in a row.</p><button type="button" class="btn" data-go="practice-mix">Practise</button></div></li>
-      <li><span class="n">3</span><div class="stack" style="gap:6px"><h3>Test yourself</h3><p>Do the workbook questions, the graph task, then a timed practice exam.</p><div class="row"><button type="button" class="btn" data-go="booklet">Workbook Qs</button><button type="button" class="btn ghost" data-go="graph">Graph task</button><button type="button" class="btn ghost" data-go="exam">Practice exam</button></div></div></li>
-    </ol>
-    <p class="small muted">Have an unlock code? Open the <button type="button" class="reflink" data-go="theory">completed theory booklet</button>.</p>
+  const pl = getPlan(); const ft = TOPIC[pl.focus]; const need = 5; const got = Math.min(pl.right || 0, need);
+  const steps = [
+    { done: pl.read, title: 'Read', text: 'Read the quick version of <b>' + ft.id + ' ' + ft.name + '</b>.', btn: '<button type="button" class="btn" data-plan="read">Read it</button>' },
+    { done: got >= need, title: 'Practise', text: 'Get <b>5 questions right</b> on ' + ft.name + '. <span class="plan-count">' + got + ' / ' + need + '</span>', btn: '<button type="button" class="btn" data-plan="practise">Practise</button>' },
+    { done: pl.tested, title: 'Test yourself', text: 'Do a timed practice test on everything.', btn: '<button type="button" class="btn" data-go="exam">Start a test</button>' }
+  ];
+  const allDone = steps.every(x => x.done);
+  const start = h(`<div class="card stack plan">
+    <div><span class="eyebrow">Today’s plan</span><h2>${allDone ? 'All done for today!' : 'Do these 3 things today'}</h2>
+    <p class="muted">${allDone ? 'Great work. Come back tomorrow for a new plan, or keep going with anything below.' : 'Today’s focus is <b>' + ft.name + '</b>, because ' + pl.why + '.'}</p></div>
+    <ol class="plan-steps">${steps.map((x, i) => '<li class="' + (x.done ? 'done' : '') + '"><span class="n">' + (x.done ? '✓' : i + 1) + '</span><div class="stack" style="gap:6px"><h3>' + x.title + '</h3><p>' + x.text + '</p>' + (x.done ? '<span class="small" style="color:var(--good);font-weight:600">Done</span>' : x.btn) + '</div></li>').join('')}</ol>
+    <p class="small muted">Want something else? Everything is still in the tabs above: <button type="button" class="reflink" data-go="need">Need to know</button>, <button type="button" class="reflink" data-go="booklet">Workbook Qs</button>, <button type="button" class="reflink" data-go="graph">Graph task</button>, <button type="button" class="reflink" data-go="theory">Completed booklet</button>.</p>
   </div>`);
   v.appendChild(start);
+  const rd = $('[data-plan="read"]', start); if (rd) rd.onclick = () => openLearn(pl.focus);
+  const pr = $('[data-plan="practise"]', start); if (pr) pr.onclick = () => openPractice(pl.focus);
   const stats = h(`<div class="card row" style="justify-content:space-between;gap:18px">
     <div class="row" style="gap:22px">
       <div><div class="bignum" style="font-size:1.6rem">${totalA ? Math.round(totalC / totalA * 100) + '%' : '—'}</div><div class="small muted">practice right (${totalA} done)</div></div>
@@ -195,6 +221,7 @@ RENDER.learn = () => {
   sel.onchange = () => showTopic(sel.value);
   v.appendChild(wrap);
   function showTopic(id) {
+    planTick('read', id);
     state.learn = id; store.set('learnTopic', id); sel.value = id;
     $$('button', toc).forEach(b => b.classList.toggle('on', b.dataset.t === id));
     const t = TOPIC[id]; const body = $('#learnBody', wrap); body.innerHTML = '';
@@ -389,6 +416,7 @@ RENDER.exam = () => {
     function submit() {
       if (done) return; done = true; clearInterval(examTimer);
       const res = cards.map((c, i) => { const r = c.finalize(); record(Qs[i].topic, !!r.ok); return !!r.ok; });
+      planTick('tested');
       const s = res.filter(Boolean).length, p = Math.round(s / n * 100); const used = Math.round((Date.now() - start) / 1000);
       const hist = store.get('exams', []); hist.push({ d: new Date().toLocaleDateString('en-AU'), s, n, p, t: Math.floor(used / 60) + 'm ' + used % 60 + 's' }); store.set('exams', hist);
       bar.remove(); bottom.remove();

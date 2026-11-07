@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-build="1794028097">
+<html lang="en" data-build="1794028701">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -189,6 +189,14 @@ svg{max-width:100%;height:auto}
 .th-foot{display:flex;justify-content:space-between;border-top:1px solid var(--rule);padding-top:8px;font-size:.8rem;color:var(--muted)}
 .th-foot b{color:var(--ink)}
 .chart-svg .pl{stroke-width:2.2}
+/* today's plan */
+.plan{border:2px solid var(--accent)}
+.plan-steps{list-style:none;margin:0;padding:0;display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:14px}
+.plan-steps li{display:flex;gap:12px;align-items:flex-start;border:1.5px solid var(--rule);border-radius:12px;padding:16px}
+.plan-steps .n{flex:0 0 auto;width:36px;height:36px;border-radius:50%;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;font-family:var(--f-display);font-weight:800;font-size:1.15rem}
+.plan-steps li.done{background:var(--good-soft);border-color:var(--good)}
+.plan-steps li.done .n{background:var(--good);color:#fff}
+.plan-count{display:inline-block;font-family:var(--f-mono);font-weight:600;background:var(--accent-soft);border-radius:6px;padding:0 6px}
 /* need to know */
 .need-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:12px}
 .need-topic{border:1.5px solid var(--rule);border-radius:10px;padding:14px;display:flex;flex-direction:column;gap:8px;min-width:0}
