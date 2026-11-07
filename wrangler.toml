@@ -1,0 +1,22 @@
+# EC Revisions on Cloudflare: one Worker serves the site (public/) and its API (src/worker.js),
+# and a D1 database stores accounts, saved progress and usage (who studied, when, for how long).
+name = "ec-revisions"
+main = "src/worker.js"
+compatibility_date = "2025-09-01"
+
+[vars]
+# This account can open the admin dashboard at /admin/. Case doesn't matter when logging in.
+ADMIN_USERNAME = "Beau"
+
+[assets]
+directory = "./public"
+binding = "ASSETS"
+not_found_handling = "404-page"
+
+# Create the database once with:  npx wrangler d1 create ec-revisions-db
+# then paste the database_id it prints below.
+[[d1_databases]]
+binding = "DB"
+database_name = "ec-revisions-db"
+database_id = "REPLACE_WITH_YOUR_DATABASE_ID"
+migrations_dir = "migrations"

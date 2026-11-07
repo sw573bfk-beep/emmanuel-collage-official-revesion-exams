@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>EC Revisions Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Lexend:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="/site.css">
+<style>
+:root{--bar:#2443c2;--bar-hi:#3a58d8}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){--bar:#7088f0;--bar-hi:#8a9ff5}}
+:root[data-theme="dark"]{--bar:#7088f0;--bar-hi:#8a9ff5}
+.wrap{max-width:1240px;gap:18px}
+.head{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap}
+.head h1{font-size:clamp(1.6rem,1.2rem + 2vw,2.4rem);font-weight:800;margin-top:6px}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,170px),1fr));gap:12px}
+.tile{background:var(--card);border:1px solid var(--rule);border-radius:12px;padding:14px 16px;display:flex;flex-direction:column;gap:2px}
+.tile .v{font-family:var(--f-display);font-weight:800;font-size:2rem;line-height:1.1;font-variant-numeric:tabular-nums}
+.tile .l{font-size:.82rem;color:var(--muted)}
+.tile.live{border-color:var(--good)} .tile.live .v{color:var(--good)}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--good);margin-right:6px;vertical-align:middle}
+.charts{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,420px),1fr));gap:16px}
+.chart svg{display:block;width:100%;height:auto;overflow:visible}
+.chart .gl{stroke:var(--line);stroke-width:1}
+.chart .ax{fill:var(--muted);font-size:10px;font-family:var(--f-mono)}
+.chart .hit:focus{outline:2px solid var(--accent);outline-offset:-1px}
+.chart .hit{fill:transparent;cursor:pointer}
+.tip{position:fixed;z-index:50;pointer-events:none;background:var(--card);color:var(--ink);border:1px solid var(--rule);border-radius:8px;padding:6px 10px;font-size:.85rem;box-shadow:0 4px 14px rgb(0 0 0 / .15)}
+.tip b{display:block;font-size:1rem;font-variant-numeric:tabular-nums}
+.tablewrap{overflow-x:auto;max-width:100%}
+table.users{border-collapse:collapse;width:100%;font-size:.9rem;font-variant-numeric:tabular-nums}
+table.users th,table.users td{border-bottom:1px solid var(--rule);padding:8px 8px;text-align:left;white-space:nowrap}
+table.users th{font-size:.72rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);cursor:pointer;user-select:none;position:sticky;top:0;background:var(--card)}
+table.users th[aria-sort]::after{content:" ↓"} table.users th[aria-sort="ascending"]::after{content:" ↑"}
+table.users tbody tr{cursor:pointer}
+table.users tbody tr:hover{background:var(--accent-soft)}
+table.users td.num{text-align:right} table.users th.num{text-align:right}
+.pill{display:inline-block;font-size:.72rem;font-weight:600;border-radius:999px;padding:1px 8px}
+.pill.on{background:var(--good-soft);color:var(--good)} .pill.admin{background:var(--accent-soft);color:var(--accent)}
+.online-list{display:flex;flex-wrap:wrap;gap:8px}
+.online-list span{background:var(--good-soft);color:var(--good);border-radius:999px;padding:3px 12px;font-size:.9rem}
+dialog{border:1px solid var(--rule);border-radius:14px;background:var(--card);color:var(--ink);padding:0;width:min(720px,calc(100vw - 32px));max-height:calc(100vh - 40px)}
+dialog::backdrop{background:rgb(0 0 0 / .45)}
+.dlg{padding:20px;display:flex;flex-direction:column;gap:14px}
+.kv{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,150px),1fr));gap:10px}
+.kv div{border:1px solid var(--rule);border-radius:8px;padding:8px 10px}
+.kv b{display:block;font-size:1.15rem;font-variant-numeric:tabular-nums}
+.kv span{font-size:.78rem;color:var(--muted)}
+table.mini{border-collapse:collapse;width:100%;font-size:.86rem;font-variant-numeric:tabular-nums}
+table.mini td,table.mini th{border-bottom:1px solid var(--rule);padding:5px 6px;text-align:left}
+.toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:space-between}
+.toolbar input{max-width:300px}
+details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
+</style>
+</head>
+<body>
+<main class="wrap">
+  <div class="head">
+    <div><span class="mark">admin</span><h1>EC Revisions dashboard</h1><p class="muted small" id="updated">Loading…</p></div>
+    <div class="row"><button class="btn quiet sm" type="button" id="refresh">Refresh</button><button class="btn quiet sm" type="button" id="csv">Download CSV</button><a class="btn quiet sm" href="/">Back to subjects</a></div>
+  </div>
+  <div id="denied" class="card stack" hidden><h2>Admin only</h2><p class="muted">This page is only for the site admin. Log in with the admin account to see it.</p><a class="btn" href="/" style="align-self:flex-start">Go to EC Revisions</a></div>
+  <div id="dash" class="stack" style="gap:18px" hidden>
+    <section class="tiles" aria-label="Summary">
+      <div class="tile live"><span class="v" id="tOnline">0</span><span class="l"><span class="dot"></span>online right now</span></div>
+      <div class="tile"><span class="v" id="tUsers">0</span><span class="l" id="tUsersL">accounts</span></div>
+      <div class="tile"><span class="v" id="tToday">0</span><span class="l">studied today</span></div>
+      <div class="tile"><span class="v" id="tWeek">0</span><span class="l">studied in the last 7 days</span></div>
+      <div class="tile"><span class="v" id="tTimeToday">0</span><span class="l">study time today</span></div>
+      <div class="tile"><span class="v" id="tTimeWeek">0</span><span class="l">study time, last 7 days</span></div>
+      <div class="tile"><span class="v" id="tTimeAll">0</span><span class="l">study time, all time</span></div>
+      <div class="tile"><span class="v" id="tQs">0</span><span class="l">maths questions answered</span></div>
+    </section>
+    <section class="card stack" id="onlineCard"><span class="eyebrow">Online now</span><div class="online-list" id="onlineList"></div></section>
+    <section class="charts">
+      <div class="card stack chart"><div><span class="eyebrow">Last 30 days</span><h3>Minutes studied per day</h3></div><div id="chMin"></div></div>
+      <div class="card stack chart"><div><span class="eyebrow">Last 30 days</span><h3>People who studied per day</h3></div><div id="chPeople"></div></div>
+    </section>
+    <details class="card"><summary>Show the daily numbers as a table</summary><div class="tablewrap" style="margin-top:10px"><table class="mini" id="dayTable"></table></div></details>
+    <section class="card stack">
+      <div class="toolbar"><h3>Everyone</h3><input type="search" id="search" placeholder="Search names" aria-label="Search names"></div>
+      <p class="small muted">Study time counts only while someone has a subject open and is active (not when the tab is in the background or left idle). Tap a person for their visit history, to reset their password, or to delete their account.</p>
+      <div class="tablewrap"><table class="users"><thead><tr id="thead"></tr></thead><tbody id="tbody"></tbody></table></div>
+    </section>
+  </div>
+</main>
+<div class="tip" id="tip" hidden></div>
+<dialog id="dlg"><div class="dlg" id="dlgBody"></div></dialog>
+<script>
+(function () {
+  const $ = s => document.querySelector(s);
+  const TZ = 'Australia/Brisbane';
+  let data = null, sortKey = 'lastSeen', sortDir = -1, query = '';
+  const dur = s => { s = Math.round(s || 0); if (s < 60) return s ? '<1 min' : '0 min'; const m = Math.round(s / 60); if (m < 60) return m + ' min'; const h = Math.floor(m / 60); return h + ' h ' + (m % 60) + ' min'; };
+  const ago = t => { if (!t) return 'never'; const d = data.now - t; if (d < 90) return 'just now'; if (d < 3600) return Math.round(d / 60) + ' min ago'; if (d < 86400) return Math.round(d / 3600) + ' h ago'; if (d < 7 * 86400) { const n = Math.round(d / 86400); return n + (n === 1 ? ' day ago' : ' days ago'); } return when(t); };
+  const when = t => t ? new Date(t * 1000).toLocaleString('en-AU', { timeZone: TZ, day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }) : '—';
+  const dayLabel = d => new Date(d + 'T00:00:00Z').toLocaleDateString('en-AU', { timeZone: 'UTC', weekday: 'short', day: 'numeric', month: 'short' });
+  const pct = (c, a) => a ? Math.round(c / a * 100) + '%' : '—';
+  const cell = (tr, text, cls) => { const td = document.createElement('td'); td.textContent = text; if (cls) td.className = cls; tr.appendChild(td); return td; };
+  async function api(path, method = 'GET', body) {
+    const r = await fetch(path, { method, credentials: 'same-origin', headers: body ? { 'content-type': 'application/json' } : {}, body: body ? JSON.stringify(body) : undefined });
+    let j = {}; try { j = await r.json(); } catch (e) { /* empty */ }
+    return { ok: r.ok, status: r.status, data: j };
+  }
+  const tip = $('#tip');
+  function showTip(e, html) { tip.innerHTML = html; tip.hidden = false; const r = (e.target.getBoundingClientRect ? e.target.getBoundingClientRect() : { left: e.clientX, top: e.clientY, width: 0 }); const x = Math.min(window.innerWidth - tip.offsetWidth - 8, Math.max(8, r.left + r.width / 2 - tip.offsetWidth / 2)); tip.style.left = x + 'px'; tip.style.top = Math.max(8, r.top - tip.offsetHeight - 8) + 'px'; }
+  const hideTip = () => { tip.hidden = true; };
+  function barChart(el, days, val, fmtVal, unit) {
+    const W = 600, H = 200, pl = 34, pr = 6, pt = 10, pb = 26, n = days.length;
+    const max = Math.max(1, ...days.map(val)); const step = niceStep(max); const top = Math.ceil(max / step) * step;
+    const X = i => pl + i * (W - pl - pr) / n, bw = (W - pl - pr) / n - 2, Y = v => pt + (H - pt - pb) * (1 - v / top);
+    const ns = 'http://www.w3.org/2000/svg'; const svg = document.createElementNS(ns, 'svg'); svg.setAttribute('viewBox', '0 0 ' + W + ' ' + H); svg.setAttribute('role', 'img'); svg.setAttribute('aria-label', unit + ' per day for the last 30 days');
+    const add = (tag, attrs, text) => { const e = document.createElementNS(ns, tag); Object.entries(attrs).forEach(([k, v]) => e.setAttribute(k, v)); if (text != null) e.textContent = text; svg.appendChild(e); return e; };
+    for (let v = 0; v <= top + 1e-9; v += step) { add('line', { class: 'gl', x1: pl, x2: W - pr, y1: Y(v), y2: Y(v) }); add('text', { class: 'ax', x: pl - 5, y: Y(v) + 3.5, 'text-anchor': 'end' }, String(Math.round(v))); }
+    days.forEach((d, i) => {
+      const v = val(d), y = Y(v), h = H - pb - y;
+      let bar = null;
+      if (v > 0) { const r = Math.min(4, bw / 2, h); bar = add('path', { class: 'b-path', d: 'M' + X(i) + ' ' + (H - pb) + 'V' + (y + r) + 'q0 -' + r + ' ' + r + ' -' + r + 'H' + (X(i) + bw - r) + 'q' + r + ' 0 ' + r + ' ' + r + 'V' + (H - pb) + 'Z', fill: 'var(--bar)' }); }
+      const hit = add('rect', { class: 'hit', x: X(i) - 1, y: pt, width: bw + 2, height: H - pt - pb, tabindex: 0, 'aria-label': dayLabel(d.day) + ': ' + fmtVal(v) });
+      const t = '<b>' + fmtVal(v) + '</b>' + dayLabel(d.day);
+      const lift = on => { if (bar) bar.setAttribute('fill', on ? 'var(--bar-hi)' : 'var(--bar)'); };
+      hit.addEventListener('pointerenter', e => { lift(true); showTip(e, t); }); hit.addEventListener('focus', e => { lift(true); showTip(e, t); });
+      hit.addEventListener('pointerleave', () => { lift(false); hideTip(); }); hit.addEventListener('blur', () => { lift(false); hideTip(); });
+      if (i % 5 === 4 || i === n - 1) add('text', { class: 'ax', x: X(i) + bw / 2, y: H - 8, 'text-anchor': 'middle' }, d.day.slice(8) + '/' + d.day.slice(5, 7));
+    });
+    add('line', { x1: pl, x2: W - pr, y1: H - pb, y2: H - pb, stroke: 'var(--rule)', 'stroke-width': 1 });
+    el.replaceChildren(svg);
+  }
+  function niceStep(max) { const raw = max / 4; const p = 10 ** Math.floor(Math.log10(raw)); const m = raw / p; return (m <= 1 ? 1 : m <= 2 ? 2 : m <= 5 ? 5 : 10) * p; }
+  const COLS = [
+    ['name', 'Name'], ['status', 'Status'], ['lastSeen', 'Last on', 1], ['todaySeconds', 'Today', 1], ['weekSeconds', '7 days', 1], ['totalSeconds', 'Total time', 1], ['visits', 'Visits', 1], ['logins', 'Logins', 1],
+    ['answered', 'Questions', 1], ['accuracy', 'Accuracy', 1], ['booklet', 'Booklet', 1], ['examAvg', 'Exam avg', 1], ['joined', 'Joined', 1]
+  ];
+  const sortVal = (u, k) => k === 'name' ? u.name.toLowerCase() : k === 'status' ? (u.online ? 1 : 0) : k === 'answered' ? u.maths.answered : k === 'accuracy' ? (u.maths.answered ? u.maths.correct / u.maths.answered : -1) : k === 'booklet' ? u.maths.bookletDone : k === 'examAvg' ? (u.maths.examAvg ?? -1) : u[k];
+  function drawTable() {
+    const head = $('#thead'); head.replaceChildren();
+    COLS.forEach(([k, label, num]) => { const th = document.createElement('th'); th.textContent = label; if (num) th.className = 'num'; th.tabIndex = 0; if (k === sortKey) th.setAttribute('aria-sort', sortDir > 0 ? 'ascending' : 'descending'); const go = () => { if (sortKey === k) sortDir = -sortDir; else { sortKey = k; sortDir = k === 'name' ? 1 : -1; } drawTable(); }; th.onclick = go; th.onkeydown = e => { if (e.key === 'Enter') go(); }; head.appendChild(th); });
+    const rows = data.users.filter(u => u.name.toLowerCase().includes(query)).sort((a, b) => { const x = sortVal(a, sortKey), y = sortVal(b, sortKey); return (x > y ? 1 : x < y ? -1 : 0) * sortDir; });
+    const tb = $('#tbody'); tb.replaceChildren();
+    rows.forEach(u => {
+      const tr = document.createElement('tr'); tr.tabIndex = 0;
+      const n = cell(tr, u.name); if (u.admin) { const p = document.createElement('span'); p.className = 'pill admin'; p.textContent = 'admin'; n.append(' ', p); }
+      const st = cell(tr, ''); if (u.online) { const p = document.createElement('span'); p.className = 'pill on'; p.textContent = 'online · ' + (u.lastSubject || ''); st.appendChild(p); } else st.textContent = '—';
+      cell(tr, ago(u.lastSeen), 'num'); cell(tr, dur(u.todaySeconds), 'num'); cell(tr, dur(u.weekSeconds), 'num'); cell(tr, dur(u.totalSeconds), 'num'); cell(tr, u.visits, 'num'); cell(tr, u.logins, 'num');
+      cell(tr, u.maths.answered, 'num'); cell(tr, pct(u.maths.correct, u.maths.answered), 'num'); cell(tr, u.maths.bookletDone ? u.maths.bookletRight + '/' + u.maths.bookletDone + ' right' : '—', 'num'); cell(tr, u.maths.examAvg == null ? '—' : u.maths.examAvg + '%', 'num'); cell(tr, when(u.joined), 'num');
+      tr.onclick = () => openUser(u); tr.onkeydown = e => { if (e.key === 'Enter') openUser(u); };
+      tb.appendChild(tr);
+    });
+    if (!rows.length) { const tr = document.createElement('tr'); const td = cell(tr, data.users.length ? 'No names match.' : 'No accounts yet. Share the link and they will appear here.'); td.colSpan = COLS.length; tb.appendChild(tr); }
+  }
+  async function load() {
+    $('#dash').style.opacity = data ? .6 : 1;
+    const r = await api('/api/admin/overview');
+    $('#dash').style.opacity = 1;
+    if (r.status === 401) { location.replace('/?next=admin'); return; }
+    if (r.status === 403) { $('#denied').hidden = false; $('#updated').textContent = ''; return; }
+    if (!r.ok) { $('#updated').textContent = 'Couldn’t load. Retrying in 30 seconds.'; return; }
+    data = r.data; const T = data.totals;
+    $('#dash').hidden = false;
+    $('#tOnline').textContent = T.online; $('#tUsers').textContent = T.users; $('#tUsersL').textContent = 'accounts (' + T.signupsToday + ' new today, ' + T.signupsWeek + ' this week)';
+    $('#tToday').textContent = T.activeToday; $('#tWeek').textContent = T.activeWeek; $('#tTimeToday').textContent = dur(T.secondsToday); $('#tTimeWeek').textContent = dur(T.secondsWeek); $('#tTimeAll').textContent = dur(T.secondsAll); $('#tQs').textContent = T.questions;
+    const on = data.users.filter(u => u.online); const ol = $('#onlineList'); ol.replaceChildren();
+    if (!on.length) { const p = document.createElement('p'); p.className = 'muted small'; p.textContent = 'Nobody is studying right now.'; ol.appendChild(p); }
+    on.forEach(u => { const s = document.createElement('span'); s.textContent = u.name + ' · ' + (u.lastSubject || ''); ol.appendChild(s); });
+    barChart($('#chMin'), data.days, d => Math.round(d.seconds / 60), v => v + ' min', 'Minutes');
+    barChart($('#chPeople'), data.days, d => d.people, v => v + (v === 1 ? ' person' : ' people'), 'People');
+    const dt = $('#dayTable'); dt.replaceChildren(); const hr = document.createElement('tr'); ['Day', 'People', 'Minutes', 'New accounts'].forEach(h => { const th = document.createElement('th'); th.textContent = h; hr.appendChild(th); }); dt.appendChild(hr);
+    data.days.slice().reverse().forEach(d => { const tr = document.createElement('tr'); [dayLabel(d.day), d.people, Math.round(d.seconds / 60), d.signups].forEach(v => cell(tr, v)); dt.appendChild(tr); });
+    drawTable();
+    $('#updated').textContent = 'Updated ' + new Date().toLocaleTimeString('en-AU', { timeZone: TZ, hour: 'numeric', minute: '2-digit' }) + ' (Queensland time). Refreshes every 30 seconds.';
+  }
+  async function openUser(u) {
+    const dlg = $('#dlg'), b = $('#dlgBody'); b.innerHTML = '<p class="muted">Loading…</p>'; dlg.showModal();
+    const r = await api('/api/admin/user/' + u.id); if (!r.ok) { b.textContent = r.data.error || 'Couldn’t load.'; return; }
+    b.replaceChildren();
+    const h = document.createElement('div'); h.className = 'row'; h.style.justifyContent = 'space-between';
+    const h2 = document.createElement('h2'); h2.textContent = u.name; const close = document.createElement('button'); close.className = 'btn quiet sm'; close.type = 'button'; close.textContent = 'Close'; close.onclick = () => dlg.close(); h.append(h2, close); b.appendChild(h);
+    const kv = document.createElement('div'); kv.className = 'kv';
+    [['Total study time', dur(u.totalSeconds)], ['Last 7 days', dur(u.weekSeconds)], ['Today', dur(u.todaySeconds)], ['Visits', u.visits], ['Logins', u.logins], ['Last on', ago(u.lastSeen)], ['Joined', when(u.joined)], ['Questions', u.maths.answered ? u.maths.answered + ' (' + pct(u.maths.correct, u.maths.answered) + ' right)' : 0], ['Booklet parts done', u.maths.bookletDone], ['Exams taken', u.maths.exams + (u.maths.examAvg != null ? ' (avg ' + u.maths.examAvg + '%)' : '')], ['Skills “Got it”', u.maths.gotIt + '/25'], ['Device', u.device || '—']]
+      .forEach(([l, v]) => { const d = document.createElement('div'); const bb = document.createElement('b'); bb.textContent = v; const s = document.createElement('span'); s.textContent = l; d.append(bb, s); kv.appendChild(d); });
+    b.appendChild(kv);
+    const vt = document.createElement('div'); vt.className = 'tablewrap'; const t = document.createElement('table'); t.className = 'mini'; const hr = document.createElement('tr'); ['Started', 'Subject', 'Active time', 'Device'].forEach(x => { const th = document.createElement('th'); th.textContent = x; hr.appendChild(th); }); t.appendChild(hr);
+    r.data.visits.forEach(v => { const tr = document.createElement('tr'); [when(v.started_at), v.subject, dur(v.seconds), v.device || '—'].forEach(x => cell(tr, x)); t.appendChild(tr); });
+    if (!r.data.visits.length) { const tr = document.createElement('tr'); cell(tr, 'No visits yet.').colSpan = 4; t.appendChild(tr); }
+    const vh = document.createElement('h3'); vh.textContent = 'Visit history (latest 60)'; vt.appendChild(t); b.append(vh, vt);
+    if (!u.admin) {
+      const box = document.createElement('div'); box.className = 'row'; box.style.alignItems = 'flex-end';
+      box.innerHTML = '<label class="f" style="flex:1 1 220px">New password for this person (8+ characters)<input type="text" id="rpw" autocomplete="off"></label><button class="btn quiet" type="button" id="rpwBtn">Reset password</button><button class="btn danger" type="button" id="delU">Delete account</button>';
+      const msg = document.createElement('p'); msg.className = 'small'; b.append(box, msg);
+      box.querySelector('#rpwBtn').onclick = async () => { const pw = box.querySelector('#rpw').value; const rr = await api('/api/admin/reset-password', 'POST', { id: u.id, password: pw }); msg.textContent = rr.ok ? 'Password reset. Tell ' + u.name + ' their new password; they can change it in Account settings.' : (rr.data.error || 'Couldn’t reset it.'); };
+      let armed = false; const del = box.querySelector('#delU');
+      del.onclick = async () => { if (!armed) { armed = true; del.textContent = 'Tap again to delete ' + u.name; setTimeout(() => { armed = false; del.textContent = 'Delete account'; }, 5000); return; } const rr = await api('/api/admin/delete-user', 'POST', { id: u.id }); if (rr.ok) { dlg.close(); load(); } else msg.textContent = rr.data.error || 'Couldn’t delete.'; };
+    }
+  }
+  $('#dlg').addEventListener('click', e => { if (e.target === $('#dlg')) $('#dlg').close(); });
+  $('#search').oninput = e => { query = e.target.value.trim().toLowerCase(); drawTable(); };
+  $('#refresh').onclick = load;
+  $('#csv').onclick = () => {
+    if (!data) return; const q = v => '"' + String(v).replace(/"/g, '""') + '"';
+    const lines = [['Name', 'Joined', 'Last on', 'Logins', 'Visits', 'Minutes today', 'Minutes 7 days', 'Minutes total', 'Questions', 'Correct', 'Booklet done', 'Booklet right', 'Exams', 'Exam avg %'].map(q).join(',')]
+      .concat(data.users.map(u => [u.name, when(u.joined), when(u.lastSeen), u.logins, u.visits, Math.round(u.todaySeconds / 60), Math.round(u.weekSeconds / 60), Math.round(u.totalSeconds / 60), u.maths.answered, u.maths.correct, u.maths.bookletDone, u.maths.bookletRight, u.maths.exams, u.maths.examAvg ?? ''].map(q).join(',')));
+    const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([lines.join('\n')], { type: 'text/csv' })); a.download = 'ec-revisions-users-' + data.today + '.csv'; a.click();
+  };
+  load(); setInterval(() => { if (document.visibilityState === 'visible') load(); }, 30000);
+})();
+</script>
+</body>
+</html>

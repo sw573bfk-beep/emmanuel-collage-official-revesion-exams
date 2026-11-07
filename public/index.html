@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>EC Revisions</title>
+<meta name="description" content="EC Revisions: Year 8 exam revision for Maths and Science. Make an account, pick a subject and your progress is saved.">
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Lexend:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="/site.css">
+<style>
+.split{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:22px;align-items:start}
+@media (max-width:760px){.split{grid-template-columns:1fr}}
+.pitch ul{margin:0;padding-left:1.1em;display:flex;flex-direction:column;gap:6px}
+.subjects{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:18px}
+.subject{display:flex;flex-direction:column;gap:14px;position:relative;overflow:hidden}
+.subject .glyph{font-family:var(--f-mono);font-size:.85rem;padding:2px 8px;border-radius:5px;align-self:flex-start}
+.subject.maths{border-top:5px solid var(--accent)} .subject.maths .glyph{background:var(--accent-soft);color:var(--accent)}
+.subject.science{border-top:5px solid var(--sci)} .subject.science .glyph{background:var(--sci-soft);color:var(--sci)}
+.subject h2{font-size:1.8rem;font-weight:800}
+.subject ul{margin:0;padding-left:1.1em;font-size:.92rem;display:flex;flex-direction:column;gap:3px}
+.soon{display:inline-block;font-size:.75rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;background:var(--sci-soft);color:var(--sci);border-radius:999px;padding:2px 10px}
+.btn.sci{background:var(--sci);border-color:var(--sci)}
+.hint{background:var(--accent-soft);border-radius:8px;padding:8px 12px}
+.notice{border:1px dashed var(--rule);border-radius:8px;padding:8px 12px;color:var(--muted)}
+.top{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap}
+details.acct summary{cursor:pointer;font-weight:500}
+details.acct[open] summary{margin-bottom:12px}
+.acct-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:18px}
+</style>
+</head>
+<body>
+<main class="wrap">
+  <div class="top">
+    <div class="brand"><span class="mark">year 8 · week 7</span><h1>EC Revisions</h1><p id="tagline">Maths and Science exam revision. Make a free account so your progress is saved and follows you to any device.</p></div>
+    <div class="row" id="whoBox" hidden><span class="muted small">Logged in as <b id="who"></b></span><button class="btn quiet sm" type="button" id="logout">Log out</button></div>
+  </div>
+
+  <!-- step 1: account -->
+  <section id="authView" class="split" hidden>
+    <div class="card stack" id="authCard">
+      <div class="tabs" role="tablist"><button type="button" role="tab" id="tabLogin" class="on" aria-selected="true">Log in</button><button type="button" role="tab" id="tabSignup" aria-selected="false">Create account</button></div>
+      <form id="authForm" class="stack" novalidate>
+        <label class="f"><span id="nameLabel">Your name</span><input id="username" name="username" autocomplete="username" autocapitalize="words" spellcheck="false" maxlength="30" required></label>
+        <p class="small hint" id="nameHint" hidden>For the benefit of the site, it’s appreciated if you use your <b>real name</b> (for example <i>Sam Smith</i>). You’ll type the same name to log in.</p>
+        <label class="f">Password<input id="password" name="password" type="password" autocomplete="current-password" maxlength="200" required></label>
+        <label class="f" id="confirmWrap" hidden>Type the password again<input id="confirm" type="password" autocomplete="new-password" maxlength="200"></label>
+        <p class="small muted" id="rules" hidden>Passwords need at least 8 characters. Don’t reuse a password from anywhere else. There’s no email, so write your password down. If you forget it, ask Beau to reset it.</p>
+        <p class="small notice" id="notice" hidden><b>Heads up:</b> Beau, who runs EC Revisions, can see your name, when you use the site, how long you study for, and your scores. This helps improve the site.</p>
+        <div id="authMsg" class="msg bad" role="alert" hidden></div>
+        <button class="btn" type="submit" id="authBtn">Log in</button>
+      </form>
+    </div>
+    <div class="card stack pitch">
+      <span class="eyebrow">How it works</span>
+      <ol style="margin:0;padding-left:1.2em;display:flex;flex-direction:column;gap:8px">
+        <li><b>Make an account</b> with your name and a password. No email needed.</li>
+        <li><b>Choose a subject</b> to study.</li>
+        <li><b>Revise.</b> Your practice scores, booklet marks, checklist and flashcards save to your account automatically.</li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- step 2: pick a subject -->
+  <section id="pickView" class="stack" hidden>
+    <a class="card row" id="adminCard" href="/admin/" hidden style="justify-content:space-between;text-decoration:none;color:var(--ink);border-color:var(--accent)"><span><span class="eyebrow">Admin</span><br><b>Open the dashboard</b> <span class="muted small">See who is using EC Revisions, for how long, and who is online now.</span></span><span class="btn">Dashboard →</span></a>
+    <h2 style="font-size:1.6rem">What do you want to study, <span id="who2"></span>?</h2>
+    <div class="subjects">
+      <article class="card subject maths">
+        <span class="glyph">y = mx + c</span>
+        <h2>Maths</h2>
+        <p class="muted">Week 7 exam revision: notes, unlimited practice, the full revision booklet with answers, exam mode and a step-by-step solver.</p>
+        <ul><li>Inequalities and linear equations</li><li>Linear relations (9A–9H)</li><li>Transformations, congruence and similarity</li><li>Decimals and percentages</li></ul>
+        <p class="small muted" id="mathsLast"></p>
+        <a class="btn" href="/maths/">Study Maths →</a>
+      </article>
+      <article class="card subject science">
+        <span class="glyph">H₂O</span>
+        <h2>Science <span class="soon">Coming soon</span></h2>
+        <p class="muted">Science revision is being built next. It will use the same account, so your progress will be saved here too.</p>
+        <button class="btn sci" type="button" disabled>Not ready yet</button>
+      </article>
+    </div>
+    <details class="card acct">
+      <summary>Account settings</summary>
+      <div class="acct-grid">
+        <form id="pwForm" class="stack" novalidate>
+          <b>Change password</b>
+          <label class="f">Current password<input id="pwCur" type="password" autocomplete="current-password"></label>
+          <label class="f">New password (8+ characters)<input id="pwNew" type="password" autocomplete="new-password"></label>
+          <div id="pwMsg" class="msg" role="status" hidden></div>
+          <button class="btn quiet" type="submit">Change password</button>
+        </form>
+        <form id="delForm" class="stack" novalidate>
+          <b>Delete account</b>
+          <p class="small muted">Deletes your account and all saved progress. This can’t be undone.</p>
+          <label class="f">Password<input id="delPw" type="password" autocomplete="current-password"></label>
+          <div id="delMsg" class="msg bad" role="alert" hidden></div>
+          <button class="btn danger" type="submit" id="delBtn">Delete my account</button>
+        </form>
+      </div>
+    </details>
+  </section>
+
+  <p id="loading" class="muted">Loading…</p>
+</main>
+<script>
+(function () {
+  const $ = s => document.querySelector(s);
+  const next = new URLSearchParams(location.search).get('next');
+  let mode = 'login';
+  async function api(path, method = 'GET', body) {
+    const r = await fetch(path, { method, credentials: 'same-origin', headers: body ? { 'content-type': 'application/json' } : {}, body: body ? JSON.stringify(body) : undefined });
+    let data = {}; try { data = await r.json(); } catch (e) { /* empty body */ }
+    return { ok: r.ok, status: r.status, data };
+  }
+  function show(view) { $('#loading').hidden = true; $('#authView').hidden = view !== 'auth'; $('#pickView').hidden = view !== 'pick'; $('#whoBox').hidden = view !== 'pick'; }
+  function setMode(m) {
+    mode = m; const su = m === 'signup';
+    $('#tabLogin').classList.toggle('on', !su); $('#tabSignup').classList.toggle('on', su);
+    $('#tabLogin').setAttribute('aria-selected', !su); $('#tabSignup').setAttribute('aria-selected', su);
+    $('#confirmWrap').hidden = !su; $('#rules').hidden = !su; $('#nameHint').hidden = !su; $('#notice').hidden = !su; $('#authMsg').hidden = true;
+    $('#authBtn').textContent = su ? 'Create account' : 'Log in';
+    $('#password').autocomplete = su ? 'new-password' : 'current-password';
+  }
+  function picked(me) {
+    if (next === 'maths') { location.replace('/maths/'); return; }
+    if (next === 'admin' && me.admin) { location.replace('/admin/'); return; }
+    $('#adminCard').hidden = !me.admin;
+    $('#who').textContent = me.username; $('#who2').textContent = me.username;
+    const t = me.subjects && me.subjects.maths;
+    $('#mathsLast').textContent = t ? 'Last saved ' + new Date(t * 1000).toLocaleString('en-AU', { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }) : 'Not started yet';
+    show('pick');
+  }
+  $('#tabLogin').onclick = () => setMode('login');
+  $('#tabSignup').onclick = () => setMode('signup');
+  $('#authForm').onsubmit = async e => {
+    e.preventDefault();
+    const msg = $('#authMsg'); msg.hidden = true;
+    const username = $('#username').value.replace(/\s+/g, ' ').trim(), password = $('#password').value;
+    const fail = t => { msg.textContent = t; msg.hidden = false; };
+    if (!username || !password) return fail('Type your name and password.');
+    if (mode === 'signup') {
+      if (!/^[A-Za-z0-9][A-Za-z0-9 '._-]{1,29}$/.test(username)) return fail('Names are 2–30 characters: letters, numbers, spaces, apostrophes, dots, dashes or underscores.');
+      if (password.length < 8) return fail('Passwords need at least 8 characters.');
+      if (password !== $('#confirm').value) return fail('The two passwords don’t match.');
+    }
+    const btn = $('#authBtn'); btn.disabled = true; btn.textContent = mode === 'signup' ? 'Creating account…' : 'Logging in…';
+    try {
+      const r = await api(mode === 'signup' ? '/api/signup' : '/api/login', 'POST', { username, password });
+      if (!r.ok) return fail(r.data.error || 'Something went wrong. Try again.');
+      $('#password').value = ''; $('#confirm').value = '';
+      const me = await api('/api/me'); picked(me.data);
+    } catch (err) { fail('Can’t reach the server. Check your internet connection.'); }
+    finally { btn.disabled = false; btn.textContent = mode === 'signup' ? 'Create account' : 'Log in'; }
+  };
+  $('#logout').onclick = async () => {
+    await api('/api/logout', 'POST', {});
+    try { Object.keys(localStorage).filter(k => k.startsWith('y8m:') && k !== 'y8m:theme').forEach(k => localStorage.removeItem(k)); } catch (e) { /* storage blocked */ }
+    setMode('login'); show('auth');
+  };
+  $('#pwForm').onsubmit = async e => {
+    e.preventDefault(); const m = $('#pwMsg');
+    const r = await api('/api/password', 'POST', { current: $('#pwCur').value, next: $('#pwNew').value });
+    m.className = 'msg ' + (r.ok ? 'good' : 'bad'); m.textContent = r.ok ? 'Password changed. Other devices have been logged out.' : (r.data.error || 'Couldn’t change the password.'); m.hidden = false;
+    if (r.ok) { $('#pwCur').value = ''; $('#pwNew').value = ''; }
+  };
+  let armed = false;
+  $('#delForm').onsubmit = async e => {
+    e.preventDefault(); const m = $('#delMsg'); m.hidden = true;
+    if (!armed) { armed = true; $('#delBtn').textContent = 'Tap again to delete everything'; setTimeout(() => { armed = false; $('#delBtn').textContent = 'Delete my account'; }, 5000); return; }
+    const r = await api('/api/delete-account', 'POST', { password: $('#delPw').value });
+    if (!r.ok) { m.textContent = r.data.error || 'Couldn’t delete the account.'; m.hidden = false; return; }
+    try { Object.keys(localStorage).filter(k => k.startsWith('y8m:') && k !== 'y8m:theme').forEach(k => localStorage.removeItem(k)); } catch (e2) { /* storage blocked */ }
+    setMode('login'); show('auth');
+  };
+  (async () => {
+    try { const me = await api('/api/me'); if (me.ok) return picked(me.data); } catch (e) { /* offline: show the form */ }
+    setMode(next ? 'login' : 'login'); show('auth');
+  })();
+})();
+</script>
+</body>
+</html>
