@@ -35,6 +35,12 @@ table.users th[aria-sort]::after{content:" ↓"} table.users th[aria-sort="ascen
 table.users tbody tr{cursor:pointer}
 table.users tbody tr:hover{background:var(--accent-soft)}
 table.users td.num{text-align:right} table.users th.num{text-align:right}
+.fb-item{border:1px solid var(--rule);border-radius:10px;padding:12px 14px;display:flex;flex-direction:column;gap:6px}
+.fb-item.done{opacity:.6}
+.fb-meta{display:flex;flex-wrap:wrap;gap:6px 10px;align-items:center;font-size:.85rem;color:var(--muted)}
+.fb-msg{white-space:pre-wrap;overflow-wrap:anywhere}
+.fb-kind{font-weight:600;color:var(--ink)}
+.fb-stars{color:#e0a100;letter-spacing:1px}
 .pill{display:inline-block;font-size:.72rem;font-weight:600;border-radius:999px;padding:1px 8px}
 .pill.on{background:var(--good-soft);color:var(--good)} .pill.admin{background:var(--accent-soft);color:var(--accent)}
 .online-list{display:flex;flex-wrap:wrap;gap:8px}
@@ -71,6 +77,7 @@ details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
       <div class="tile"><span class="v" id="tTimeAll">0</span><span class="l">study time, all time</span></div>
       <div class="tile"><span class="v" id="tQs">0</span><span class="l">maths questions answered</span></div>
       <div class="tile"><span class="v" id="tSciQs">0</span><span class="l">science questions answered</span></div>
+      <div class="tile"><span class="v" id="tFb">0</span><span class="l" id="tFbL">new feedback</span></div>
       <div class="tile"><span class="v" id="tCodes">0</span><span class="l" id="tCodesL">unlock codes used</span></div>
     </section>
     <section class="card stack" id="onlineCard"><span class="eyebrow">Online now</span><div class="online-list" id="onlineList"></div></section>
@@ -79,6 +86,10 @@ details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
       <div class="card stack chart"><div><span class="eyebrow">Last 30 days</span><h3>People who studied per day</h3></div><div id="chPeople"></div></div>
     </section>
     <details class="card"><summary>Show the daily numbers as a table</summary><div class="tablewrap" style="margin-top:10px"><table class="mini" id="dayTable"></table></div></details>
+    <section class="card stack" id="fbCard">
+      <div class="toolbar"><h3>Feedback</h3><div class="row" id="fbFilter"><button type="button" class="chip on" data-f="new">New</button><button type="button" class="chip" data-f="done">Done</button><button type="button" class="chip" data-f="all">All</button></div></div>
+      <div class="stack" id="fbList" style="gap:10px"></div>
+    </section>
     <section class="card stack" id="codesCard">
       <div class="toolbar"><h3>Unlock codes: completed theory booklet</h3><div class="row"><button class="btn quiet sm" type="button" id="copyCodes">Copy unused codes</button><button class="btn sm" type="button" id="moreCodes">Make 10 more codes</button></div></div>
       <p class="small muted">Each 6-digit code works once. Whoever enters it can open the completed booklet on their account forever. Only you can see this list. You can also unlock or lock someone by tapping their name below.</p>
@@ -97,6 +108,7 @@ details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
 <script>
 (function () {
   const $ = s => document.querySelector(s);
+  const $$ = s => Array.from(document.querySelectorAll(s));
   const TZ = 'Australia/Brisbane';
   let data = null, sortKey = 'lastSeen', sortDir = -1, query = '';
   const dur = s => { s = Math.round(s || 0); if (s < 60) return s ? '<1 min' : '0 min'; const m = Math.round(s / 60); if (m < 60) return m + ' min'; const h = Math.floor(m / 60); return h + ' h ' + (m % 60) + ' min'; };
@@ -166,7 +178,7 @@ details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
     data = r.data; const T = data.totals;
     $('#dash').hidden = false;
     $('#tOnline').textContent = T.online; $('#tUsers').textContent = T.users; $('#tUsersL').textContent = 'accounts (' + T.signupsToday + ' new today, ' + T.signupsWeek + ' this week)';
-    $('#tToday').textContent = T.activeToday; $('#tWeek').textContent = T.activeWeek; $('#tTimeToday').textContent = dur(T.secondsToday); $('#tTimeWeek').textContent = dur(T.secondsWeek); $('#tTimeAll').textContent = dur(T.secondsAll); $('#tQs').textContent = T.questions; $('#tSciQs').textContent = T.scienceQuestions; $('#tCodes').textContent = T.codesUsed + '/' + T.codesTotal; $('#tCodesL').textContent = 'unlock codes used (' + T.unlocked + ' accounts unlocked)';
+    $('#tToday').textContent = T.activeToday; $('#tWeek').textContent = T.activeWeek; $('#tTimeToday').textContent = dur(T.secondsToday); $('#tTimeWeek').textContent = dur(T.secondsWeek); $('#tTimeAll').textContent = dur(T.secondsAll); $('#tQs').textContent = T.questions; $('#tSciQs').textContent = T.scienceQuestions; $('#tFb').textContent = T.feedbackNew; $('#tFbL').textContent = 'new feedback (' + T.feedback + ' total)'; $('#tCodes').textContent = T.codesUsed + '/' + T.codesTotal; $('#tCodesL').textContent = 'unlock codes used (' + T.unlocked + ' accounts unlocked)';
     const on = data.users.filter(u => u.online); const ol = $('#onlineList'); ol.replaceChildren();
     if (!on.length) { const p = document.createElement('p'); p.className = 'muted small'; p.textContent = 'Nobody is studying right now.'; ol.appendChild(p); }
     on.forEach(u => { const s = document.createElement('span'); s.textContent = u.name + ' · ' + (u.lastSubject || ''); ol.appendChild(s); });
@@ -174,7 +186,7 @@ details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
     barChart($('#chPeople'), data.days, d => d.people, v => v + (v === 1 ? ' person' : ' people'), 'People');
     const dt = $('#dayTable'); dt.replaceChildren(); const hr = document.createElement('tr'); ['Day', 'People', 'Minutes', 'New accounts'].forEach(h => { const th = document.createElement('th'); th.textContent = h; hr.appendChild(th); }); dt.appendChild(hr);
     data.days.slice().reverse().forEach(d => { const tr = document.createElement('tr'); [dayLabel(d.day), d.people, Math.round(d.seconds / 60), d.signups].forEach(v => cell(tr, v)); dt.appendChild(tr); });
-    drawTable(); loadCodes();
+    drawTable(); loadCodes(); loadFeedback();
     $('#updated').textContent = 'Updated ' + new Date().toLocaleTimeString('en-AU', { timeZone: TZ, hour: 'numeric', minute: '2-digit' }) + ' (Queensland time). Refreshes every 30 seconds.';
   }
   async function openUser(u) {
@@ -201,6 +213,31 @@ details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
       del.onclick = async () => { if (!armed) { armed = true; del.textContent = 'Tap again to delete ' + u.name; setTimeout(() => { armed = false; del.textContent = 'Delete account'; }, 5000); return; } const rr = await api('/api/admin/delete-user', 'POST', { id: u.id }); if (rr.ok) { dlg.close(); load(); } else msg.textContent = rr.data.error || 'Couldn’t delete.'; };
     }
   }
+  let fbFilter = 'new';
+  const FB_KIND = { problem: 'Something’s wrong', idea: 'Idea', question: 'Question', compliment: 'Compliment', other: 'Other' };
+  const FB_SUBJ = { maths: 'Maths', science: 'Science', site: 'Whole site' };
+  async function loadFeedback() {
+    const r = await api('/api/admin/feedback'); if (!r.ok) return;
+    const list = $('#fbList'); list.replaceChildren();
+    const rows = r.data.feedback.filter(f => fbFilter === 'all' || f.status === fbFilter);
+    if (!rows.length) { const p = document.createElement('p'); p.className = 'muted small'; p.textContent = fbFilter === 'new' ? 'No new feedback. The Feedback button is at the top of every page.' : 'Nothing here.'; list.appendChild(p); return; }
+    rows.forEach(f => {
+      const d = document.createElement('div'); d.className = 'fb-item' + (f.status === 'done' ? ' done' : '');
+      const meta = document.createElement('div'); meta.className = 'fb-meta';
+      const k = document.createElement('span'); k.className = 'fb-kind'; k.textContent = FB_KIND[f.kind] || f.kind;
+      const who = document.createElement('span'); who.textContent = f.name + ' · ' + (FB_SUBJ[f.subject] || f.subject) + ' · ' + when(f.created_at);
+      meta.append(k, who);
+      if (f.rating) { const st = document.createElement('span'); st.className = 'fb-stars'; st.textContent = '★'.repeat(f.rating) + '☆'.repeat(5 - f.rating); st.setAttribute('aria-label', f.rating + ' out of 5'); meta.appendChild(st); }
+      const msg = document.createElement('div'); msg.className = 'fb-msg'; msg.textContent = f.message;
+      const acts = document.createElement('div'); acts.className = 'row';
+      const done = document.createElement('button'); done.type = 'button'; done.className = 'btn quiet sm'; done.textContent = f.status === 'done' ? 'Mark as new' : 'Mark done';
+      done.onclick = async () => { await api('/api/admin/feedback-status', 'POST', { id: f.id, status: f.status === 'done' ? 'new' : 'done' }); load(); };
+      const del = document.createElement('button'); del.type = 'button'; del.className = 'btn danger sm'; del.textContent = 'Delete'; let armed = false;
+      del.onclick = async () => { if (!armed) { armed = true; del.textContent = 'Tap again to delete'; setTimeout(() => { armed = false; del.textContent = 'Delete'; }, 4000); return; } await api('/api/admin/feedback-status', 'POST', { id: f.id, status: 'delete' }); load(); };
+      acts.append(done, del); d.append(meta, msg, acts); list.appendChild(d);
+    });
+  }
+  $$('#fbFilter .chip').forEach(c => c.onclick = () => { fbFilter = c.dataset.f; $$('#fbFilter .chip').forEach(x => x.classList.toggle('on', x === c)); loadFeedback(); });
   let codes = [];
   async function loadCodes() {
     const r = await api('/api/admin/codes'); if (!r.ok) return; codes = r.data.codes;

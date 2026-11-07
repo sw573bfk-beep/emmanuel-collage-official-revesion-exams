@@ -1,10 +1,10 @@
 // EC Revisions API on Cloudflare Workers + D1.
 // Students: POST /api/signup, POST /api/login, POST /api/logout, GET /api/me, POST /api/ping,
 //           GET|PUT /api/progress/:subject, POST /api/password, POST /api/delete-account.
-//           GET /api/unlock/theory, POST /api/unlock, GET /api/theory (locked content).
+//           GET /api/unlock/theory, POST /api/unlock, GET /api/theory (locked content), POST /api/feedback.
 // Admin (the ADMIN_USERNAME account only): GET /api/admin/overview, GET /api/admin/user/:id,
 //           POST /api/admin/reset-password, POST /api/admin/delete-user,
-//           GET|POST /api/admin/codes, POST /api/admin/set-unlock.
+//           GET|POST /api/admin/codes, POST /api/admin/set-unlock, GET /api/admin/feedback, POST /api/admin/feedback-status.
 // Everything else is one of the pages in ./public, bundled into this Worker below.
 
 import indexHtml from '../public/index.html';
@@ -14,6 +14,7 @@ import mathsJs from '../public/maths/app.js';
 import scienceHtml from '../public/science/index.html';
 import scienceJs from '../public/science/app.js';
 import adminHtml from '../public/admin/index.html';
+import feedbackHtml from '../public/feedback/index.html';
 import notFoundHtml from '../public/404.html';
 
 const HTML = 'text/html; charset=utf-8';
@@ -22,11 +23,12 @@ const PAGES = {
   '/site.css': [siteCss, 'text/css; charset=utf-8'],
   '/maths/': [mathsHtml, HTML], '/maths/index.html': [mathsHtml, HTML], '/maths/app.js': [mathsJs, 'text/javascript; charset=utf-8'],
   '/science/': [scienceHtml, HTML], '/science/index.html': [scienceHtml, HTML], '/science/app.js': [scienceJs, 'text/javascript; charset=utf-8'],
-  '/admin/': [adminHtml, HTML], '/admin/index.html': [adminHtml, HTML]
+  '/admin/': [adminHtml, HTML], '/admin/index.html': [adminHtml, HTML],
+  '/feedback/': [feedbackHtml, HTML], '/feedback/index.html': [feedbackHtml, HTML]
 };
 const SECURITY_HEADERS = { 'x-content-type-options': 'nosniff', 'referrer-policy': 'same-origin', 'x-frame-options': 'DENY' };
 function servePage(url) {
-  if (['/maths', '/science', '/admin'].includes(url.pathname)) return Response.redirect(url.origin + url.pathname + '/' + url.search, 301);
+  if (['/maths', '/science', '/admin', '/feedback'].includes(url.pathname)) return Response.redirect(url.origin + url.pathname + '/' + url.search, 301);
   const page = PAGES[url.pathname];
   if (!page) return new Response(notFoundHtml, { status: 404, headers: { 'content-type': HTML, ...SECURITY_HEADERS } });
   const [body, type] = page;
@@ -191,6 +193,20 @@ async function handleApi(req, env, url) {
     return new Response('{"sections":[' + rows.results.map(r => r.body).join(',') + ']}', { headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'private, no-store' } });
   }
 
+  if (path === '/api/feedback' && method === 'POST') {
+    let body; try { body = await readJson(req); } catch { return err(400, 'Bad request'); }
+    const kind = String(body.kind || ''), subject = String(body.subject || ''), rating = Math.round(+body.rating || 0), message = String(body.message || '').trim();
+    if (!['problem', 'idea', 'question', 'compliment', 'other'].includes(kind)) return err(400, 'Pick what kind of feedback it is.');
+    if (!['maths', 'science', 'site'].includes(subject)) return err(400, 'Pick which part of the site it’s about.');
+    if (rating < 0 || rating > 5) return err(400, 'Bad rating');
+    if (message.length < 3) return err(400, 'Write a little bit about it first.');
+    if (message.length > 2000) return err(400, 'That’s too long. Keep it under 2000 characters.');
+    const recent = await env.DB.prepare('SELECT COUNT(*) AS n FROM feedback WHERE user_id = ? AND created_at > ?').bind(user.id, now() - 86400).first();
+    if (recent.n >= 20) return err(429, 'You’ve sent a lot of feedback today. Thanks! Try again tomorrow.');
+    await env.DB.prepare('INSERT INTO feedback (user_id, name, kind, subject, rating, message, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)').bind(user.id, user.username, kind, subject, rating, message, now()).run();
+    return json({ ok: true }, 201);
+  }
+
   if (path.startsWith('/api/admin/')) {
     if (!isAdmin(user, env)) return err(403, 'Only the site admin can see this.');
     return handleAdmin(req, env, path, method, user);
@@ -229,6 +245,7 @@ async function handleApi(req, env, url) {
     if (!safeEqual(await hashPassword(String(body.password || ''), row.salt), row.pass_hash)) return err(401, 'That password is wrong.');
     await env.DB.batch([
       env.DB.prepare('UPDATE codes SET redeemed_by = NULL WHERE redeemed_by = ?').bind(user.id),
+      env.DB.prepare('UPDATE feedback SET user_id = NULL WHERE user_id = ?').bind(user.id),
       env.DB.prepare('DELETE FROM unlocks WHERE user_id = ?').bind(user.id),
       env.DB.prepare('DELETE FROM unlock_attempts WHERE user_id = ?').bind(user.id),
       env.DB.prepare('DELETE FROM visits WHERE user_id = ?').bind(user.id),
@@ -265,7 +282,7 @@ async function handleAdmin(req, env, path, method, me) {
   const t = now(), today = dayKey(t);
   if (path === '/api/admin/overview' && method === 'GET') {
     const since30 = dayKey(t - 29 * 86400), since7 = dayKey(t - 6 * 86400);
-    const [users, perUser, perUser7, today_, visits, daily, signups, progress, sciProgress, unlockRows, codeCount] = await env.DB.batch([
+    const [users, perUser, perUser7, today_, visits, daily, signups, progress, sciProgress, unlockRows, codeCount, fbCount] = await env.DB.batch([
       env.DB.prepare('SELECT id, username, created_at, last_login, login_count, last_seen, last_subject FROM users ORDER BY last_seen DESC'),
       env.DB.prepare('SELECT user_id, SUM(seconds) AS s FROM daily GROUP BY user_id'),
       env.DB.prepare('SELECT user_id, SUM(seconds) AS s FROM daily WHERE day >= ? GROUP BY user_id').bind(since7),
@@ -276,7 +293,8 @@ async function handleAdmin(req, env, path, method, me) {
       env.DB.prepare("SELECT user_id, data FROM progress WHERE subject = 'maths'"),
       env.DB.prepare("SELECT user_id, data FROM progress WHERE subject = 'science'"),
       env.DB.prepare("SELECT user_id FROM unlocks WHERE feature = 'theory'"),
-      env.DB.prepare("SELECT COUNT(*) AS total, SUM(CASE WHEN redeemed_by IS NULL THEN 0 ELSE 1 END) AS used FROM codes")
+      env.DB.prepare("SELECT COUNT(*) AS total, SUM(CASE WHEN redeemed_by IS NULL THEN 0 ELSE 1 END) AS used FROM codes"),
+      env.DB.prepare("SELECT COUNT(*) AS n, SUM(CASE WHEN status = 'new' THEN 1 ELSE 0 END) AS fresh FROM feedback")
     ]);
     const map = r => Object.fromEntries(r.results.map(x => [x.user_id, x]));
     const all = map(perUser), wk = map(perUser7), td = map(today_), vs = map(visits), pr = map(progress), spr = map(sciProgress);
@@ -296,9 +314,13 @@ async function handleAdmin(req, env, path, method, me) {
       totals: { users: list.length, online: list.filter(u => u.online).length, activeToday: list.filter(u => u.todaySeconds > 0).length, activeWeek: list.filter(u => u.weekSeconds > 0).length,
         signupsToday: signupDays[today] || 0, signupsWeek: days.slice(-7).reduce((a, d) => a + d.signups, 0), secondsToday: sum(list, 'todaySeconds'), secondsWeek: sum(list, 'weekSeconds'), secondsAll: sum(list, 'totalSeconds'),
         questions: list.reduce((a, u) => a + u.maths.answered, 0), scienceQuestions: list.reduce((a, u) => a + u.science.answered, 0),
-        unlocked: unlocked.size, codesTotal: codeCount.results[0].total || 0, codesUsed: codeCount.results[0].used || 0 },
+        unlocked: unlocked.size, codesTotal: codeCount.results[0].total || 0, codesUsed: codeCount.results[0].used || 0, feedback: fbCount.results[0].n || 0, feedbackNew: fbCount.results[0].fresh || 0 },
       days, users: list
     });
+  }
+  if (path === '/api/admin/feedback' && method === 'GET') {
+    const rows = await env.DB.prepare('SELECT id, name, kind, subject, rating, message, status, created_at FROM feedback ORDER BY created_at DESC LIMIT 500').all();
+    return json({ feedback: rows.results });
   }
   if (path === '/api/admin/codes' && method === 'GET') {
     const rows = await env.DB.prepare("SELECT c.code, c.created_at, c.redeemed_at, u.username AS redeemed_name FROM codes c LEFT JOIN users u ON u.id = c.redeemed_by WHERE c.feature = 'theory' ORDER BY c.redeemed_at IS NOT NULL, c.redeemed_at DESC, c.created_at, c.code").all();
@@ -337,6 +359,12 @@ async function handleAdmin(req, env, path, method, me) {
     await env.DB.prepare('DELETE FROM sessions WHERE user_id = ?').bind(id).run();
     return json({ ok: true });
   }
+  if (path === '/api/admin/feedback-status') {
+    if (body.status === 'delete') await env.DB.prepare('DELETE FROM feedback WHERE id = ?').bind(id).run();
+    else if (['new', 'done'].includes(body.status)) await env.DB.prepare('UPDATE feedback SET status = ? WHERE id = ?').bind(body.status, id).run();
+    else return err(400, 'Bad status');
+    return json({ ok: true });
+  }
   if (path === '/api/admin/set-unlock') {
     if (body.unlock) await env.DB.prepare("INSERT OR IGNORE INTO unlocks (user_id, feature, unlocked_at, code) VALUES (?, 'theory', ?, 'admin')").bind(id, t).run();
     else await env.DB.prepare("DELETE FROM unlocks WHERE user_id = ? AND feature = 'theory'").bind(id).run();
@@ -345,6 +373,7 @@ async function handleAdmin(req, env, path, method, me) {
   if (path === '/api/admin/delete-user') {
     if (id === me.id) return err(400, 'You can’t delete your own admin account here.');
     await env.DB.prepare('UPDATE codes SET redeemed_by = NULL WHERE redeemed_by = ?').bind(id).run();
+    await env.DB.prepare('UPDATE feedback SET user_id = NULL WHERE user_id = ?').bind(id).run();
     await env.DB.batch(['progress', 'sessions', 'visits', 'daily', 'unlocks', 'unlock_attempts'].map(tb => env.DB.prepare('DELETE FROM ' + tb + ' WHERE user_id = ?').bind(id)).concat([env.DB.prepare('DELETE FROM users WHERE id = ?').bind(id)]));
     return json({ ok: true });
   }

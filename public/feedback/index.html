@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>EC Revisions Feedback</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Lexend:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="/site.css">
+<style>
+.wrap{max-width:720px}
+.choices{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,150px),1fr));gap:8px}
+.pick{display:flex;flex-direction:column;gap:2px;text-align:left;font:inherit;color:var(--ink);background:var(--card);border:1.5px solid var(--rule);border-radius:10px;padding:10px 12px;cursor:pointer}
+.pick:hover{border-color:var(--accent)}
+.pick.on{border-color:var(--accent);background:var(--accent-soft)}
+.pick b{font-weight:600}
+.pick span{font-size:.82rem;color:var(--muted)}
+.stars{display:flex;gap:4px}
+.stars button{font-size:1.8rem;line-height:1;background:none;border:none;cursor:pointer;color:var(--rule);padding:2px}
+.stars button.on{color:#e0a100}
+textarea{font:inherit;color:var(--ink);background:var(--card);border:1.5px solid var(--rule);border-radius:8px;padding:10px 12px;width:100%;min-height:140px;resize:vertical}
+textarea:focus{border-color:var(--accent);outline:none;box-shadow:0 0 0 3px var(--accent-soft)}
+.label{font-weight:600}
+</style>
+</head>
+<body>
+<main class="wrap">
+  <div class="brand"><span class="mark">EC Revisions</span><h1>Feedback</h1><p>Found a mistake, got an idea, or something confusing? Tell Beau here. Every message is read.</p></div>
+  <p id="loading" class="muted">Loading…</p>
+  <form id="fbForm" class="card stack" novalidate hidden>
+    <div class="stack" style="gap:8px"><span class="label">1. What kind of feedback?</span><div class="choices" id="kinds"></div></div>
+    <div class="stack" style="gap:8px"><span class="label">2. What is it about?</span><div class="choices" id="subjects"></div></div>
+    <div class="stack" style="gap:6px"><span class="label">3. How would you rate EC Revisions? <span class="muted small">(optional)</span></span><div class="stars" id="stars" role="radiogroup" aria-label="Rating out of 5"></div></div>
+    <label class="f"><span class="label" style="color:var(--ink)">4. Tell us more</span><textarea id="msg" maxlength="2000" placeholder="e.g. Practice question about gradient said my answer was wrong but I think it’s right. The question was…"></textarea><span class="small muted" id="count">0 / 2000</span></label>
+    <div id="out" role="status"></div>
+    <div class="row"><button class="btn" type="submit" id="send">Send feedback</button><a class="btn quiet" href="/" id="back">Back to subjects</a></div>
+    <p class="small muted">Your name (<b id="who"></b>) is sent with your feedback so Beau can follow it up.</p>
+  </form>
+</main>
+<script>
+(function () {
+  const $ = s => document.querySelector(s);
+  const params = new URLSearchParams(location.search);
+  const KINDS = [['problem', 'Something’s wrong', 'A mistake, bug or wrong answer'], ['idea', 'Idea', 'Something to add or change'], ['question', 'Question', 'Something you’re not sure about'], ['compliment', 'Compliment', 'Something you liked'], ['other', 'Other', 'Anything else']];
+  const SUBJECTS = [['maths', 'Maths', ''], ['science', 'Science', ''], ['site', 'The whole site', 'Logging in, layout, speed']];
+  const state = { kind: '', subject: ['maths', 'science'].includes(params.get('from')) ? params.get('from') : '', rating: 0 };
+  function chips(box, list, key) {
+    const el = $(box); el.innerHTML = '';
+    list.forEach(([v, name, sub]) => {
+      const b = document.createElement('button'); b.type = 'button'; b.className = 'pick' + (state[key] === v ? ' on' : ''); b.setAttribute('aria-pressed', state[key] === v);
+      const n = document.createElement('b'); n.textContent = name; b.appendChild(n); if (sub) { const s = document.createElement('span'); s.textContent = sub; b.appendChild(s); }
+      b.onclick = () => { state[key] = v; chips(box, list, key); }; el.appendChild(b);
+    });
+  }
+  function stars() {
+    const el = $('#stars'); el.innerHTML = '';
+    for (let i = 1; i <= 5; i++) { const b = document.createElement('button'); b.type = 'button'; b.textContent = '★'; b.className = i <= state.rating ? 'on' : ''; b.setAttribute('role', 'radio'); b.setAttribute('aria-checked', i === state.rating); b.setAttribute('aria-label', i + ' star' + (i > 1 ? 's' : '')); b.onclick = () => { state.rating = state.rating === i ? 0 : i; stars(); }; el.appendChild(b); }
+  }
+  $('#msg').oninput = () => { $('#count').textContent = $('#msg').value.length + ' / 2000'; };
+  if (['maths', 'science'].includes(params.get('from'))) { $('#back').href = '/' + params.get('from') + '/'; $('#back').textContent = 'Back to ' + (params.get('from') === 'maths' ? 'Maths' : 'Science'); }
+  $('#fbForm').onsubmit = async e => {
+    e.preventDefault(); const out = $('#out');
+    const show = (t, ok) => { out.innerHTML = ''; const d = document.createElement('div'); d.className = 'msg ' + (ok ? 'good' : 'bad'); d.textContent = t; out.appendChild(d); };
+    if (!state.kind) return show('Pick what kind of feedback it is (step 1).');
+    if (!state.subject) return show('Pick what it’s about (step 2).');
+    if ($('#msg').value.trim().length < 3) return show('Write a little bit about it (step 4).');
+    $('#send').disabled = true;
+    try {
+      const r = await fetch('/api/feedback', { method: 'POST', credentials: 'same-origin', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ kind: state.kind, subject: state.subject, rating: state.rating, message: $('#msg').value }) });
+      const j = await r.json().catch(() => ({}));
+      if (r.status === 401) { location.replace('/?next=feedback'); return; }
+      if (!r.ok) { show(j.error || 'Couldn’t send it. Try again.'); return; }
+      show('Thanks! Your feedback was sent to Beau.', true); $('#msg').value = ''; $('#count').textContent = '0 / 2000'; state.kind = ''; state.rating = 0; chips('#kinds', KINDS, 'kind'); stars();
+    } catch (err) { show('Can’t reach the server. Check your connection and try again.'); }
+    finally { $('#send').disabled = false; }
+  };
+  (async () => {
+    try { const r = await fetch('/api/me', { credentials: 'same-origin' }); if (r.status === 401) { location.replace('/?next=feedback'); return; } const me = await r.json(); $('#who').textContent = me.username; }
+    catch (e) { $('#loading').textContent = 'Can’t reach the server. Check your connection and reload.'; return; }
+    chips('#kinds', KINDS, 'kind'); chips('#subjects', SUBJECTS, 'subject'); stars();
+    $('#loading').hidden = true; $('#fbForm').hidden = false;
+  })();
+})();
+</script>
+</body>
+</html>

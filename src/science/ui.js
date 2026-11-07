@@ -68,7 +68,7 @@ function questionCard(Q, opts = {}) {
 }
 
 /* ================= router ================= */
-const VIEWS = ['home', 'learn', 'practice', 'booklet', 'graph', 'exam', 'cards', 'glossary', 'theory'];
+const VIEWS = ['home', 'need', 'learn', 'practice', 'booklet', 'graph', 'exam', 'cards', 'glossary', 'theory'];
 const RENDER = {}; const rendered = {};
 function show(view, force) {
   if (!VIEWS.includes(view)) view = 'home';
@@ -116,6 +116,7 @@ RENDER.home = () => {
   let days = null; if (examDate) { const d = new Date(examDate + 'T09:00'); days = Math.ceil((d - new Date()) / 864e5); }
   const start = h(`<div class="card stack">
     <h2>Start here</h2>
+    <p class="need-tip">Short on time? <button type="button" class="btn sm" data-go="need">Need to know</button> has everything on one page, plus a question on every topic.</p>
     <ol class="start-steps">
       <li><span class="n">1</span><div class="stack" style="gap:6px"><h3>Learn</h3><p>Pick a topic and read the quick version.</p><button type="button" class="btn" data-go="learn">Learn a topic</button></div></li>
       <li><span class="n">2</span><div class="stack" style="gap:6px"><h3>Practise</h3><p>Answer questions until you can get 5 in a row.</p><button type="button" class="btn" data-go="practice-mix">Practise</button></div></li>
@@ -589,6 +590,41 @@ async function loadTheory(body) {
   }
   paint();
 }
+
+
+/* ================= NEED TO KNOW (everything on one page + one question per topic) ================= */
+RENDER.need = () => {
+  const v = $('#v-need'); v.innerHTML = '';
+  v.appendChild(h('<div class="view-head"><h2>Need to know</h2><p>Everything for the exam on one page. Read each topic, then do the quick questions at the bottom: one on every topic.</p></div>'));
+  const jump = h('<div class="row" style="gap:6px"></div>');
+  UNITS.forEach(u => { const c = h('<button type="button" class="chip">' + u.name + '</button>'); c.onclick = () => document.getElementById('needU-' + u.id).scrollIntoView({ behavior: 'smooth', block: 'start' }); jump.appendChild(c); });
+  const qc = h('<button type="button" class="chip on">Quick questions ↓</button>'); qc.onclick = () => document.getElementById('needQs').scrollIntoView({ behavior: 'smooth', block: 'start' }); jump.appendChild(qc);
+  v.appendChild(jump);
+  UNITS.forEach(u => {
+    const card = h('<section class="card stack need-unit" id="needU-' + u.id + '"><div><span class="eyebrow">' + u.ch + '</span><h3>' + u.name + '</h3></div><div class="need-grid"></div></section>');
+    TOPICS.filter(t => t.unit === u.id).forEach(t => {
+      const Q = QUICK[t.id]; if (!Q) return;
+      const el = h('<article class="need-topic"><div class="row" style="gap:8px;justify-content:space-between;align-items:baseline"><h4><span class="tag">' + t.id + '</span> ' + t.name + '</h4><button type="button" class="reflink">More detail</button></div><p class="need-what">' + Q.what + '</p><ol class="need-steps">' + Q.steps.map(x => '<li>' + x + '</li>').join('') + '</ol><p class="need-eg"><b>Example:</b> ' + Q.eg + '</p></article>');
+      $('button', el).onclick = () => openLearn(t.id);
+      $('.need-grid', card).appendChild(el);
+    });
+    v.appendChild(card);
+  });
+  const qq = h('<section class="card stack" id="needQs"><div class="row" style="justify-content:space-between"><div><h3>Quick questions</h3><p class="small muted">One question on every topic. Answer them all, then check your score.</p></div><div class="row"><div><div class="bignum" style="font-size:1.5rem" id="needScore">0/0</div><div class="small muted">right so far</div></div><button type="button" class="btn quiet sm" id="needNew">New set</button></div></div><div class="stack" id="needList" style="gap:16px"></div></section>');
+  v.appendChild(qq);
+  const load = () => {
+    const list = $('#needList', qq); list.innerHTML = ''; let right = 0, done = 0; const total = TOPICS.length;
+    const upd = () => { $('#needScore', qq).textContent = right + '/' + done; };
+    upd();
+    TOPICS.forEach((t, i) => {
+      const Q = makeQ(pick(TOPIC_GENS[t.id]));
+      const c = questionCard(Q, { num: (i + 1) + ' of ' + total, onAnswer: (ok, partial) => { if (partial) return; record(t.id, ok); done++; if (ok) right++; upd(); if (done === total) toast('All done: ' + right + ' out of ' + total); } });
+      const w = h('<div class="need-q"></div>'); w.appendChild(c.el); list.appendChild(w);
+    });
+  };
+  $('#needNew', qq).onclick = () => { load(); document.getElementById('needQs').scrollIntoView({ behavior: 'smooth', block: 'start' }); };
+  load();
+};
 
 /* ================= theme + boot ================= */
 document.documentElement.removeAttribute('data-theme');

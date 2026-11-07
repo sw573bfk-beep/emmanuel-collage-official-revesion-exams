@@ -33,7 +33,7 @@ details.acct[open] summary{margin-bottom:12px}
 <main class="wrap">
   <div class="top">
     <div class="brand"><span class="mark">year 8 · week 7</span><h1>EC Revisions</h1><p id="tagline">Year 8 Maths and Science exam revision. Make a free account so your progress is saved and follows you to any device.</p></div>
-    <div class="row" id="whoBox" hidden><span class="muted small">Logged in as <b id="who"></b></span><button class="btn quiet sm" type="button" id="logout">Log out</button></div>
+    <div class="row" id="whoBox" hidden><span class="muted small">Logged in as <b id="who"></b></span><a class="btn quiet sm" href="/feedback/">Feedback</a><button class="btn quiet sm" type="button" id="logout">Log out</button></div>
   </div>
 
   <!-- step 1: account -->
@@ -83,6 +83,7 @@ details.acct[open] summary{margin-bottom:12px}
         <a class="btn sci" href="/science/">Study Science →</a>
       </article>
     </div>
+    <a class="card row" href="/feedback/" style="justify-content:space-between;text-decoration:none;color:var(--ink)"><span><b>Got feedback?</b> <span class="muted small">Found a mistake or have an idea? Tell Beau.</span></span><span class="btn quiet sm">Send feedback →</span></a>
     <details class="card acct">
       <summary>Account settings</summary>
       <div class="acct-grid">
@@ -126,7 +127,7 @@ details.acct[open] summary{margin-bottom:12px}
     $('#password').autocomplete = su ? 'new-password' : 'current-password';
   }
   function picked(me) {
-    if (next === 'maths' || next === 'science') { location.replace('/' + next + '/'); return; }
+    if (next === 'maths' || next === 'science' || next === 'feedback') { location.replace('/' + next + '/'); return; }
     if (next === 'admin' && me.admin) { location.replace('/admin/'); return; }
     $('#adminCard').hidden = !me.admin;
     $('#who').textContent = me.username; $('#who2').textContent = me.username;
