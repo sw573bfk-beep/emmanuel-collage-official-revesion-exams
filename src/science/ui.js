@@ -556,26 +556,36 @@ async function loadTheory(body) {
   body.innerHTML = '';
   const bar = h('<div class="card row level-bar" style="justify-content:space-between"><div class="row" role="radiogroup" aria-label="Answer level"></div><select id="thJump" aria-label="Jump to a section" style="max-width:100%;width:auto"><option value="">Jump to a section…</option></select></div>');
   const lv = $('.row', bar);
-  LEVELS.forEach(([k, n]) => { const b = h('<button type="button" class="chip" role="radio" data-l="' + k + '">' + n + '</button>'); b.onclick = () => { level = k; store.set('theoryLevel', k); paint(); }; lv.appendChild(b); });
+  LEVELS.forEach(([k, n]) => { const b = h('<button type="button" class="chip" role="radio" data-l="' + k + '">' + n + '</button>'); b.onclick = () => { if (level === k) return; level = k; store.set('theoryLevel', k); paint(true); }; lv.appendChild(b); });
   body.appendChild(bar);
   const list = h('<div class="stack"></div>'); body.appendChild(list);
   const sel = $('#thJump', bar);
-  theoryData.sections.forEach((s, i) => sel.appendChild(h('<option value="th-' + i + '">' + esc((s.part ? s.part + ' · ' : '') + s.title) + '</option>')));
+  theoryData.sections.forEach((s, i) => sel.appendChild(h('<option value="th-' + i + '">' + esc((s.page ? 'p. ' + s.page + ' · ' : '') + s.title) + '</option>')));
   sel.onchange = () => { const t = document.getElementById(sel.value); if (t) t.scrollIntoView({ behavior: 'smooth', block: 'start' }); sel.value = ''; };
-  function paint() {
+  function anchor() {
+    // the question nearest the top of the screen (just under the sticky level bar), so switching level keeps your place
+    const top = bar.getBoundingClientRect().bottom + 4;
+    const items = $$('.th-item, .th-head', list);
+    for (const el of items) { const r = el.getBoundingClientRect(); if (r.bottom > top) return { id: el.dataset.k, off: r.top - top }; }
+    return null;
+  }
+  function paint(keep) {
+    const a = keep ? anchor() : null;
     $$('[data-l]', bar).forEach(b => { const on = b.dataset.l === level; b.classList.toggle('on', on); b.setAttribute('aria-checked', on); });
     list.innerHTML = '';
     theoryData.sections.forEach((s, i) => {
-      const card = h('<section class="card stack th-sec" id="th-' + i + '"><div><span class="eyebrow">' + esc(s.part || '') + '</span><h3>' + s.title + '</h3>' + (s.intro ? '<p class="small muted">' + s.intro + '</p>' : '') + '</div></section>');
-      s.items.forEach(it => {
+      const card = h('<section class="stack th-sec" id="th-' + i + '"><div class="th-head" data-k="h' + i + '"><h3>' + s.title + '</h3>' + (s.intro ? '<span class="ref">' + s.intro + '</span>' : '') + '</div></section>');
+      s.items.forEach((it, j) => {
         const ans = level === 'min' ? (it.min || it.norm) : it.norm;
-        const el = h('<div class="th-item"><div class="th-q">' + it.q + '</div><div class="th-a">' + ans + '</div></div>');
+        const el = h('<div class="th-item" data-k="' + i + '-' + j + '"><div class="th-q">' + it.q + '</div><div class="th-a">' + ans + '</div></div>');
         if (it.fig && level !== 'min') el.insertAdjacentHTML('beforeend', '<div class="qfig">' + it.fig + '</div>');
         if (level === 'extra' && it.plus) el.insertAdjacentHTML('beforeend', '<div class="th-plus"><span class="eyebrow">Extra info</span><div>' + it.plus + '</div></div>');
         card.appendChild(el);
       });
+      card.appendChild(h('<div class="th-foot"><span>Year 8 Chemistry · ' + esc(s.part || '') + '</span><span>' + (s.page ? (/^\d/.test(s.page) ? 'Page <b>' + esc(s.page) + '</b>' : esc(s.page.charAt(0).toUpperCase() + s.page.slice(1))) : '') + '</span></div>'));
       list.appendChild(card);
     });
+    if (a) { const el = list.querySelector('[data-k="' + a.id + '"]'); if (el) { const top = bar.getBoundingClientRect().bottom + 4; window.scrollBy(0, el.getBoundingClientRect().top - top - a.off); } }
   }
   paint();
 }
