@@ -225,3 +225,68 @@ const GLOSS = [
   ['Corrosion', 'A metal being slowly eaten away by a chemical reaction.', 'C8'], ['Rust', 'Iron oxide, formed when iron corrodes.', 'C8'], ['Galvanising', 'Coating iron with zinc to stop rusting.', 'C8'],
   ['Mass number (A)', 'The number of protons + neutrons in an atom.', 'C9'], ['Atomic number (Z)', 'The number of protons in an atom.', 'C9'], ['Proton', 'Positive particle in the nucleus.', 'C9'], ['Neutron', 'Neutral particle in the nucleus.', 'C9'], ['Electron', 'Negative particle in shells around the nucleus.', 'C9']
 ].concat(VERBS.map(v => [v[0] + ' (question word)', v[1] + '.', 'C9']));
+
+/* ================= one entry per checklist skill (same order as CHECKLIST): simple explanation, example, matching question types ================= */
+const SKILL_INFO = [
+  // 1. Physical and chemical changes
+  { x: 'Look for clues. A chemical change makes something new, so you might see <b>gas bubbles, a colour change, a solid forming, a temperature change, a new smell or light</b>. A physical change only changes the shape, size or state, like melting.', eg: 'Vinegar + baking soda fizzes → chemical. Ice melting → physical.', g: ['chgEvidence', 'chgClassify'] },
+  { x: 'These are the main clues of a chemical change:<ul><li><b>Gas</b>: bubbles or fizzing</li><li><b>Colour change</b></li><li><b>Precipitate</b>: a solid appears when two liquids are mixed</li><li><b>Temperature change</b>: gets hotter or colder</li><li><b>New smell</b></li></ul>', eg: 'Two clear liquids are mixed and a yellow solid appears → a precipitate → chemical change.', g: ['chgEvidence'] },
+  { x: '<b>Physical:</b> it is still the same substance, just a new shape, size or state. Usually easy to undo.<br><b>Chemical:</b> a new substance forms. Usually can’t be undone.', eg: 'Melting chocolate (physical) vs toasting bread (chemical).', g: ['chgClassify', 'chgDefine'] },
+  { x: 'In a physical change the particles don’t change. Ice, liquid water and steam are all still water (H₂O), just arranged differently. Nothing new is made.', eg: 'Dissolve salt in water, then evaporate the water: the salt is still there.', g: ['chgDefine', 'chgClassify'] },
+  { x: 'In a chemical change the atoms rearrange to make <b>new substances</b> with different properties. A new substance is the only sure sign of a chemical change.', eg: 'Burning wood makes ash, smoke and carbon dioxide. It isn’t wood any more.', g: ['chgDefine', 'chgClassify'] },
+  // 2. Observing, analysing and justifying
+  { x: 'Write down what you <b>see, hear, smell or measure</b>, using numbers and units. Don’t write feelings or guesses.', eg: 'Not “it got hot”, but “the temperature rose from 21 °C to 35 °C in 90 seconds”.', g: ['obsVsOpinion'] },
+  { x: 'Only write the observations that help answer the question: gas, colour, a solid forming, temperature, smell. Things like the size of the beaker don’t matter.', eg: 'Relevant: “bubbles formed”. Not relevant: “we used a blue spatula”.', g: ['obsVsOpinion', 'obsClassify'] },
+  { x: 'Look at each observation and ask: <b>does it show a new substance formed?</b> If yes, it’s chemical. If it only melted, dissolved or changed shape, it’s physical.', eg: 'Bubbles + temperature rise when metal is added to acid → chemical.', g: ['obsClassify'] },
+  { x: 'Give your answer, then the evidence (with numbers), then link it back to the science.', eg: '“Chemical, because bubbles formed and the temperature rose by 8 °C, which shows a new substance formed.”', g: ['obsClassify', 'evidenceVsOpinion'] },
+  { x: 'Use the clues of a chemical change (gas, temperature change, colour change, precipitate) as your <b>reasons</b> when you say what type of change it was.', eg: '“A white precipitate formed when the two solutions were mixed, so a new substance was made: chemical change.”', g: ['obsClassify', 'chgEvidence'] },
+  // 3. Reactants and products
+  { x: 'A <b>reactant</b> is a substance you <b>start</b> with. It gets used up in the reaction.', eg: 'In magnesium + oxygen → magnesium oxide, the reactants are magnesium and oxygen.', g: ['rpFacts', 'rpIdentify'] },
+  { x: 'A <b>product</b> is a <b>new</b> substance made by the reaction.', eg: 'In magnesium + oxygen → magnesium oxide, the product is magnesium oxide.', g: ['rpFacts', 'rpIdentify'] },
+  { x: 'The reactants are everything written <b>before</b> the arrow.', eg: 'zinc + hydrochloric acid → zinc chloride + hydrogen: reactants are zinc and hydrochloric acid.', g: ['rpIdentify'] },
+  { x: 'The products are everything written <b>after</b> the arrow.', eg: 'copper carbonate → copper oxide + carbon dioxide: products are copper oxide and carbon dioxide.', g: ['rpIdentify'] },
+  { x: 'In a word equation, reactants are always on the <b>left</b>, before the arrow.', eg: '<b>reactants</b> → products', g: ['rpFacts', 'rpIdentify'] },
+  { x: 'In a word equation, products are always on the <b>right</b>, after the arrow.', eg: 'reactants → <b>products</b>', g: ['rpFacts', 'rpIdentify'] },
+  // 4. Word equations
+  { x: 'A word equation shows a reaction in words: <b>reactants → products</b>, with a + between substances on the same side.', eg: 'magnesium + oxygen → magnesium oxide', g: ['eqConstruct', 'eqChoose'] },
+  { x: 'Everything you <b>start with</b> goes on the left of the arrow.', eg: '<b>iron + oxygen</b> → iron oxide', g: ['eqChoose', 'rpFacts'] },
+  { x: 'Everything that is <b>made</b> goes on the right of the arrow.', eg: 'iron + oxygen → <b>iron oxide</b>', g: ['eqChoose', 'rpFacts'] },
+  { x: 'Read the description again and find which substance isn’t in the equation yet. Ask: is it something you start with, or something that is made?', eg: 'magnesium + ______ → magnesium oxide → the missing reactant is oxygen.', g: ['eqMissing'] },
+  { x: '1. Find what you start with. 2. Find what is made. 3. Write reactants → products with + between them. Leave out words like “solid” or “gas”.', eg: '“Zinc is added to hydrochloric acid, making hydrogen gas and zinc chloride” → zinc + hydrochloric acid → zinc chloride + hydrogen', g: ['eqConstruct'] },
+  // 5. Conservation of mass
+  { x: '<b>Mass is not created or destroyed in a chemical reaction.</b> The total mass of the reactants equals the total mass of the products.', eg: '10 g of reactants always makes 10 g of products (in a sealed container).', g: ['massLaw'] },
+  { x: 'In a reaction the bonds between atoms break and new bonds form. The <b>same atoms</b> just join up in new ways.', eg: '2H₂ + O₂ → 2H₂O: 4 H and 2 O atoms before, 4 H and 2 O atoms after.', g: ['massLaw', 'atomCount'] },
+  { x: 'No atoms appear and none disappear in a reaction. That is why the mass stays the same.', eg: 'Count the atoms on both sides of an equation: the numbers always match.', g: ['massLaw', 'atomCount'] },
+  { x: 'In a <b>closed (sealed)</b> system nothing can get in or out, so the same atoms (and the same mass) are there before and after.', eg: 'A sealed flask weighs 150.0 g before and 150.0 g after the reaction.', g: ['massLaw', 'massClosed'] },
+  { x: 'Add up the masses you know. Total reactants = total products, so subtract to find the missing one.', eg: 'magnesium 2.4 g + oxygen ? g → magnesium oxide 4.0 g → oxygen = 4.0 − 2.4 = 1.6 g', g: ['massClosed'] },
+  { x: 'In an <b>open</b> container a gas product can escape into the air, so the scale reading goes down. The mass isn’t destroyed; it just left.', eg: 'Marble chips + acid in an open beaker: 125.0 g → 122.8 g, so 2.2 g of carbon dioxide escaped.', g: ['massOpen'] },
+  { x: 'Put the reactants in a <b>sealed</b> container (a stopper or a balloon over the top), weigh it, let them react, then weigh it again. The mass stays the same.', eg: 'Vinegar and baking soda in a flask with a balloon over the top: same mass before and after.', g: ['massLaw', 'massOpen'] },
+  // 6. Exothermic and endothermic
+  { x: 'An <b>exothermic</b> reaction gives out energy (usually heat). “Exo” = exit.', eg: 'Burning wood, hand warmers.', g: ['exoEndoFacts'] },
+  { x: 'An <b>endothermic</b> reaction takes in energy (usually heat). “Endo” = enter.', eg: 'Instant cold packs, photosynthesis.', g: ['exoEndoFacts'] },
+  { x: 'Exothermic reactions <b>release</b> energy to the surroundings, so the surroundings (the beaker, the air, your hand) get <b>hotter</b>.', eg: 'A hand warmer feels warm because its reaction releases heat.', g: ['exoEndoFacts', 'energyDiagram'] },
+  { x: 'Endothermic reactions <b>absorb</b> energy from the surroundings, so the surroundings get <b>colder</b>.', eg: 'A cold pack feels cold because its reaction takes heat from your skin.', g: ['exoEndoFacts', 'energyDiagram'] },
+  { x: 'If the measured temperature <b>goes up</b>, the reaction is exothermic.', eg: '21 °C → 36 °C, so it is exothermic.', g: ['tempClassify'] },
+  { x: 'If the measured temperature <b>goes down</b>, the reaction is endothermic.', eg: '21 °C → 13 °C, so it is endothermic.', g: ['tempClassify'] },
+  { x: 'Use the numbers as your evidence. ΔT = final − start. Positive means exothermic; negative means endothermic.', eg: '“Exothermic, because the temperature rose from 21.0 °C to 36.1 °C (ΔT = +15.1 °C).”', g: ['tempClassify', 'deltaT', 'meanUnc'] },
+  // 7. Combustion
+  { x: '<b>Combustion</b> is burning: a substance reacts with <b>oxygen</b> and releases energy as heat and light.', eg: 'A gas stove flame, a campfire, a candle.', g: ['combFacts'] },
+  { x: 'Combustion needs <b>oxygen</b>. Take the oxygen away and the fire goes out.', eg: 'A fire blanket smothers a fire by stopping oxygen reaching it.', g: ['combFacts', 'combTriangle'] },
+  { x: 'Combustion needs a <b>fuel</b>: the substance that burns.', eg: 'Wood, gas, wax, petrol. Turning off the gas puts out a stove flame.', g: ['combTriangle', 'combFacts'] },
+  { x: 'A fuel needs some <b>heat to get started</b> (ignition energy), like a match or a spark. After that, the heat from burning keeps it going.', eg: 'A gas stove needs a spark to light, then keeps burning by itself.', g: ['combFacts', 'combTriangle'] },
+  { x: 'For a fuel made of carbon and hydrogen: <b>fuel + oxygen → carbon dioxide + water</b>.', eg: 'methane + oxygen → carbon dioxide + water', g: ['combEq'] },
+  { x: 'Combustion gives out energy as heat and light, so it is <b>exothermic</b>.', eg: 'That’s why we burn fuels to cook and to heat homes.', g: ['combFacts', 'exoEndoFacts'] },
+  // 8. Corrosion
+  { x: '<b>Corrosion</b> is when a metal is slowly eaten away by a chemical reaction with things around it, like oxygen and water.', eg: 'An old iron gate going rusty.', g: ['corrFacts'] },
+  { x: 'Corrosion is <b>chemical</b> because a new substance forms (like rust, iron oxide).', eg: 'Shiny iron turns into flaky orange rust: a new substance.', g: ['corrFacts'] },
+  { x: '<b>Rusting</b> is the corrosion of iron (and steel).', eg: 'A bike chain left out in the rain goes rusty.', g: ['corrFacts', 'corrEq'] },
+  { x: 'Iron needs <b>oxygen and water (moisture)</b> to rust. Salt makes it rust faster.', eg: 'A nail in dry air doesn’t rust; a nail in salty water rusts the most.', g: ['corrNails', 'corrFacts'] },
+  { x: 'Rusting written as a word equation: <b>iron + oxygen → iron oxide</b>.', eg: 'iron + oxygen → iron oxide', g: ['corrEq', 'corrFacts', 'corrNails'] },
+  // 9. Mixed exam skills
+  { x: 'Question words tell you what to do:<ul><li><b>Identify</b> = name it</li><li><b>Define</b> = exact meaning</li><li><b>Classify</b> = sort into groups</li><li><b>Distinguish</b> = show the difference</li><li><b>Analyse</b> = break it down</li><li><b>Justify</b> = back it up with evidence</li></ul>', eg: '“Justify” means you must give evidence, not just the answer.', g: ['verbs'] },
+  { x: 'Science answers need <b>evidence</b> (what you saw or measured), not opinions like “it felt like it”.', eg: 'Good: “the temperature rose from 20 °C to 31 °C”. Bad: “it seemed hot”.', g: ['evidenceVsOpinion', 'obsVsOpinion'] },
+  { x: 'When asked to justify, say <b>why</b>: answer + evidence + the science that links them.', eg: '“Endothermic, because the temperature fell by 7 °C, so energy was absorbed from the surroundings.”', g: ['obsVerb', 'evidenceVsOpinion'] },
+  { x: '<b>Mass number = protons + neutrons.</b> Neutrons = mass number − atomic number. In a neutral atom, electrons = protons. For conservation of mass: mass before = mass after.', eg: 'Mass number 23, atomic number 11 → 12 neutrons.', g: ['massNumber', 'massClosed'] },
+  { x: 'Be able to write a word equation from a description, and read one to find the reactants and products.', eg: 'hydrogen + oxygen → water: reactants hydrogen and oxygen, product water.', g: ['eqConstruct', 'rpIdentify', 'eqMissing'] }
+];
+if (SKILL_INFO.length !== CHECKLIST.reduce((a, c) => a + c[1].length, 0)) console.error('SKILL_INFO does not match the checklist length');
