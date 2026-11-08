@@ -180,6 +180,11 @@ svg{max-width:100%;height:auto}
 .th-item,.th-a,.th-plus{min-width:0;overflow-wrap:anywhere}
 .th-plus{margin-left:12px;border:1.5px dashed var(--pen);border-radius:6px;padding:8px 12px;display:flex;flex-direction:column;gap:4px;color:var(--pen)}
 .th-plus .eyebrow{color:var(--pen)}
+.th-nav{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.th-nav .th-where{font-size:1rem;text-align:center;flex:1}
+.th-nav .btn:disabled{opacity:.4;cursor:default}
+@media (max-width:480px){.th-nav .btn{padding:8px 10px;font-size:.9rem}}
+.th-cont{font-size:.82rem;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);border-bottom:1.5px solid var(--rule);padding-bottom:4px}
 .th-foot{display:flex;justify-content:space-between;border-top:1px solid var(--rule);padding-top:8px;font-size:.8rem;color:var(--muted)}
 .th-foot b{color:var(--ink)}
 .chart-svg .pl{stroke-width:2.2}

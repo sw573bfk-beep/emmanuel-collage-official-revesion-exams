@@ -18,6 +18,17 @@ const S = ctx.S;
 const part1 = (await import(path.join(root, 'private/theory-part1.mjs'))).default(S);
 const part2 = (await import(path.join(root, 'private/theory-part2.mjs'))).default(S);
 const sections = part1.concat(part2);
+// The booklet page each question is on (worked out from the workbook file, lined up with its contents page),
+// so the completed booklet can be read one page at a time.
+const pagesFile = path.join(root, 'private/theory-pages.json');
+if (fs.existsSync(pagesFile)) {
+  const pages = JSON.parse(fs.readFileSync(pagesFile, 'utf8'));
+  if (pages.length !== sections.length) throw new Error('theory-pages.json has ' + pages.length + ' sections, the booklet has ' + sections.length);
+  sections.forEach((s, i) => {
+    if (pages[i].length !== s.items.length) throw new Error('theory-pages.json: ' + s.title + ' has ' + pages[i].length + ' pages listed for ' + s.items.length + ' questions');
+    s.items.forEach((it, j) => { it.pg = String(pages[i][j]); });
+  });
+}
 const now = Math.floor(Date.now() / 1000);
 const q = s => "'" + s.replace(/'/g, "''") + "'";
 let sql = 'DELETE FROM content;\n';

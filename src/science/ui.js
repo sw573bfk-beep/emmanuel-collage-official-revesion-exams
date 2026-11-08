@@ -97,7 +97,7 @@ const RENDER = {}; const rendered = {};
 function show(view, force) {
   if (ALIAS[view]) { const tgt = typeof ALIAS[view] === 'function' ? ALIAS[view]() : ALIAS[view]; rendered[tgt] = false; location.replace('#' + tgt); return; }
   if (!VIEWS.includes(view)) view = 'home';
-  $$('.view').forEach(s => { s.hidden = s.id !== 'v-' + view; });
+  $$('main > .view').forEach(s => { s.hidden = s.id !== 'v-' + view; });
   $$('#tabs a').forEach(a => { const on = a.dataset.v === view; a.classList.toggle('on', on); if (on) { a.setAttribute('aria-current', 'page'); a.scrollIntoView({ block: 'nearest', inline: 'nearest' }); } else a.removeAttribute('aria-current'); });
   if (!rendered[view] || force || view === 'home') { RENDER[view](); rendered[view] = true; }
 }
@@ -615,40 +615,73 @@ async function loadTheory(body) {
     theoryData = await r.json();
   }
   let level = store.get('theoryLevel', 'norm');
+  // Split the booklet into its real pages: each question knows its page (it.pg), and a page can hold
+  // the end of one section and the start of the next, just like the paper booklet.
+  const PAGES = [];
+  theoryData.sections.forEach((s, i) => s.items.forEach((it, j) => {
+    const pg = String(it.pg || s.page || '');
+    let page = PAGES[PAGES.length - 1];
+    if (!page || page.pg !== pg) { page = { pg, part: s.part, blocks: [] }; PAGES.push(page); }
+    let blk = page.blocks[page.blocks.length - 1];
+    if (!blk || blk.sec !== i) { blk = { sec: i, items: [], cont: j > 0 }; page.blocks.push(blk); }
+    blk.items.push(j);
+  }));
+  const pgLabel = pg => /^\d/.test(pg) ? 'Page ' + pg : pg.charAt(0).toUpperCase() + pg.slice(1);
+  let at = Math.max(0, PAGES.findIndex(x => x.pg === store.get('theoryPage', '')));
   body.innerHTML = '';
-  const bar = h('<div class="card row level-bar" style="justify-content:space-between"><div class="row" role="radiogroup" aria-label="Answer level"></div><select id="thJump" aria-label="Jump to a section" style="max-width:100%;width:auto"><option value="">Jump to a section…</option></select></div>');
+  const bar = h('<div class="card row level-bar" style="justify-content:space-between"><div class="row" role="radiogroup" aria-label="Answer level"></div><select id="thJump" aria-label="Go to a page" style="max-width:100%;width:auto"></select></div>');
   const lv = $('.row', bar);
   LEVELS.forEach(([k, n]) => { const b = h('<button type="button" class="chip" role="radio" data-l="' + k + '">' + n + '</button>'); b.onclick = () => { if (level === k) return; level = k; store.set('theoryLevel', k); paint(true); }; lv.appendChild(b); });
   body.appendChild(bar);
-  const list = h('<div class="stack"></div>'); body.appendChild(list);
   const sel = $('#thJump', bar);
-  theoryData.sections.forEach((s, i) => sel.appendChild(h('<option value="th-' + i + '">' + esc((s.page ? 'p. ' + s.page + ' · ' : '') + s.title) + '</option>')));
-  sel.onchange = () => { const t = document.getElementById(sel.value); if (t) t.scrollIntoView({ behavior: 'smooth', block: 'start' }); sel.value = ''; };
+  PAGES.forEach((pg, n) => { const b = pg.blocks[0], s = theoryData.sections[b.sec]; sel.appendChild(h('<option value="' + n + '">' + esc(pgLabel(pg.pg) + ' · ' + s.title + (b.cont ? ' (continued)' : '')) + '</option>')); });
+  sel.onchange = () => goPage(+sel.value);
+  const nav = () => h('<div class="th-nav"><button type="button" class="btn quiet" data-d="-1">◀ Previous page</button><span class="th-where"></span><button type="button" class="btn quiet" data-d="1">Next page ▶</button></div>');
+  const navTop = nav(), list = h('<div class="stack"></div>'), navBot = nav();
+  body.append(navTop, list, navBot);
+  [navTop, navBot].forEach(nb => $$('[data-d]', nb).forEach(b => b.onclick = () => goPage(at + +b.dataset.d, nb === navBot)));
+  function goPage(n, fromBottom) {
+    if (n < 0 || n >= PAGES.length || n === at) return;
+    at = n; store.set('theoryPage', PAGES[n].pg); paint();
+    const top = navTop.getBoundingClientRect().top + window.scrollY - bar.offsetHeight - 70;
+    if (fromBottom || window.scrollY > top) window.scrollTo({ top: Math.max(0, top) });
+  }
   function anchor() {
     // the question nearest the top of the screen (just under the sticky level bar), so switching level keeps your place
     const top = bar.getBoundingClientRect().bottom + 4;
-    const items = $$('.th-item, .th-head', list);
-    for (const el of items) { const r = el.getBoundingClientRect(); if (r.bottom > top) return { id: el.dataset.k, off: r.top - top }; }
+    for (const el of $$('.th-item, .th-head, .th-cont', list)) { const r = el.getBoundingClientRect(); if (r.bottom > top) return { id: el.dataset.k, off: r.top - top }; }
     return null;
   }
   function paint(keep) {
-    const a = keep ? anchor() : null;
+    const a = keep ? anchor() : null, page = PAGES[at];
     $$('[data-l]', bar).forEach(b => { const on = b.dataset.l === level; b.classList.toggle('on', on); b.setAttribute('aria-checked', on); });
+    sel.value = String(at);
+    [navTop, navBot].forEach(nb => { $('[data-d="-1"]', nb).disabled = at === 0; $('[data-d="1"]', nb).disabled = at === PAGES.length - 1; $('.th-where', nb).innerHTML = '<b>' + esc(pgLabel(page.pg)) + '</b> <span class="muted">(' + (at + 1) + ' of ' + PAGES.length + ')</span>'; });
     list.innerHTML = '';
-    theoryData.sections.forEach((s, i) => {
-      const card = h('<section class="stack th-sec" id="th-' + i + '"><div class="th-head" data-k="h' + i + '"><h3>' + s.title + '</h3>' + (s.intro ? '<span class="ref">' + s.intro + '</span>' : '') + '</div></section>');
-      s.items.forEach((it, j) => {
-        const ans = level === 'min' ? (it.min || it.norm) : it.norm;
-        const el = h('<div class="th-item" data-k="' + i + '-' + j + '"><div class="th-q">' + it.q + '</div><div class="th-a">' + ans + '</div></div>');
+    const card = h('<section class="stack th-sec" id="th-page"></section>');
+    page.blocks.forEach(blk => {
+      const s = theoryData.sections[blk.sec];
+      card.appendChild(blk.cont
+        ? h('<div class="th-cont" data-k="h' + blk.sec + '-' + at + '">' + esc(s.title) + ' (continued)</div>')
+        : h('<div class="th-head" data-k="h' + blk.sec + '"><h3>' + s.title + '</h3>' + (s.intro ? '<span class="ref">' + s.intro + '</span>' : '') + '</div>'));
+      blk.items.forEach(j => {
+        const it = s.items[j], ans = level === 'min' ? (it.min || it.norm) : it.norm;
+        const el = h('<div class="th-item" data-k="' + blk.sec + '-' + j + '"><div class="th-q">' + it.q + '</div><div class="th-a">' + ans + '</div></div>');
         if (it.fig && level !== 'min') el.insertAdjacentHTML('beforeend', '<div class="qfig">' + it.fig + '</div>');
         if (level === 'extra' && it.plus) el.insertAdjacentHTML('beforeend', '<div class="th-plus"><span class="eyebrow">Extra info</span><div>' + it.plus + '</div></div>');
         card.appendChild(el);
       });
-      card.appendChild(h('<div class="th-foot"><span>Year 8 Chemistry · ' + esc(s.part || '') + '</span><span>' + (s.page ? (/^\d/.test(s.page) ? 'Page <b>' + esc(s.page) + '</b>' : esc(s.page.charAt(0).toUpperCase() + s.page.slice(1))) : '') + '</span></div>'));
-      list.appendChild(card);
     });
+    card.appendChild(h('<div class="th-foot"><span>Year 8 Chemistry · ' + esc(page.part || '') + '</span><span>' + (/^\d/.test(page.pg) ? 'Page <b>' + esc(page.pg) + '</b>' : esc(pgLabel(page.pg))) + '</span></div>'));
+    list.appendChild(card);
     if (a) { const el = list.querySelector('[data-k="' + a.id + '"]'); if (el) { const top = bar.getBoundingClientRect().bottom + 4; window.scrollBy(0, el.getBoundingClientRect().top - top - a.off); } }
   }
+  // arrow keys turn the page (not while typing)
+  document.addEventListener('keydown', e => {
+    if (!document.body.contains(list) || list.offsetParent === null || e.altKey || e.ctrlKey || e.metaKey) return;
+    if (/^(INPUT|TEXTAREA|SELECT)$/.test((document.activeElement || {}).tagName || '')) return;
+    if (e.key === 'ArrowRight') goPage(at + 1); else if (e.key === 'ArrowLeft') goPage(at - 1);
+  });
   paint();
 }
 
@@ -751,12 +784,12 @@ RENDER.practice = () => {
 RENDER.booklet = () => {
   const v = $('#v-booklet'); v.innerHTML = '';
   const modes = [['work', 'Workbook questions', 'Part 2 and mass number'], ['graph', 'Graph task', 'The salts worksheet'], ['theory', 'Completed booklet 🔒', 'Needs an unlock code']];
-  if (!state.bmode) state.bmode = 'work';
+  if (!state.bmode) state.bmode = store.get('bookletMode', 'work');
   const bar = h('<div class="mode-bar" role="tablist" aria-label="Booklet section"></div>'); v.appendChild(bar);
   const host = h('<div class="view"></div>'); v.appendChild(host);
   const draw = () => {
     bar.innerHTML = '';
-    modes.forEach(([k, l, sub]) => { const b = h('<button type="button" class="mode" role="tab"><b>' + l + '</b><span>' + sub + '</span></button>'); b.classList.toggle('on', state.bmode === k); b.setAttribute('aria-selected', state.bmode === k); b.onclick = () => { state.bmode = k; draw(); }; bar.appendChild(b); });
+    modes.forEach(([k, l, sub]) => { const b = h('<button type="button" class="mode" role="tab"><b>' + l + '</b><span>' + sub + '</span></button>'); b.classList.toggle('on', state.bmode === k); b.setAttribute('aria-selected', state.bmode === k); b.onclick = () => { state.bmode = k; store.set('bookletMode', k); draw(); }; bar.appendChild(b); });
     if (state.bmode === 'graph') graphInto(host); else if (state.bmode === 'theory') theoryInto(host); else bookletInto(host);
   };
   draw();
