@@ -581,10 +581,10 @@ const graphInto = (v) => {
 
 /* ================= COMPLETED THEORY BOOKLET (locked) ================= */
 const LEVELS = [['min', 'Minimal'], ['norm', 'Normal'], ['extra', 'Extra info']];
-let theoryData = null;
+let theoryData = null; const theoryPics = {};
 const theoryInto = async (v) => {
   v.innerHTML = '';
-  v.appendChild(h('<div class="view-head"><h2>Completed theory booklet</h2><p>The whole Year 8 Chemistry theory workbook, completed. Switch between <b>Minimal</b>, <b>Normal</b> and <b>Extra info</b> answers.</p></div>'));
+  v.appendChild(h('<div class="view-head"><h2>Completed theory booklet</h2><p>The whole Year 8 Chemistry theory workbook, completed, page by page. <b>Normal</b> shows each completed page, <b>Minimal</b> gives short answers, <b>Extra info</b> adds explanations.</p></div>'));
   const body = h('<div class="stack"><p class="muted">Checking access…</p></div>'); v.appendChild(body);
   let st; try { st = await (await fetch('/api/unlock/theory', { credentials: 'same-origin' })).json(); } catch (e) { body.innerHTML = '<div class="fb bad">Can’t reach the server. Check your connection and try again.</div>'; return; }
   if (!st.unlocked) return lockedView(body);
@@ -614,71 +614,88 @@ async function loadTheory(body) {
     if (!r.ok) { body.innerHTML = '<div class="fb bad">Couldn’t load the booklet. Try again later.</div>'; return; }
     theoryData = await r.json();
   }
+  // Normal = the picture of each completed page. Minimal = short answers to that page's questions.
+  // Extra info = the picture plus extra explanation. Pages with no questions show the picture at every level.
+  const PAGES = theoryData.pages || [];
+  if (!PAGES.length) { body.innerHTML = '<div class="fb bad">The booklet isn’t available right now. Try again later.</div>'; return; }
   let level = store.get('theoryLevel', 'norm');
-  // Split the booklet into its real pages: each question knows its page (it.pg), and a page can hold
-  // the end of one section and the start of the next, just like the paper booklet.
-  const PAGES = [];
-  theoryData.sections.forEach((s, i) => s.items.forEach((it, j) => {
-    const pg = String(it.pg || s.page || '');
-    let page = PAGES[PAGES.length - 1];
-    if (!page || page.pg !== pg) { page = { pg, part: s.part, blocks: [] }; PAGES.push(page); }
-    let blk = page.blocks[page.blocks.length - 1];
-    if (!blk || blk.sec !== i) { blk = { sec: i, items: [], cont: j > 0 }; page.blocks.push(blk); }
-    blk.items.push(j);
-  }));
-  const pgLabel = pg => /^\d/.test(pg) ? 'Page ' + pg : pg.charAt(0).toUpperCase() + pg.slice(1);
-  let at = Math.max(0, PAGES.findIndex(x => x.pg === store.get('theoryPage', '')));
+  let at = Math.max(0, PAGES.findIndex(p => String(p.n) === String(store.get('theoryPage', ''))));
   body.innerHTML = '';
   const bar = h('<div class="card row level-bar" style="justify-content:space-between"><div class="row" role="radiogroup" aria-label="Answer level"></div><select id="thJump" aria-label="Go to a page" style="max-width:100%;width:auto"></select></div>');
   const lv = $('.row', bar);
-  LEVELS.forEach(([k, n]) => { const b = h('<button type="button" class="chip" role="radio" data-l="' + k + '">' + n + '</button>'); b.onclick = () => { if (level === k) return; level = k; store.set('theoryLevel', k); paint(true); }; lv.appendChild(b); });
+  LEVELS.forEach(([k, n]) => { const b = h('<button type="button" class="chip" role="radio" data-l="' + k + '">' + n + '</button>'); b.onclick = () => { if (level === k) return; level = k; store.set('theoryLevel', k); paint(); }; lv.appendChild(b); });
   body.appendChild(bar);
   const sel = $('#thJump', bar);
-  PAGES.forEach((pg, n) => { const b = pg.blocks[0], s = theoryData.sections[b.sec]; sel.appendChild(h('<option value="' + n + '">' + esc(pgLabel(pg.pg) + ' · ' + s.title + (b.cont ? ' (continued)' : '')) + '</option>')); });
+  PAGES.forEach((p, i) => { const cont = i > 0 && PAGES[i - 1].sec === p.sec; sel.appendChild(h('<option value="' + i + '">' + esc('Page ' + p.n + ' · ' + p.sec + (cont ? ' (continued)' : '')) + '</option>')); });
   sel.onchange = () => goPage(+sel.value);
   const nav = () => h('<div class="th-nav"><button type="button" class="btn quiet" data-d="-1">◀ Previous page</button><span class="th-where"></span><button type="button" class="btn quiet" data-d="1">Next page ▶</button></div>');
   const navTop = nav(), list = h('<div class="stack"></div>'), navBot = nav();
   body.append(navTop, list, navBot);
   [navTop, navBot].forEach(nb => $$('[data-d]', nb).forEach(b => b.onclick = () => goPage(at + +b.dataset.d, nb === navBot)));
+
+  // page pictures are locked, so they're fetched with this tab's account (an <img> can't send it) and kept as blobs
+  const pics = theoryPics;
+  const picUrl = n => {
+    if (!pics[n]) pics[n] = fetch('/api/theory/page/' + n + '?v=' + (theoryData.ver || 0), { credentials: 'same-origin' })
+      .then(r => { if (!r.ok) throw new Error('page'); return r.blob(); })
+      .then(b => URL.createObjectURL(b))
+      .catch(e => { delete pics[n]; throw e; });
+    return pics[n];
+  };
+  function picture(p) {
+    const fig = h('<figure class="bk-pg' + (p.landscape ? ' land' : '') + '"><div class="bk-ph">Loading page ' + p.n + '…</div><img alt="Page ' + p.n + ' of the completed booklet: ' + esc(p.sec) + '" hidden><figcaption class="small muted">Tap the page to zoom in.</figcaption></figure>');
+    const img = $('img', fig), ph = $('.bk-ph', fig);
+    picUrl(p.n).then(u => { img.src = u; img.hidden = false; ph.remove(); }).catch(() => { ph.textContent = 'Couldn’t load this page. Check your connection and try again.'; });
+    img.onclick = () => zoom(img.src, p);
+    return fig;
+  }
+  function zoom(src, p) {
+    if (!src) return;
+    const ov = h('<div class="bk-zoom" role="dialog" aria-modal="true" aria-label="Page ' + p.n + ', zoomed in"><div class="bk-zoom-bar"><b>Page ' + p.n + '</b><span class="small">Scroll or pinch to move around</span><button type="button" class="btn sm">Close ✕</button></div><div class="bk-zoom-in"><img alt="Page ' + p.n + ' of the completed booklet"></div></div>');
+    $('img', ov).src = src;
+    const close = () => { ov.remove(); document.removeEventListener('keydown', key, true); };
+    const key = e => { if (e.key === 'Escape') { e.preventDefault(); close(); } };
+    $('button', ov).onclick = close; document.addEventListener('keydown', key, true);
+    document.body.appendChild(ov); $('button', ov).focus();
+  }
+  function textPage(p, i) {
+    const card = h('<section class="stack th-sec" id="th-page"></section>');
+    const cont = i > 0 && PAGES[i - 1].sec === p.sec;
+    card.appendChild(cont ? h('<div class="th-cont">' + esc(p.sec) + ' (continued)</div>') : h('<div class="th-head"><h3>' + esc(p.sec) + '</h3></div>'));
+    p.items.forEach(it => card.appendChild(h('<div class="th-item"><div class="th-q">' + it.q + '</div><div class="th-a">' + it.a + '</div></div>')));
+    card.appendChild(h('<div class="th-foot"><span>Year 8 Chemistry · Minimal answers</span><span>Page <b>' + p.n + '</b></span></div>'));
+    return card;
+  }
+  function extraBox(p) {
+    const xs = p.items.filter(it => it.x);
+    if (!xs.length) return h('<p class="small muted">No extra info for this page.</p>');
+    const box = h('<section class="card stack th-extra"><span class="eyebrow">Extra info for page ' + p.n + '</span></section>');
+    xs.forEach(it => box.appendChild(h('<div class="th-item"><div class="th-q">' + it.q + '</div><div class="th-plus"><div>' + it.x + '</div></div></div>')));
+    return box;
+  }
   function goPage(n, fromBottom) {
     if (n < 0 || n >= PAGES.length || n === at) return;
-    at = n; store.set('theoryPage', PAGES[n].pg); paint();
+    at = n; store.set('theoryPage', PAGES[n].n); paint();
     const top = navTop.getBoundingClientRect().top + window.scrollY - bar.offsetHeight - 70;
     if (fromBottom || window.scrollY > top) window.scrollTo({ top: Math.max(0, top) });
   }
-  function anchor() {
-    // the question nearest the top of the screen (just under the sticky level bar), so switching level keeps your place
-    const top = bar.getBoundingClientRect().bottom + 4;
-    for (const el of $$('.th-item, .th-head, .th-cont', list)) { const r = el.getBoundingClientRect(); if (r.bottom > top) return { id: el.dataset.k, off: r.top - top }; }
-    return null;
-  }
-  function paint(keep) {
-    const a = keep ? anchor() : null, page = PAGES[at];
+  function paint() {
+    const p = PAGES[at];
     $$('[data-l]', bar).forEach(b => { const on = b.dataset.l === level; b.classList.toggle('on', on); b.setAttribute('aria-checked', on); });
     sel.value = String(at);
-    [navTop, navBot].forEach(nb => { $('[data-d="-1"]', nb).disabled = at === 0; $('[data-d="1"]', nb).disabled = at === PAGES.length - 1; $('.th-where', nb).innerHTML = '<b>' + esc(pgLabel(page.pg)) + '</b> <span class="muted">(' + (at + 1) + ' of ' + PAGES.length + ')</span>'; });
+    [navTop, navBot].forEach(nb => { $('[data-d="-1"]', nb).disabled = at === 0; $('[data-d="1"]', nb).disabled = at === PAGES.length - 1; $('.th-where', nb).innerHTML = '<b>Page ' + p.n + '</b> <span class="muted">(' + (at + 1) + ' of ' + PAGES.length + ')</span>'; });
     list.innerHTML = '';
-    const card = h('<section class="stack th-sec" id="th-page"></section>');
-    page.blocks.forEach(blk => {
-      const s = theoryData.sections[blk.sec];
-      card.appendChild(blk.cont
-        ? h('<div class="th-cont" data-k="h' + blk.sec + '-' + at + '">' + esc(s.title) + ' (continued)</div>')
-        : h('<div class="th-head" data-k="h' + blk.sec + '"><h3>' + s.title + '</h3>' + (s.intro ? '<span class="ref">' + s.intro + '</span>' : '') + '</div>'));
-      blk.items.forEach(j => {
-        const it = s.items[j], ans = level === 'min' ? (it.min || it.norm) : it.norm;
-        const el = h('<div class="th-item" data-k="' + blk.sec + '-' + j + '"><div class="th-q">' + it.q + '</div><div class="th-a">' + ans + '</div></div>');
-        if (it.fig && level !== 'min') el.insertAdjacentHTML('beforeend', '<div class="qfig">' + it.fig + '</div>');
-        if (level === 'extra' && it.plus) el.insertAdjacentHTML('beforeend', '<div class="th-plus"><span class="eyebrow">Extra info</span><div>' + it.plus + '</div></div>');
-        card.appendChild(el);
-      });
-    });
-    card.appendChild(h('<div class="th-foot"><span>Year 8 Chemistry · ' + esc(page.part || '') + '</span><span>' + (/^\d/.test(page.pg) ? 'Page <b>' + esc(page.pg) + '</b>' : esc(pgLabel(page.pg))) + '</span></div>'));
-    list.appendChild(card);
-    if (a) { const el = list.querySelector('[data-k="' + a.id + '"]'); if (el) { const top = bar.getBoundingClientRect().bottom + 4; window.scrollBy(0, el.getBoundingClientRect().top - top - a.off); } }
+    if (level === 'min' && p.items.length) list.appendChild(textPage(p, at));
+    else {
+      list.appendChild(picture(p));
+      if (level === 'extra' && p.items.length) list.appendChild(extraBox(p));
+    }
+    // get the next page ready so turning the page is instant
+    if (at + 1 < PAGES.length && level !== 'min') picUrl(PAGES[at + 1].n).catch(() => {});
   }
-  // arrow keys turn the page (not while typing)
+  // arrow keys turn the page (not while typing or zoomed in)
   document.addEventListener('keydown', e => {
-    if (!document.body.contains(list) || list.offsetParent === null || e.altKey || e.ctrlKey || e.metaKey) return;
+    if (!document.body.contains(list) || list.offsetParent === null || e.altKey || e.ctrlKey || e.metaKey || document.querySelector('.bk-zoom')) return;
     if (/^(INPUT|TEXTAREA|SELECT)$/.test((document.activeElement || {}).tagName || '')) return;
     if (e.key === 'ArrowRight') goPage(at + 1); else if (e.key === 'ArrowLeft') goPage(at - 1);
   });

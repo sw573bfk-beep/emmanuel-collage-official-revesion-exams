@@ -215,8 +215,20 @@ async function handleApi(req, env, url) {
   }
   if (path === '/api/theory' && method === 'GET') {
     if (!(await hasUnlock(env, user, 'theory'))) return err(403, 'Locked. Enter a code to unlock the completed booklet.');
-    const rows = await env.DB.prepare('SELECT key, body FROM content ORDER BY ord').all();
-    return new Response('{"sections":[' + rows.results.map(r => r.body).join(',') + ']}', { headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'private, no-store' } });
+    // the completed booklet, page by page: each page's questions (Minimal and Extra info); pictures come from /api/theory/page/:n
+    const rows = await env.DB.prepare("SELECT body, updated_at FROM content WHERE key LIKE 'bk-%' ORDER BY ord").all();
+    const ver = rows.results.reduce((a, r) => Math.max(a, r.updated_at), 0);
+    return new Response('{"ver":' + ver + ',"pages":[' + rows.results.map(r => r.body).join(',') + ']}', { headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'private, no-store' } });
+  }
+  const tp = path.match(/^\/api\/theory\/page\/(\d{1,2})$/);
+  if (tp && method === 'GET') {
+    if (!(await hasUnlock(env, user, 'theory'))) return err(403, 'Locked. Enter a code to unlock the completed booklet.');
+    const rows = await env.DB.prepare('SELECT body FROM content WHERE key LIKE ? ORDER BY key').bind('img-' + tp[1].padStart(2, '0') + '-%').all();
+    if (!rows.results.length) return err(404, 'No such page');
+    const bin = atob(rows.results.map(r => r.body).join(''));
+    const bytes = new Uint8Array(bin.length); for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+    // private: only this browser may keep it; the page asks with ?v=<version>, so a new upload is fetched fresh
+    return new Response(bytes, { headers: { 'content-type': 'image/webp', 'cache-control': 'private, max-age=2592000', 'x-content-type-options': 'nosniff' } });
   }
 
   if (path === '/api/feedback' && method === 'POST') {
