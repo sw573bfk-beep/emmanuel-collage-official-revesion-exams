@@ -472,6 +472,7 @@ async function handleAdmin(req, env, path, method, me) {
   if (path === '/api/admin/messages') {
     const text = String(body.body || '').replace(/\r\n?/g, '\n').trim();
     if (!text) return err(400, 'Type a message first.'); if (text.length > 2000) return err(400, 'Messages can be up to 2000 characters.');
+    const fr = checkText(text); if (!fr.ok) { await logBlocked(env, me.id, 'reply from Beau', fr.why, text); return err(422, fr.message); }
     if (id === me.id) return err(400, 'You can’t message yourself.');
     if (!await env.DB.prepare('SELECT id FROM users WHERE id = ?').bind(id).first()) return err(404, 'No such user');
     const r = await env.DB.prepare('INSERT INTO messages (user_id, from_admin, body, created_at) VALUES (?, 1, ?, ?)').bind(id, text, t).run();

@@ -95,7 +95,10 @@ export async function handleCommunity(req, env, url, user) {
     let b; try { b = await body(req); } catch { return err(400, 'Bad request'); }
     const text = String(b.body || '').replace(/\r\n?/g, '\n').trim();
     if (!admin) { const bad = await vet(env, user, 'group chat', text); if (bad) return bad; }
-    else if (!text) return err(400, 'Type a message first.');
+    else { // Beau's posts go through the same filter (no speed limit)
+      if (!text) return err(400, 'Type a message first.');
+      const r = checkText(text); if (!r.ok) { await logBlocked(env, me, 'group chat (Beau)', r.why, text); return err(422, r.message); }
+    }
     const r = await env.DB.prepare('INSERT INTO group_messages (user_id, body, created_at) VALUES (?, ?, ?)').bind(me, text.slice(0, 2000), now()).run();
     return json({ ok: true, id: r.meta.last_row_id }, 201);
   }
