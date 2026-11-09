@@ -22,6 +22,10 @@ import acctJs from '../public/acct.js';
 import tabbarJs from '../public/tabbar.js';
 import messageHtml from '../public/message/index.html';
 import msgJs from '../public/msg.js';
+import chatHtml from '../public/chat/index.html';
+import boardHtml from '../public/leaderboard/index.html';
+import { checkText, checkName } from './filter.js';
+import { handleCommunity, handleCommunityAdmin, addPoints, logBlocked } from './community.js';
 
 const HTML = 'text/html; charset=utf-8';
 const PAGES = {
@@ -32,6 +36,8 @@ const PAGES = {
   '/tabbar.js': [tabbarJs, 'text/javascript; charset=utf-8'],
   '/msg.js': [msgJs, 'text/javascript; charset=utf-8'],
   '/message/': [messageHtml, HTML], '/message/index.html': [messageHtml, HTML],
+  '/chat/': [chatHtml, HTML], '/chat/index.html': [chatHtml, HTML],
+  '/leaderboard/': [boardHtml, HTML], '/leaderboard/index.html': [boardHtml, HTML],
   '/maths/': [mathsHtml, HTML], '/maths/index.html': [mathsHtml, HTML], '/maths/app.js': [mathsJs, 'text/javascript; charset=utf-8'],
   '/science/': [scienceHtml, HTML], '/science/index.html': [scienceHtml, HTML], '/science/app.js': [scienceJs, 'text/javascript; charset=utf-8'],
   '/admin/': [adminHtml, HTML], '/admin/index.html': [adminHtml, HTML],
@@ -39,7 +45,7 @@ const PAGES = {
 };
 const SECURITY_HEADERS = { 'x-content-type-options': 'nosniff', 'referrer-policy': 'same-origin', 'x-frame-options': 'DENY' };
 function servePage(url) {
-  if (['/maths', '/science', '/admin', '/feedback', '/message'].includes(url.pathname)) return Response.redirect(url.origin + url.pathname + '/' + url.search, 301);
+  if (['/maths', '/science', '/admin', '/feedback', '/message', '/chat', '/leaderboard'].includes(url.pathname)) return Response.redirect(url.origin + url.pathname + '/' + url.search, 301);
   const page = PAGES[url.pathname];
   if (!page) return new Response(notFoundHtml, { status: 404, headers: { 'content-type': HTML, ...SECURITY_HEADERS } });
   const [body, type] = page;
@@ -125,6 +131,8 @@ async function handleApi(req, env, url) {
     let body; try { body = await readJson(req); } catch { return err(400, 'Bad request'); }
     const username = cleanName(body.username), password = String(body.password || '');
     if (!USERNAME_RE.test(username)) return err(400, 'Names are 2–30 characters: letters, numbers, spaces, apostrophes, dots, dashes or underscores.');
+    const nameOk = checkName(username, env.ADMIN_USERNAME);
+    if (!nameOk.ok) { await logBlocked(env, null, 'new account name', 'name', username); return err(400, nameOk.message); }
     if (password.length < 8) return err(400, 'Passwords need at least 8 characters.');
     if (password.length > 200) return err(400, 'That password is too long.');
     const exists = await env.DB.prepare('SELECT id FROM users WHERE username = ?').bind(username).first();
@@ -172,6 +180,7 @@ async function handleApi(req, env, url) {
     return json({ ok: true }, 200, { 'set-cookie': sessionCookie('', url, 0, slotOf(req)) });
   }
   if (!user) return err(401, 'Not logged in');
+  const cm = await handleCommunity(req, env, url, user); if (cm) return cm;
 
   if (path === '/api/ping' && method === 'POST') {
     let body; try { body = await readJson(req); } catch { return err(400, 'Bad request'); }
@@ -239,6 +248,7 @@ async function handleApi(req, env, url) {
     if (rating < 0 || rating > 5) return err(400, 'Bad rating');
     if (message.length < 3) return err(400, 'Write a little bit about it first.');
     if (message.length > 2000) return err(400, 'That’s too long. Keep it under 2000 characters.');
+    const ff = checkText(message); if (!ff.ok) { await logBlocked(env, user.id, 'feedback', ff.why, message); return err(422, ff.message); }
     const recent = await env.DB.prepare('SELECT COUNT(*) AS n FROM feedback WHERE user_id = ? AND created_at > ?').bind(user.id, now() - 86400).first();
     if (recent.n >= 20) return err(429, 'You’ve sent a lot of feedback today. Thanks! Try again tomorrow.');
     await env.DB.prepare('INSERT INTO feedback (user_id, name, kind, subject, rating, message, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)').bind(user.id, user.username, kind, subject, rating, message, now()).run();
@@ -263,6 +273,7 @@ async function handleApi(req, env, url) {
     const text = String(body.body || '').replace(/\r\n?/g, '\n').trim();
     if (!text) return err(400, 'Type a message first.');
     if (text.length > 1000) return err(400, 'Messages can be up to 1000 characters.');
+    const fm = checkText(text); if (!fm.ok) { await logBlocked(env, user.id, 'Message Beau', fm.why, text); return err(422, fm.message); }
     const recent = await env.DB.prepare('SELECT COUNT(*) AS n FROM messages WHERE user_id = ? AND from_admin = 0 AND created_at > ?').bind(user.id, now() - 3600).first();
     if (recent.n >= 30) return err(429, 'That’s a lot of messages. Wait a little and try again.');
     const r = await env.DB.prepare('INSERT INTO messages (user_id, from_admin, body, created_at) VALUES (?, 0, ?, ?)').bind(user.id, text, now()).run();
@@ -286,7 +297,10 @@ async function handleApi(req, env, url) {
       if (!body || typeof body.data !== 'object' || Array.isArray(body.data)) return err(400, 'Bad request');
       const text = JSON.stringify(body.data); if (text.length > MAX_PROGRESS_BYTES) return err(413, 'Progress is too large');
       const t = now();
+      const old = await env.DB.prepare('SELECT data FROM progress WHERE user_id = ? AND subject = ?').bind(user.id, subject).first();
+      let before = null; try { before = old ? JSON.parse(old.data) : null; } catch { before = null; }
       await env.DB.prepare('INSERT INTO progress (user_id, subject, data, updated_at) VALUES (?, ?, ?, ?) ON CONFLICT(user_id, subject) DO UPDATE SET data = excluded.data, updated_at = excluded.updated_at').bind(user.id, subject, text, t).run();
+      await addPoints(env, user.id, mathsStats(before), mathsStats(body.data)); // leaderboard: newly correct answers and booklet marks
       return json({ ok: true, updated_at: t });
     }
   }
@@ -314,6 +328,14 @@ async function handleApi(req, env, url) {
       env.DB.prepare('DELETE FROM daily WHERE user_id = ?').bind(user.id),
       env.DB.prepare('DELETE FROM progress WHERE user_id = ?').bind(user.id),
       env.DB.prepare('DELETE FROM messages WHERE user_id = ?').bind(user.id),
+      env.DB.prepare('DELETE FROM dm_messages WHERE user_id = ?').bind(user.id),
+      env.DB.prepare('DELETE FROM dm_messages WHERE thread_id IN (SELECT id FROM dm_threads WHERE a = ? OR b = ?)').bind(user.id, user.id),
+      env.DB.prepare('DELETE FROM dm_threads WHERE a = ? OR b = ?').bind(user.id, user.id),
+      env.DB.prepare('DELETE FROM group_messages WHERE user_id = ?').bind(user.id),
+      env.DB.prepare('DELETE FROM blocks WHERE user_id = ? OR blocked_id = ?').bind(user.id, user.id),
+      env.DB.prepare('DELETE FROM chat_reports WHERE reporter_id = ?').bind(user.id),
+      env.DB.prepare('DELETE FROM points_daily WHERE user_id = ?').bind(user.id),
+      env.DB.prepare('UPDATE filter_log SET user_id = NULL WHERE user_id = ?').bind(user.id),
       env.DB.prepare('DELETE FROM sessions WHERE user_id = ?').bind(user.id),
       env.DB.prepare('DELETE FROM users WHERE id = ?').bind(user.id)
     ]);
@@ -343,10 +365,11 @@ function mathsStats(data) {
 
 async function handleAdmin(req, env, path, method, me) {
   const t = now(), today = dayKey(t), url = new URL(req.url);
+  const cma = await handleCommunityAdmin(req, env, url); if (cma) return cma;
   if (path === '/api/admin/overview' && method === 'GET') {
     const since30 = dayKey(t - 29 * 86400), since7 = dayKey(t - 6 * 86400);
     const [users, perUser, perUser7, today_, visits, daily, signups, progress, sciProgress, unlockRows, codeCount, fbCount] = await env.DB.batch([
-      env.DB.prepare('SELECT id, username, created_at, last_login, login_count, last_seen, last_subject, in_stats FROM users ORDER BY last_seen DESC'),
+      env.DB.prepare('SELECT id, username, created_at, last_login, login_count, last_seen, last_subject, in_stats, chat_muted FROM users ORDER BY last_seen DESC'),
       env.DB.prepare('SELECT user_id, SUM(seconds) AS s FROM daily GROUP BY user_id'),
       env.DB.prepare('SELECT user_id, SUM(seconds) AS s FROM daily WHERE day >= ? GROUP BY user_id').bind(since7),
       env.DB.prepare('SELECT user_id, SUM(seconds) AS s FROM daily WHERE day = ? GROUP BY user_id').bind(today),
@@ -369,7 +392,7 @@ async function handleAdmin(req, env, path, method, me) {
       let sdata = null; try { sdata = spr[u.id] ? JSON.parse(spr[u.id].data) : null; } catch { /* bad row */ }
       return { id: u.id, name: u.username, joined: u.created_at, lastLogin: u.last_login, logins: u.login_count, lastSeen: u.last_seen, lastSubject: u.last_subject,
         online: t - u.last_seen <= 120 && !!u.last_subject, totalSeconds: (all[u.id] || {}).s || 0, weekSeconds: (wk[u.id] || {}).s || 0, todaySeconds: (td[u.id] || {}).s || 0,
-        visits: (vs[u.id] || {}).n || 0, device: (vs[u.id] || {}).device || null, maths: mathsStats(data), science: mathsStats(sdata), unlocked: unlockRows.results.some(r => r.user_id === u.id), inStats: !left.has(u.id), admin: u.username.toLowerCase() === String(env.ADMIN_USERNAME || '').toLowerCase() };
+        visits: (vs[u.id] || {}).n || 0, device: (vs[u.id] || {}).device || null, maths: mathsStats(data), science: mathsStats(sdata), unlocked: unlockRows.results.some(r => r.user_id === u.id), inStats: !left.has(u.id), chatMuted: !!u.chat_muted, admin: u.username.toLowerCase() === String(env.ADMIN_USERNAME || '').toLowerCase() };
     });
     const signupDays = {}; signups.results.forEach(r => { const d = dayKey(r.created_at); signupDays[d] = (signupDays[d] || 0) + 1; });
     const counted = daily.results.filter(r => !left.has(r.user_id));
@@ -468,6 +491,16 @@ async function handleAdmin(req, env, path, method, me) {
     if (id === me.id) return err(400, 'You can’t delete your own admin account here.');
     await env.DB.prepare('UPDATE codes SET redeemed_by = NULL WHERE redeemed_by = ?').bind(id).run();
     await env.DB.prepare('UPDATE feedback SET user_id = NULL WHERE user_id = ?').bind(id).run();
+    await env.DB.batch([
+      env.DB.prepare('DELETE FROM dm_messages WHERE user_id = ?').bind(id),
+      env.DB.prepare('DELETE FROM dm_messages WHERE thread_id IN (SELECT id FROM dm_threads WHERE a = ? OR b = ?)').bind(id, id),
+      env.DB.prepare('DELETE FROM dm_threads WHERE a = ? OR b = ?').bind(id, id),
+      env.DB.prepare('DELETE FROM group_messages WHERE user_id = ?').bind(id),
+      env.DB.prepare('DELETE FROM blocks WHERE user_id = ? OR blocked_id = ?').bind(id, id),
+      env.DB.prepare('DELETE FROM chat_reports WHERE reporter_id = ?').bind(id),
+      env.DB.prepare('DELETE FROM points_daily WHERE user_id = ?').bind(id),
+      env.DB.prepare('UPDATE filter_log SET user_id = NULL WHERE user_id = ?').bind(id)
+    ]);
     await env.DB.batch(['progress', 'sessions', 'visits', 'daily', 'unlocks', 'unlock_attempts', 'messages'].map(tb => env.DB.prepare('DELETE FROM ' + tb + ' WHERE user_id = ?').bind(id)).concat([env.DB.prepare('DELETE FROM users WHERE id = ?').bind(id)]));
     return json({ ok: true });
   }

@@ -61,6 +61,13 @@ tr.out td{color:var(--muted)}
 .when{font-size:.72rem;color:var(--muted);margin:0 4px}.when.me{align-self:flex-end}.when.them{align-self:flex-start}
 .compose{display:flex;gap:8px;align-items:flex-end}
 .compose textarea{flex:1;font:inherit;color:var(--ink);background:var(--card);border:1.5px solid var(--rule);border-radius:10px;padding:9px 12px;min-height:44px;max-height:150px;resize:none}
+.chatlog{display:flex;flex-direction:column;gap:6px;max-height:520px;overflow-y:auto}
+.cl{border:1px solid var(--line);border-radius:10px;padding:8px 12px;display:flex;flex-direction:column;gap:3px}
+.cl.hid{opacity:.55;background:#f6f6f6}
+.cl .top{display:flex;justify-content:space-between;gap:8px;flex-wrap:wrap;font-size:.84rem;color:var(--muted)}
+.cl .body{white-space:pre-wrap;overflow-wrap:anywhere}
+.cl .acts{display:flex;gap:6px;flex-wrap:wrap}
+.pill.warn{background:#fdecea;color:#b3261e}
 .online-list{display:flex;flex-wrap:wrap;gap:8px}
 .online-list span{background:var(--good-soft);color:var(--good);border-radius:999px;padding:3px 12px;font-size:.9rem}
 dialog{border:1px solid var(--rule);border-radius:14px;background:var(--card);color:var(--ink);padding:0;width:min(720px,calc(100vw - 32px));max-height:calc(100vh - 40px)}
@@ -72,6 +79,8 @@ dialog::backdrop{background:rgb(0 0 0 / .45)}
 .kv span{font-size:.78rem;color:var(--muted)}
 table.mini{border-collapse:collapse;width:100%;font-size:.86rem;font-variant-numeric:tabular-nums}
 table.mini td,table.mini th{border-bottom:1px solid var(--rule);padding:5px 6px;text-align:left}
+.chip{font:inherit;font-size:.85rem;border:1.5px solid var(--rule);background:var(--card);color:var(--ink);border-radius:999px;padding:4px 12px;cursor:pointer}
+.chip.on{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
 .toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:space-between}
 .toolbar input{max-width:300px}
 details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
@@ -96,6 +105,7 @@ details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
       <div class="tile"><span class="v" id="tQs">0</span><span class="l">maths questions answered</span></div>
       <div class="tile"><span class="v" id="tSciQs">0</span><span class="l">science questions answered</span></div>
       <div class="tile"><span class="v" id="tMsg">0</span><span class="l">unread messages</span></div>
+      <div class="tile"><span class="v" id="tRep">0</span><span class="l">new chat reports</span></div>
       <div class="tile"><span class="v" id="tFb">0</span><span class="l" id="tFbL">new feedback</span></div>
       <div class="tile"><span class="v" id="tCodes">0</span><span class="l" id="tCodesL">unlock codes used</span></div>
     </section>
@@ -108,6 +118,12 @@ details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
     <section class="card stack" id="messages">
       <div class="toolbar"><h3>Messages</h3><span class="small muted">Private chats from “Message Beau”. Tap a person to read and reply.</span></div>
       <div class="msgs"><div class="convs" id="convs"></div><div class="thread" id="thread"><p class="muted small">Pick a chat on the left.</p></div></div>
+    </section>
+    <section class="card stack" id="chatsCard">
+      <div class="toolbar"><h3>Student chats</h3><div class="row" id="chatTabs"><button type="button" class="chip on" data-c="reports">Reports</button><button type="button" class="chip" data-c="group">Group chat</button><button type="button" class="chip" data-c="dms">1-on-1 chats</button><button type="button" class="chip" data-c="blocked">Blocked by the filter</button></div></div>
+      <p class="small muted">Students are told chats are monitored. Delete hides a message from everyone. Pause chatting stops a student sending chat messages (they can still use Message Beau). You can post in the group chat as Beau from the <a href="/chat/">Chat page</a>.</p>
+      <div id="mutedList" class="row"></div>
+      <div id="chatBody" class="chatlog"></div>
     </section>
     <section class="card stack" id="fbCard">
       <div class="toolbar"><h3>Feedback</h3><div class="row" id="fbFilter"><button type="button" class="chip on" data-f="new">New</button><button type="button" class="chip" data-f="done">Done</button><button type="button" class="chip" data-f="all">All</button></div></div>
@@ -210,7 +226,7 @@ details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
     barChart($('#chPeople'), data.days, d => d.people, v => v + (v === 1 ? ' person' : ' people'), 'People');
     const dt = $('#dayTable'); dt.replaceChildren(); const hr = document.createElement('tr'); ['Day', 'People', 'Minutes', 'New accounts'].forEach(h => { const th = document.createElement('th'); th.textContent = h; hr.appendChild(th); }); dt.appendChild(hr);
     data.days.slice().reverse().forEach(d => { const tr = document.createElement('tr'); [dayLabel(d.day), d.people, Math.round(d.seconds / 60), d.signups].forEach(v => cell(tr, v)); dt.appendChild(tr); });
-    drawTable(); loadCodes(); loadFeedback(); loadConvs();
+    drawTable(); loadCodes(); loadFeedback(); loadConvs(); loadChats();
     $('#updated').textContent = 'Updated ' + new Date().toLocaleTimeString('en-AU', { timeZone: TZ, hour: 'numeric', minute: '2-digit' }) + ' (Queensland time). Refreshes every 30 seconds.';
   }
   async function openUser(u) {
@@ -234,6 +250,10 @@ details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
     sShow(); sb.append(sbtn, sl); b.appendChild(sb);
     if (!u.admin) {
       const box = document.createElement('div'); box.className = 'row'; box.style.alignItems = 'flex-end';
+      const pb = document.createElement('button'); pb.type = 'button'; pb.className = 'btn quiet';
+      const pShow = () => { pb.textContent = u.chatMuted ? 'Allow chatting again' : 'Pause chatting'; };
+      pb.onclick = async () => { const rr = await api('/api/admin/chat/mute', 'POST', { id: u.id, muted: !u.chatMuted }); if (rr.ok) { u.chatMuted = !u.chatMuted; pShow(); load(); } };
+      pShow(); b.appendChild(pb);
       const mb = document.createElement('button'); mb.type = 'button'; mb.className = 'btn'; mb.textContent = 'Message ' + u.name;
       mb.onclick = () => { dlg.close(); openConv({ id: u.id, name: u.name }); $('#messages').scrollIntoView({ behavior: 'smooth', block: 'start' }); };
       b.appendChild(mb);
@@ -304,6 +324,53 @@ details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
     };
     await pollConv(); chat.scrollTop = chat.scrollHeight; loadConvs();
     convTimer = setInterval(() => { if (document.visibilityState === 'visible') pollConv(); }, 8000);
+  }
+  /* ---------- student chats (moderation) ---------- */
+  let chatTab = 'reports', chatData = null, chatThread = null;
+  document.querySelectorAll('#chatTabs [data-c]').forEach(b => b.onclick = () => { chatTab = b.dataset.c; chatThread = null; document.querySelectorAll('#chatTabs [data-c]').forEach(x => x.classList.toggle('on', x === b)); drawChats(); });
+  async function loadChats() { const r = await api('/api/admin/chat/overview'); if (!r.ok) return; chatData = r.data; $('#tRep').textContent = chatData.reports.filter(x => x.status === 'new').length; drawChats(); }
+  const mk = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+  const fmtC = s => new Date(s * 1000).toLocaleString('en-AU', { timeZone: TZ, weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' });
+  function line(top, body, hidden, acts) {
+    const d = mk('div', 'cl' + (hidden ? ' hid' : '')); const t = mk('div', 'top'); top.forEach(x => t.appendChild(typeof x === 'string' ? mk('span', '', x) : x)); d.appendChild(t);
+    d.appendChild(mk('div', 'body', body == null ? '(message deleted by its author’s account removal)' : body));
+    if (acts && acts.length) { const a = mk('div', 'acts'); acts.forEach(x => a.appendChild(x)); d.appendChild(a); }
+    return d;
+  }
+  function btn(text, fn, cls) { const b = mk('button', 'btn ' + (cls || 'quiet') + ' sm', text); b.type = 'button'; b.onclick = fn; return b; }
+  const hideBtn = (kind, id, hidden) => btn(hidden ? 'Restore' : 'Delete', async () => { await api('/api/admin/chat/hide', 'POST', { kind, id, hidden: !hidden }); await loadChats(); if (chatThread) openChatThread(chatThread); }, hidden ? 'quiet' : 'danger');
+  async function openChatThread(t) {
+    chatThread = t; const box = $('#chatBody'); box.replaceChildren(mk('p', 'muted small', 'Loading…'));
+    const r = await api('/api/admin/chat/dm/' + t.id); if (!r.ok) return;
+    box.replaceChildren(btn('← All 1-on-1 chats', () => { chatThread = null; drawChats(); }), mk('b', '', t.a_name + ' and ' + t.b_name + ' (' + t.status + ')'));
+    if (!r.data.messages.length) box.appendChild(mk('p', 'muted small', 'No messages yet.'));
+    r.data.messages.forEach(m => box.appendChild(line([m.name, fmtC(m.created_at)], m.body, m.hidden, [hideBtn('dm', m.id, m.hidden)])));
+  }
+  function drawChats() {
+    if (!chatData) return;
+    const ml = $('#mutedList'); ml.replaceChildren();
+    if (chatData.muted.length) { ml.appendChild(mk('span', 'small muted', 'Chatting paused for:')); chatData.muted.forEach(u => ml.appendChild(btn(u.name + ' · Allow again', async () => { await api('/api/admin/chat/mute', 'POST', { id: u.id, muted: false }); load(); }))); }
+    if (chatThread) return openChatThread(chatThread);
+    const box = $('#chatBody'); box.replaceChildren();
+    const none = t => box.appendChild(mk('p', 'muted small', t));
+    if (chatTab === 'reports') {
+      if (!chatData.reports.length) none('No reports. When a student taps Report on a message, it shows up here.');
+      chatData.reports.forEach(r => {
+        const st = mk('span', 'pill ' + (r.status === 'new' ? 'warn' : ''), r.status === 'new' ? 'new' : 'done');
+        const acts = [hideBtn(r.kind, r.message_id, r.hidden), btn(r.status === 'new' ? 'Mark done' : 'Mark new', async () => { await api('/api/admin/chat/report', 'POST', { id: r.id, status: r.status === 'new' ? 'done' : 'new' }); loadChats(); })];
+        if (r.kind === 'dm' && r.thread) acts.push(btn('Open the chat', () => { const t = chatData.threads.find(x => x.id === r.thread); if (t) openChatThread(t); }));
+        box.appendChild(line([st, (r.author || '?') + ' wrote (' + (r.kind === 'dm' ? '1-on-1' : 'group') + ')', 'reported by ' + r.reporter + ' · ' + fmtC(r.created_at)], r.body, r.hidden, acts));
+      });
+    } else if (chatTab === 'group') {
+      if (!chatData.group.length) none('No group chat messages yet.');
+      chatData.group.forEach(m => box.appendChild(line([m.name, fmtC(m.created_at)], m.body, m.hidden, [hideBtn('group', m.id, m.hidden)])));
+    } else if (chatTab === 'dms') {
+      if (!chatData.threads.length) none('No 1-on-1 chats yet.');
+      chatData.threads.forEach(t => box.appendChild(line([t.a_name + ' and ' + t.b_name, t.status + ' · ' + t.n + ' messages', fmtC(t.updated_at)], '', false, [btn('Read', () => openChatThread(t))])));
+    } else {
+      if (!chatData.blocked.length) none('Nothing has been blocked by the filter yet.');
+      chatData.blocked.forEach(f => box.appendChild(line([(f.name || 'Someone signing up') + ' · ' + f.place, f.why === 'personal' ? 'personal details' : f.why === 'name' ? 'account name' : 'rude or unsafe words', fmtC(f.created_at)], f.body, false, [])));
+    }
   }
   async function loadFeedback() {
     const r = await api('/api/admin/feedback'); if (!r.ok) return;

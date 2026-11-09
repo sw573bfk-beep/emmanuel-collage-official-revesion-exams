@@ -8,6 +8,8 @@
   // shared steps for the top bar of Maths and Science
   const topBar = [
     { h: 'Feedback', t: 'Found a mistake, got an idea or something confusing? Tap <b>Feedback</b> to tell Beau. Every message is read.', sel: '.top-tools a[href^="/feedback"]' },
+    { h: 'Leaderboard', t: 'Earn points by studying: 1 per minute, 2 per correct answer, 1 per booklet question marked right. See the top 50 and your own place, this week and all time.', sel: '.top-tools a[href^="/leaderboard"]' },
+    { h: 'Chat', t: 'Chat with other students in the group chat, or 1-on-1 once they accept your request. Chats are monitored by Beau and rude or unsafe messages are blocked.', sel: '.top-tools a[data-chat]' },
     { h: 'Message Beau', t: 'A private chat with Beau. Ask anything about the site or your revision. A red number appears on the button when Beau replies.', sel: '.top-tools a[data-msg]' },
     { h: 'Switch subject', t: '<b>Subjects</b> takes you back to pick Maths or Science. Your progress in each one is kept.', sel: '.top-tools a[href="/"]' },
     { h: 'Your progress is saved', t: 'Everything you do is saved to your account, so it follows you to any phone or computer. Your name shows which account this tab is using, and under it it says when it last saved. To use another account, go to <b>Subjects</b> and tap <b>Switch account</b>.', sel: '.top-tools .acct' }
@@ -23,6 +25,7 @@
         { h: 'Pick a subject', t: 'Once you’re logged in, pick <b>Maths</b> or <b>Science</b> to start studying.', sel: ['#pickView .card:has(a[href="/maths/"])', '#pickView a[href="/maths/"]'] },
         { h: 'More than one account', t: 'Tap <b>Switch account</b> to add another account or swap between them. Each tab can use a different account, so you can be logged into two at once.', sel: '#switchBtn' },
         { h: 'Send feedback', t: 'Found a mistake or have an idea? Tell Beau here.', sel: ['#pickView a.card[href="/feedback/"]', '#whoBox a[href="/feedback/"]'] },
+        { h: 'Leaderboard and Chat', t: 'See the top 50 studiers and your place, or chat with other students. Chats are monitored and strictly filtered.', sel: ['#whoBox a[data-chat]', '#pickView a[href="/leaderboard/"]'] },
         { h: 'Message Beau', t: 'A private chat with Beau. A red number appears on the button when Beau replies.', sel: ['#whoBox a[data-msg]', '#pickView a.card[data-msg]'] },
         { h: 'Account settings', t: 'Change your password or delete your account here.', sel: '#pickView details.acct' },
         helpStep

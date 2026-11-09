@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<script src="/acct.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>EC Revisions Leaderboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Lexend:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="/site.css">
+<style>
+.wrap{max-width:860px}
+.tabs2{display:flex;gap:6px;border-bottom:1.5px solid var(--rule)}
+.tabs2 button{font:inherit;font-weight:600;background:none;border:0;border-bottom:3px solid transparent;padding:10px 14px;color:var(--muted);cursor:pointer}
+.tabs2 button.on{color:var(--accent);border-bottom-color:var(--accent)}
+.mine{display:flex;align-items:center;gap:18px;flex-wrap:wrap;border:2px solid var(--accent);background:var(--accent-soft);border-radius:14px;padding:16px 20px}
+.mine .big{font-family:var(--f-display);font-size:2.6rem;font-weight:800;line-height:1;color:var(--accent)}
+.mine .pts{display:flex;gap:18px;flex-wrap:wrap}
+.mine .pts div{display:flex;flex-direction:column}
+.mine .pts b{font-size:1.25rem}
+.tablewrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:.95rem}
+th,td{padding:9px 8px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
+th{font-size:.74rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+td.num,th.num{text-align:right}
+tr.me td{background:var(--accent-soft);font-weight:600}
+.medal{font-size:1.15rem}
+.how{font-size:.9rem}
+.how li{margin:2px 0}
+</style>
+</head>
+<body>
+<main class="wrap">
+  <div class="brand"><span class="mark">EC Revisions</span><h1>🏆 Leaderboard</h1><p>Earn points by studying. The top 50 studiers are shown, and you can always see your own place.</p></div>
+  <div class="tabs2" role="tablist"><button type="button" role="tab" id="tWeek" class="on">This week</button><button type="button" role="tab" id="tAll">All time</button></div>
+  <p id="loading" class="muted">Loading…</p>
+  <div id="mine" class="mine" hidden></div>
+  <section class="card stack" id="boardCard" hidden>
+    <div class="row" style="justify-content:space-between"><h3 id="boardTitle">Top 50 this week</h3><span class="small muted" id="boardSub"></span></div>
+    <div class="tablewrap"><table><thead><tr><th>#</th><th>Name</th><th class="num">Points</th><th class="num">Minutes</th><th class="num">Correct</th><th class="num">Booklet</th><th></th></tr></thead><tbody id="rows"></tbody></table></div>
+  </section>
+  <details class="card how"><summary><b>How do I earn points?</b></summary>
+    <ul>
+      <li><b>1 point</b> for every minute you study (while a subject is open and you’re active).</li>
+      <li><b>2 points</b> for every question you get right (practice, tests, topic questions).</li>
+      <li><b>1 point</b> for every booklet question you mark right.</li>
+    </ul>
+    <p class="small muted">“This week” starts again every Monday (Queensland time), so everyone gets a fresh chance. “All time” keeps adding up.</p>
+  </details>
+  <div class="row"><a class="btn quiet" href="/" id="back">Back to subjects</a><a class="btn quiet" href="/chat/">💬 Chat</a></div>
+</main>
+<script>
+(function () {
+  const $ = s => document.querySelector(s);
+  const from = new URLSearchParams(location.search).get('from');
+  if (from === 'maths' || from === 'science') { $('#back').href = '/' + from + '/'; $('#back').textContent = 'Back to ' + (from === 'maths' ? 'Maths' : 'Science'); }
+  const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+  let range = 'week';
+  async function load() {
+    let r; try { r = await fetch('/api/leaderboard?range=' + range, { credentials: 'same-origin' }); } catch (e) { $('#loading').textContent = 'Can’t reach the server. Check your connection and reload.'; return; }
+    if (r.status === 401) { location.replace('/?next=leaderboard'); return; }
+    const d = await r.json();
+    $('#loading').hidden = true; $('#boardCard').hidden = false;
+    const when = range === 'week' ? 'this week' : 'of all time';
+    $('#boardTitle').textContent = 'Top 50 ' + when;
+    $('#boardSub').textContent = d.total + (d.total === 1 ? ' studier' : ' studiers') + ' with points';
+    const mine = $('#mine'); mine.innerHTML = ''; mine.hidden = false;
+    if (d.leftOut) mine.appendChild(el('p', '', 'Your account isn’t on the leaderboard (it’s left out of the stats).'));
+    else if (!d.me) mine.appendChild(el('p', '', range === 'week' ? 'You haven’t earned any points this week yet. Study a topic or answer some questions to get on the board!' : 'You haven’t earned any points yet. Study a topic or answer some questions to get on the board!'));
+    else {
+      const left = el('div'); left.appendChild(el('div', 'small muted', 'Your place ' + when)); left.appendChild(el('div', 'big', '#' + d.me.rank)); left.appendChild(el('div', 'small muted', 'out of ' + d.total));
+      const pts = el('div', 'pts');
+      [['Points', d.me.points], ['Minutes', d.me.minutes], ['Correct', d.me.correct], ['Booklet', d.me.booklet]].forEach(([l, v]) => { const x = el('div'); x.appendChild(el('b', '', String(v))); x.appendChild(el('span', 'small muted', l)); pts.appendChild(x); });
+      mine.append(left, pts);
+    }
+    const tb = $('#rows'); tb.innerHTML = '';
+    if (!d.top.length) { const tr = el('tr'); const td = el('td', 'muted', 'No points yet ' + when + '. Be the first!'); td.colSpan = 7; tr.appendChild(td); tb.appendChild(tr); }
+    d.top.forEach(p => {
+      const tr = el('tr', p.me ? 'me' : '');
+      const medal = p.rank === 1 ? '🥇' : p.rank === 2 ? '🥈' : p.rank === 3 ? '🥉' : '';
+      const rk = el('td'); if (medal) rk.appendChild(el('span', 'medal', medal + ' ')); rk.appendChild(document.createTextNode(p.rank)); tr.appendChild(rk);
+      tr.appendChild(el('td', '', p.name + (p.me ? ' (you)' : '')));
+      [p.points, p.minutes, p.correct, p.booklet].forEach(v => tr.appendChild(el('td', 'num', String(v))));
+      const c = el('td');
+      if (!p.me) { const a = el('a', 'btn quiet sm', 'Chat'); a.href = '/chat/?with=' + p.id + '&name=' + encodeURIComponent(p.name); c.appendChild(a); }
+      tr.appendChild(c); tb.appendChild(tr);
+    });
+  }
+  const pick = r => { range = r; $('#tWeek').classList.toggle('on', r === 'week'); $('#tAll').classList.toggle('on', r === 'all'); load(); };
+  $('#tWeek').onclick = () => pick('week'); $('#tAll').onclick = () => pick('all');
+  load(); setInterval(() => { if (document.visibilityState === 'visible') load(); }, 60000);
+})();
+</script>
+<script src="/msg.js" defer></script>
+<script src="/help.js" defer></script>
+</body>
+</html>

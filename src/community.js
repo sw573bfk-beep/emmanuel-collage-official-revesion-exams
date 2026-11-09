@@ -1,0 +1,263 @@
+// Student chats (one group chat + 1-on-1 chats that start with a request), the leaderboard,
+// and Beau's moderation tools. Every student message goes through the strict filter in filter.js.
+import { checkText } from './filter.js';
+
+const MAX_LEN = 500;
+const now = () => Math.floor(Date.now() / 1000);
+const QLD = 10 * 3600;
+const dayKey = t => new Date((t + QLD) * 1000).toISOString().slice(0, 10);
+const json = (data, status = 200) => new Response(JSON.stringify(data), { status, headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' } });
+const err = (status, error) => json({ error }, status);
+async function body(req) {
+  if (!(req.headers.get('content-type') || '').includes('application/json')) throw new Error('json');
+  const t = await req.text(); if (t.length > 8000) throw new Error('big');
+  return JSON.parse(t);
+}
+const isAdmin = (user, env) => !!user && user.username.toLowerCase() === String(env.ADMIN_USERNAME || '').toLowerCase();
+
+export async function logBlocked(env, userId, place, why, text) {
+  await env.DB.prepare('INSERT INTO filter_log (user_id, place, why, body, created_at) VALUES (?, ?, ?, ?, ?)').bind(userId || null, place, why, String(text || '').slice(0, 300), now()).run();
+}
+
+// Check a student's message: filter, length, mute and speed. Returns an error Response, or null if it's fine.
+async function vet(env, user, place, text) {
+  if (!text) return err(400, 'Type a message first.');
+  if (text.length > MAX_LEN) return err(400, 'Messages can be up to ' + MAX_LEN + ' characters.');
+  const u = await env.DB.prepare('SELECT chat_muted FROM users WHERE id = ?').bind(user.id).first();
+  if (u && u.chat_muted) return err(403, 'Beau has paused chatting on your account. You can still use Message Beau.');
+  const r = checkText(text);
+  if (!r.ok) { await logBlocked(env, user.id, place, r.why, text); return err(422, r.message); }
+  const t = now();
+  const fast = await env.DB.prepare('SELECT (SELECT COUNT(*) FROM group_messages WHERE user_id = ?1 AND created_at > ?2) + (SELECT COUNT(*) FROM dm_messages WHERE user_id = ?1 AND created_at > ?2) AS n, (SELECT MAX(created_at) FROM (SELECT created_at FROM group_messages WHERE user_id = ?1 UNION ALL SELECT created_at FROM dm_messages WHERE user_id = ?1)) AS last').bind(user.id, t - 60).first();
+  if (fast.n >= 12 || (fast.last && t - fast.last < 2)) return err(429, 'Slow down a little, then send it again.');
+  return null;
+}
+
+const blockedEither = async (env, x, y) => !!(await env.DB.prepare('SELECT 1 FROM blocks WHERE (user_id = ? AND blocked_id = ?) OR (user_id = ? AND blocked_id = ?)').bind(x, y, y, x).first());
+const pair = (x, y) => (x < y ? [x, y] : [y, x]);
+
+export async function handleCommunity(req, env, url, user) {
+  const path = url.pathname, method = req.method;
+  const me = user.id, admin = isAdmin(user, env);
+
+  /* ---------- leaderboard ---------- */
+  if (path === '/api/leaderboard' && method === 'GET') {
+    const range = url.searchParams.get('range') === 'all' ? 'all' : 'week';
+    const t = now(); const dow = new Date((t + QLD) * 1000).getUTCDay();
+    const from = range === 'all' ? '0000-00-00' : dayKey(t - ((dow + 6) % 7) * 86400); // Monday (Queensland time)
+    const [people, mins, pts] = await env.DB.batch([
+      env.DB.prepare('SELECT id, username, in_stats FROM users'),
+      env.DB.prepare('SELECT user_id, SUM(seconds) AS s FROM daily WHERE day >= ? GROUP BY user_id').bind(from),
+      env.DB.prepare('SELECT user_id, SUM(correct) AS c, SUM(booklet) AS b FROM points_daily WHERE day >= ? GROUP BY user_id').bind(from)
+    ]);
+    const M = Object.fromEntries(mins.results.map(r => [r.user_id, r.s || 0])), P = Object.fromEntries(pts.results.map(r => [r.user_id, r]));
+    const adminName = String(env.ADMIN_USERNAME || '').toLowerCase();
+    const rows = people.results.filter(u => u.in_stats && u.username.toLowerCase() !== adminName).map(u => {
+      const minutes = Math.floor((M[u.id] || 0) / 60), correct = (P[u.id] || {}).c || 0, booklet = (P[u.id] || {}).b || 0;
+      return { id: u.id, name: u.username, minutes, correct, booklet, points: minutes + 2 * correct + booklet };
+    }).filter(r => r.points > 0).sort((a, b) => b.points - a.points || b.minutes - a.minutes || a.name.localeCompare(b.name));
+    let rank = 0, prev = null;
+    rows.forEach((r, i) => { if (r.points !== prev) { rank = i + 1; prev = r.points; } r.rank = rank; });
+    const mine = rows.find(r => r.id === me);
+    const meUser = people.results.find(u => u.id === me);
+    return json({
+      range, from, total: rows.length,
+      top: rows.slice(0, 50).map(r => ({ rank: r.rank, id: r.id, name: r.name, points: r.points, minutes: r.minutes, correct: r.correct, booklet: r.booklet, me: r.id === me })),
+      me: mine ? { rank: mine.rank, points: mine.points, minutes: mine.minutes, correct: mine.correct, booklet: mine.booklet } : null,
+      leftOut: !meUser || !meUser.in_stats || admin
+    });
+  }
+
+  if (!path.startsWith('/api/chat/')) return null;
+
+  /* ---------- badge counts ---------- */
+  if (path === '/api/chat/summary' && method === 'GET') {
+    const [req_, dm, grp, u] = await env.DB.batch([
+      env.DB.prepare("SELECT COUNT(*) AS n FROM dm_threads WHERE status = 'pending' AND requested_by != ?1 AND (a = ?1 OR b = ?1)").bind(me),
+      env.DB.prepare("SELECT COUNT(*) AS n FROM dm_messages m JOIN dm_threads t ON t.id = m.thread_id WHERE t.status = 'active' AND (t.a = ?1 OR t.b = ?1) AND m.user_id != ?1 AND m.hidden = 0 AND m.id > (CASE WHEN t.a = ?1 THEN t.a_read ELSE t.b_read END)").bind(me),
+      env.DB.prepare('SELECT COUNT(*) AS n FROM group_messages g WHERE g.id > (SELECT group_read FROM users WHERE id = ?1) AND g.user_id != ?1 AND g.hidden = 0 AND g.user_id NOT IN (SELECT blocked_id FROM blocks WHERE user_id = ?1)').bind(me),
+      env.DB.prepare('SELECT chat_muted FROM users WHERE id = ?').bind(me)
+    ]);
+    return json({ requests: req_.results[0].n, unreadDm: dm.results[0].n, unreadGroup: Math.min(99, grp.results[0].n), muted: !!(u.results[0] || {}).chat_muted, admin });
+  }
+
+  /* ---------- group chat ---------- */
+  if (path === '/api/chat/group' && method === 'GET') {
+    const after = Math.max(0, parseInt(url.searchParams.get('after') || '0', 10) || 0);
+    const rows = await env.DB.prepare(`SELECT g.id, g.user_id, g.body, g.created_at, u.username FROM group_messages g JOIN users u ON u.id = g.user_id
+      WHERE g.hidden = 0 AND g.id > ?1 AND g.user_id NOT IN (SELECT blocked_id FROM blocks WHERE user_id = ?2) ORDER BY g.id DESC LIMIT 100`).bind(after, me).all();
+    const list = rows.results.reverse();
+    if (list.length) await env.DB.prepare('UPDATE users SET group_read = MAX(group_read, ?) WHERE id = ?').bind(list[list.length - 1].id, me).run();
+    const adminName = String(env.ADMIN_USERNAME || '').toLowerCase();
+    return json({ messages: list.map(r => ({ id: r.id, uid: r.user_id, name: r.username, admin: r.username.toLowerCase() === adminName, mine: r.user_id === me, body: r.body, at: r.created_at })) });
+  }
+  if (path === '/api/chat/group' && method === 'POST') {
+    let b; try { b = await body(req); } catch { return err(400, 'Bad request'); }
+    const text = String(b.body || '').replace(/\r\n?/g, '\n').trim();
+    if (!admin) { const bad = await vet(env, user, 'group chat', text); if (bad) return bad; }
+    else if (!text) return err(400, 'Type a message first.');
+    const r = await env.DB.prepare('INSERT INTO group_messages (user_id, body, created_at) VALUES (?, ?, ?)').bind(me, text.slice(0, 2000), now()).run();
+    return json({ ok: true, id: r.meta.last_row_id }, 201);
+  }
+
+  /* ---------- 1-on-1 chats ---------- */
+  if (path === '/api/chat/threads' && method === 'GET') {
+    const [rows, blocked] = await env.DB.batch([
+      env.DB.prepare(`SELECT t.id, t.status, t.requested_by, t.updated_at, CASE WHEN t.a = ?1 THEN t.b ELSE t.a END AS other, u.username AS name,
+        (SELECT body FROM dm_messages WHERE thread_id = t.id AND hidden = 0 ORDER BY id DESC LIMIT 1) AS last,
+        (SELECT COUNT(*) FROM dm_messages m WHERE m.thread_id = t.id AND m.user_id != ?1 AND m.hidden = 0 AND m.id > (CASE WHEN t.a = ?1 THEN t.a_read ELSE t.b_read END)) AS unread
+        FROM dm_threads t JOIN users u ON u.id = (CASE WHEN t.a = ?1 THEN t.b ELSE t.a END)
+        WHERE (t.a = ?1 OR t.b = ?1) AND t.status IN ('pending', 'active') ORDER BY t.updated_at DESC`).bind(me),
+      env.DB.prepare('SELECT b.blocked_id AS id, u.username AS name FROM blocks b JOIN users u ON u.id = b.blocked_id WHERE b.user_id = ? ORDER BY u.username').bind(me)
+    ]);
+    return json({ threads: rows.results.map(r => ({ id: r.id, other: r.other, name: r.name, status: r.status, byMe: r.requested_by === me, last: r.status === 'active' ? r.last : null, unread: r.status === 'active' ? r.unread : 0, at: r.updated_at })), blocked: blocked.results });
+  }
+  if (path === '/api/chat/people' && method === 'GET') {
+    const q = String(url.searchParams.get('q') || '').trim().slice(0, 30);
+    if (q.length < 2) return json({ people: [] });
+    const adminName = String(env.ADMIN_USERNAME || '');
+    const rows = await env.DB.prepare(`SELECT id, username FROM users WHERE username LIKE ?1 ESCAPE '\\' AND id != ?2 AND username != ?3 COLLATE NOCASE
+      AND id NOT IN (SELECT blocked_id FROM blocks WHERE user_id = ?2) AND id NOT IN (SELECT user_id FROM blocks WHERE blocked_id = ?2) ORDER BY username LIMIT 10`)
+      .bind('%' + q.replace(/[\\%_]/g, c => '\\' + c) + '%', me, adminName).all();
+    return json({ people: rows.results.map(r => ({ id: r.id, name: r.username })) });
+  }
+  if (path === '/api/chat/request' && method === 'POST') {
+    if (admin) return err(400, 'You can message students from the dashboard.');
+    let b; try { b = await body(req); } catch { return err(400, 'Bad request'); }
+    const target = b.id ? await env.DB.prepare('SELECT id, username FROM users WHERE id = ?').bind(+b.id).first()
+      : await env.DB.prepare('SELECT id, username FROM users WHERE username = ? COLLATE NOCASE').bind(String(b.name || '').trim()).first();
+    if (!target) return err(404, 'There’s no student with that name.');
+    if (target.id === me) return err(400, 'That’s you!');
+    if (isAdmin(target, env)) return err(400, 'To talk to Beau, use Message Beau.');
+    const mu = await env.DB.prepare('SELECT chat_muted FROM users WHERE id = ?').bind(me).first();
+    if (mu && mu.chat_muted) return err(403, 'Beau has paused chatting on your account. You can still use Message Beau.');
+    if (await blockedEither(env, me, target.id)) return err(403, 'You can’t chat with this person.');
+    const [a, bb] = pair(me, target.id), t = now();
+    const ex = await env.DB.prepare('SELECT * FROM dm_threads WHERE a = ? AND b = ?').bind(a, bb).first();
+    if (ex) {
+      if (ex.status === 'active') return json({ ok: true, id: ex.id, status: 'active' });
+      if (ex.status === 'pending' && ex.requested_by !== me) {
+        await env.DB.prepare("UPDATE dm_threads SET status = 'active', updated_at = ? WHERE id = ?").bind(t, ex.id).run();
+        return json({ ok: true, id: ex.id, status: 'active' });
+      }
+      if (ex.status === 'pending') return json({ ok: true, id: ex.id, status: 'pending' });
+      if (ex.status === 'declined' && ex.requested_by === me && t - ex.updated_at < 7 * 86400) return err(429, target.username + ' said no for now. You can ask again in a week.');
+    }
+    const sent = await env.DB.prepare('SELECT COUNT(*) AS n FROM dm_threads WHERE requested_by = ? AND updated_at > ? AND status = \'pending\'').bind(me, t - 86400).first();
+    if (sent.n >= 10) return err(429, 'You’ve sent a lot of chat requests today. Try again tomorrow.');
+    if (ex) await env.DB.prepare("UPDATE dm_threads SET status = 'pending', requested_by = ?, updated_at = ? WHERE id = ?").bind(me, t, ex.id).run();
+    else await env.DB.prepare("INSERT INTO dm_threads (a, b, status, requested_by, created_at, updated_at) VALUES (?, ?, 'pending', ?, ?, ?)").bind(a, bb, me, t, t).run();
+    const th = await env.DB.prepare('SELECT id FROM dm_threads WHERE a = ? AND b = ?').bind(a, bb).first();
+    return json({ ok: true, id: th.id, status: 'pending' }, 201);
+  }
+  if (path === '/api/chat/respond' && method === 'POST') {
+    let b; try { b = await body(req); } catch { return err(400, 'Bad request'); }
+    const th = await env.DB.prepare('SELECT * FROM dm_threads WHERE id = ?').bind(+b.id || 0).first();
+    if (!th || (th.a !== me && th.b !== me) || th.status !== 'pending' || th.requested_by === me) return err(404, 'That request isn’t there any more.');
+    await env.DB.prepare('UPDATE dm_threads SET status = ?, updated_at = ? WHERE id = ?').bind(b.accept ? 'active' : 'declined', now(), th.id).run();
+    return json({ ok: true, status: b.accept ? 'active' : 'declined' });
+  }
+  const dm = path.match(/^\/api\/chat\/dm\/(\d+)$/);
+  if (dm) {
+    const th = await env.DB.prepare('SELECT t.*, u.username AS name FROM dm_threads t JOIN users u ON u.id = (CASE WHEN t.a = ?2 THEN t.b ELSE t.a END) WHERE t.id = ?1 AND (t.a = ?2 OR t.b = ?2)').bind(+dm[1], me).first();
+    if (!th) return err(404, 'That chat isn’t there.');
+    const other = th.a === me ? th.b : th.a;
+    if (method === 'GET') {
+      const after = Math.max(0, parseInt(url.searchParams.get('after') || '0', 10) || 0);
+      const rows = th.status === 'active' ? (await env.DB.prepare('SELECT id, user_id, body, created_at FROM dm_messages WHERE thread_id = ? AND hidden = 0 AND id > ? ORDER BY id DESC LIMIT 200').bind(th.id, after).all()).results.reverse() : [];
+      if (rows.length) await env.DB.prepare(`UPDATE dm_threads SET ${th.a === me ? 'a_read' : 'b_read'} = MAX(${th.a === me ? 'a_read' : 'b_read'}, ?) WHERE id = ?`).bind(rows[rows.length - 1].id, th.id).run();
+      return json({ thread: { id: th.id, other, name: th.name, status: th.status, byMe: th.requested_by === me }, messages: rows.map(r => ({ id: r.id, mine: r.user_id === me, body: r.body, at: r.created_at })) });
+    }
+    if (method === 'POST') {
+      if (th.status !== 'active') return err(403, th.status === 'pending' ? 'Wait for ' + th.name + ' to accept your chat request.' : 'This chat is closed.');
+      if (await blockedEither(env, me, other)) return err(403, 'This chat is closed.');
+      let b; try { b = await body(req); } catch { return err(400, 'Bad request'); }
+      const text = String(b.body || '').replace(/\r\n?/g, '\n').trim();
+      const bad = await vet(env, user, 'chat with ' + th.name, text); if (bad) return bad;
+      const t = now();
+      const r = await env.DB.prepare('INSERT INTO dm_messages (thread_id, user_id, body, created_at) VALUES (?, ?, ?, ?)').bind(th.id, me, text, t).run();
+      await env.DB.prepare(`UPDATE dm_threads SET updated_at = ?, ${th.a === me ? 'a_read' : 'b_read'} = ? WHERE id = ?`).bind(t, r.meta.last_row_id, th.id).run();
+      return json({ ok: true, id: r.meta.last_row_id }, 201);
+    }
+  }
+  if ((path === '/api/chat/block' || path === '/api/chat/unblock') && method === 'POST') {
+    let b; try { b = await body(req); } catch { return err(400, 'Bad request'); }
+    const other = +b.userId || 0; if (!other || other === me) return err(400, 'Bad request');
+    const [a, bb] = pair(me, other);
+    if (path === '/api/chat/block') {
+      await env.DB.batch([
+        env.DB.prepare('INSERT OR IGNORE INTO blocks (user_id, blocked_id, created_at) VALUES (?, ?, ?)').bind(me, other, now()),
+        env.DB.prepare("UPDATE dm_threads SET status = 'blocked', updated_at = ? WHERE a = ? AND b = ?").bind(now(), a, bb)
+      ]);
+    } else {
+      await env.DB.batch([
+        env.DB.prepare('DELETE FROM blocks WHERE user_id = ? AND blocked_id = ?').bind(me, other),
+        env.DB.prepare("UPDATE dm_threads SET status = 'declined', requested_by = ?, updated_at = 0 WHERE a = ? AND b = ? AND status = 'blocked'").bind(other, a, bb)
+      ]);
+    }
+    return json({ ok: true });
+  }
+  if (path === '/api/chat/report' && method === 'POST') {
+    let b; try { b = await body(req); } catch { return err(400, 'Bad request'); }
+    const kind = b.kind === 'dm' ? 'dm' : 'group', id = +b.id || 0;
+    const msg = kind === 'dm'
+      ? await env.DB.prepare('SELECT m.id FROM dm_messages m JOIN dm_threads t ON t.id = m.thread_id WHERE m.id = ? AND (t.a = ? OR t.b = ?) AND m.user_id != ?').bind(id, me, me, me).first()
+      : await env.DB.prepare('SELECT id FROM group_messages WHERE id = ? AND user_id != ?').bind(id, me).first();
+    if (!msg) return err(404, 'That message isn’t there.');
+    const dup = await env.DB.prepare('SELECT id FROM chat_reports WHERE reporter_id = ? AND kind = ? AND message_id = ?').bind(me, kind, id).first();
+    if (!dup) await env.DB.prepare('INSERT INTO chat_reports (reporter_id, kind, message_id, created_at) VALUES (?, ?, ?, ?)').bind(me, kind, id, now()).run();
+    return json({ ok: true });
+  }
+  return err(404, 'Not found');
+}
+
+/* ---------- Beau's moderation (dashboard) ---------- */
+export async function handleCommunityAdmin(req, env, url) {
+  const path = url.pathname, method = req.method;
+  if (!path.startsWith('/api/admin/chat/')) return null;
+  if (path === '/api/admin/chat/overview' && method === 'GET') {
+    const [group, threads, reports, blocked, muted] = await env.DB.batch([
+      env.DB.prepare('SELECT g.id, g.body, g.created_at, g.hidden, u.username AS name, u.id AS uid FROM group_messages g JOIN users u ON u.id = g.user_id ORDER BY g.id DESC LIMIT 200'),
+      env.DB.prepare(`SELECT t.id, t.status, t.updated_at, ua.username AS a_name, ub.username AS b_name, (SELECT COUNT(*) FROM dm_messages WHERE thread_id = t.id) AS n
+        FROM dm_threads t JOIN users ua ON ua.id = t.a JOIN users ub ON ub.id = t.b ORDER BY t.updated_at DESC LIMIT 200`),
+      env.DB.prepare(`SELECT r.id, r.kind, r.message_id, r.created_at, r.status, ru.username AS reporter,
+        CASE r.kind WHEN 'dm' THEN (SELECT body FROM dm_messages WHERE id = r.message_id) ELSE (SELECT body FROM group_messages WHERE id = r.message_id) END AS body,
+        CASE r.kind WHEN 'dm' THEN (SELECT u.username FROM dm_messages m JOIN users u ON u.id = m.user_id WHERE m.id = r.message_id) ELSE (SELECT u.username FROM group_messages m JOIN users u ON u.id = m.user_id WHERE m.id = r.message_id) END AS author,
+        CASE r.kind WHEN 'dm' THEN (SELECT hidden FROM dm_messages WHERE id = r.message_id) ELSE (SELECT hidden FROM group_messages WHERE id = r.message_id) END AS hidden,
+        CASE r.kind WHEN 'dm' THEN (SELECT thread_id FROM dm_messages WHERE id = r.message_id) ELSE NULL END AS thread
+        FROM chat_reports r JOIN users ru ON ru.id = r.reporter_id ORDER BY r.status = 'new' DESC, r.id DESC LIMIT 100`),
+      env.DB.prepare('SELECT f.id, f.place, f.why, f.body, f.created_at, u.username AS name FROM filter_log f LEFT JOIN users u ON u.id = f.user_id ORDER BY f.id DESC LIMIT 100'),
+      env.DB.prepare('SELECT id, username AS name FROM users WHERE chat_muted = 1 ORDER BY username')
+    ]);
+    return json({ group: group.results, threads: threads.results, reports: reports.results, blocked: blocked.results, muted: muted.results });
+  }
+  const dm = path.match(/^\/api\/admin\/chat\/dm\/(\d+)$/);
+  if (dm && method === 'GET') {
+    const rows = await env.DB.prepare('SELECT m.id, m.body, m.created_at, m.hidden, u.username AS name FROM dm_messages m JOIN users u ON u.id = m.user_id WHERE m.thread_id = ? ORDER BY m.id').bind(+dm[1]).all();
+    return json({ messages: rows.results });
+  }
+  if (method !== 'POST') return err(404, 'Not found');
+  let b; try { b = await body(req); } catch { return err(400, 'Bad request'); }
+  if (path === '/api/admin/chat/hide') {
+    const table = b.kind === 'dm' ? 'dm_messages' : 'group_messages';
+    await env.DB.prepare('UPDATE ' + table + ' SET hidden = ? WHERE id = ?').bind(b.hidden ? 1 : 0, +b.id || 0).run();
+    return json({ ok: true });
+  }
+  if (path === '/api/admin/chat/mute') {
+    await env.DB.prepare('UPDATE users SET chat_muted = ? WHERE id = ?').bind(b.muted ? 1 : 0, +b.id || 0).run();
+    return json({ ok: true });
+  }
+  if (path === '/api/admin/chat/report') {
+    await env.DB.prepare('UPDATE chat_reports SET status = ? WHERE id = ?').bind(b.status === 'done' ? 'done' : 'new', +b.id || 0).run();
+    return json({ ok: true });
+  }
+  return err(404, 'Not found');
+}
+
+// Leaderboard points: when progress is saved, count the newly correct answers and booklet marks for today.
+export async function addPoints(env, userId, before, after) {
+  const dc = Math.max(0, Math.min(100, after.correct - before.correct)), db = Math.max(0, Math.min(100, after.bookletRight - before.bookletRight));
+  if (!dc && !db) return;
+  await env.DB.prepare('INSERT INTO points_daily (user_id, day, correct, booklet) VALUES (?, ?, ?, ?) ON CONFLICT(user_id, day) DO UPDATE SET correct = correct + excluded.correct, booklet = booklet + excluded.booklet')
+    .bind(userId, dayKey(now()), dc, db).run();
+}

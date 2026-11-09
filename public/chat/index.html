@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<script src="/acct.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>EC Revisions Chat</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Lexend:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="/site.css">
+<style>
+.wrap{max-width:820px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.rules{border:1.5px solid var(--accent);background:var(--accent-soft);border-radius:10px;padding:10px 14px;font-size:.92rem}
+.tabs2{display:flex;gap:6px;border-bottom:1.5px solid var(--rule)}
+.tabs2 button{font:inherit;font-weight:600;background:none;border:0;border-bottom:3px solid transparent;padding:10px 14px;color:var(--muted);cursor:pointer;display:flex;align-items:center;gap:6px}
+.tabs2 button.on{color:var(--accent);border-bottom-color:var(--accent)}
+.n{display:inline-grid;place-items:center;min-width:19px;height:19px;padding:0 5px;border-radius:999px;background:#d93025;color:#fff;font-size:.72rem;font-weight:700}
+.chat{display:flex;flex-direction:column;gap:4px;min-height:260px;max-height:min(58vh,560px);overflow-y:auto;padding:4px 2px}
+.m{display:flex;flex-direction:column;max-width:84%;align-self:flex-start}
+.m.me{align-self:flex-end;align-items:flex-end}
+.bub{padding:8px 12px;border-radius:15px;line-height:1.45;white-space:pre-wrap;overflow-wrap:anywhere;background:#eef1f7;border-bottom-left-radius:5px}
+.m.me .bub{background:var(--accent);color:var(--accent-ink);border-bottom-left-radius:15px;border-bottom-right-radius:5px}
+.m.admin .bub{background:#fff4d6;border:1px solid #e8c25a}
+.who{font-size:.74rem;color:var(--muted);margin:6px 6px 1px;display:flex;gap:8px;align-items:center}
+.who button{font:inherit;font-size:.74rem;background:none;border:0;color:var(--muted);text-decoration:underline;cursor:pointer;padding:0}
+.compose{display:flex;gap:8px;align-items:flex-end}
+.compose textarea{flex:1;font:inherit;color:var(--ink);background:var(--card);border:1.5px solid var(--rule);border-radius:12px;padding:10px 12px;min-height:46px;max-height:150px;resize:none}
+.compose textarea:focus{border-color:var(--accent);outline:none;box-shadow:0 0 0 3px var(--accent-soft)}
+.list{display:flex;flex-direction:column;gap:8px}
+.item{display:flex;justify-content:space-between;align-items:center;gap:10px;border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.item .t{display:flex;flex-direction:column;min-width:0}
+.item .t span{font-size:.85rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+button.item{font:inherit;color:inherit;background:var(--card);text-align:left;cursor:pointer;width:100%}
+button.item:hover{border-color:var(--accent)}
+.empty{color:var(--muted);text-align:center;margin:auto;max-width:360px}
+</style>
+</head>
+<body>
+<main class="wrap">
+  <div class="brand"><span class="mark">EC Revisions</span><h1>Chat</h1><p>Chat with other students about your revision. Ask questions, share tips, help each other out.</p></div>
+  <p class="rules"><b>Chats are monitored by Beau.</b> Be kind. Never share personal details (phone number, address, school timetable, social media). Rude or unsafe messages are blocked, and you can report anything that worries you.</p>
+  <p id="loading" class="muted">Loading…</p>
+  <p id="mutedNote" class="msg bad" hidden>Beau has paused chatting on your account. You can still read chats and use <a href="/message/">Message Beau</a>.</p>
+  <section id="app" class="stack" hidden>
+    <div class="tabs2" role="tablist"><button type="button" role="tab" id="tabGroup" class="on">Group chat <span class="n" id="nGroup" hidden></span></button><button type="button" role="tab" id="tabMine">My chats <span class="n" id="nMine" hidden></span></button></div>
+
+    <div id="viewGroup" class="card stack">
+      <div class="chat" id="groupChat" aria-live="polite" aria-label="Group chat messages"></div>
+      <form class="compose" id="groupForm" novalidate><label class="sr" for="groupText">Message to everyone</label><textarea id="groupText" rows="1" maxlength="500" placeholder="Message everyone…"></textarea><button class="btn" type="submit">Send</button></form>
+      <div id="groupOut" role="status"></div>
+      <p class="small muted">Everyone who uses EC Revisions can read the group chat. Enter sends; Shift + Enter for a new line.</p>
+    </div>
+
+    <div id="viewMine" class="stack" hidden>
+      <div class="card stack">
+        <h3>Start a chat</h3>
+        <p class="small muted">Type a student’s name. They’ll get a request, and the chat opens once they accept.</p>
+        <label class="sr" for="find">Student name</label><input id="find" autocomplete="off" placeholder="Start typing a name…">
+        <div class="list" id="found"></div>
+        <div id="findOut" role="status"></div>
+      </div>
+      <div class="card stack" id="reqCard" hidden><h3>Chat requests</h3><div class="list" id="reqs"></div></div>
+      <div class="card stack"><h3>Your chats</h3><div class="list" id="threads"></div></div>
+      <details class="card" id="blockedCard" hidden><summary>People you’ve blocked</summary><div class="list" id="blockedList" style="margin-top:10px"></div></details>
+    </div>
+
+    <div id="viewThread" class="card stack" hidden>
+      <div class="row" style="justify-content:space-between"><button type="button" class="btn quiet sm" id="backToMine">← My chats</button><b id="threadName"></b><button type="button" class="btn danger sm" id="blockBtn">Block</button></div>
+      <div class="chat" id="dmChat" aria-live="polite" aria-label="Chat messages"></div>
+      <form class="compose" id="dmForm" novalidate><label class="sr" for="dmText">Your message</label><textarea id="dmText" rows="1" maxlength="500" placeholder="Type a message…"></textarea><button class="btn" type="submit">Send</button></form>
+      <div id="dmOut" role="status"></div>
+    </div>
+  </section>
+  <div class="row"><a class="btn quiet" href="/" id="back">Back to subjects</a><a class="btn quiet" href="/leaderboard/">🏆 Leaderboard</a></div>
+</main>
+<script>
+(function () {
+  const $ = s => document.querySelector(s);
+  const params = new URLSearchParams(location.search), from = params.get('from');
+  if (from === 'maths' || from === 'science') { $('#back').href = '/' + from + '/'; $('#back').textContent = 'Back to ' + (from === 'maths' ? 'Maths' : 'Science'); }
+  const fmt = s => new Date(s * 1000).toLocaleString('en-AU', { timeZone: 'Australia/Brisbane', weekday: 'short', hour: 'numeric', minute: '2-digit' });
+  const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+  async function api(path, method = 'GET', body) {
+    const r = await fetch(path, { method, credentials: 'same-origin', headers: body ? { 'content-type': 'application/json' } : {}, body: body ? JSON.stringify(body) : undefined });
+    if (r.status === 401) { location.replace('/?next=chat'); throw new Error('login'); }
+    let j = {}; try { j = await r.json(); } catch (e) { /* empty */ }
+    return { ok: r.ok, status: r.status, data: j };
+  }
+  const say = (box, text, good) => { const o = $(box); o.innerHTML = ''; if (text) { const d = el('div', 'msg ' + (good ? 'good' : 'bad'), text); o.appendChild(d); } };
+  const grow = t => { t.style.height = 'auto'; t.style.height = Math.min(150, t.scrollHeight + 2) + 'px'; };
+  const enterSends = (t, f) => { t.addEventListener('input', () => grow(t)); t.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); f.requestSubmit(); } }); };
+  let view = 'group', groupLast = 0, thread = null, dmLast = 0, timer = null, me = { admin: false };
+
+  function bubble(box, m, kind, name) {
+    const empty = box.querySelector('.empty'); if (empty) empty.remove();
+    const w = el('div', 'm' + (m.mine ? ' me' : '') + (m.admin ? ' admin' : ''));
+    const who = el('div', 'who'); who.appendChild(el('span', '', (m.mine ? 'You' : (name || m.name) + (m.admin ? ' (Beau, admin)' : '')) + ' · ' + fmt(m.at)));
+    if (!m.mine && !m.admin) {
+      const rep = el('button', '', 'Report'); rep.type = 'button';
+      rep.onclick = async () => { if (!confirm('Report this message to Beau?')) return; const r = await api('/api/chat/report', 'POST', { kind, id: m.id }); rep.textContent = r.ok ? 'Reported' : 'Couldn’t report'; rep.disabled = true; };
+      who.appendChild(rep);
+      if (kind === 'group' && m.uid) { const bl = el('button', '', 'Block'); bl.type = 'button'; bl.onclick = () => block(m.uid, m.name); who.appendChild(bl); }
+    }
+    w.append(who, el('div', 'bub', m.body)); box.appendChild(w);
+  }
+  async function block(uid, name) {
+    if (!confirm('Block ' + name + '? You won’t see each other’s messages and they can’t chat with you.')) return;
+    await api('/api/chat/block', 'POST', { userId: uid }); groupLast = 0; $('#groupChat').innerHTML = ''; thread = null; show(view === 'thread' ? 'mine' : view);
+  }
+  async function pollGroup() {
+    const box = $('#groupChat'), near = box.scrollHeight - box.scrollTop - box.clientHeight < 80;
+    const r = await api('/api/chat/group?after=' + groupLast); if (!r.ok) return;
+    r.data.messages.forEach(m => { bubble(box, m, 'group'); groupLast = Math.max(groupLast, m.id); });
+    if (!groupLast && !box.querySelector('.empty')) box.appendChild(el('p', 'empty', 'No messages yet. Say hi and ask a revision question!'));
+    if (r.data.messages.length && near) box.scrollTop = box.scrollHeight;
+  }
+  async function loadMine() {
+    const r = await api('/api/chat/threads'); if (!r.ok) return;
+    const reqs = r.data.threads.filter(t => t.status === 'pending'), act = r.data.threads.filter(t => t.status === 'active');
+    const rl = $('#reqs'); rl.innerHTML = ''; $('#reqCard').hidden = !reqs.length;
+    reqs.forEach(t => {
+      const it = el('div', 'item'); const tt = el('div', 't'); tt.appendChild(el('b', '', t.name)); tt.appendChild(el('span', '', t.byMe ? 'Waiting for them to accept' : 'Wants to chat with you')); it.appendChild(tt);
+      if (!t.byMe) {
+        const r2 = el('div', 'row'); const ok = el('button', 'btn sm', 'Accept'), no = el('button', 'btn quiet sm', 'Decline'), bl = el('button', 'btn danger sm', 'Block');
+        [ok, no, bl].forEach(b => b.type = 'button');
+        ok.onclick = async () => { await api('/api/chat/respond', 'POST', { id: t.id, accept: true }); openThread(t.id); };
+        no.onclick = async () => { await api('/api/chat/respond', 'POST', { id: t.id, accept: false }); loadMine(); };
+        bl.onclick = () => block(t.other, t.name);
+        r2.append(ok, no, bl); it.appendChild(r2);
+      }
+      rl.appendChild(it);
+    });
+    const tl = $('#threads'); tl.innerHTML = '';
+    if (!act.length) tl.appendChild(el('p', 'small muted', 'No chats yet. Start one above, or from the leaderboard.'));
+    act.forEach(t => {
+      const b = el('button', 'item'); b.type = 'button'; const tt = el('div', 't'); tt.appendChild(el('b', '', t.name)); tt.appendChild(el('span', '', t.last || 'Say hi!')); b.appendChild(tt);
+      if (t.unread) b.appendChild(el('span', 'n', String(t.unread)));
+      b.onclick = () => openThread(t.id); tl.appendChild(b);
+    });
+    const bl = $('#blockedList'); bl.innerHTML = ''; $('#blockedCard').hidden = !r.data.blocked.length;
+    r.data.blocked.forEach(p => { const it = el('div', 'item'); it.appendChild(el('b', '', p.name)); const u = el('button', 'btn quiet sm', 'Unblock'); u.type = 'button'; u.onclick = async () => { await api('/api/chat/unblock', 'POST', { userId: p.id }); loadMine(); }; it.appendChild(u); bl.appendChild(it); });
+  }
+  async function openThread(id) { thread = { id }; dmLast = 0; $('#dmChat').innerHTML = ''; say('#dmOut', ''); show('thread'); }
+  async function pollThread() {
+    if (!thread) return;
+    const box = $('#dmChat'), near = box.scrollHeight - box.scrollTop - box.clientHeight < 80;
+    const r = await api('/api/chat/dm/' + thread.id + '?after=' + dmLast); if (!r.ok) { show('mine'); return; }
+    const t = r.data.thread; thread.other = t.other; thread.name = t.name; $('#threadName').textContent = t.name;
+    $('#dmForm').hidden = t.status !== 'active';
+    if (t.status !== 'active' && !box.querySelector('.empty')) box.appendChild(el('p', 'empty', t.status === 'pending' ? (t.byMe ? 'Waiting for ' + t.name + ' to accept your chat request.' : t.name + ' wants to chat. Accept the request in My chats.') : 'This chat is closed.'));
+    r.data.messages.forEach(m => { bubble(box, m, 'dm', t.name); dmLast = Math.max(dmLast, m.id); });
+    if (t.status === 'active' && !dmLast && !box.querySelector('.empty')) box.appendChild(el('p', 'empty', 'You’re connected with ' + t.name + '. Say hi!'));
+    if (r.data.messages.length && near) box.scrollTop = box.scrollHeight;
+  }
+  async function counts() {
+    const r = await api('/api/chat/summary'); if (!r.ok) return;
+    const g = r.data.unreadGroup, mine = r.data.requests + r.data.unreadDm;
+    $('#nGroup').hidden = !g || view === 'group'; $('#nGroup').textContent = g; $('#nMine').hidden = !mine; $('#nMine').textContent = mine;
+    $('#mutedNote').hidden = !r.data.muted; me.admin = r.data.admin;
+    if (r.data.admin) $('#tabMine').hidden = true;
+  }
+  function show(v) {
+    view = v; clearInterval(timer);
+    $('#viewGroup').hidden = v !== 'group'; $('#viewMine').hidden = v !== 'mine'; $('#viewThread').hidden = v !== 'thread';
+    $('#tabGroup').classList.toggle('on', v === 'group'); $('#tabMine').classList.toggle('on', v !== 'group');
+    const tick = async () => { if (document.visibilityState !== 'visible') return; if (view === 'group') await pollGroup(); else if (view === 'mine') await loadMine(); else await pollThread(); counts(); };
+    tick().then(() => { if (v === 'group') { const b = $('#groupChat'); b.scrollTop = b.scrollHeight; } if (v === 'thread') { const b = $('#dmChat'); b.scrollTop = b.scrollHeight; } });
+    timer = setInterval(tick, v === 'mine' ? 10000 : 5000);
+  }
+  $('#tabGroup').onclick = () => show('group');
+  $('#tabMine').onclick = () => show('mine');
+  $('#backToMine').onclick = () => { thread = null; show('mine'); };
+  $('#blockBtn').onclick = () => thread && thread.other && block(thread.other, thread.name);
+  enterSends($('#groupText'), $('#groupForm')); enterSends($('#dmText'), $('#dmForm'));
+  $('#groupForm').onsubmit = async e => {
+    e.preventDefault(); const t = $('#groupText'), body = t.value.trim(); if (!body) return; say('#groupOut', '');
+    const r = await api('/api/chat/group', 'POST', { body });
+    if (!r.ok) return say('#groupOut', r.data.error || 'Couldn’t send it.');
+    t.value = ''; grow(t); await pollGroup(); const b = $('#groupChat'); b.scrollTop = b.scrollHeight;
+  };
+  $('#dmForm').onsubmit = async e => {
+    e.preventDefault(); const t = $('#dmText'), body = t.value.trim(); if (!body || !thread) return; say('#dmOut', '');
+    const r = await api('/api/chat/dm/' + thread.id, 'POST', { body });
+    if (!r.ok) return say('#dmOut', r.data.error || 'Couldn’t send it.');
+    t.value = ''; grow(t); await pollThread(); const b = $('#dmChat'); b.scrollTop = b.scrollHeight;
+  };
+  let ft = null;
+  $('#find').oninput = () => {
+    clearTimeout(ft); const q = $('#find').value.trim();
+    ft = setTimeout(async () => {
+      const f = $('#found'); f.innerHTML = ''; say('#findOut', '');
+      if (q.length < 2) return;
+      const r = await api('/api/chat/people?q=' + encodeURIComponent(q)); if (!r.ok) return;
+      if (!r.data.people.length) f.appendChild(el('p', 'small muted', 'No students found with that name.'));
+      r.data.people.forEach(p => request(p, f));
+    }, 250);
+  };
+  function request(p, into) {
+    const it = el('div', 'item'); it.appendChild(el('b', '', p.name));
+    const b = el('button', 'btn sm', 'Send chat request'); b.type = 'button';
+    b.onclick = async () => {
+      const r = await api('/api/chat/request', 'POST', { id: p.id });
+      if (!r.ok) return say('#findOut', r.data.error || 'Couldn’t send it.');
+      if (r.data.status === 'active') return openThread(r.data.id);
+      say('#findOut', 'Request sent to ' + p.name + '. The chat opens when they accept.', true); b.disabled = true; b.textContent = 'Request sent'; loadMine();
+    };
+    it.appendChild(b); into.appendChild(it);
+  }
+  (async () => {
+    try { await counts(); } catch (e) { $('#loading').textContent = 'Can’t reach the server. Check your connection and reload.'; return; }
+    $('#loading').hidden = true; $('#app').hidden = false;
+    const withId = +params.get('with') || 0, withName = params.get('name');
+    if (withId && withName) { show('mine'); request({ id: withId, name: withName }, $('#found')); } else show(params.get('tab') === 'mine' ? 'mine' : 'group');
+    document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') show(view === 'thread' && thread ? 'thread' : view); });
+  })();
+})();
+</script>
+<script src="/msg.js" defer></script>
+<script src="/help.js" defer></script>
+</body>
+</html>
