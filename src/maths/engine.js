@@ -460,7 +460,34 @@ const primes = n => '′'.repeat(n);
 /* ================= question generators ================= */
 const G = {};
 function gen(id, topic, name, fn) { G[id] = { id, topic, name, fn }; }
-function makeQ(id) { const g = G[id]; const q = g.fn(); q.gen = id; q.topic = g.topic; q.gname = g.name; return q; }
+// No repeats: remember the last questions seen for each generator (kept in this browser) and avoid them.
+const SEEN_MAX = 300;
+let SEEN = null, seenTimer = null;
+function qKey(q) {
+  const t = q.q + '|' + (q.choices ? q.choices.slice().sort().join('/') : '') + '|' + (q.fig || '');
+  let h = 5381; for (let i = 0; i < t.length; i++) h = ((h << 5) + h + t.charCodeAt(i)) | 0;
+  return (h >>> 0).toString(36);
+}
+function makeQ(id) {
+  const g = G[id];
+  if (!SEEN) SEEN = store.get('seen', {}) || {};
+  const list = SEEN[id] || (SEEN[id] = []);
+  let q = null, k = '', fresh = false;
+  for (let i = 0; i < 60 && !fresh; i++) { q = g.fn(); k = qKey(q); fresh = !list.includes(k); }
+  if (!fresh) list.splice(0, Math.ceil(list.length / 2)); // seen them all: start a new round
+  list.push(k); if (list.length > SEEN_MAX) list.splice(0, list.length - SEEN_MAX);
+  if (typeof setTimeout !== 'undefined') { clearTimeout(seenTimer); seenTimer = setTimeout(() => store.set('seen', SEEN), 400); }
+  q.gen = id; q.topic = g.topic; q.gname = g.name; return q;
+}
+// multiple choice from a right answer and a pool of believable wrong ones
+function mcq4(q, right, wrongs, sol, hint, extra) {
+  const pool = shuffle(wrongs.filter(w => w !== right)).filter((w, i, a) => a.indexOf(w) === i);
+  const opts = shuffle([right].concat(pool.slice(0, 3)));
+  return Object.assign({ type: 'mcq', q, choices: opts, ans: opts.indexOf(right), ansText: right, sol: Array.isArray(sol) ? sol : [sol], hint }, extra || {});
+}
+const cap = t => t.charAt(0).toUpperCase() + t.slice(1);
+const QUADS = ['ABCD', 'PQRS', 'WXYZ', 'EFGH', 'KLMN', 'JKLM', 'TUVW'];
+const TRIS = [['ABC', 'DEF'], ['PQR', 'XYZ'], ['KLM', 'STU'], ['ABC', 'PQR'], ['DEF', 'JKL'], ['LMN', 'RST'], ['GHI', 'UVW']];
 const ineqText = (v, op, val) => v + ' ' + opD(op) + ' ' + fmt(val);
 
 /* ---------- 7I inequalities ---------- */
@@ -516,20 +543,36 @@ gen('ineqTest', '7I', 'Is it a solution?', () => {
     hint: 'Substitute each number. Remember: ' + fmt(v) + ' itself is included only for ≤ or ≥.', sol: cands.map(c => fmt(c) + ' ' + opD(op) + ' ' + fmt(v) + ' is ' + (holds(c, op, v) ? '<b>true</b>' : 'false')).concat([nlSVG(op, v)]) };
 });
 gen('ineqConcept', '7I', 'Inequality facts', () => {
-  const bank = [
-    ['Which circle do you draw at 3 for <b>x ≤ 3</b>?', ['Open circle', 'Closed (filled) circle', 'No circle', 'A square'], 1, 'For ≤ and ≥ the number is included, so the circle is filled in.'],
-    ['Which circle do you draw at −1 for <b>x &gt; −1</b>?', ['Open circle', 'Closed (filled) circle', 'No circle', 'An arrow only'], 0, 'For &lt; and &gt; the number is not included, so the circle is open.'],
-    ['Start with <b>3 &lt; 5</b> and multiply both sides by −2. Which statement is true?', ['−6 &lt; −10', '−6 &gt; −10', '6 &lt; 10', '−6 = −10'], 1, '3 × (−2) = −6 and 5 × (−2) = −10. −6 is bigger than −10, so the sign reverses: −6 &gt; −10.'],
-    ['When does the inequality sign reverse?', ['When you add a negative number', 'When you subtract a number', 'When you multiply or divide both sides by a negative number', 'Never'], 2, 'Only multiplying or dividing by a negative (and swapping the sides) reverses the sign.'],
-    ['Which inequality means the same as <b>7 &gt; x</b>?', ['x &gt; 7', 'x &lt; 7', 'x ≥ 7', 'x ≤ 7'], 1, 'Read it from x: x is less than 7.'],
-    ['Solve <b>x − 4 &gt; −2</b>. Do you reverse the sign?', ['Yes, because there is a negative', 'No, adding 4 never reverses the sign', 'Yes, because −2 is negative', 'Only if x is negative'], 1, 'Adding or subtracting any number keeps the sign the same. x &gt; 2.'],
-    ['“The bag holds <b>at most</b> 15 kg.” Which sign?', ['&lt;', '&gt;', '≤', '≥'], 2, 'At most 15 means 15 or less: ≤.'],
-    ['How many solutions does <b>x &gt; 2</b> have?', ['One', 'Two', 'Infinitely many', 'None'], 2, 'Every number bigger than 2 works: 2.1, 3, 50, 1000…']
-  ];
-  const [q, ch, a, ex] = pick(bank);
-  return { type: 'mcq', q, choices: ch, ans: a, ansText: ch[a], sol: [ex] };
+  const k = rnd(0, 4), v = rnd(-9, 12);
+  if (k === 0) {
+    const op = pick(['<', '>', '<=', '>=']); const closed = op.includes('='), right = op[0] === '>';
+    const opt = (c, r) => (c ? 'Closed (filled) circle' : 'Open circle') + ' at ' + v + ', arrow pointing ' + (r ? 'right' : 'left');
+    return mcq4('How do you show <b>x ' + opD(op) + ' ' + v + '</b> on a number line?', opt(closed, right), [opt(!closed, right), opt(closed, !right), opt(!closed, !right)],
+      'For &lt; and &gt; the number is not included (open circle); for ≤ and ≥ it is included (closed circle). x &gt; or ≥ means the arrow points right (bigger numbers).', 'Is ' + v + ' itself included? Which way are the bigger numbers?');
+  }
+  if (k === 1) {
+    let a = rnd(-6, 8), b = a + rnd(1, 6); const m = rnd(2, 6);
+    return mcq4('Start with <b>' + fmt(a) + ' &lt; ' + fmt(b) + '</b> and multiply both sides by <b>−' + m + '</b>. Which statement is true?', fmt(-m * a) + ' &gt; ' + fmt(-m * b),
+      [fmt(-m * a) + ' &lt; ' + fmt(-m * b), fmt(m * a) + ' &lt; ' + fmt(m * b), fmt(-m * a) + ' &lt; ' + fmt(m * b), fmt(m * a) + ' &gt; ' + fmt(m * b)],
+      [fmt(a) + ' × (−' + m + ') = ' + fmt(-m * a) + ' and ' + fmt(b) + ' × (−' + m + ') = ' + fmt(-m * b) + '.', 'Multiplying by a negative reverses the order, so the sign flips: <b>' + fmt(-m * a) + ' &gt; ' + fmt(-m * b) + '</b>.'], 'Work out both sides, then compare.');
+  }
+  if (k === 2) {
+    const op = pick(['<', '>', '<=', '>=']); const flip = { '<': '>', '>': '<', '<=': '>=', '>=': '<=' }[op];
+    return mcq4('Which inequality means the same as <b>' + v + ' ' + opD(op) + ' x</b>?', 'x ' + opD(flip) + ' ' + v, ['x ' + opD(op) + ' ' + v, 'x ' + opD({ '<': '<=', '>': '>=', '<=': '<', '>=': '>' }[flip]) + ' ' + v, 'x ' + opD({ '<': '<=', '>': '>=', '<=': '<', '>=': '>' }[op]) + ' ' + v],
+      'Read it starting from x: swap the sides and turn the sign around so it still points at the same number. ' + v + ' ' + opD(op) + ' x is the same as <b>x ' + opD(flip) + ' ' + v + '</b>.', 'Read it backwards, starting from x.');
+  }
+  if (k === 3) {
+    const W = [['at most', '≤'], ['no more than', '≤'], ['a maximum of', '≤'], ['up to and including', '≤'], ['at least', '≥'], ['no less than', '≥'], ['a minimum of', '≥'], ['more than', '&gt;'], ['over', '&gt;'], ['greater than', '&gt;'], ['fewer than', '&lt;'], ['less than', '&lt;'], ['under', '&lt;']];
+    const C = [['A lift can carry', 'people'], ['You must be', 'years old to ride'], ['The bag can hold', 'kg'], ['The class has', 'students'], ['The phone charges in', 'minutes'], ['The speed limit is', 'km/h'], ['A ticket costs', 'dollars'], ['The tank holds', 'litres']];
+    const [w, sign] = pick(W), [c, u] = pick(C), n = rnd(3, 120);
+    return mcq4('“' + c + ' <b>' + w + '</b> ' + n + ' ' + u + '.” Which sign should you use?', sign, ['&lt;', '&gt;', '≤', '≥'], '“' + w + '” means <b>' + sign + '</b>. Check whether ' + n + ' itself is allowed: if it is, use ≤ or ≥.', 'Is ' + n + ' itself allowed?');
+  }
+  const op = pick(['<', '>', '<=', '>=']), c = rnd(-8, 10), a = rnd(2, 9), neg = Math.random() < 0.5;
+  const steps = neg ? 'divide both sides by −' + a : pick(['add ' + a + ' to both sides', 'subtract ' + a + ' from both sides', 'multiply both sides by ' + a, 'divide both sides by ' + a]);
+  return mcq4('Solving <b>' + (neg ? '−' + a + 'x' : 'x') + ' ' + opD(op) + ' ' + c + '</b>, you ' + steps + '. What happens to the inequality sign?', neg ? 'It reverses' : 'It stays the same',
+    [neg ? 'It stays the same' : 'It reverses', 'It becomes an equals sign', neg ? 'It reverses only if ' + c + ' is negative' : 'It reverses because there is a negative number', 'It changes from &lt; to ≤'],
+    'Only multiplying or dividing both sides by a <b>negative</b> number reverses the sign. Adding, subtracting, or multiplying/dividing by a positive never does.', 'Is it multiplying or dividing by a negative?');
 });
-
 /* ---------- 7J solving inequalities ---------- */
 function linStr(a, b, v = 'x') { return fmtLinN(a, b, v); }
 function ineqProblem(opPool = ['<', '>', '<=', '>=']) {
@@ -627,16 +670,32 @@ gen('gradient2', 'L2', 'Gradient between two points', () => {
     hint: 'm = rise ÷ run = (y₂ − y₁) ÷ (x₂ − x₁)', sol: [{ t: 'm = (y₂ − y₁) / (x₂ − x₁)', why: 'Gradient formula' }, { t: 'm = (' + fmt(y2) + ' − ' + (y1 < 0 ? '(' + fmt(y1) + ')' : fmt(y1)) + ') / (' + fmt(x2) + ' − ' + (x1 < 0 ? '(' + fmt(x1) + ')' : fmt(x1)) + ')', why: 'Substitute' }, { t: 'm = ' + fmt(y2 - y1) + ' / ' + fmt(x2 - x1) + ' = ' + m.show(), why: m.isZero() ? 'Zero gradient: a horizontal line' : (m.sign() > 0 ? 'Positive: the line goes up from left to right' : 'Negative: the line goes down from left to right') }] };
 });
 gen('gradientType', 'L2', 'Gradient facts', () => {
-  const bank = [
-    ['A line goes <b>down</b> from left to right. Its gradient is…', ['positive', 'negative', 'zero', 'undefined'], 1],
-    ['A horizontal line such as y = 4 has gradient…', ['4', '1', '0', 'undefined'], 2],
-    ['A vertical line such as x = 3 has gradient…', ['3', '0', '1', 'undefined (you cannot divide by a run of 0)'], 3],
-    ['Which line is steepest?', ['y = 2x + 1', 'y = −5x + 2', 'y = x', 'y = 0.5x − 3'], 1],
-    ['Which lines are parallel?', ['y = 2x + 1 and y = 2x − 7', 'y = 2x + 1 and y = 3x + 1', 'y = x and y = −x', 'y = 4 and x = 4'], 0],
-    ['Gradient means…', ['rise ÷ run', 'run ÷ rise', 'rise × run', 'rise + run'], 0]
-  ];
-  const [q, ch, a] = pick(bank);
-  return { type: 'mcq', q, choices: ch, ans: a, ansText: ch[a], sol: ['Gradient = rise ÷ run. The bigger the number (ignoring the sign), the steeper. Parallel lines have equal gradients. Horizontal lines have gradient 0; vertical lines have an undefined gradient.'] };
+  const k = rnd(0, 4); const line = (m, c) => 'y = ' + (m === 1 ? '' : m === -1 ? '−' : fmt(m)) + 'x' + (c ? (c > 0 ? ' + ' : ' − ') + fmt(Math.abs(c)) : '');
+  if (k === 0) {
+    const ms = shuffle([0.5, 1, 1.5, 2, 3, 4, 5, 0.25, 6]).slice(0, 4); const big = Math.max(...ms); const sgn = ms.map(m => (Math.random() < 0.5 ? -1 : 1) * m);
+    const ls = sgn.map(m => line(m, rnd(-6, 6))); const right = ls[ms.indexOf(big)];
+    return mcq4('Which line is the <b>steepest</b>?', right, ls.filter(l => l !== right), 'Steepness depends on the size of the gradient, ignoring the sign. ' + right + ' has the biggest size of m (' + big + ').', 'Compare the gradients, ignoring + or −.');
+  }
+  if (k === 1) {
+    const m = pick([-4, -3, -2, -1, 2, 3, 4, 0.5, -0.5]), c1 = rnd(-6, 6), c2 = c1 + pick([-5, -3, -2, 2, 3, 5]);
+    const others = [[-m, c2], [m + pick([1, -1]), c1], [c1 || 1, m], [1 / m, c2], [2 * m, c2]].filter(([g]) => g !== m && g !== 0);
+    return mcq4('Which pair of lines is <b>parallel</b>?', line(m, c1) + ' and ' + line(m, c2), others.map(([g, c]) => line(m, c1) + ' and ' + line(g, c)),
+      'Parallel lines have the <b>same gradient</b> (the number in front of x). The y-intercepts can be different.', 'Look at the number in front of x.');
+  }
+  if (k === 2) {
+    const x1 = rnd(-5, 4), x2 = x1 + rnd(1, 5), y1 = rnd(-6, 6), dy = pick([-6, -4, -3, -2, -1, 1, 2, 3, 4, 6, 0]); const y2 = y1 + dy;
+    const right = dy > 0 ? 'Positive' : dy < 0 ? 'Negative' : 'Zero';
+    return mcq4('A line passes through <b>(' + x1 + ', ' + y1 + ')</b> and <b>(' + x2 + ', ' + y2 + ')</b>. What kind of gradient does it have?', right, ['Positive', 'Negative', 'Zero', 'Undefined'],
+      ['Rise = ' + y2 + ' − ' + (y1 < 0 ? '(' + y1 + ')' : y1) + ' = ' + dy + ', run = ' + (x2 - x1) + '.', 'Gradient = ' + dy + ' ÷ ' + (x2 - x1) + (dy === 0 ? ' = 0 (horizontal line).' : ', which is <b>' + right.toLowerCase() + '</b>.')], 'Does the line go up, down or stay level from left to right?');
+  }
+  if (k === 3) {
+    const n = rnd(-8, 9), vert = Math.random() < 0.5;
+    return mcq4('What is the gradient of the line <b>' + (vert ? 'x' : 'y') + ' = ' + n + '</b>?', vert ? 'Undefined (it is vertical)' : '0 (it is horizontal)', [vert ? '0 (it is horizontal)' : 'Undefined (it is vertical)', String(n), '1', n ? String(-n) : '−1'],
+      vert ? 'x = ' + n + ' is a vertical line. The run is 0 and you can’t divide by 0, so the gradient is undefined.' : 'y = ' + n + ' is a horizontal line: the rise is 0, so the gradient is 0.', 'Sketch it: is it flat or straight up and down?');
+  }
+  const rise = rnd(-9, 9) || 4, run = rnd(1, 6);
+  return mcq4('A line rises <b>' + rise + '</b> for every <b>' + run + '</b> across' + (rise < 0 ? ' (it falls)' : '') + '. What is its gradient?', fmt(r2(rise / run, 4)), [fmt(r2(run / rise, 4)), fmt(r2(-rise / run, 4)), fmt(rise * run), fmt(rise + run)].filter(v => v !== fmt(r2(rise / run, 4))),
+    'Gradient = rise ÷ run = ' + rise + ' ÷ ' + run + ' = <b>' + fmt(r2(rise / run, 4)) + '</b>.', 'Rise over run.');
 });
 gen('gradientGraph', 'L2', 'Gradient from a graph', () => {
   const m = pick([-3, -2, -1, -0.5, 0.5, 1, 2, 3, 1.5, -1.5]), c = rnd(-3, 3);
@@ -777,19 +836,26 @@ gen('rotateShape', '10C', 'Rotate a triangle', () => {
     ans: R, ansText: nm.map((n, i) => n + '′' + ptStr(R[i])).join(', '), hint: rotRule(o[0], o[1]), sol: [rotRule(o[0], o[1]), nm.map((n, i) => n + ptStr(P[i]) + ' → ' + n + '′' + ptStr(R[i])).join('<br>'), gridSVG({ xmin: -5, xmax: 5, ymin: -5, ymax: 5, polys: [{ pts: P, labels: nm }, { pts: R, labels: nm.map(n => n + '′'), cls: 'b' }], size: 240 })] };
 });
 gen('transFacts', '10C', 'Transformation facts', () => {
-  const bank = [
-    ['A rotation of 90° clockwise is the same as…', ['90° anticlockwise', '180°', '270° anticlockwise', '270° clockwise'], 2, 'Going 90° one way ends in the same place as 270° the other way.'],
-    ['What three things describe a rotation fully?', ['Centre, angle and direction', 'Mirror line and distance', 'Vector only', 'Scale factor and centre'], 0, 'You need the centre of rotation, the angle and the direction (clockwise or anticlockwise).'],
-    ['Which transformation flips a shape so it faces the other way?', ['Translation', 'Rotation', 'Reflection', 'None of them'], 2, 'A reflection reverses the orientation (it is a mirror image).'],
-    ['After a reflection, rotation or translation, the image is…', ['bigger', 'smaller', 'congruent to the original', 'similar but not congruent'], 2, 'These “isometric” transformations keep size and shape the same.'],
-    ['Which transformation slides every point the same distance in the same direction?', ['Reflection', 'Rotation', 'Translation', 'Enlargement'], 2, 'A translation is a slide, described by a vector.'],
-    ['A′ is read as…', ['A squared', 'A prime (or A dash)', 'A double', 'angle A'], 1, 'The prime marks the image of A.'],
-    ['A 180° rotation about the origin sends (3, −2) to…', ['(−3, 2)', '(3, 2)', '(−2, 3)', '(2, −3)'], 0, '(x, y) → (−x, −y).'],
-    ['Reflect (5, 2) in the y-axis, then translate by (0, −4). The final image is…', ['(−5, −2)', '(5, −2)', '(−5, 6)', '(1, 2)'], 0, 'Reflect: (−5, 2). Translate down 4: (−5, −2).']
-  ];
-  const [q, ch, a, ex] = pick(bank); return { type: 'mcq', q, choices: ch, ans: a, ansText: ch[a], sol: [ex] };
+  const k = rnd(0, 3), x = rnd(-7, 7) || 3, y = rnd(-7, 7) || -2; const P = (a, b) => '(' + a + ', ' + b + ')';
+  const cands = [P(-x, y), P(x, -y), P(-x, -y), P(y, x), P(-y, x), P(y, -x), P(-y, -x)];
+  if (k === 0) {
+    const t = pick([['reflect it in the x-axis', P(x, -y)], ['reflect it in the y-axis', P(-x, y)], ['rotate it 180° about the origin', P(-x, -y)], ['rotate it 90° clockwise about the origin', P(y, -x)], ['rotate it 90° anticlockwise about the origin', P(-y, x)], ['reflect it in the line y = x', P(y, x)]]);
+    return mcq4('Start with the point <b>' + P(x, y) + '</b> and ' + t[0] + '. Where does it end up?', t[1], cands, ['x-axis reflection: (x, y) → (x, −y). y-axis: (x, y) → (−x, y). 180°: (x, y) → (−x, −y).', '90° clockwise: (x, y) → (y, −x). 90° anticlockwise: (x, y) → (−y, x). Line y = x: (x, y) → (y, x).', 'Answer: <b>' + t[1] + '</b>'], 'Sketch it on a grid if you’re not sure.');
+  }
+  if (k === 1) {
+    const a = rnd(-6, 6), b = rnd(-6, 6); const r = P(x + a, y + b);
+    return mcq4('Translate <b>' + P(x, y) + '</b> by the vector <b>(' + a + ', ' + b + ')</b>. Where does it end up?', r, [P(x - a, y - b), P(x + b, y + a), P(x + a, y - b), P(x - a, y + b), P(a, b)],
+      'Add the vector: (' + x + ' + ' + a + ', ' + y + ' + ' + b + ') = <b>' + r + '</b>.', 'The first number moves left/right, the second moves up/down.');
+  }
+  if (k === 2) {
+    const ang = pick([90, 180, 270]), dir = pick(['clockwise', 'anticlockwise']); const other = dir === 'clockwise' ? 'anticlockwise' : 'clockwise';
+    const right = ang === 180 ? '180° ' + other : (360 - ang) + '° ' + other;
+    return mcq4('A rotation of <b>' + ang + '° ' + dir + '</b> about a point ends in the same place as…', right, [ang + '° ' + other, (360 - ang) + '° ' + dir, (ang === 180 ? 90 : 180) + '° ' + other, (ang + 90) + '° ' + dir].filter(o => o !== right),
+      'Turning ' + ang + '° one way ends in the same place as turning ' + (360 - ang) + '° the other way (they add to 360°).', 'The two turns add to a full turn.');
+  }
+  return mcq4(pick(['Which transformation always gives a mirror image of the shape?', 'After which transformation is the image facing the opposite way (back to front)?']), 'Reflection', ['Rotation', 'Translation', 'Enlargement', 'Rotation of 180°'],
+    'A reflection reverses the orientation (it is a mirror image). Rotations and translations keep it facing the same way; all three keep the size, so the image is congruent.', 'Which one flips it over?');
 });
-
 /* ---------- 10D congruent figures ---------- */
 const LETTERS = 'ABCDEFGHJKLMNPQRSTUVWXYZ'.split('');
 function triNames() { const l = shuffle(LETTERS).slice(0, 6); return [l.slice(0, 3), l.slice(3, 6)]; }
@@ -808,16 +874,19 @@ gen('congFind', '10D', 'Unknown side or angle in congruent triangles', () => {
   return { type: 'num', q: '<b>' + st + '</b> with ' + given + '. Find ' + k[0] + '.', ans: k[1], ansText: k[1] + k[2], hint: 'Match the vertices in order, then use the angle sum of 180° if needed.', sol: ['Matching order: ' + A.map((a, i) => a + ' ↔ ' + B[i]).join(', ') + '.', k[3]] };
 });
 gen('congConcept', '10D', 'Congruence facts', () => {
-  const bank = [
-    ['Congruent figures have…', ['the same shape only', 'the same size only', 'the same shape and the same size', 'the same angles but different sides'], 2],
-    ['The symbol ≅ means…', ['is similar to', 'is congruent to', 'is approximately', 'is parallel to'], 1],
-    ['Is a shape congruent to its mirror image?', ['Yes', 'No', 'Only if it is symmetrical', 'Only for triangles'], 0],
-    ['If △ABC ≅ △DEF, then ∠B equals…', ['∠D', '∠E', '∠F', 'cannot tell'], 1],
-    ['Two squares with side 5 cm are…', ['congruent', 'similar but not congruent', 'neither', 'only congruent if rotated'], 0]
-  ];
-  const [q, ch, a] = pick(bank); return { type: 'mcq', q, choices: ch, ans: a, ansText: ch[a], sol: ['Congruent (≅) means identical in shape and size. One can be turned, flipped or slid exactly onto the other. Vertices are listed in matching order.'] };
+  const [T1, T2] = pick(TRIS); const i = rnd(0, 2), j = (i + rnd(1, 2)) % 3;
+  if (Math.random() < 0.65) {
+    if (Math.random() < 0.5) {
+      const right = '∠' + T2[i]; return mcq4('If <b>△' + T1 + ' ≅ △' + T2 + '</b>, then ∠' + T1[i] + ' equals…', right, ['∠' + T2[(i + 1) % 3], '∠' + T2[(i + 2) % 3], '∠' + T1[(i + 1) % 3], 'You can’t tell'],
+        'The letters are in matching order: ' + T1[0] + '↔' + T2[0] + ', ' + T1[1] + '↔' + T2[1] + ', ' + T1[2] + '↔' + T2[2] + '. So ∠' + T1[i] + ' = <b>' + right + '</b>.', 'Match the letters in the same positions.');
+    }
+    const s1 = T1[i] + T1[j], right = T2[i] + T2[j];
+    return mcq4('If <b>△' + T1 + ' ≅ △' + T2 + '</b>, which side equals <b>' + s1 + '</b>?', right, [T2[i] + T2[3 - i - j], T2[j] + T2[3 - i - j], T1[i] + T1[3 - i - j], T2[(i + 1) % 3] + T2[(j + 1) % 3]].filter(x => x !== right && x.split('').sort().join('') !== right.split('').sort().join('')),
+      'Match position by position: ' + T1[i] + '↔' + T2[i] + ' and ' + T1[j] + '↔' + T2[j] + ', so ' + s1 + ' = <b>' + right + '</b>.', 'Which letters sit in the same positions?');
+  }
+  return mcq4(pick(['Congruent figures have…', 'Two shapes are congruent if they have…']), 'the same shape and the same size', ['the same shape but can be different sizes', 'the same area', 'the same perimeter', 'the same angles'],
+    'Congruent (≅) means identical in shape and size: one fits exactly on top of the other (it may need turning or flipping). Same angles only means similar.', 'Could one be placed exactly on top of the other?');
 });
-
 /* ---------- 10E congruent triangles ---------- */
 const CONG_TESTS = ['SSS', 'SAS', 'AAS', 'RHS', 'Not enough information'];
 gen('congTest', '10E', 'Which congruence test?', () => {
@@ -857,31 +926,52 @@ gen('quadAngles', '10G', 'Angles and sides in special quadrilaterals', () => {
   const x = rnd(10, 30), a1 = rnd(2, 4), b1 = rnd(5, 20); const b2 = b1 + x; const ang = a1 * x + b1; if (ang >= 170) return G.quadAngles.fn();
   return { type: 'num', q: 'Opposite angles of a parallelogram are (' + a1 + 'x + ' + b1 + ')° and (' + (a1 - 1 === 1 ? '' : a1 - 1) + 'x + ' + b2 + ')°. Find x.', ans: x, ansText: 'x = ' + x, sol: ['Opposite angles are equal.'].concat(solveRel(a1 + 'x + ' + b1 + ' = ' + (a1 - 1) + 'x + ' + b2).steps) };
 });
+// properties of the special quadrilaterals: [statement, list of shapes it is always true for]
+const QPROP = [
+  ['both pairs of opposite sides are parallel', ['Parallelogram', 'Rectangle', 'Rhombus', 'Square']],
+  ['exactly one pair of opposite sides is parallel', ['Trapezium']],
+  ['all four sides are equal', ['Rhombus', 'Square']],
+  ['all four angles are 90°', ['Rectangle', 'Square']],
+  ['the diagonals are equal in length', ['Rectangle', 'Square']],
+  ['the diagonals cross at right angles', ['Rhombus', 'Square', 'Kite']],
+  ['the diagonals bisect each other', ['Parallelogram', 'Rectangle', 'Rhombus', 'Square']],
+  ['opposite angles are equal', ['Parallelogram', 'Rectangle', 'Rhombus', 'Square']],
+  ['two pairs of equal sides are next to each other', ['Kite', 'Rhombus', 'Square']],
+  ['opposite sides are equal', ['Parallelogram', 'Rectangle', 'Rhombus', 'Square']],
+  ['the diagonals bisect the angles at the corners', ['Rhombus', 'Square']],
+  ['it has exactly one line of symmetry', ['Kite']]
+];
+const QSHAPES = ['Parallelogram', 'Rectangle', 'Rhombus', 'Square', 'Kite', 'Trapezium'];
 gen('quadFacts', '10G', 'Which quadrilateral?', () => {
-  const Qs = ['Parallelogram', 'Rectangle', 'Rhombus', 'Square', 'Kite', 'Trapezium'];
-  const bank = [
-    ['Four equal sides, and the diagonals cross at right angles and bisect each other, but the angles are not 90°.', 2], ['Exactly one pair of parallel sides.', 5],
-    ['Two pairs of equal adjacent sides; one diagonal is the axis of symmetry.', 4], ['Opposite sides parallel and equal, all angles 90°, diagonals equal but not perpendicular.', 1],
-    ['Opposite sides parallel and equal, opposite angles equal, diagonals bisect each other but are not equal or perpendicular.', 0], ['All sides equal, all angles 90°, diagonals equal and perpendicular.', 3]
-  ];
-  const [d, a] = pick(bank); return { type: 'mcq', q: 'Which quadrilateral is described? <i>' + d + '</i>', choices: Qs, ans: a, ansText: Qs[a], sol: ['This is the definition and key properties of a <b>' + Qs[a].toLowerCase() + '</b>. See the property table in Learn → 10G.'] };
+  if (Math.random() < 0.5) {
+    const sh = pick(QSHAPES.filter(x => x !== 'Trapezium' || Math.random() < 0.5)); const tru = QPROP.filter(pr => pr[1].includes(sh)), fal = QPROP.filter(pr => !pr[1].includes(sh));
+    if (tru.length && fal.length >= 3) { const r = pick(tru)[0]; return mcq4('Which of these is true for <b>every ' + sh.toLowerCase() + '</b>?', cap(r), fal.map(f => cap(f[0])), 'For a ' + sh.toLowerCase() + ': ' + tru.map(t => t[0]).join('; ') + '.', 'Picture a ' + sh.toLowerCase() + ' that is as “unusual” as possible.'); }
+  }
+  for (let t = 0; t < 30; t++) {
+    const props = shuffle(QPROP).slice(0, 2); const fits = QSHAPES.filter(x => props.every(p => p[1].includes(x)));
+    if (fits.length !== 1) continue; const right = fits[0];
+    return mcq4('Which quadrilateral is this? <i>' + cap(props[0][0]) + ', and ' + props[1][0] + '.</i>', right, QSHAPES.filter(x => x !== right).sort((a, b) => props.filter(p => p[1].includes(b)).length - props.filter(p => p[1].includes(a)).length),
+      'Only a <b>' + right.toLowerCase() + '</b> always has both of these properties.', 'Which shapes have the first property? Which of those also have the second?');
+  }
+  return mcq4('Which quadrilateral has exactly one pair of parallel sides?', 'Trapezium', ['Parallelogram', 'Kite', 'Rhombus'], 'A trapezium has exactly one pair of parallel sides.');
 });
 gen('quadProof', '10G', 'Proving properties with congruent triangles', () => {
+  const L = pick(QUADS).split(''); const [A, B, C, D] = L; const T = ['SSS', 'SAS', 'AAS', 'RHS', 'Not enough information'];
   const bank = [
-    ['The diagonal AC of parallelogram ABCD makes two triangles. Which test proves △ABC ≅ △CDA?', CONG_TESTS, 2, 'Alternate angles: ∠BAC = ∠DCA and ∠BCA = ∠DAC (parallel sides), and AC is common. Two angles and a side: AAS. So AB = CD and BC = DA: opposite sides are equal.'],
-    ['Kite WXYZ has WX = WZ and XY = ZY. Which test proves △WXY ≅ △WZY?', CONG_TESTS, 0, 'WX = WZ, XY = ZY and WY is common: SSS.'],
-    ['In rhombus ABCD, the diagonal BD makes △ABD and △CBD. Which test proves they are congruent?', CONG_TESTS, 0, 'All sides of a rhombus are equal and BD is common: SSS.'],
-    ['Rectangle ABCD. Which test proves △ABC ≅ △BAD (to show the diagonals AC and BD are equal)?', CONG_TESTS, 1, 'AB is common, BC = AD (opposite sides), and ∠ABC = ∠BAD = 90° between them: SAS.'],
-    ['In kite WXYZ the diagonals meet at M. Which test proves △WXM ≅ △WZM?', CONG_TESTS, 3, 'Right angle at M, hypotenuse WX = WZ, and WM is common: RHS.']
+    ['The diagonal ' + A + C + ' of parallelogram ' + L.join('') + ' makes two triangles. Which test proves △' + A + B + C + ' ≅ △' + C + D + A + '?', 'AAS', 'Alternate angles: ∠' + B + A + C + ' = ∠' + D + C + A + ' and ∠' + B + C + A + ' = ∠' + D + A + C + ' (parallel sides), and ' + A + C + ' is common: AAS. So opposite sides are equal.'],
+    ['Kite ' + L.join('') + ' has ' + A + B + ' = ' + A + D + ' and ' + B + C + ' = ' + D + C + '. Which test proves △' + A + B + C + ' ≅ △' + A + D + C + '?', 'SSS', A + B + ' = ' + A + D + ', ' + B + C + ' = ' + D + C + ' and ' + A + C + ' is common: SSS.'],
+    ['In rhombus ' + L.join('') + ', the diagonal ' + B + D + ' makes △' + A + B + D + ' and △' + C + B + D + '. Which test proves they are congruent?', 'SSS', 'All sides of a rhombus are equal and ' + B + D + ' is common: SSS.'],
+    ['Rectangle ' + L.join('') + '. Which test proves △' + A + B + C + ' ≅ △' + B + A + D + ' (to show the diagonals ' + A + C + ' and ' + B + D + ' are equal)?', 'SAS', A + B + ' is common, ' + B + C + ' = ' + A + D + ' (opposite sides), and the 90° angles at ' + B + ' and ' + A + ' are between them: SAS.'],
+    ['In kite ' + L.join('') + ' (' + A + B + ' = ' + A + D + ') the diagonals meet at right angles at M. Which test proves △' + A + B + 'M ≅ △' + A + D + 'M?', 'RHS', 'Right angle at M, hypotenuse ' + A + B + ' = ' + A + D + ', and ' + A + 'M is common: RHS.'],
+    ['In quadrilateral ' + L.join('') + ' you only know ' + A + B + ' = ' + C + D + '. Can you prove △' + A + B + C + ' ≅ △' + C + D + A + '?', 'Not enough information', 'One pair of equal sides plus the common side ' + A + C + ' is only two sides: you need a third side or the angle between them.']
   ];
-  const [q, ch, a, ex] = pick(bank); return { type: 'mcq', q, choices: ch, ans: a, ansText: ch[a], sol: [ex] };
+  const [q, a, ex] = pick(bank); return { type: 'mcq', q, choices: T, ans: T.indexOf(a), ansText: a, sol: [ex], hint: 'List what is equal: sides (S), angles (A), right angle + hypotenuse (RH). Is there a common side?' };
 });
-gen('kiteTF', '10G', 'True or false: kite and parallelogram facts', () => {
-  const bank = [['In a kite, the diagonals meet at right angles.', 0], ['In a kite, both diagonals are bisected.', 1], ['In a parallelogram, the diagonals bisect each other.', 0], ['In a parallelogram, the diagonals are always equal.', 1],
-    ['In a rhombus, the diagonals bisect the angles at the vertices.', 0], ['A square is a special rhombus.', 0], ['A trapezium has two pairs of parallel sides.', 1], ['In a rectangle, the diagonals are equal.', 0], ['Co-interior angles between parallel lines add to 360°.', 1], ['In a kite, the angles between the unequal sides are equal.', 0]];
-  const [q, a] = pick(bank); return { type: 'mcq', q: 'True or false? ' + q, choices: ['True', 'False'], ans: a, ansText: a ? 'False' : 'True', sol: [a ? 'False.' : 'True.', 'Check the property table in Learn → 10G.'] };
+gen('kiteTF', '10G', 'True or false: quadrilateral facts', () => {
+  const pr = pick(QPROP), sh = pick(QSHAPES), t = pr[1].includes(sh);
+  return { type: 'mcq', q: 'True or false? In every <b>' + sh.toLowerCase() + '</b>, ' + pr[0] + '.', choices: ['True', 'False'], ans: t ? 0 : 1, ansText: t ? 'True' : 'False',
+    hint: 'Picture the most “stretched” version of the shape you can.', sol: [(t ? 'True.' : 'False.') + ' This is always true for: ' + pr[1].map(x => x.toLowerCase()).join(', ') + '.'] };
 });
-
 /* ---------- 10H / 10I similarity ---------- */
 const KS = [1.5, 2, 2.5, 3, 4, 0.5, 1.25, 0.75];
 gen('scaleFactor', '10H', 'Find the scale factor', () => {
@@ -967,7 +1057,7 @@ gen('roundDec', '3F', 'Round a decimal', () => {
   return { type: 'num', q: 'Round <b>' + s + '</b> to ' + k[1] + '.', ans, tol: 1e-9, ansText: ans.toFixed(k[0]), sol: ['Look at the digit straight after the place you are rounding to. 5 or more → round up; 4 or less → leave it.', '<b>' + ans.toFixed(k[0]) + '</b>'] };
 });
 gen('recNotation', '3F', 'Recurring decimal notation', () => {
-  const pairs = [[1, 3], [2, 3], [1, 6], [5, 6], [1, 9], [4, 11], [1, 11], [7, 12], [5, 7], [2, 15]]; const [n, d] = pick(pairs); const ld = longDiv(n, d); const right = decHTML(ld);
+  const pairs = [[1, 3], [2, 3], [1, 6], [5, 6], [1, 9], [4, 9], [7, 9], [4, 11], [1, 11], [9, 11], [7, 12], [5, 12], [1, 7], [5, 7], [2, 15], [7, 15], [1, 12], [11, 12], [5, 18], [7, 18], [8, 33], [5, 33], [1, 15], [13, 30], [7, 30], [2, 9], [3, 11], [1, 18]]; const [n, d] = pick(pairs); const ld = longDiv(n, d); const right = decHTML(ld);
   const wrongs = [decHTML({ ...ld, nonRep: ld.nonRep + ld.rep, rep: '' }), decHTML({ ...ld, nonRep: '', rep: ld.nonRep + ld.rep }), decHTML({ ...ld, nonRep: ld.nonRep + ld.rep.slice(0, 1), rep: ld.rep.slice(1) || ld.rep })];
   const opts = shuffle([right, ...new Set(wrongs.filter(w => w !== right))].slice(0, 4)); const a = opts.indexOf(right);
   return { type: 'mcq', q: 'Which shows <b>' + n + '/' + d + '</b> correctly as a recurring decimal? (The line over digits means they repeat forever.)', choices: opts, ans: a, ansText: decLong(ld),
@@ -976,27 +1066,27 @@ gen('recNotation', '3F', 'Recurring decimal notation', () => {
 
 /* ---------- 3G converting ---------- */
 gen('pctToFrac', '3G', 'Percentage → fraction', () => {
-  const p = pick([5, 10, 12.5, 15, 20, 25, 30, 35, 40, 45, 60, 62.5, 65, 75, 80, 85, 120, 125, 150, 2.5, 8, 4, 37.5, 175]); const f = Fr.of(p).div(100);
+  const p = Math.random() < 0.75 ? rnd(1, 199) : pick([2.5, 7.5, 12.5, 17.5, 22.5, 37.5, 62.5, 87.5, 0.5, 1.5]); const f = Fr.of(p).div(100);
   return { type: 'frac', q: 'Write <b>' + fmt(p) + '%</b> as a fraction in simplest form.', ans: f, ansText: f.toString(), hint: 'Put it over 100, then simplify. For decimals like 12.5%, multiply top and bottom by 10 first.',
     sol: [fmt(p) + '% = ' + fmt(p) + '/100' + (Number.isInteger(p) ? '' : ' = ' + (p * 10) + '/1000') + ' = <b>' + f + '</b>' + (f.n > f.d ? ' = ' + Math.floor(f.n / f.d) + ' ' + (f.n % f.d) + '/' + f.d : '')] };
 });
 gen('pctToDec', '3G', 'Percentage → decimal', () => {
-  const p = pick([7, 12, 35, 4.5, 60, 125, 0.5, 99, 250, 17.5, 3, 80]);
+  const p = Math.random() < 0.6 ? rnd(1, 350) : r2(rnd(1, 999) / 10, 1);
   return { type: 'num', q: 'Write <b>' + fmt(p) + '%</b> as a decimal.', ans: r2(p / 100, 6), tol: 1e-9, ansText: fmt(p / 100, 6), sol: ['Divide by 100 (move the decimal point 2 places left): ' + fmt(p) + ' ÷ 100 = <b>' + fmt(p / 100, 6) + '</b>'] };
 });
 gen('fracToPct', '3G', 'Fraction → percentage', () => {
-  const [n, d] = pick([[1, 2], [3, 4], [2, 5], [3, 8], [7, 20], [9, 25], [1, 3], [2, 3], [5, 8], [11, 40], [3, 50], [7, 10], [5, 4], [1, 6]]); const p = n / d * 100; const ex = Number.isInteger(r2(p, 6)) || Number.isInteger(r2(p * 10, 6));
+  const d = pick([2, 4, 5, 8, 10, 20, 25, 40, 50, 3, 6, 12, 16]), n = rnd(1, Math.random() < 0.85 ? d - 1 : 2 * d); const p = n / d * 100; const ex = Number.isInteger(r2(p, 6)) || Number.isInteger(r2(p * 10, 6)) || Number.isInteger(r2(p * 100, 6));
   return { type: 'num', q: 'Write <b>' + n + '/' + d + '</b> as a percentage' + (ex ? '.' : ' (to 2 decimal places).'), ans: r2(p, 6), ansText: fmt(p, 2) + '%', sol: [n + '/' + d + ' × 100 = ' + n * 100 + '/' + d + ' = <b>' + fmt(p, 2) + '%</b>'] };
 });
 gen('decToPct', '3G', 'Decimal → percentage', () => {
-  const x = pick([0.45, 0.07, 0.625, 1.2, 0.005, 2.35, 0.9, 0.333, 0.18]);
+  const x = pick([r2(rnd(1, 99) / 100, 2), r2(rnd(1, 999) / 1000, 3), r2(rnd(100, 350) / 100, 2), r2(rnd(1, 9) / 1000, 3)]);
   return { type: 'num', q: 'Write <b>' + fmt(x, 6) + '</b> as a percentage.', ans: r2(x * 100, 6), tol: 1e-9, ansText: fmt(x * 100, 4) + '%', sol: ['Multiply by 100 (move the point 2 places right): <b>' + fmt(x * 100, 4) + '%</b>'] };
 });
 gen('decToFrac', '3G', 'Decimal → fraction', () => {
-  const x = pick([0.35, 0.125, 0.6, 0.04, 0.875, 0.45, 1.25, 0.024, 0.15]); const f = Fr.of(x); const k = String(x).split('.')[1].length;
+  const dp = pick([1, 2, 2, 3]); let x = r2(rnd(1, 10 ** dp - 1) / 10 ** dp + (Math.random() < 0.15 ? rnd(1, 2) : 0), dp); if (Number.isInteger(x)) x = 0.25;
+  const f = Fr.of(x); const k = String(x).split('.')[1].length;
   return { type: 'frac', q: 'Write <b>' + x + '</b> as a fraction in simplest form.', ans: f, ansText: f.toString(), sol: [x + ' = ' + Math.round(x * 10 ** k) + '/' + 10 ** k + ' = <b>' + f + '</b>'] };
 });
-
 /* ---------- 3H finding / expressing ---------- */
 gen('pctOf', '3H', 'Find a percentage of a quantity', () => {
   const p = pick([5, 10, 15, 20, 25, 30, 40, 60, 65, 75, 12.5, 7.5, 2.5, 120, 150, 35, 45, 8, 3]); let Q = pick([40, 60, 80, 120, 160, 240, 320, 350, 480, 64, 88, 200, 500, 45]);
@@ -1036,11 +1126,14 @@ gen('shopping', '3I', 'Discount, mark-up, GST and profit', () => {
   const P = pick([480, 300, 200, 640]); const g = P * 1.1, s = g * 0.85; return { type: 'num', q: 'A console costs $' + P + ' before GST. 10% GST is added, then 15% is taken off the GST-inclusive price. What is the final price?', ans: r2(s, 4), ansText: money(s), sol: ['With GST: ' + P + ' × 1.1 = ' + money(g) + '.', 'Sale: ' + money(g) + ' × 0.85 = <b>' + money(s) + '</b>.', 'Order does not matter: ' + P + ' × 0.85 × 1.1 gives the same answer.'] };
 });
 gen('vocab', '3I', 'Money words', () => {
-  const T = [['Discount', 'the amount taken off the marked price'], ['Mark-up', 'the amount added to the cost price to set the selling price'], ['Profit', 'selling price minus cost price, when you sell for more than you paid'], ['Loss', 'cost price minus selling price, when you sell for less than you paid'], ['Selling price', 'the price the customer actually pays'], ['Wholesale price', 'the price a shop pays a supplier (cost price)'], ['Retail price', 'the price marked in the shop for customers'], ['GST', 'a 10% tax added to most goods and services in Australia']];
-  const i = rnd(0, T.length - 1); const others = shuffle(T.filter((_, j) => j !== i)).slice(0, 3); const opts = shuffle([T[i], ...others]); const a = opts.indexOf(T[i]);
-  return { type: 'mcq', q: 'Which word means: <i>' + T[i][1] + '</i>?', choices: opts.map(o => o[0]), ans: a, ansText: T[i][0], sol: ['<b>' + T[i][0] + '</b>: ' + T[i][1] + '.'] };
+  const T = [['Discount', 'the amount taken off the marked price'], ['Mark-up', 'the amount added to the cost price to set the selling price'], ['Profit', 'selling price minus cost price, when you sell for more than you paid'], ['Loss', 'cost price minus selling price, when you sell for less than you paid'], ['Selling price', 'the price the customer actually pays'], ['Cost price', 'the price the seller paid for the item'], ['Wholesale price', 'the price a shop pays its supplier'], ['Retail price', 'the price marked in the shop for customers'], ['GST', 'a 10% tax added to most goods and services in Australia'], ['Percentage profit', 'the profit written as a percentage of the cost price'], ['Sale price', 'the price after a discount has been taken off'], ['Commission', 'a percentage of the sales paid to the salesperson']];
+  // words that overlap in meaning are never offered together (that would make two answers right)
+  const SAME = [['Selling price', 'Sale price', 'Retail price'], ['Cost price', 'Wholesale price'], ['Profit', 'Percentage profit'], ['Discount', 'Sale price']];
+  const i = rnd(0, T.length - 1); const ok = j => j !== i && !SAME.some(g => g.includes(T[i][0]) && g.includes(T[j][0]));
+  const rest = T.filter((_, j) => ok(j));
+  if (Math.random() < 0.5) return mcq4('Which word means: <i>' + T[i][1] + '</i>?', T[i][0], rest.map(x => x[0]), '<b>' + T[i][0] + '</b>: ' + T[i][1] + '.');
+  return mcq4('What does <b>' + T[i][0].toLowerCase() + '</b> mean?', cap(T[i][1]), rest.map(x => cap(x[1])), '<b>' + T[i][0] + '</b>: ' + T[i][1] + '.');
 });
-
 /* ---------- 3J percentage change ---------- */
 gen('pctChange', '3J', 'Percentage change', () => {
   const O = pick([80, 450, 52, 2.5, 1899, 50, 120, 64, 200, 35, 75, 250]); const p = pick([10, 20, 25, 24, 15, 30, 12.5, 40, 5, 8]) * (Math.random() < 0.5 ? 1 : -1); let N = r2(O * (1 + p / 100), 2);

@@ -1,7 +1,7 @@
 // Runs before the science app: checks you are logged in, loads your saved progress from the
 // server into this browser, then starts the app and saves changes back automatically.
 (async function gate() {
-  const P = window.ecAcct ? ecAcct.prefix('s') : 'y8s:', LOCAL_ONLY = new Set(['theme']);
+  const P = window.ecAcct ? ecAcct.prefix('s') : 'y8s:', LOCAL_ONLY = new Set(['theme', 'seen']);
   const status = t => { const el = document.getElementById('syncStatus'); if (el) el.textContent = t; };
   const ours = k => k.startsWith(P) && !LOCAL_ONLY.has(k.slice(P.length));
   const clearLocal = () => { try { Object.keys(localStorage).filter(ours).forEach(k => localStorage.removeItem(k)); } catch (e) { /* storage blocked */ } };
