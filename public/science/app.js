@@ -864,8 +864,8 @@ gen('deltaT', 'C6', 'Calculate the temperature change (ΔT)', () => {
 });
 gen('meanUnc', 'C6', 'Mean and uncertainty of trials', () => {
   const base = rnd(120, 380) / 10; const t = [0, 0, 0].map(() => r2(base + rnd(-12, 12) / 10, 1)); const mean = (t[0] + t[1] + t[2]) / 3; const unc = (Math.max(...t) - Math.min(...t)) / 2;
-  if (Math.random() < 0.5) return { type: 'num', q: 'Three trials gave temperatures of <b>' + t.map(fmt).join(' °C, ') + ' °C</b>. Calculate the mean (1 decimal place).', ans: r2(mean, 1), tol: 0.051, ansText: fmt(r2(mean, 1)) + ' °C', sol: ['Mean = (' + t.map(fmt).join(' + ') + ') ÷ 3', '= ' + fmt(r2(t[0] + t[1] + t[2], 1)) + ' ÷ 3 = <b>' + fmt(r2(mean, 1)) + ' °C</b>'] };
-  return { type: 'num', q: 'Three trials gave temperatures of <b>' + t.map(fmt).join(' °C, ') + ' °C</b>. Calculate the uncertainty. (Uncertainty = (highest − lowest) ÷ 2)', ans: r2(unc, 2), tol: 0.051, ansText: '± ' + fmt(r2(unc, 2)) + ' °C', sol: ['Highest = ' + fmt(Math.max(...t)) + ', lowest = ' + fmt(Math.min(...t)) + '.', '(' + fmt(Math.max(...t)) + ' − ' + fmt(Math.min(...t)) + ') ÷ 2 = <b>± ' + fmt(r2(unc, 2)) + ' °C</b>'] };
+  if (Math.random() < 0.5) return { type: 'num', q: 'Three trials gave temperatures of <b>' + t.map(v => v.toFixed(1)).join(' °C, ') + ' °C</b>. Calculate the mean (1 decimal place).', ans: r2(mean, 1), tol: 0.051, ansText: fmt(r2(mean, 1)) + ' °C', sol: ['Mean = (' + t.map(v => v.toFixed(1)).join(' + ') + ') ÷ 3', '= ' + fmt(r2(t[0] + t[1] + t[2], 1)) + ' ÷ 3 = <b>' + fmt(r2(mean, 1)) + ' °C</b>'] };
+  return { type: 'num', q: 'Three trials gave temperatures of <b>' + t.map(v => v.toFixed(1)).join(' °C, ') + ' °C</b>. Calculate the uncertainty. (Uncertainty = (highest − lowest) ÷ 2)', ans: r2(unc, 2), tol: 0.051, ansText: '± ' + fmt(r2(unc, 2)) + ' °C', sol: ['Highest = ' + Math.max(...t).toFixed(1) + ', lowest = ' + Math.min(...t).toFixed(1) + '.', '(' + Math.max(...t).toFixed(1) + ' − ' + Math.min(...t).toFixed(1) + ') ÷ 2 = <b>± ' + fmt(r2(unc, 2)) + ' °C</b>'] };
 });
 // energy diagram with numbers (kJ), so every one is different
 function energyNumSVG(R, P, peak) {
