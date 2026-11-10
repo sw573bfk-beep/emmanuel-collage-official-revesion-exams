@@ -12,23 +12,25 @@
 <style>
 .wrap{max-width:860px}
 .tabs2{display:flex;gap:6px;border-bottom:1.5px solid var(--rule)}
-.tabs2 button{font:inherit;font-weight:600;background:none;border:0;border-bottom:3px solid transparent;padding:10px 14px;color:var(--muted);cursor:pointer}
-.tabs2 button.on{color:var(--accent);border-bottom-color:var(--accent)}
+.tabs2 button{font:inherit;font-size:1.0625rem;font-weight:600;background:none;border:0;border-bottom:3px solid transparent;padding:10px 14px;color:var(--muted);cursor:pointer}
+.tabs2 button.on{color:var(--accent);border-bottom-color:var(--accent);border-bottom-width:4px}
 .mine{display:flex;align-items:center;gap:18px;flex-wrap:wrap;border:2px solid var(--accent);background:var(--accent-soft);border-radius:14px;padding:16px 20px}
 .mine .big{font-family:var(--f-display);font-size:2.6rem;font-weight:800;line-height:1;color:var(--accent)}
 .mine .pts{display:flex;gap:18px;flex-wrap:wrap}
 .mine .pts div{display:flex;flex-direction:column}
 .mine .pts b{font-size:1.25rem}
 .tablewrap{overflow-x:auto}
-table{width:100%;border-collapse:collapse;font-size:.95rem}
-th,td{padding:9px 8px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
-th{font-size:.74rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+table{width:100%;border-collapse:collapse;font-size:1rem}
+th,td{padding:11px 10px;border-bottom:1px solid var(--rule);text-align:left;white-space:nowrap}
+th{font-size:.875rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
 td.num,th.num{text-align:right}
 tr.me td{background:var(--accent-soft);font-weight:600}
 .medal{font-size:1.15rem}
-.how{font-size:.9rem}
+.how{font-size:1rem}
 .how li{margin:2px 0}
 </style>
+<script src="/theme.js"></script>
+<link rel="stylesheet" href="/theme.css?v=1">
 </head>
 <body>
 <main class="wrap">

@@ -20,6 +20,8 @@ import notFoundHtml from '../public/404.html';
 import helpJs from '../public/help.js';
 import acctJs from '../public/acct.js';
 import tabbarJs from '../public/tabbar.js';
+import themeCss from '../public/theme.css';
+import themeJs from '../public/theme.js';
 import messageHtml from '../public/message/index.html';
 import msgJs from '../public/msg.js';
 import chatHtml from '../public/chat/index.html';
@@ -38,6 +40,8 @@ const PAGES = {
   '/help.js': [helpJs, 'text/javascript; charset=utf-8'],
   '/acct.js': [acctJs, 'text/javascript; charset=utf-8'],
   '/tabbar.js': [tabbarJs, 'text/javascript; charset=utf-8'],
+  '/theme.css': [themeCss, 'text/css; charset=utf-8'],
+  '/theme.js': [themeJs, 'text/javascript; charset=utf-8'],
   '/msg.js': [msgJs, 'text/javascript; charset=utf-8'],
   '/message/': [messageHtml, HTML], '/message/index.html': [messageHtml, HTML],
   '/chat/': [chatHtml, HTML], '/chat/index.html': [chatHtml, HTML],

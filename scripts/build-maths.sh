@@ -13,8 +13,10 @@ ACCOUNT='<span class="acct"><span class="acct-name" id="acctName"></span><span c
   echo '<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">'
   echo '<meta name="robots" content="noindex">'
   echo '<script src="/acct.js"></script>'
+  echo '<script src="/theme.js"></script>'
   sed -e 's#<title>Year 8 Maths Revision Hub</title>#<title>EC Revisions Maths</title>#' "$SRC/head.html"
   echo '<style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}[hidden]{display:none!important}.top-tools{flex-wrap:wrap;justify-content:flex-end}.acct{display:flex;flex-direction:column;align-items:flex-end;line-height:1.2}.acct-name{font-weight:600}</style>'
+  echo "<link rel=\"stylesheet\" href=\"/theme.css?v=$BUILD\">"
   echo '</head>'
   echo '<body>'
   sed -e "s#<!--ACCOUNT-->#$ACCOUNT#" \

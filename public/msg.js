@@ -5,7 +5,7 @@
   const chats = () => document.querySelectorAll('a[data-chat]');
   if (!links().length && !chats().length) return;
   const st = document.createElement('style');
-  st.textContent = 'a[data-msg]{position:relative}.msg-badge{display:inline-grid;place-items:center;min-width:19px;height:19px;padding:0 5px;margin-left:6px;border-radius:999px;background:#d93025;color:#fff;font-size:.72rem;font-weight:700;line-height:1}.msg-badge[hidden]{display:none}';
+  st.textContent = 'a[data-msg]{position:relative}.msg-badge{display:inline-grid;place-items:center;min-width:22px;height:22px;padding:0 6px;margin-left:6px;border-radius:999px;background:var(--pen,#b3261e);color:var(--card,#fff);font-size:.875rem;font-weight:700;line-height:1}.msg-badge[hidden]{display:none}';
   document.head.appendChild(st);
   // 💬 Chat: red number = new chat requests + unread 1-on-1 messages; a dot = new group chat messages
   async function checkChat() {

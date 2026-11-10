@@ -94,10 +94,9 @@
 
   /* ---------- styles ---------- */
   const css = `
-#ecHelpBtn{position:fixed;right:0;top:50%;transform:translateY(-50%);z-index:900;writing-mode:vertical-rl;text-orientation:sideways;rotate:180deg;font:600 .9rem/1.2 var(--f-body,system-ui,sans-serif);color:var(--accent-ink,#fff);background:var(--accent,#2453d6);border:0;border-radius:0 10px 10px 0;padding:14px 8px;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,.18)}
+#ecHelpBtn{position:fixed;right:14px;bottom:14px;z-index:900;display:inline-flex;align-items:center;gap:6px;min-height:40px;font:600 .9375rem/1.2 var(--f-body,system-ui,sans-serif);color:var(--accent-ink,#fff);background:var(--accent,#2453d6);border:0;border-radius:999px;padding:8px 14px;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,.22)}
 #ecHelpBtn:hover{filter:brightness(1.08)}#ecHelpBtn:focus-visible{outline:3px solid var(--ink,#111);outline-offset:2px}
-#ecHelpBtn .s{display:none}
-@media (max-width:640px){#ecHelpBtn{padding:10px 6px;font-size:.8rem}#ecHelpBtn .l{display:none}#ecHelpBtn .s{display:inline}}
+
 .ech-panel{position:fixed;top:0;right:0;bottom:0;width:min(400px,100vw);z-index:1000;background:var(--card,#fff);color:var(--ink,#18202f);box-shadow:-6px 0 30px rgba(0,0,0,.18);display:flex;flex-direction:column;font-family:var(--f-body,system-ui,sans-serif);transform:translateX(100%);transition:transform .25s ease;visibility:hidden}
 .ech-panel.open{transform:none;visibility:visible}
 .ech-head{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;padding:18px 18px 12px;border-bottom:1px solid var(--line,#e2e8f2)}
@@ -125,7 +124,7 @@
   const st = document.createElement('style'); st.textContent = css; document.head.appendChild(st);
 
   const mk = html => { const d = document.createElement('div'); d.innerHTML = html.trim(); return d.firstElementChild; };
-  const btn = mk('<button type="button" id="ecHelpBtn" aria-haspopup="dialog" aria-controls="ecHelpPanel"><span class="l">Don’t know how to use the site?</span><span class="s">Help ?</span></button>');
+  const btn = mk('<button type="button" id="ecHelpBtn" aria-haspopup="dialog" aria-controls="ecHelpPanel" aria-label="Don’t know how to use the site? Open help" title="Don’t know how to use the site?"><span aria-hidden="true">❓</span><span>Help</span></button>');
   const panel = mk('<aside class="ech-panel" id="ecHelpPanel" role="dialog" aria-modal="false" aria-labelledby="ecHelpTitle" tabindex="-1"></aside>');
   const items = [...G.steps.filter(s => s !== helpStep).map((s, i) => ({ ...s, i })), ...G.extra];
   panel.innerHTML = '<div class="ech-head"><div><span class="ech-small">Help</span><h2 id="ecHelpTitle">' + G.title + '</h2></div><button type="button" class="ech-x" aria-label="Close help">×</button></div>' +

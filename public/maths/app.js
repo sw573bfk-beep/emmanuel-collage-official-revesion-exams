@@ -3055,6 +3055,5 @@ RENDER.need = () => {
 };
 
 /* ================= theme + boot ================= */
-document.documentElement.removeAttribute('data-theme');
 const boot = () => show(location.hash.slice(1) || 'home');
 if (window.claude && window.claude.hot && window.claude.hot.ready) window.claude.hot.ready(boot); else boot();

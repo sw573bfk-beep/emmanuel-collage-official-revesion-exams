@@ -45,4 +45,24 @@
   // mouse wheel over the tabs scrolls them sideways
   tabs.addEventListener('wheel', e => { if (bar.hidden || Math.abs(e.deltaX) > Math.abs(e.deltaY)) return; e.preventDefault(); tabs.scrollLeft += e.deltaY; }, { passive: false });
   update(); setTimeout(update, 300); if (document.fonts) document.fonts.ready.then(update);
+
+  // "You are here": names the open tab, and for numbered topics shows Topic n of N with a row of pips
+  const here = document.createElement('div'); here.className = 'here'; here.setAttribute('aria-live', 'polite');
+  nav.appendChild(here);
+  function where() {
+    const all = Array.from(tabs.querySelectorAll('a')), on = tabs.querySelector('a.on'); if (!on) { here.hidden = true; return; }
+    here.hidden = false;
+    const topics = all.filter(a => a.querySelector('.tabn')), i = topics.indexOf(on);
+    const name = Array.from(on.childNodes).filter(n => !(n.classList && n.classList.contains('tabn'))).map(n => n.textContent).join('').trim();
+    if (i >= 0) {
+      here.innerHTML = '<span>You are here: <b>Topic ' + (i + 1) + ' of ' + topics.length + '</b> · <b></b></span><span class="pips" aria-hidden="true">' + topics.map((a, j) => '<i class="' + (j < i ? 'done' : j === i ? 'now' : '') + '"></i>').join('') + '</span>';
+      here.querySelectorAll('b')[1].textContent = name;
+    } else { here.innerHTML = '<span>You are here: <b></b></span>'; here.querySelector('b').textContent = name; }
+  }
+  new MutationObserver(where).observe(tabs, { subtree: true, attributes: true, attributeFilter: ['class'] });
+  where();
+  // let sticky bars further down sit just under the tab bar, whatever its height
+  const navH = () => document.documentElement.style.setProperty('--navh', nav.offsetHeight + 'px');
+  if (window.ResizeObserver) new ResizeObserver(navH).observe(nav); else window.addEventListener('resize', navH);
+  navH();
 })();

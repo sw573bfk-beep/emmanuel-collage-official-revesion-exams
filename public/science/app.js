@@ -1562,7 +1562,7 @@ function practiceFilters(onChange) {
 function h(html) { const t = document.createElement('template'); t.innerHTML = html.trim(); return t.content.firstElementChild; }
 let toastT;
 function toast(msg) { const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), 1800); }
-const state = { learn: store.get('learnTopic', 'C1'), practice: 'mix', tool: 'solver', bkPart: 'A' };
+const state = { learn: store.get('learnTopic', 'C1'), practice: 'mix', tool: 'solver', bkPart: Object.keys(BK_PARTS)[0] };
 const tstats = store.get('tstats', {});
 function record(topic, ok) { const s = tstats[topic] || (tstats[topic] = { a: 0, c: 0 }); s.a++; if (ok) s.c++; store.set('tstats', tstats); if (ok) planTick('right', topic); }
 /* ---------- today's plan (Home) ---------- */
@@ -1685,7 +1685,7 @@ function bkRefLinks(ref) {
 }
 function openBooklet(id) {
   const q = BOOKLET.find(x => x.id === id) || BOOKLET.find(x => x.part === id[0]);
-  state.bkPart = q ? q.part : 'A'; state.bmode = 'work';
+  state.bkPart = q ? q.part : Object.keys(BK_PARTS)[0]; state.bmode = 'work';
   go('booklet', () => { const t = document.getElementById('bk-' + id); if (t) { t.scrollIntoView({ behavior: 'smooth', block: 'start' }); t.animate?.([{ outline: '3px solid var(--accent)' }, { outline: '3px solid transparent' }], { duration: 1600 }); } });
 }
 function openPractice(tid) { state.practice = tid; state.pmode = tid === 'mix' || tid === 'weak' ? 'mix' : 'topic'; go('practice'); }
@@ -2378,6 +2378,5 @@ RENDER.booklet = () => {
 };
 
 /* ================= theme + boot ================= */
-document.documentElement.removeAttribute('data-theme');
 const boot = () => show(location.hash.slice(1) || 'home');
 if (window.claude && window.claude.hot && window.claude.hot.ready) window.claude.hot.ready(boot); else boot();

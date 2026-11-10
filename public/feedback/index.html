@@ -16,14 +16,16 @@
 .pick:hover{border-color:var(--accent)}
 .pick.on{border-color:var(--accent);background:var(--accent-soft)}
 .pick b{font-weight:600}
-.pick span{font-size:.82rem;color:var(--muted)}
+.pick span{font-size:.9375rem;color:var(--muted)}
 .stars{display:flex;gap:4px}
-.stars button{font-size:1.8rem;line-height:1;background:none;border:none;cursor:pointer;color:var(--rule);padding:2px}
-.stars button.on{color:#e0a100}
-textarea{font:inherit;color:var(--ink);background:var(--card);border:1.5px solid var(--rule);border-radius:8px;padding:10px 12px;width:100%;min-height:140px;resize:vertical}
+.stars button{font-size:1.8rem;line-height:1;background:none;border:none;cursor:pointer;color:var(--field);padding:2px;min-width:44px;min-height:44px}
+.stars button.on{color:var(--warn)}
+textarea{font:inherit;color:var(--ink);background:var(--card);border:2px solid var(--field);border-radius:8px;padding:10px 12px;width:100%;min-height:140px;resize:vertical}
 textarea:focus{border-color:var(--accent);outline:none;box-shadow:0 0 0 3px var(--accent-soft)}
 .label{font-weight:600}
 </style>
+<script src="/theme.js"></script>
+<link rel="stylesheet" href="/theme.css?v=1">
 </head>
 <body>
 <main class="wrap">

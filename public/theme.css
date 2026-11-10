@@ -1,0 +1,235 @@
+/* EC Revisions: shared readable look for every page (Science, Maths, login, Play, Chat, Leaderboard, Feedback,
+   Message Beau, Admin). Loaded after each page's own styles, so it wins.
+   - Colour tokens for light and dark mode. Dark follows the computer's setting unless the ☀/🌙 button picked one
+     (theme.js sets <html data-theme="light|dark">). All text pairs are WCAG AA (4.5:1) or better.
+   - Bigger text (18px body, 14px+ labels), questions in their own cards, clear buttons, inputs and answer states.
+   - The Booklet tab keeps its own layout and sizes: only its colours follow light/dark. */
+
+/* ---------- colour tokens ---------- */
+:root{
+  --paper:#f4f6fa; --card:#ffffff; --card-2:#f7f9fc; --ink:#141b29; --muted:#414c61; --line:#dfe5ee; --rule:#c3cddc; --field:#6f7c93;
+  --accent:#2443c2; --accent-ink:#ffffff; --accent-soft:#e6ebfb; --accent-line:#a9b8ec;
+  --hi:#fff066; --pen:#b3261e; --pen-soft:#fce8e6; --good:#126b42; --good-soft:#e2f3e9; --warn:#7f4c00; --warn-soft:#fdf0d9;
+  --sci:#0c6b5f; --sci-soft:#dcf2ee;
+  --shadow:0 1px 2px rgb(20 27 41 / .06),0 4px 14px rgb(20 27 41 / .05);
+  --lvl-e-bg:#e2f3e9; --lvl-e:#126b42; --lvl-m-bg:#fdf0d9; --lvl-m:#7f4c00; --lvl-h-bg:#fce8e6; --lvl-h:#b3261e;
+  --sheet:#ffffff;
+  color-scheme:light;
+}
+:root[data-theme="dark"]{
+  --paper:#0d1220; --card:#161d2e; --card-2:#1b2337; --ink:#e9edf5; --muted:#b4bed0; --line:#263049; --rule:#3a4763; --field:#7d8bab;
+  --accent:#8fa8ff; --accent-ink:#0a1024; --accent-soft:#1f2a50; --accent-line:#4b5d9e;
+  --hi:#6b5b00; --pen:#ff9a91; --pen-soft:#3a1b1d; --good:#6fd9a5; --good-soft:#12301f; --warn:#f2b759; --warn-soft:#33260f;
+  --sci:#5fd6c4; --sci-soft:#0f2f2b;
+  --shadow:0 1px 2px rgb(0 0 0 / .4),0 4px 14px rgb(0 0 0 / .25);
+  --lvl-e-bg:#12301f; --lvl-e:#6fd9a5; --lvl-m-bg:#33260f; --lvl-m:#f2b759; --lvl-h-bg:#3a1b1d; --lvl-h:#ff9a91;
+  --sheet:#1b2337;
+  color-scheme:dark;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --paper:#0d1220; --card:#161d2e; --card-2:#1b2337; --ink:#e9edf5; --muted:#b4bed0; --line:#263049; --rule:#3a4763; --field:#7d8bab;
+    --accent:#8fa8ff; --accent-ink:#0a1024; --accent-soft:#1f2a50; --accent-line:#4b5d9e;
+    --hi:#6b5b00; --pen:#ff9a91; --pen-soft:#3a1b1d; --good:#6fd9a5; --good-soft:#12301f; --warn:#f2b759; --warn-soft:#33260f;
+    --sci:#5fd6c4; --sci-soft:#0f2f2b;
+    --shadow:0 1px 2px rgb(0 0 0 / .4),0 4px 14px rgb(0 0 0 / .25);
+    --lvl-e-bg:#12301f; --lvl-e:#6fd9a5; --lvl-m-bg:#33260f; --lvl-m:#f2b759; --lvl-h-bg:#3a1b1d; --lvl-h:#ff9a91;
+    --sheet:#1b2337;
+    color-scheme:dark;
+  }
+}
+
+/* ---------- base ---------- */
+html{background:var(--paper)}
+body{background:var(--paper);color:var(--ink);font-size:18px;line-height:1.6;padding-bottom:64px}
+.muted,.small.muted{color:var(--muted)}
+.small{font-size:.9375rem}
+.eyebrow{font-size:.875rem;letter-spacing:.06em;color:var(--muted)}
+.tag{font-size:.875rem;padding:2px 8px}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+::placeholder{color:var(--muted);opacity:.75}
+a{color:var(--accent)}
+
+/* the Booklet tab keeps its own sizes and layout */
+#v-booklet{font-size:16.5px;line-height:1.65}
+#v-booklet .small{font-size:.86rem}
+#v-booklet .eyebrow{font-size:.74rem;letter-spacing:.08em}
+#v-booklet .tag{font-size:.75rem;padding:1px 7px}
+#v-booklet .btn{min-height:0;font-size:inherit;font-weight:500;padding:8px 14px;border-radius:8px}
+#v-booklet .btn.sm{padding:5px 10px;font-size:.88rem}
+#v-booklet .card{box-shadow:none}
+#v-booklet input,#v-booklet select,#v-booklet textarea{border-width:1.5px;border-color:var(--rule)}
+.th-sec,.bk-ph{background:var(--sheet)}
+
+/* ---------- header and buttons in the top bar ---------- */
+.top{background:var(--card);border-bottom-color:var(--rule)}
+.brand .sub{color:var(--muted);font-size:1rem}
+.brand-mark,.mark{font-size:.875rem}
+.top-tools .btn.sm,#whoBox .btn.sm{min-height:40px;font-size:.9375rem;padding:8px 13px}
+.acct .small{font-size:.875rem}
+
+/* ---------- tab bar: bigger, roomier, clear active tab ---------- */
+.tabs{background:var(--card);border-bottom:1px solid var(--rule)}
+.tabs-in{gap:4px;padding-top:8px}
+.tabs a{font-size:1.0625rem;font-weight:500;color:var(--muted);padding:12px 16px 11px;border-radius:10px 10px 0 0;border-bottom:4px solid transparent;display:inline-flex;align-items:center;gap:6px}
+.tabs a:hover{color:var(--ink);background:var(--accent-soft)}
+.tabs a.on{color:var(--accent-ink);background:var(--accent);border-bottom-color:var(--accent);font-weight:700}
+.tabs a.on:hover{color:var(--accent-ink);background:var(--accent)}
+.tabs a .tabn{width:26px;height:26px;font-size:.875rem}
+.tabs a.on .tabn{background:var(--accent-ink);color:var(--accent)}
+.tabs a:focus-visible{outline-offset:-3px}
+.tabbar-arrow{width:32px!important;height:28px!important;font-size:.875rem!important}
+/* "you are here" strip under the tabs (made by tabbar.js) */
+.here{max-width:1180px;margin:0 auto;padding:6px max(16px,env(safe-area-inset-right,0px)) 8px max(16px,env(safe-area-inset-left,0px));display:flex;align-items:center;gap:12px;flex-wrap:wrap;font-size:.9375rem;color:var(--muted)}
+.here b{color:var(--ink)}
+.here .pips{display:inline-flex;gap:5px;align-items:center}
+.here .pips i{width:22px;height:8px;border-radius:99px;background:var(--line);border:1px solid var(--rule)}
+.here .pips i.done{background:var(--accent-line);border-color:var(--accent-line)}
+.here .pips i.now{background:var(--accent);border-color:var(--accent);width:34px}
+
+/* ---------- page column ---------- */
+main.wrap > .view:not(#v-booklet){max-width:880px;margin-inline:auto;width:100%;gap:24px}
+main.wrap > #v-learn{max-width:1120px}
+footer.foot{max-width:880px;font-size:.9375rem;color:var(--muted)}
+.view-head p{color:var(--muted)}
+
+/* ---------- cards ---------- */
+.card{background:var(--card);border-color:var(--rule);box-shadow:var(--shadow)}
+main .view:not(#v-booklet) .card{padding:24px;border-radius:14px}
+@media (max-width:560px){main .view:not(#v-booklet) .card{padding:18px}}
+.quick{background:var(--accent-soft);border-color:var(--accent)}
+.quick-eg,.skill-eg{background:var(--card)}
+.quick-what{font-size:1.2rem}
+.quick-steps{font-size:1.0625rem}
+
+/* each question in its own card, with room between them */
+.view:not(#v-booklet) .need-q{border:1.5px solid var(--rule);border-top:1.5px solid var(--rule);border-radius:14px;background:var(--card-2);padding:24px 26px;margin-top:4px}
+.view:not(#v-booklet) .need-q + .need-q{margin-top:20px}
+.view:not(#v-booklet) .tq-list,.view:not(#v-booklet) .q-list{display:flex;flex-direction:column;gap:20px}
+@media (max-width:560px){.view:not(#v-booklet) .need-q{padding:18px 16px}}
+.view:not(#v-booklet) .qcard{gap:16px}
+.view:not(#v-booklet) .qhead .small{font-size:.9375rem;color:var(--muted)}
+.view:not(#v-booklet) .qhead .tag{font-size:.875rem}
+.view:not(#v-booklet) .qtext{font-size:1.125rem;line-height:1.6}
+.view:not(#v-booklet) .qtext b{font-weight:700}
+
+/* equation boxes: monospace, bigger and roomier */
+.view:not(#v-booklet) .eqbox{font-size:1.0625rem;line-height:1.7;padding:14px 18px;margin:10px 0;border-radius:10px;border:1.5px solid var(--accent-line);background:var(--accent-soft);color:var(--ink);letter-spacing:.01em}
+.view:not(#v-booklet) .m,.view:not(#v-booklet) code{font-size:.95em}
+
+/* ---------- buttons ---------- */
+.btn{min-height:40px;font-size:1rem;font-weight:600;padding:9px 18px;border-radius:10px}
+.btn.sm{min-height:40px;font-size:.9375rem;padding:8px 14px}
+.btn.quiet{background:var(--card);border-color:var(--rule);color:var(--ink)}
+.btn.quiet:hover{border-color:var(--accent);background:var(--accent-soft)}
+.btn.ghost{color:var(--accent);border-color:var(--accent)}
+.btn[disabled]{opacity:.55}
+/* in a question: Check = primary, Hint = secondary, Show answer = tertiary */
+.view:not(#v-booklet) .qcard .btn:not(.ghost):not(.quiet){min-height:46px;font-size:1.0625rem;padding:10px 24px;box-shadow:0 2px 0 rgb(0 0 0 / .15)}
+.view:not(#v-booklet) .qcard .row > .btn.ghost.sm:not(:last-child){background:var(--accent-soft);border:1.5px solid var(--accent-line);color:var(--accent);min-height:42px;font-size:1rem;padding:8px 18px}
+.view:not(#v-booklet) .qcard .row > .btn.ghost.sm:not(:last-child)::before{content:"💡";margin-right:2px}
+.view:not(#v-booklet) .qcard .row > .btn.ghost.sm:last-child{background:transparent;border:1.5px solid transparent;color:var(--accent);min-height:42px;font-size:1rem;padding:8px 10px;text-decoration:underline;text-underline-offset:4px;text-decoration-thickness:1.5px}
+.view:not(#v-booklet) .qcard .row > .btn.ghost.sm:last-child:hover{background:var(--accent-soft);text-decoration:none}
+
+/* ---------- inputs ---------- */
+input[type=text],input[type=number],input[type=date],input[type=search],input[type=password],input:not([type]),select,textarea{background:var(--card);color:var(--ink);border:2px solid var(--field)}
+.view:not(#v-booklet) input[type=text],.view:not(#v-booklet) input[type=number],.view:not(#v-booklet) select{min-height:46px;font-size:1.0625rem;padding:9px 14px;border-radius:10px}
+.view:not(#v-booklet) input.ans{font-size:1.125rem;width:min(100%,380px)}
+input:focus,select:focus,textarea:focus,input[type=text]:focus,input[type=number]:focus{border-color:var(--accent);outline:3px solid var(--accent);outline-offset:1px;box-shadow:none}
+input[readonly]{background:var(--card-2)}
+.long-ans{border:2px solid var(--field);font-size:1.0625rem;background:var(--card);color:var(--ink)}
+/* the symbol keys under an answer box (e.g. ","): clearly buttons that type a symbol */
+.view:not(#v-booklet) .keys{align-items:center;gap:6px}
+.view:not(#v-booklet) .keys:not(:empty)::before{content:"Tap to type:";font-size:.875rem;color:var(--muted);margin-right:4px}
+.view:not(#v-booklet) .keys button{min-width:44px;min-height:40px;font-size:1.0625rem;font-weight:600;background:var(--card);color:var(--ink);border:1.5px solid var(--rule);border-radius:8px}
+.view:not(#v-booklet) .keys button:hover{border-color:var(--accent);background:var(--accent-soft)}
+
+/* ---------- multiple choice ---------- */
+.view:not(#v-booklet) .choices{grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:12px}
+.view:not(#v-booklet) .choice{display:flex;align-items:flex-start;gap:12px;min-height:54px;padding:13px 16px;font-size:1.0625rem;line-height:1.45;border:2px solid var(--rule);border-radius:12px;background:var(--card);color:var(--ink);transition:border-color .12s,background .12s,box-shadow .12s}
+.view:not(#v-booklet) .choice .lt{flex:none;display:inline-grid;place-items:center;width:28px;height:28px;border-radius:50%;background:var(--accent-soft);color:var(--accent);font-weight:700;font-size:.9375rem;margin:0}
+.view:not(#v-booklet) .choice:not([disabled]):hover{border-color:var(--accent);background:var(--accent-soft);box-shadow:0 0 0 1px var(--accent)}
+.view:not(#v-booklet) .choice.sel{border-color:var(--accent);background:var(--accent-soft);box-shadow:0 0 0 2px var(--accent)}
+.view:not(#v-booklet) .choice.sel .lt{background:var(--accent);color:var(--accent-ink)}
+.view:not(#v-booklet) .choice.right{border-color:var(--good);background:var(--good-soft);box-shadow:0 0 0 2px var(--good)}
+.view:not(#v-booklet) .choice.right .lt{background:var(--good);color:var(--card);font-size:0}
+.view:not(#v-booklet) .choice.right .lt::after{content:"✓";font-size:1rem}
+.view:not(#v-booklet) .choice.wrong{border-color:var(--pen);background:var(--pen-soft);box-shadow:0 0 0 2px var(--pen)}
+.view:not(#v-booklet) .choice.wrong .lt{background:var(--pen);color:var(--card);font-size:0}
+.view:not(#v-booklet) .choice.wrong .lt::after{content:"✗";font-size:1rem}
+.view:not(#v-booklet) .choice[disabled]{cursor:default;opacity:1}
+
+/* ---------- right / wrong feedback: colour + icon + words ---------- */
+:where(.view:not(#v-booklet)) .fb{font-size:1rem;line-height:1.55;padding:12px 16px;border-radius:10px}
+:where(.view:not(#v-booklet)) .fb.good,:where(.view:not(#v-booklet)) .fb.bad{position:relative;padding-left:48px;border-width:2px}
+:where(.view:not(#v-booklet)) .fb.good::before,:where(.view:not(#v-booklet)) .fb.bad::before{position:absolute;left:14px;top:11px;width:24px;height:24px;border-radius:50%;display:grid;place-items:center;font-weight:800;font-size:.9375rem;color:var(--card)}
+:where(.view:not(#v-booklet)) .fb.good{background:var(--good-soft);color:var(--good);border-color:var(--good)}
+:where(.view:not(#v-booklet)) .fb.good::before{content:"✓";background:var(--good)}
+:where(.view:not(#v-booklet)) .fb.bad{background:var(--pen-soft);color:var(--pen);border-color:var(--pen)}
+:where(.view:not(#v-booklet)) .fb.bad::before{content:"✗";background:var(--pen)}
+:where(.view:not(#v-booklet)) .fb.info{background:var(--accent-soft);color:var(--ink);border:1.5px solid var(--accent-line)}
+:where(.view:not(#v-booklet)) .fb .m{color:var(--ink);background:var(--card);border-radius:6px;padding:1px 6px}
+.msg.good,.msg.bad{border-width:2px}
+.msg.good::before{content:"✓ ";font-weight:800}
+.msg.bad::before{content:"✗ ";font-weight:800}
+.sol{border-left-width:4px}
+.sol-title{color:var(--pen)}
+.steps li::before{color:var(--muted)}
+.steps .why{color:var(--muted);font-size:.9375rem}
+
+/* ---------- other bits made bigger and clearer ---------- */
+.view:not(#v-booklet) .chip{min-height:40px;padding:6px 15px;font-size:.9375rem;background:var(--card);color:var(--ink);border:1.5px solid var(--rule)}
+.view:not(#v-booklet) .chip.on{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.pfilters{gap:12px;padding:18px 20px;border-radius:14px;background:var(--card);box-shadow:var(--shadow)}
+.pf-row > span{font-size:.9375rem;color:var(--muted)}
+.pf-level{font-size:.875rem;padding:3px 12px}
+.pf-e{background:var(--lvl-e-bg);color:var(--lvl-e)}.pf-m{background:var(--lvl-m-bg);color:var(--lvl-m)}.pf-h{background:var(--lvl-h-bg);color:var(--lvl-h)}
+.lr-pt{border-color:var(--rule);padding:12px 14px;font-size:1rem}
+.view:not(#v-booklet) .conf button{min-height:38px;padding:6px 12px;font-size:.9375rem;background:var(--card);color:var(--ink)}
+.view:not(#v-booklet) table.check{font-size:1rem}
+.view:not(#v-booklet) table.check th{font-size:.875rem}
+.view:not(#v-booklet) table.check tr.sec td{font-size:.875rem}
+.view:not(#v-booklet) .reflink{font-size:.9375rem}
+.view:not(#v-booklet) details.ex{padding:14px 18px;border-radius:12px;border-color:var(--rule);background:var(--card)}
+.view:not(#v-booklet) details.ex summary{font-weight:600;min-height:28px}
+.view:not(#v-booklet) .mini-card,.view:not(#v-booklet) .topic-btn,.view:not(#v-booklet) .mode,.view:not(#v-booklet) .plan-steps li,.view:not(#v-booklet) .start-steps li,.view:not(#v-booklet) .need-topic,.view:not(#v-booklet) .gl-item{border-color:var(--rule);background:var(--card)}
+.view:not(#v-booklet) .mode span{font-size:.9375rem;opacity:1}
+.view:not(#v-booklet) .mode.on{background:var(--accent);color:var(--accent-ink)}
+.view:not(#v-booklet) .flash-face{font-size:1.125rem}
+.view:not(#v-booklet) .notes table,.view:not(#v-booklet) table.res,.view:not(#v-booklet) table.vals{font-size:1rem}
+.view:not(#v-booklet) .need-steps,.view:not(#v-booklet) .need-eg{font-size:1rem}
+.view:not(#v-booklet) .kv{font-size:1rem}
+.view:not(#v-booklet) label.f{font-size:.9375rem;color:var(--muted)}
+.view:not(#v-booklet) .toc button{font-size:1rem;padding:8px 10px}
+.view:not(#v-booklet) .toc h4{font-size:.875rem}
+.view:not(#v-booklet) .bk-part .pl-l{color:var(--muted)}
+.view:not(#v-booklet) .markbtn{min-height:36px;font-size:.9375rem;padding:5px 12px;background:var(--card);color:var(--ink)}
+.bar{background:var(--line);border-color:var(--rule)}
+.plan-steps li.done .n{color:var(--card)}
+.need-tip{background:var(--accent-soft)}
+.toast{background:var(--ink);color:var(--paper);font-size:1rem}
+.exam-bar{background:var(--card)}
+.gl-item dd{font-size:1rem}
+.cans li{border-bottom-color:var(--rule)}
+
+/* ---------- light / dark switch (made by theme.js) ---------- */
+.theme-btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:40px;min-width:40px;padding:6px 12px;border:1.5px solid var(--rule);border-radius:10px;background:var(--card);color:var(--ink);font:inherit;font-size:.9375rem;font-weight:600;cursor:pointer;line-height:1}
+.theme-btn:hover{border-color:var(--accent);background:var(--accent-soft)}
+.theme-btn.float{position:fixed;left:14px;bottom:14px;z-index:880;box-shadow:var(--shadow)}
+
+/* ---------- small screens ---------- */
+@media (max-width:620px){
+  body{font-size:17.5px}
+  .tabs a{padding:10px 13px 9px;font-size:1rem}
+  .view:not(#v-booklet) .choices{grid-template-columns:1fr}
+  .here{font-size:.875rem;padding-top:2px;padding-bottom:6px}
+  .here .pips{display:none}
+  .theme-btn .tl{display:none}
+}
+@media print{.theme-btn,.here{display:none!important}}
+
+/* sticky bars and jump targets sit just under the (taller) tab bar; tabbar.js measures it into --navh */
+.level-bar,.exam-bar{top:calc(env(safe-area-inset-top,0px) + var(--navh,46px) + 6px)}
+.toc{top:calc(env(safe-area-inset-top,0px) + var(--navh,58px) + 12px);max-height:calc(100vh - var(--navh,58px) - 24px)}
+.topic-sec,.bk-q{scroll-margin-top:calc(var(--navh,70px) + 16px)}
+.th-sec{scroll-margin-top:calc(var(--navh,70px) + 80px)}

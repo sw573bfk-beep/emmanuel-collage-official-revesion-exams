@@ -3,6 +3,7 @@
 //   node scripts/upload-book.mjs > private/book.sql
 //   npx wrangler d1 execute ec-revisions-db --remote --file private/book.sql
 // private/theory-book.mjs = each page's questions with Minimal answers and Extra info;
+// private/theory-deep.mjs = the step-by-step explanations added to the Extra info;
 // private/book-pages/page-NN.webp = the picture of each completed page (the Normal level).
 import fs from 'node:fs';
 import path from 'node:path';
@@ -10,6 +11,13 @@ import { fileURLToPath } from 'node:url';
 
 const root = path.join(path.dirname(fileURLToPath(import.meta.url)), '..');
 const pages = (await import(path.join(root, 'private/theory-book.mjs'))).default;
+// Extra level: the short extra note, then a step-by-step deeper explanation (private/theory-deep.mjs, keyed "page:item")
+const deep = (await import(path.join(root, 'private/theory-deep.mjs'))).default;
+for (const p of pages) p.items = p.items.map((it, i) => {
+  const steps = deep[p.n + ':' + i] || [];
+  const x = (it.x ? '<p>' + it.x + '</p>' : '') + (steps.length ? '<p class="th-deep-h"><b>Why, step by step</b></p><ol class="th-deep">' + steps.map(t => '<li>' + t + '</li>').join('') + '</ol>' : '');
+  return { ...it, x };
+});
 const now = Math.floor(Date.now() / 1000);
 const q = s => "'" + s.replace(/'/g, "''") + "'";
 const CHUNK = 80000; // D1 statements are limited to ~100 KB
