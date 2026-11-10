@@ -329,7 +329,12 @@ async function handleApi(req, env, url) {
       const old = await env.DB.prepare('SELECT data FROM progress WHERE user_id = ? AND subject = ?').bind(user.id, subject).first();
       let before = null; try { before = old ? JSON.parse(old.data) : null; } catch { before = null; }
       await env.DB.prepare('INSERT INTO progress (user_id, subject, data, updated_at) VALUES (?, ?, ?, ?) ON CONFLICT(user_id, subject) DO UPDATE SET data = excluded.data, updated_at = excluded.updated_at').bind(user.id, subject, text, t).run();
-      await addPoints(env, user.id, mathsStats(before), mathsStats(body.data)); // leaderboard: newly correct answers and booklet marks
+      // leaderboard: newly correct answers, and booklet answers marked right beyond your best so far (no farming by re-marking)
+      const was = mathsStats(before), now_ = mathsStats(body.data);
+      const bb = await env.DB.prepare('SELECT best FROM booklet_best WHERE user_id = ? AND subject = ?').bind(user.id, subject).first();
+      const best = bb ? bb.best : was.bookletRight;
+      if (!bb || now_.bookletRight > best) await env.DB.prepare('INSERT INTO booklet_best (user_id, subject, best) VALUES (?, ?, ?) ON CONFLICT(user_id, subject) DO UPDATE SET best = MAX(best, excluded.best)').bind(user.id, subject, Math.max(best, now_.bookletRight)).run();
+      await addPoints(env, user.id, was, now_, Math.max(0, now_.bookletRight - best));
       return json({ ok: true, updated_at: t });
     }
   }

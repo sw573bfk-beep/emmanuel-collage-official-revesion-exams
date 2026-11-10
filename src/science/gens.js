@@ -397,7 +397,7 @@ gen('combFacts', 'C7', 'Combustion ideas', () => {
   ]);
 });
 const FIRE = [
-  ['fuel', 'Turning off the gas at a stove'], ['fuel', 'Firefighters clearing a strip of bush ahead of a bushfire (a firebreak)'], ['fuel', 'Letting a candle burn until all its wax is used up'], ['fuel', 'Turning off the gas tap on a Bunsen burner'], ['fuel', 'Removing the logs from a campfire'], ['fuel', 'Letting a barbecue’s gas bottle run empty'],
+  ['fuel', 'Turning off the gas at a stove'], ['fuel', 'Clearing a strip of bush ahead of a bushfire (a firebreak)'], ['fuel', 'Letting a candle burn until all its wax is used up'], ['fuel', 'Turning off the gas tap on a Bunsen burner'], ['fuel', 'Removing the logs from a campfire'], ['fuel', 'Letting a barbecue’s gas bottle run empty'],
   ['oxygen', 'Smothering a fire with a fire blanket'], ['oxygen', 'Putting a lid on a pan of burning oil'], ['oxygen', 'Covering a campfire with sand'], ['oxygen', 'Putting a jar over a burning candle'], ['oxygen', 'A carbon dioxide fire extinguisher pushing the air away'], ['oxygen', 'Closing the air vents on a wood heater'],
   ['heat', 'Spraying water on burning wood'], ['heat', 'Blowing out a match'], ['heat', 'Pouring water over campfire coals'], ['heat', 'Sprinklers spraying water on a burning shed'], ['heat', 'Licking your fingers and pinching out a candle wick'], ['heat', 'A wet towel cooling a small paper fire']
 ];

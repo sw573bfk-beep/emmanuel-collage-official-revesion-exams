@@ -170,7 +170,7 @@ function solveRel(str) {
   line(pretty(sp.L) + ' ' + opD(op) + ' ' + pretty(sp.R), ineq ? 'The inequality to solve' : 'The equation to solve');
   let a = L.a, b = L.b; let c = R.a; let d = R.b; let shown = steps[0].t;
   // "(x − 2)/3 = 5": multiply both sides by 3 first (clearer than splitting the fraction)
-  const fr = sp.L.trim().match(/^\((.+)\)\s*\/\s*(\d+(?:\.\d+)?)$/);
+  const fr = sp.L.trim().match(/^\((.+)\)\s*\/\s*(\d+(?:\.\d+)?)$/) || sp.L.trim().match(/^(−?-?\d+(?:\.\d+)?[a-z])\s*\/\s*(\d+(?:\.\d+)?)$/i); // "(x − 2)/3" or "2x/3"
   if (fr && c.isZero()) {
     const k = Fr.of(+fr[2]), inner = parseLin(fr[1]);
     a = inner.a; b = inner.b; d = d.mul(k); shown = pretty(fr[1]) + ' ' + opD(op) + ' ' + numStr(d);
@@ -233,7 +233,7 @@ function stepsHTML(steps) {
 
 /* ================= answer parsing ================= */
 function stripUnits(s) {
-  return s.replace(/^[a-z]\s*=\s*/i, '')
+  return s.replace(/^[a-z]\s*=\s*/i, '').replace(/(\d)([a-z]{1,8}\b)/gi, '$1 $2') // "5cm" → "5 cm"
     .replace(/\$|%|°|degrees?|cm²|cm2|m²|km\/h|\bcm\b|\bmm\b|\bkm\b|\bkg\b|\bmg\b|\bml\b|\bkl\b|\bgb\b|\bg\b|\bm\b|\bl\b|\bh\b|hours?|hrs?|weeks?|days?|minutes?|mins?|seconds?|secs?|people|students|units?|dollars?|cents?|metres?|meters?|litres?|grams?|\bc\b/gi, '')
     .replace(/(increase|decrease|profit|loss|\binc\b|\bdec\b|\bup\b|\bdown\b|\bfall\b|\brise\b)/gi, '')
     .trim();
@@ -539,7 +539,7 @@ function energySVG(type, labels = true) {
   return s + '</svg>';
 }
 function fireTriangleSVG() {
-  return '<svg class="dia" viewBox="0 0 300 200" style="max-width:300px;width:100%" role="img" aria-label="Fire triangle: fuel, oxygen, heat"><polygon class="fillt" points="150,20 280,185 20,185"/><text x="150" y="128" text-anchor="middle" class="lbl" style="font-size:15px">COMBUSTION</text><text x="58" y="100" text-anchor="middle" class="lbl" transform="rotate(-52 58 100)">FUEL</text><text x="242" y="100" text-anchor="middle" class="lbl" transform="rotate(52 242 100)">OXYGEN</text><text x="150" y="200" text-anchor="middle" class="lbl">HEAT (ignition energy)</text></svg>';
+  return '<svg class="dia" viewBox="0 0 300 210" style="max-width:300px;width:100%" role="img" aria-label="Fire triangle: fuel, oxygen, heat"><polygon class="fillt" points="150,20 280,185 20,185"/><text x="150" y="128" text-anchor="middle" class="lbl" style="font-size:15px">COMBUSTION</text><text x="58" y="100" text-anchor="middle" class="lbl" transform="rotate(-52 58 100)">FUEL</text><text x="242" y="100" text-anchor="middle" class="lbl" transform="rotate(52 242 100)">OXYGEN</text><text x="150" y="200" text-anchor="middle" class="lbl">HEAT (ignition energy)</text></svg>';
 }
 function lineChartSVG(o) {
   const W = o.w || 560, H = o.h || 320, pl = 52, pr = 16, pt = 18, pb = 46;

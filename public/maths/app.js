@@ -170,7 +170,7 @@ function solveRel(str) {
   line(pretty(sp.L) + ' ' + opD(op) + ' ' + pretty(sp.R), ineq ? 'The inequality to solve' : 'The equation to solve');
   let a = L.a, b = L.b; let c = R.a; let d = R.b; let shown = steps[0].t;
   // "(x − 2)/3 = 5": multiply both sides by 3 first (clearer than splitting the fraction)
-  const fr = sp.L.trim().match(/^\((.+)\)\s*\/\s*(\d+(?:\.\d+)?)$/);
+  const fr = sp.L.trim().match(/^\((.+)\)\s*\/\s*(\d+(?:\.\d+)?)$/) || sp.L.trim().match(/^(−?-?\d+(?:\.\d+)?[a-z])\s*\/\s*(\d+(?:\.\d+)?)$/i); // "(x − 2)/3" or "2x/3"
   if (fr && c.isZero()) {
     const k = Fr.of(+fr[2]), inner = parseLin(fr[1]);
     a = inner.a; b = inner.b; d = d.mul(k); shown = pretty(fr[1]) + ' ' + opD(op) + ' ' + numStr(d);
@@ -233,7 +233,7 @@ function stepsHTML(steps) {
 
 /* ================= answer parsing ================= */
 function stripUnits(s) {
-  return s.replace(/^[a-z]\s*=\s*/i, '')
+  return s.replace(/^[a-z]\s*=\s*/i, '').replace(/(\d)([a-z]{1,8}\b)/gi, '$1 $2') // "5cm" → "5 cm"
     .replace(/\$|%|°|degrees?|cm²|cm2|m²|km\/h|\bcm\b|\bmm\b|\bkm\b|\bkg\b|\bmg\b|\bml\b|\bkl\b|\bgb\b|\bg\b|\bm\b|\bl\b|\bh\b|hours?|hrs?|weeks?|days?|minutes?|mins?|seconds?|secs?|people|students|units?|dollars?|cents?|metres?|meters?|litres?|grams?|\bc\b/gi, '')
     .replace(/(increase|decrease|profit|loss|\binc\b|\bdec\b|\bup\b|\bdown\b|\bfall\b|\brise\b)/gi, '')
     .trim();
@@ -382,20 +382,21 @@ function gridSVG(o = {}) {
   return s + '</svg>';
 }
 function boxSVG(L, Wd, H, labels = true, show = null) {
-  const u = 34, ox = 70, oy = 40 + H * u + 6, cx = 0.62 * u, cy = 0.42 * u;
+  const u = show ? (Math.min(L, H) <= 1 ? 72 : Math.min(L, H) <= 2 ? 52 : 42) : 34, cx = 0.62 * u, cy = 0.42 * u, ox = Math.round((L + 1.3) * cx + (show ? 100 : 30)), oy = Math.round((H + 1.3) * u + 16); // room above for the z-axis, and on the left for the x direction (and coordinate labels)
   const P = (x, y, z) => [ox + y * u - x * cx, oy - z * u + x * cy];
   const V = { O: [0, 0, 0], A: [L, 0, 0], B: [L, Wd, 0], C: [0, Wd, 0], D: [0, 0, H], E: [L, 0, H], F: [L, Wd, H], G: [0, Wd, H] };
-  const Wpx = ox + Wd * u + 60, Hpx = oy + L * cy + 30;
+  const Wpx = ox + Wd * u + (show ? 120 : 60), Hpx = oy + L * cy + 30;
   let s = '<svg class="dia" viewBox="0 0 ' + Wpx + ' ' + Hpx + '" style="max-width:' + Wpx + 'px;width:100%" role="img" aria-label="Box ' + L + ' by ' + Wd + ' by ' + H + ' with a corner at the origin">';
   const ln = (a, b, cls = 'edge') => { const p = P(...V[a]), q = P(...V[b]); return '<line class="' + cls + '" x1="' + p[0] + '" y1="' + p[1] + '" x2="' + q[0] + '" y2="' + q[1] + '"/>'; };
   const o0 = P(0, 0, 0), xe = P(L + 1.3, 0, 0), ye = P(0, Wd + 1.2, 0), ze = P(0, 0, H + 0.9);
   s += '<line class="ax" x1="' + o0[0] + '" y1="' + o0[1] + '" x2="' + xe[0] + '" y2="' + xe[1] + '"/><text class="axl" x="' + (xe[0] - 12) + '" y="' + (xe[1] + 6) + '">x</text>';
-  s += '<line class="ax" x1="' + o0[0] + '" y1="' + o0[1] + '" x2="' + ye[0] + '" y2="' + ye[1] + '"/><text class="axl" x="' + (ye[0] + 5) + '" y="' + (ye[1] + 4) + '">y</text>';
+  s += '<line class="ax" x1="' + o0[0] + '" y1="' + o0[1] + '" x2="' + ye[0] + '" y2="' + ye[1] + '"/><text class="axl" x="' + (ye[0] + 5) + '" y="' + (ye[1] - 4) + '">y</text>';
   s += '<line class="ax" x1="' + o0[0] + '" y1="' + o0[1] + '" x2="' + ze[0] + '" y2="' + ze[1] + '"/><text class="axl" x="' + (ze[0] + 5) + '" y="' + (ze[1] + 2) + '">z</text>';
   [['A', 'B'], ['B', 'C', 'edge dash'], ['O', 'A'], ['A', 'E'], ['B', 'F'], ['C', 'G', 'edge dash'], ['O', 'D'], ['D', 'E'], ['E', 'F'], ['F', 'G', 'edge dash'], ['G', 'D', 'edge dash']].forEach(e => { s += ln(e[0], e[1], e[2]); });
   if (labels) Object.keys(V).forEach(k => {
-    const p = P(...V[k]); const dx = (k === 'O' || k === 'D' || k === 'A' || k === 'E') ? -16 : 6, dy = (k === 'A' || k === 'B' || k === 'C' || k === 'O') ? 14 : -6;
-    s += '<circle class="pt3" cx="' + p[0] + '" cy="' + p[1] + '" r="3.2"/><text class="lbl" x="' + (p[0] + dx) + '" y="' + (p[1] + dy) + '">' + k + (show && show[k] ? ' ' + ptStr(V[k]) : '') + '</text>';
+    // labels sit outside the box: left-hand corners are right-aligned to the left of the point, the others start to the right
+    const p = P(...V[k]); const left = k === 'O' || k === 'D' || k === 'A' || k === 'E', low = k === 'A' || k === 'B' || k === 'C' || k === 'O';
+    s += '<circle class="pt3" cx="' + p[0] + '" cy="' + p[1] + '" r="3.2"/><text class="lbl" text-anchor="' + (left ? 'end' : 'start') + '" x="' + (p[0] + (left ? -7 : 7)) + '" y="' + (p[1] + (low ? 15 : -7)) + '">' + k + (show && show[k] ? ' ' + ptStr(V[k]) : '') + '</text>';
   });
   return s + '</svg>';
 }
@@ -598,7 +599,12 @@ gen('ineqConcept', '7I', 'Inequality facts', () => {
     'Only multiplying or dividing both sides by a <b>negative</b> number reverses the sign. Adding, subtracting, or multiplying/dividing by a positive never does.', 'Is it multiplying or dividing by a negative?');
 });
 /* ---------- 7J solving inequalities ---------- */
-function linStr(a, b, v = 'x') { return fmtLinN(a, b, v); }
+// a line rule like y = 0.5x + 3 (decimals for halves and quarters, as in y = mx + c), otherwise the usual form
+function linStr(a, b, v = 'x') {
+  const av = typeof a === 'number' ? a : Fr.of(a).v;
+  if (!Number.isInteger(av) && Number.isInteger(av * 100)) { const bv = typeof b === 'number' ? b : Fr.of(b).v; return (av < 0 ? '−' : '') + fmt(Math.abs(av)) + v + (bv ? (bv > 0 ? ' + ' : ' − ') + fmt(Math.abs(bv)) : ''); }
+  return fmtLinN(a, b, v);
+}
 function ineqProblem(opPool = ['<', '>', '<=', '>=']) {
   const op = pick(opPool), x0 = rnd(-6, 9); const f = rnd(1, 6); let str;
   if (f === 1) { const a = rnd(2, 7), b = nz(-12, 12); str = linStr(a, b) + ' ' + opD(op) + ' ' + fmt(a * x0 + b); }
@@ -1430,7 +1436,7 @@ ${tableHTML([0, 1, 2, 3, 4], [5, 8, 11, 14, 17])}<p>Up 3 each time, starts at 5:
 <tr><td><b>Rectangle</b></td><td>as parallelogram</td><td>all 90°</td><td>bisect each other and are <b>equal</b></td></tr>
 <tr><td><b>Rhombus</b></td><td>all four equal, opposite sides parallel</td><td>opposite angles equal</td><td>bisect each other at <b>90°</b> and bisect the vertex angles</td></tr>
 <tr><td><b>Square</b></td><td>all equal</td><td>all 90°</td><td>equal, bisect each other at 90°</td></tr>
-<tr><td><b>Kite</b></td><td>two pairs of equal <b>adjacent</b> sides</td><td>one pair of opposite angles equal (between the unequal sides)</td><td>meet at 90°; the long one (axis of symmetry) bisects the short one</td></tr>
+<tr><td><b>Kite</b></td><td>two pairs of equal <b>adjacent</b> sides</td><td>one pair of opposite angles equal (between the unequal sides)</td><td>meet at 90°; the diagonal that is the line of symmetry cuts the other one in half</td></tr>
 <tr><td><b>Trapezium</b></td><td>one pair of parallel sides</td><td>co-interior angles between the parallel sides add to 180°</td><td>no special property</td></tr></table></div>
 <h4>Angle facts you will use</h4>
 <ul><li>Alternate angles (Z shape) are equal when lines are parallel. Corresponding angles (F shape) are equal. Co-interior angles (C shape) add to 180°.</li><li>Vertically opposite angles are equal. Angles in a quadrilateral add to 360°.</li></ul>
@@ -1737,7 +1743,7 @@ const BOOKLET = [
     { l: 'e', q: 'A rhombus has a perimeter of 36 cm. Find the length of one side.', a: '36 ÷ 4 = 9 cm', n: 9 }, { l: 'f', q: 'A rectangle has one diagonal of 13 cm. What is the length of the other diagonal?', a: '13 cm (the diagonals of a rectangle are equal)', n: 13 }] },
   { id: 'C11', part: 'C', text: 'Kite WXYZ has WX = WZ and XY = ZY. The diagonals meet at M. (Not to scale.) Write TRUE or FALSE for each statement.', parts: [
     { l: 'a', q: '∠WXY = ∠WZY', a: 'TRUE', ch: ['TRUE', 'FALSE'], ci: 0 }, { l: 'b', q: 'WX = XY', a: 'FALSE', ch: ['TRUE', 'FALSE'], ci: 1 }, { l: 'c', q: 'XM = MZ', a: 'TRUE', ch: ['TRUE', 'FALSE'], ci: 0 },
-    { l: 'd', q: '∠WMX = 90°', a: 'TRUE', ch: ['TRUE', 'FALSE'], ci: 0 }, { l: 'e', q: 'WM = MY', a: 'FALSE (the long diagonal is not bisected)', ch: ['TRUE', 'FALSE'], ci: 1 },
+    { l: 'd', q: '∠WMX = 90°', a: 'TRUE', ch: ['TRUE', 'FALSE'], ci: 0 }, { l: 'e', q: 'WM = MY', a: 'FALSE (WY is the line of symmetry; XZ cuts it, but not in half)', ch: ['TRUE', 'FALSE'], ci: 1 },
     { l: 'f', q: 'Name two pairs of congruent triangles in the kite and state the test for each.', a: '△WXY ≅ △WZY (SSS: WX = WZ, XY = ZY, WY common) and △WXM ≅ △WZM (RHS: right angle at M, WX = WZ, WM common). Also △XMY ≅ △ZMY (RHS).' }] },
   { id: 'C12', part: 'C', text: 'The box below sits on the floor with one corner at the origin O(0, 0, 0). The x-axis comes towards you, the y-axis goes to the right and the z-axis goes up. The box is 2 units long in the x direction, 4 units in the y direction and 3 units high. Write the coordinates of:', parts: [
     { l: 'a', q: 'point A', a: '(2, 0, 0)', co: [[2, 0, 0]] }, { l: 'b', q: 'point B', a: '(2, 4, 0)', co: [[2, 4, 0]] }, { l: 'c', q: 'point C', a: '(0, 4, 0)', co: [[0, 4, 0]] },
@@ -1808,7 +1814,7 @@ const FLASH = [
   ['10C', 'Rotate (x, y) 90° clockwise about O', '(y, −x)'], ['10C', 'Rotate (x, y) 90° anticlockwise about O', '(−y, x)'], ['10C', 'Rotate (x, y) 180° about O', '(−x, −y)'],
   ['10D', 'What does ≅ mean?', 'is congruent to (same shape AND same size)'], ['10D', '△ABC ≅ △PQR. What matches BC?', 'QR (letters match in order)'],
   ['10E', 'The four congruence tests', 'SSS, SAS (included angle), AAS, RHS'], ['10E', 'Why is AAA not a congruence test?', 'Equal angles only show the same shape; the sizes could differ (similar).'],
-  ['10G', 'Diagonals of a rhombus', 'Bisect each other at right angles and bisect the vertex angles.'], ['10G', 'Diagonals of a rectangle', 'Equal in length and bisect each other.'], ['10G', 'Kite diagonals', 'Meet at 90°; only the short one is bisected.'],
+  ['10G', 'Diagonals of a rhombus', 'Bisect each other at right angles and bisect the vertex angles.'], ['10G', 'Diagonals of a rectangle', 'Equal in length and bisect each other.'], ['10G', 'Kite diagonals', 'Meet at 90°. The diagonal that is the line of symmetry cuts the other one in half.'],
   ['10G', 'Co-interior angles between parallel lines', 'Add to 180°.'], ['10H', 'Scale factor formula', 'k = image length ÷ original length'], ['10H', 'What does ~ mean?', 'is similar to (same shape, can be a different size)'],
   ['10I', 'The four similarity tests', 'AAA, SSS (same ratio), SAS (two ratios + included angle), RHS'], ['10I', 'Overlapping triangles tip', 'Use whole sides: AB = AD + DB.'],
   ['XYZ', 'Point (0, 0, 5) lies on…', 'the z-axis'], ['XYZ', 'How can you tell a 3D point is on the floor?', 'Its z-coordinate is 0.'],
@@ -1901,20 +1907,20 @@ const SKILL_INFO = [
   { x: '<ul><li><b>Reflect in the x-axis:</b> (x, y) → (x, −y)</li><li><b>Reflect in the y-axis:</b> (x, y) → (−x, y)</li><li><b>Translate:</b> left/right changes x, up/down changes y</li></ul>', eg: '(2, 3) moved 4 left and 1 up → <b>(−2, 4)</b>.', g: ['reflectPt', 'translatePt', 'reflectShape', 'translateShape'] },
   { x: 'Name the type, then the details:<ul><li>a <b>reflection</b>: say the mirror line</li><li>a <b>translation</b>: say how far left/right and up/down</li></ul>For two moves, describe each one in order.', eg: '“Reflected in the y-axis, then translated 3 units down.”', g: ['reflectWhich', 'findVector', 'vectorWords'] },
   { x: 'Congruent means exactly the same shape and size. The tests:<ul><li><b>SSS</b>: all 3 sides match</li><li><b>SAS</b>: 2 sides and the angle between them</li><li><b>AAS</b>: 2 angles and a side</li><li><b>RHS</b>: right angle, hypotenuse and one side</li></ul>Say which parts match.', eg: 'Both triangles have sides 5, 7 and 9 → congruent by <b>SSS</b>.', g: ['congTest', 'congTestNamed', 'congConcept'] },
-  { x: 'Match the corresponding parts: the letters are in the same order in the name. Matching sides are equal, and matching angles are equal.', eg: 'If △ABC ≡ △DEF, then <b>AB = DE</b> and <b>∠C = ∠F</b>.', g: ['corrParts', 'congFind'] },
-  { x: 'Similar means the same shape but a different size.<ul><li><b>Scale factor</b> = big side ÷ matching small side</li><li>Tests: <b>AAA</b>, <b>SSS</b> (all sides in the same ratio), <b>SAS</b> (two sides in ratio and the angle between them equal), <b>RHS</b></li></ul>Write it with the letters in matching order, like △ABC ~ △DEF.', eg: 'Sides 6, 8, 10 and 9, 12, 15: every side × 1.5, so the scale factor is <b>1.5</b> → similar (SSS).', g: ['simTest', 'shadow'] },
-  { x: 'Find the scale factor from one pair of matching sides, then multiply (or divide) to find the missing side.<ul><li><b>Overlapping</b> triangles: draw them separately first.</li><li><b>Crossing</b> (hourglass) triangles: match the sides opposite equal angles.</li></ul>', eg: 'Small side 4, matching big side 6 → scale factor 1.5. Missing big side = 1.5 × 5 = <b>7.5</b>.', g: ['parallelTri', 'hourglass', 'shadow'] },
+  { x: 'Match the corresponding parts: the letters are in the same order in the name. Matching sides are equal, and matching angles are equal.', eg: 'If △ABC ≅ △DEF, then <b>AB = DE</b> and <b>∠C = ∠F</b>.', g: ['corrParts', 'congFind'] },
+  { x: 'Similar means the same shape but a different size.<ul><li><b>Scale factor</b> = big side ÷ matching small side</li><li>Tests: <b>AAA</b>, <b>SSS</b> (all sides in the same ratio), <b>SAS</b> (two sides in ratio and the angle between them equal), <b>RHS</b></li></ul>Write it with the letters in matching order, like △ABC ~ △DEF.', eg: 'Sides 6, 8, 10 and 9, 12, 15: every side × 1.5, so the scale factor is <b>1.5</b> → similar (SSS).', g: ['simTest', 'scaleFactor', 'similarCheck', 'shadow'] },
+  { x: 'Find the scale factor from one pair of matching sides, then multiply (or divide) to find the missing side.<ul><li><b>Overlapping</b> triangles: draw them separately first.</li><li><b>Crossing</b> (hourglass) triangles: match the sides opposite equal angles.</li></ul>', eg: 'Small side 4, matching big side 6 → scale factor 1.5. Missing big side = 1.5 × 5 = <b>7.5</b>.', g: ['parallelTri', 'hourglass', 'similarSide', 'shadow'] },
   { x: '<ul><li><b>Parallelogram:</b> opposite sides parallel and equal, opposite angles equal</li><li><b>Rhombus:</b> all sides equal, diagonals cross at 90°</li><li><b>Rectangle:</b> all angles 90°, diagonals equal</li><li><b>Kite:</b> two pairs of equal sides next to each other, diagonals cross at 90°</li><li><b>Trapezium:</b> one pair of parallel sides</li></ul>', eg: 'A parallelogram has a 70° angle → the opposite angle is <b>70°</b>, and the other two are <b>110°</b> (70 + 110 = 180).', g: ['quadAngles', 'quadFacts', 'kiteTF', 'quadProof'] },
   { x: 'In 3D every point has three coordinates <b>(x, y, z)</b>. In the booklet the x-axis comes towards you, the y-axis goes to the right and the z-axis goes up. The origin is (0, 0, 0).', eg: 'Come 2 towards you, go 4 right and 3 up → <b>(2, 4, 3)</b>.', g: ['boxCorner', 'axisPlane', 'move3d'] }
 ];
 /* ================= Maths: difficulty of each question type, and long-response questions ================= */
 const DIFF = {
-  ineqRead: 'e', ineqWords: 'm', ineqFlip: 'm', ineqNeg: 'h', ineqTest: 'e', ineqConcept: 'm',
+  ineqRead: 'e', ineqWords: 'm', ineqFlip: 'm', ineqNeg: 'm', ineqTest: 'e', ineqConcept: 'm',
   ineqSolve: 'm', ineqSolveGraph: 'm', ineqContext: 'h',
-  eqSolve: 'e', eqWord: 'h',
+  eqSolve: 'm', eqWord: 'h',
   tableFill: 'e', plotRead: 'e', quadrant: 'e', isLinear: 'm',
   gradient2: 'm', gradientType: 'e', gradientGraph: 'm',
-  mcRule: 'e', ruleGraph: 'm', rule2pts: 'h', xint: 'h',
+  mcRule: 'e', ruleGraph: 'm', rule2pts: 'h', xint: 'm',
   ruleTable: 'm', ruleWords: 'h',
   ruleUse: 'm', evalRule: 'e', solveRule: 'm', onLine: 'm', breakEven: 'h',
   reflectPt: 'e', reflectShape: 'm', reflectWhich: 'm',
@@ -2062,8 +2068,8 @@ longGen('l3D', 'XYZ', 'm', 'Positions in 3D', () => {
 longGen('lRecurring', '3F', 'm', 'Terminating or recurring?', () => {
   const [n, d, term_] = pick([[3, 8, true], [7, 20, true], [2, 3, false], [5, 6, false], [9, 40, true], [4, 11, false], [7, 12, false], [13, 25, true]]);
   return { q: 'Without a calculator, decide whether <b>' + n + '/' + d + '</b> is a terminating or recurring decimal. Explain how you know, then write it as a decimal.',
-    model: 'The denominator ' + d + ' = ' + ({ 8: '2 × 2 × 2', 20: '2 × 2 × 5', 3: '3', 6: '2 × 3', 40: '2 × 2 × 2 × 5', 11: '11', 12: '2 × 2 × 3', 25: '5 × 5' }[d]) + (term_ ? ' has only 2s and 5s as prime factors' : ', which has a prime factor other than 2 or 5 (' + ({ 3: '3', 6: '3', 11: '11', 12: '3' }[d]) + ')') + ', so ' + n + '/' + d + ' is <b>' + (term_ ? 'terminating' : 'recurring') + '</b>. ' + n + ' ÷ ' + d + ' = <b>' + (n / d).toFixed(term_ ? String(n / d).split('.')[1].length : 4) + (term_ ? '' : '…') + '</b>.',
-    points: ['Says ' + (term_ ? 'terminating' : 'recurring'), 'Explains using the prime factors of ' + d + ' (only 2s and 5s → terminating)', 'Correct decimal ' + (n / d).toFixed(term_ ? String(n / d).split('.')[1].length : 4) + (term_ ? '' : '…')] };
+    model: 'The denominator ' + d + ' = ' + ({ 8: '2 × 2 × 2', 20: '2 × 2 × 5', 3: '3', 6: '2 × 3', 40: '2 × 2 × 2 × 5', 11: '11', 12: '2 × 2 × 3', 25: '5 × 5' }[d]) + (term_ ? ' has only 2s and 5s as prime factors' : ', which has a prime factor other than 2 or 5 (' + ({ 3: '3', 6: '3', 11: '11', 12: '3' }[d]) + ')') + ', so ' + n + '/' + d + ' is <b>' + (term_ ? 'terminating' : 'recurring') + '</b>. ' + n + ' ÷ ' + d + ' = <b>' + (term_ ? String(n / d) : (Math.floor(n / d * 1e4) / 1e4).toFixed(4) + '…') + '</b>.',
+    points: ['Says ' + (term_ ? 'terminating' : 'recurring'), 'Explains using the prime factors of ' + d + ' (only 2s and 5s → terminating)', 'Correct decimal ' + (term_ ? String(n / d) : (Math.floor(n / d * 1e4) / 1e4).toFixed(4) + '…')] };
 });
 longGen('lConvert', '3G', 'm', 'Convert and explain', () => {
   const p = pick([12.5, 15, 35, 40, 62.5, 75, 8, 120]); const f = Fr.of(p).div(100);
@@ -2646,7 +2652,8 @@ RENDER.exam = () => {
     Qs.forEach((Q, i) => { const c = questionCard(Q, { mode: 'exam', num: i + 1, onChange: prog }); cards.push(c); const w = h('<div class="card"></div>'); w.appendChild(c.el); list.appendChild(w); });
     const bottom = h('<div class="row"><button type="button" class="btn">Submit exam</button></div>'); list.appendChild(bottom);
     const start = Date.now(); let left = mins * 60;
-    if (mins) examTimer = setInterval(() => { left--; const c = $('#exClock', bar); if (!c) { clearInterval(examTimer); return; } c.textContent = Math.floor(left / 60) + ':' + String(left % 60).padStart(2, '0'); c.classList.toggle('low', left <= 60); if (left <= 0) { clearInterval(examTimer); toast('Time is up'); submit(); } }, 1000);
+    const deadline = start + mins * 60000; // use the clock, so the timer stays right even if the tab is in the background
+    if (mins) examTimer = setInterval(() => { left = Math.max(0, Math.round((deadline - Date.now()) / 1000)); const c = $('#exClock', bar); if (!c) { clearInterval(examTimer); return; } c.textContent = Math.floor(left / 60) + ':' + String(left % 60).padStart(2, '0'); c.classList.toggle('low', left <= 60); if (left <= 0) { clearInterval(examTimer); toast('Time is up'); submit(); } }, 1000);
     let armed = false;
     const trySubmit = btn => { const un = n - cards.filter(c => c.answered()).length; if (!armed && un > 0) { armed = true; btn.textContent = un + ' unanswered: tap again to submit'; setTimeout(() => { armed = false; btn.textContent = 'Submit exam'; }, 4000); return; } submit(); };
     $('#exSub', bar).onclick = e => trySubmit(e.target); $('button', bottom).onclick = e => trySubmit(e.target);
@@ -2714,7 +2721,7 @@ function askEngine(raw) {
     let a = +m[1], ua = m[2], b = +m[3], ub = m[4]; const steps = [];
     if (ua && ub && UNITS_CONV[ua] && UNITS_CONV[ub] && ua !== ub) {
       if (UNITS_CONV[ua][0] !== UNITS_CONV[ub][0]) throw new Error('Those units measure different things (' + ua + ' and ' + ub + ').');
-      const fa = UNITS_CONV[ua][1], fb = UNITS_CONV[ub][1];
+      const fa = UNITS_CONV[ua][1], fb = UNITS_CONV[ub][1]; const nice = u => ({ l: 'L', ml: 'mL', kl: 'kL' }[u] || u); ua = nice(ua); ub = nice(ub);
       if (fb > fa) { const nb = b * fb / fa; steps.push({ t: fmt(b) + ' ' + ub + ' = ' + fmt(nb) + ' ' + ua, why: 'Convert to the same units first' }); b = nb; }
       else { const na = a * fa / fb; steps.push({ t: fmt(a) + ' ' + ua + ' = ' + fmt(na) + ' ' + ub, why: 'Convert to the same units first' }); a = na; }
     }
@@ -2723,8 +2730,8 @@ function askEngine(raw) {
   }
   // p% of q
   if ((m = s.match(/(-?\d[\d.]*)\s*%\s*of\s*\$?(-?\d[\d.]*)/))) {
-    const p = +m[1], q = +m[2]; const v = p / 100 * q;
-    return ansBlock(fmt(p) + '% of ' + fmt(q) + ' = ' + fmt(v, 4), stepsHTML([{ t: fmt(p) + '/100 × ' + fmt(q) + ' = ' + fmt(v, 4), why: 'p% of Q = p/100 × Q' }, { t: '10% of ' + fmt(q) + ' = ' + fmt(q / 10, 4) + ', 1% = ' + fmt(q / 100, 4), why: 'Mental check' }]));
+    const p = +m[1], q = +m[2]; const v = p / 100 * q; const cash = /%\s*of\s*\$/.test(s), V = x => cash ? money(x) : fmt(x, 4);
+    return ansBlock(fmt(p) + '% of ' + (cash ? money(q) : fmt(q)) + ' = ' + V(v), stepsHTML([{ t: fmt(p) + '/100 × ' + fmt(q) + ' = ' + V(v), why: 'p% of Q = p/100 × Q' }, { t: '10% of ' + fmt(q) + ' = ' + fmt(q / 10, 4) + ', 1% = ' + fmt(q / 100, 4), why: 'Mental check' }]));
   }
   // % to fraction/decimal
   if ((m = s.match(/^(-?\d[\d.]*)\s*%\s*(?:as|to|in|into)?\s*(?:an? )?(fraction|decimal)?$/))) {
@@ -2739,15 +2746,19 @@ function askEngine(raw) {
   // fraction to decimal/%
   if ((m = s.match(/^(-?\d+)\s*\/\s*(\d+)\s*(?:as|to|in|into)?\s*(?:an? )?(decimal|percentage|percent|%|fraction|simplest form)?$/))) {
     const n = +m[1], d = +m[2]; if (!d) throw new Error('You cannot divide by zero.'); const f = new Fr(n, d); const ld = longDiv(f.n, f.d); const df = primeFactors(f.d);
-    return ansBlock(n + '/' + d + (f.n !== n ? ' = ' + f : '') + ' = ' + decHTML(ld), stepsHTML([f.n !== n ? { t: n + '/' + d + ' = ' + f, why: 'Simplest form (divide top and bottom by ' + gcd(n, d) + ')' } : null, { t: n + ' ÷ ' + d + ' = ' + decLong(ld, 3), why: ld.term ? 'Terminating: ' + f.d + ' = ' + (df.join(' × ') || '1') + ' (only 2s and 5s)' : 'Recurring: ' + f.d + ' = ' + df.join(' × ') + ' has a factor other than 2 or 5' }, ld.term ? null : { t: decHTML(ld), why: 'Line over the repeating digits (or dots above the first and last repeating digit)' }, { t: 'Rounded: ' + (n / d).toFixed(1) + ' (1 d.p.), ' + (n / d).toFixed(2) + ' (2 d.p.), ' + (n / d).toFixed(3) + ' (3 d.p.)', why: '' }, { t: n + '/' + d + ' × 100 = ' + fmt(n / d * 100, 4) + '%', why: 'As a percentage' }].filter(Boolean)));
+    const pc = f.v * 100, pcs = Number.isInteger(pc * 10000) ? fmt(pc, 4) + '%' : '≈ ' + fmt(pc, 2) + '%';
+    if (/percent|%/.test(m[3] || '')) return ansBlock(n + '/' + d + ' = ' + pcs.replace('≈ ', '') + (pcs[0] === '≈' ? ' (to 2 d.p.)' : ''), stepsHTML([{ t: n + '/' + d + ' × 100 ' + (pcs[0] === '≈' ? pcs : '= ' + pcs), why: 'Fraction → percentage: multiply by 100' }, { t: n + ' ÷ ' + d + ' = ' + decLong(ld, 3), why: 'As a decimal' }]));
+    return ansBlock(n + '/' + d + (f.n !== n ? ' = ' + f : '') + ' = ' + decHTML(ld), stepsHTML([f.n !== n ? { t: n + '/' + d + ' = ' + f, why: 'Simplest form (divide top and bottom by ' + gcd(n, d) + ')' } : null, { t: n + ' ÷ ' + d + ' = ' + decLong(ld, 3), why: ld.term ? 'Terminating: ' + f.d + ' = ' + (df.join(' × ') || '1') + ' (only 2s and 5s)' : 'Recurring: ' + (df.length > 1 ? f.d + ' = ' + df.join(' × ') + ', which' : f.d) + ' has a prime factor other than 2 or 5' }, ld.term ? null : { t: decHTML(ld), why: 'Line over the repeating digits (or dots above the first and last repeating digit)' }, { t: 'Rounded: ' + (n / d).toFixed(1) + ' (1 d.p.), ' + (n / d).toFixed(2) + ' (2 d.p.), ' + (n / d).toFixed(3) + ' (3 d.p.)', why: '' }, { t: n + '/' + d + ' × 100 ' + (pcs[0] === '≈' ? pcs + ' (to 2 d.p.)' : '= ' + pcs), why: 'As a percentage' }].filter(Boolean)));
   }
   // rounding
   if ((m = s.match(/round\s+(.+?)\s+to\s+(?:the\s+)?(?:(\d+)\s*(?:dp|d\.p\.?|decimal places?|decimal place)|nearest\s+(whole|whole number|integer|tenth|hundredth|thousandth|ten|hundred))/))) {
     const x = evalNum(m[1]); if (isNaN(x)) throw new Error('I could not read the number “' + m[1] + '”.');
     let dp = m[2] !== undefined ? +m[2] : { whole: 0, 'whole number': 0, integer: 0, tenth: 1, hundredth: 2, thousandth: 3, ten: -1, hundred: -2 }[m[3]];
     const r = dp >= 0 ? r2(x, dp).toFixed(dp) : String(Math.round(x / 10 ** -dp) * 10 ** -dp);
-    const digits = x.toFixed(Math.max(dp, 0) + 3);
-    return ansBlock(r, stepsHTML([{ t: m[1] + ' = ' + digits + '…', why: 'Write out a few extra digits' }, { t: r, why: 'Look at the next digit: 5 or more rounds up, 4 or less leaves it' }]));
+    const k = Math.max(dp, 0) + 3, cut = Math.floor(Math.abs(x) * 10 ** k + 1e-7) / 10 ** k, exact = Math.abs(cut - Math.abs(x)) < 1e-12;
+    const digits = (x < 0 ? '−' : '') + cut.toFixed(k).replace(exact ? /0+$/ : /$^/, '').replace(/\.$/, '') + (exact ? '' : '…');
+    const nxt = dp >= 0 ? cut.toFixed(k).split('.')[1].charAt(dp) : null;
+    return ansBlock(r, stepsHTML([{ t: m[1] + ' = ' + digits, why: 'Write out a few extra digits (don’t round yet)' }, { t: r, why: nxt != null ? 'The next digit is ' + nxt + ', so ' + (+nxt >= 5 ? 'round up' : 'leave it') : 'Look at the next digit: 5 or more rounds up, 4 or less leaves it' }]));
   }
   // scale factor
   if (/scale factor/.test(s) && (m = s.match(/(\d[\d.]*)\D+?(\d[\d.]*)/))) {
@@ -2787,7 +2798,7 @@ function askEngine(raw) {
   }
   // gradient / line through two points
   if (pts.length === 2 && /gradient|slope|line|rule|equation|through|join/.test(s)) {
-    const [[x1, y1], [x2, y2]] = pts; if (x1 === x2) return ansBlock('Vertical line x = ' + fmt(x1), '<p>The run is 0, so the gradient is undefined. The rule is x = ' + fmt(x1) + '.</p>');
+    const [[x1, y1], [x2, y2]] = pts; if (x1 === x2 && y1 === y2) throw new Error('Those are the same point, so they don’t make a line. Use two different points.'); if (x1 === x2) return ansBlock('Vertical line x = ' + fmt(x1), '<p>The run is 0, so the gradient is undefined. The rule is x = ' + fmt(x1) + '.</p>');
     const mm = Fr.of(y2).sub(y1).div(Fr.of(x2).sub(x1)); const c = Fr.of(y1).sub(mm.mul(x1));
     return ansBlock('Gradient m = ' + mm.show() + '; rule y = ' + fmtLin(mm, c), stepsHTML([{ t: 'm = (' + fmt(y2) + ' − ' + fmt(y1) + ') ÷ (' + fmt(x2) + ' − ' + fmt(x1) + ') = ' + fmt(y2 - y1) + ' ÷ ' + fmt(x2 - x1) + ' = ' + mm.show(), why: 'rise ÷ run' }, { t: fmt(y1) + ' = ' + numStr(mm) + ' × ' + (x1 < 0 ? '(' + fmt(x1) + ')' : fmt(x1)) + ' + c, so c = ' + numStr(c), why: 'Substitute a point into y = mx + c' }, { t: 'y = ' + fmtLin(mm, c), why: 'The rule' }]) + '<div class="qfig">' + gridSVG({ xmin: -8, xmax: 8, ymin: -8, ymax: 8, lines: [{ m: mm.v, c: c.v }], points: pts.map(p => ({ x: p[0], y: p[1], label: ptStr(p) })), size: 280 }) + '</div>');
   }
@@ -2803,6 +2814,8 @@ function askEngine(raw) {
       if (wx) { const xv = +wx[1]; extra = stepsHTML([{ t: 'y = ' + fmtLin(mm, c).replace(/x/g, '(' + fmt(xv) + ')') + ' = ' + fmt(mm.v * xv + c.v), why: 'Substitute x = ' + fmt(xv) }]); }
       if (wy) { extra = stepsHTML(solveRel(fmtLin(mm, c) + ' = ' + wy[1]).steps); }
       const xs = [-2, -1, 0, 1, 2, 3, 4], ys = xs.map(x => mm.v * x + c.v); const xi = mm.isZero() ? null : c.neg().div(mm);
+      if (/x-?intercept/.test(s) && !wx && !wy) { if (!xi) return ansBlock('No x-intercept', '<p>y = ' + numStr(c) + ' is a horizontal line that never crosses the x-axis.</p>'); return ansBlock('x-intercept: x = ' + xi.show() + ', the point (' + xi.show() + ', 0)', stepsHTML(solveRel(fmtLin(mm, c) + ' = 0').steps.map((st, i) => i ? st : { t: '0 = ' + fmtLin(mm, c), why: 'The x-intercept is where y = 0' }))); }
+      if (/y-?intercept/.test(s) && !wx && !wy) return ansBlock('y-intercept: c = ' + numStr(c) + ', the point (0, ' + numStr(c) + ')', stepsHTML([{ t: 'y = ' + fmtLin(mm, c), why: 'In y = mx + c, c is the y-intercept' }, { t: 'When x = 0: y = ' + numStr(c), why: 'Check: put x = 0' }]));
       return ansBlock('y = ' + fmtLin(mm, c), (extra ? '<div class="fb info">' + extra + '</div>' : '') + '<dl class="kv"><dt>Gradient m</dt><dd>' + mm.show() + (mm.isZero() ? ' (horizontal)' : mm.sign() > 0 ? ' (rises left to right)' : ' (falls left to right)') + '</dd><dt>y-intercept c</dt><dd>' + numStr(c) + ' → (0, ' + numStr(c) + ')</dd><dt>x-intercept</dt><dd>' + (xi ? 'put y = 0: x = ' + xi.show() : 'none (horizontal line)') + '</dd></dl>' + tableHTML(xs, ys) + '<div class="qfig">' + gridSVG({ xmin: -8, xmax: 8, ymin: -8, ymax: 8, lines: [{ m: mm.v, c: c.v }], size: 280 }) + '</div>');
     }
     const r = solveRel(Ls + ' ' + sp.op + ' ' + sp.R);
@@ -2989,7 +3002,7 @@ const TOOL_FN = {
       if (/%$/.test(raw)) { const v = evalNum(raw.slice(0, -1)); if (isNaN(v)) throw new Error('Type a number before the %.'); fr = Fr.of(v).div(100); }
       else { const pf = parseFracInput(raw); if (!pf) throw new Error('Type a fraction, decimal or percentage.'); fr = pf.fr; }
       const ld = longDiv(fr.n, fr.d); const df = primeFactors(fr.d);
-      return '<dl class="kv"><dt>Fraction (simplest)</dt><dd>' + fr + (Math.abs(fr.n) > fr.d && fr.d > 1 ? ' = ' + (fr.n < 0 ? '−' : '') + Math.floor(Math.abs(fr.n) / fr.d) + ' ' + (Math.abs(fr.n) % fr.d) + '/' + fr.d : '') + '</dd><dt>Decimal</dt><dd>' + decHTML(ld) + (ld.term ? ' (terminating)' : ' = ' + decLong(ld, 3) + ' (recurring)') + '</dd><dt>Percentage</dt><dd>' + fmt(fr.v * 100, 6) + '%</dd><dt>Why</dt><dd style="font-family:var(--f-body)">' + (fr.d === 1 ? 'Whole number.' : 'Denominator ' + fr.d + ' = ' + df.join(' × ') + (ld.term ? ': only 2s and 5s, so it terminates.' : ': has a factor other than 2 or 5, so it recurs.')) + '</dd><dt>Rounded</dt><dd>' + [0, 1, 2, 3].map(d => fr.v.toFixed(d) + ' (' + d + ' d.p.)').join(', ') + '</dd></dl>';
+      return '<dl class="kv"><dt>Fraction (simplest)</dt><dd>' + fr + (Math.abs(fr.n) > fr.d && fr.d > 1 ? ' = ' + (fr.n < 0 ? '−' : '') + Math.floor(Math.abs(fr.n) / fr.d) + ' ' + (Math.abs(fr.n) % fr.d) + '/' + fr.d : '') + '</dd><dt>Decimal</dt><dd>' + decHTML(ld) + (ld.term ? ' (terminating)' : ' = ' + decLong(ld, 3) + ' (recurring)') + '</dd><dt>Percentage</dt><dd>' + (Number.isInteger(fr.v * 1e6) ? fmt(fr.v * 100, 4) + '%' : '≈ ' + fmt(fr.v * 100, 2) + '% (to 2 d.p.)') + '</dd><dt>Why</dt><dd style="font-family:var(--f-body)">' + (fr.d === 1 ? 'Whole number.' : 'Denominator ' + fr.d + ' = ' + df.join(' × ') + (ld.term ? ': only 2s and 5s, so it terminates.' : ': it has a prime factor other than 2 or 5, so it recurs.')) + '</dd><dt>Rounded</dt><dd>' + [0, 1, 2, 3].map(d => r2(fr.v, d).toFixed(d) + ' (' + d + ' d.p.)').join(', ') + '</dd></dl>';
     });
   },
   pct(p) {

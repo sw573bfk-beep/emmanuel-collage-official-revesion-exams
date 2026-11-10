@@ -170,7 +170,7 @@ function solveRel(str) {
   line(pretty(sp.L) + ' ' + opD(op) + ' ' + pretty(sp.R), ineq ? 'The inequality to solve' : 'The equation to solve');
   let a = L.a, b = L.b; let c = R.a; let d = R.b; let shown = steps[0].t;
   // "(x − 2)/3 = 5": multiply both sides by 3 first (clearer than splitting the fraction)
-  const fr = sp.L.trim().match(/^\((.+)\)\s*\/\s*(\d+(?:\.\d+)?)$/);
+  const fr = sp.L.trim().match(/^\((.+)\)\s*\/\s*(\d+(?:\.\d+)?)$/) || sp.L.trim().match(/^(−?-?\d+(?:\.\d+)?[a-z])\s*\/\s*(\d+(?:\.\d+)?)$/i); // "(x − 2)/3" or "2x/3"
   if (fr && c.isZero()) {
     const k = Fr.of(+fr[2]), inner = parseLin(fr[1]);
     a = inner.a; b = inner.b; d = d.mul(k); shown = pretty(fr[1]) + ' ' + opD(op) + ' ' + numStr(d);
@@ -233,7 +233,7 @@ function stepsHTML(steps) {
 
 /* ================= answer parsing ================= */
 function stripUnits(s) {
-  return s.replace(/^[a-z]\s*=\s*/i, '')
+  return s.replace(/^[a-z]\s*=\s*/i, '').replace(/(\d)([a-z]{1,8}\b)/gi, '$1 $2') // "5cm" → "5 cm"
     .replace(/\$|%|°|degrees?|cm²|cm2|m²|km\/h|\bcm\b|\bmm\b|\bkm\b|\bkg\b|\bmg\b|\bml\b|\bkl\b|\bgb\b|\bg\b|\bm\b|\bl\b|\bh\b|hours?|hrs?|weeks?|days?|minutes?|mins?|seconds?|secs?|people|students|units?|dollars?|cents?|metres?|meters?|litres?|grams?|\bc\b/gi, '')
     .replace(/(increase|decrease|profit|loss|\binc\b|\bdec\b|\bup\b|\bdown\b|\bfall\b|\brise\b)/gi, '')
     .trim();
@@ -382,20 +382,21 @@ function gridSVG(o = {}) {
   return s + '</svg>';
 }
 function boxSVG(L, Wd, H, labels = true, show = null) {
-  const u = 34, ox = 70, oy = 40 + H * u + 6, cx = 0.62 * u, cy = 0.42 * u;
+  const u = show ? (Math.min(L, H) <= 1 ? 72 : Math.min(L, H) <= 2 ? 52 : 42) : 34, cx = 0.62 * u, cy = 0.42 * u, ox = Math.round((L + 1.3) * cx + (show ? 100 : 30)), oy = Math.round((H + 1.3) * u + 16); // room above for the z-axis, and on the left for the x direction (and coordinate labels)
   const P = (x, y, z) => [ox + y * u - x * cx, oy - z * u + x * cy];
   const V = { O: [0, 0, 0], A: [L, 0, 0], B: [L, Wd, 0], C: [0, Wd, 0], D: [0, 0, H], E: [L, 0, H], F: [L, Wd, H], G: [0, Wd, H] };
-  const Wpx = ox + Wd * u + 60, Hpx = oy + L * cy + 30;
+  const Wpx = ox + Wd * u + (show ? 120 : 60), Hpx = oy + L * cy + 30;
   let s = '<svg class="dia" viewBox="0 0 ' + Wpx + ' ' + Hpx + '" style="max-width:' + Wpx + 'px;width:100%" role="img" aria-label="Box ' + L + ' by ' + Wd + ' by ' + H + ' with a corner at the origin">';
   const ln = (a, b, cls = 'edge') => { const p = P(...V[a]), q = P(...V[b]); return '<line class="' + cls + '" x1="' + p[0] + '" y1="' + p[1] + '" x2="' + q[0] + '" y2="' + q[1] + '"/>'; };
   const o0 = P(0, 0, 0), xe = P(L + 1.3, 0, 0), ye = P(0, Wd + 1.2, 0), ze = P(0, 0, H + 0.9);
   s += '<line class="ax" x1="' + o0[0] + '" y1="' + o0[1] + '" x2="' + xe[0] + '" y2="' + xe[1] + '"/><text class="axl" x="' + (xe[0] - 12) + '" y="' + (xe[1] + 6) + '">x</text>';
-  s += '<line class="ax" x1="' + o0[0] + '" y1="' + o0[1] + '" x2="' + ye[0] + '" y2="' + ye[1] + '"/><text class="axl" x="' + (ye[0] + 5) + '" y="' + (ye[1] + 4) + '">y</text>';
+  s += '<line class="ax" x1="' + o0[0] + '" y1="' + o0[1] + '" x2="' + ye[0] + '" y2="' + ye[1] + '"/><text class="axl" x="' + (ye[0] + 5) + '" y="' + (ye[1] - 4) + '">y</text>';
   s += '<line class="ax" x1="' + o0[0] + '" y1="' + o0[1] + '" x2="' + ze[0] + '" y2="' + ze[1] + '"/><text class="axl" x="' + (ze[0] + 5) + '" y="' + (ze[1] + 2) + '">z</text>';
   [['A', 'B'], ['B', 'C', 'edge dash'], ['O', 'A'], ['A', 'E'], ['B', 'F'], ['C', 'G', 'edge dash'], ['O', 'D'], ['D', 'E'], ['E', 'F'], ['F', 'G', 'edge dash'], ['G', 'D', 'edge dash']].forEach(e => { s += ln(e[0], e[1], e[2]); });
   if (labels) Object.keys(V).forEach(k => {
-    const p = P(...V[k]); const dx = (k === 'O' || k === 'D' || k === 'A' || k === 'E') ? -16 : 6, dy = (k === 'A' || k === 'B' || k === 'C' || k === 'O') ? 14 : -6;
-    s += '<circle class="pt3" cx="' + p[0] + '" cy="' + p[1] + '" r="3.2"/><text class="lbl" x="' + (p[0] + dx) + '" y="' + (p[1] + dy) + '">' + k + (show && show[k] ? ' ' + ptStr(V[k]) : '') + '</text>';
+    // labels sit outside the box: left-hand corners are right-aligned to the left of the point, the others start to the right
+    const p = P(...V[k]); const left = k === 'O' || k === 'D' || k === 'A' || k === 'E', low = k === 'A' || k === 'B' || k === 'C' || k === 'O';
+    s += '<circle class="pt3" cx="' + p[0] + '" cy="' + p[1] + '" r="3.2"/><text class="lbl" text-anchor="' + (left ? 'end' : 'start') + '" x="' + (p[0] + (left ? -7 : 7)) + '" y="' + (p[1] + (low ? 15 : -7)) + '">' + k + (show && show[k] ? ' ' + ptStr(V[k]) : '') + '</text>';
   });
   return s + '</svg>';
 }
@@ -598,7 +599,12 @@ gen('ineqConcept', '7I', 'Inequality facts', () => {
     'Only multiplying or dividing both sides by a <b>negative</b> number reverses the sign. Adding, subtracting, or multiplying/dividing by a positive never does.', 'Is it multiplying or dividing by a negative?');
 });
 /* ---------- 7J solving inequalities ---------- */
-function linStr(a, b, v = 'x') { return fmtLinN(a, b, v); }
+// a line rule like y = 0.5x + 3 (decimals for halves and quarters, as in y = mx + c), otherwise the usual form
+function linStr(a, b, v = 'x') {
+  const av = typeof a === 'number' ? a : Fr.of(a).v;
+  if (!Number.isInteger(av) && Number.isInteger(av * 100)) { const bv = typeof b === 'number' ? b : Fr.of(b).v; return (av < 0 ? '−' : '') + fmt(Math.abs(av)) + v + (bv ? (bv > 0 ? ' + ' : ' − ') + fmt(Math.abs(bv)) : ''); }
+  return fmtLinN(a, b, v);
+}
 function ineqProblem(opPool = ['<', '>', '<=', '>=']) {
   const op = pick(opPool), x0 = rnd(-6, 9); const f = rnd(1, 6); let str;
   if (f === 1) { const a = rnd(2, 7), b = nz(-12, 12); str = linStr(a, b) + ' ' + opD(op) + ' ' + fmt(a * x0 + b); }

@@ -1,11 +1,11 @@
 /* ================= Maths: difficulty of each question type, and long-response questions ================= */
 const DIFF = {
-  ineqRead: 'e', ineqWords: 'm', ineqFlip: 'm', ineqNeg: 'h', ineqTest: 'e', ineqConcept: 'm',
+  ineqRead: 'e', ineqWords: 'm', ineqFlip: 'm', ineqNeg: 'm', ineqTest: 'e', ineqConcept: 'm',
   ineqSolve: 'm', ineqSolveGraph: 'm', ineqContext: 'h',
-  eqSolve: 'e', eqWord: 'h',
+  eqSolve: 'm', eqWord: 'h',
   tableFill: 'e', plotRead: 'e', quadrant: 'e', isLinear: 'm',
   gradient2: 'm', gradientType: 'e', gradientGraph: 'm',
-  mcRule: 'e', ruleGraph: 'm', rule2pts: 'h', xint: 'h',
+  mcRule: 'e', ruleGraph: 'm', rule2pts: 'h', xint: 'm',
   ruleTable: 'm', ruleWords: 'h',
   ruleUse: 'm', evalRule: 'e', solveRule: 'm', onLine: 'm', breakEven: 'h',
   reflectPt: 'e', reflectShape: 'm', reflectWhich: 'm',
@@ -153,8 +153,8 @@ longGen('l3D', 'XYZ', 'm', 'Positions in 3D', () => {
 longGen('lRecurring', '3F', 'm', 'Terminating or recurring?', () => {
   const [n, d, term_] = pick([[3, 8, true], [7, 20, true], [2, 3, false], [5, 6, false], [9, 40, true], [4, 11, false], [7, 12, false], [13, 25, true]]);
   return { q: 'Without a calculator, decide whether <b>' + n + '/' + d + '</b> is a terminating or recurring decimal. Explain how you know, then write it as a decimal.',
-    model: 'The denominator ' + d + ' = ' + ({ 8: '2 × 2 × 2', 20: '2 × 2 × 5', 3: '3', 6: '2 × 3', 40: '2 × 2 × 2 × 5', 11: '11', 12: '2 × 2 × 3', 25: '5 × 5' }[d]) + (term_ ? ' has only 2s and 5s as prime factors' : ', which has a prime factor other than 2 or 5 (' + ({ 3: '3', 6: '3', 11: '11', 12: '3' }[d]) + ')') + ', so ' + n + '/' + d + ' is <b>' + (term_ ? 'terminating' : 'recurring') + '</b>. ' + n + ' ÷ ' + d + ' = <b>' + (n / d).toFixed(term_ ? String(n / d).split('.')[1].length : 4) + (term_ ? '' : '…') + '</b>.',
-    points: ['Says ' + (term_ ? 'terminating' : 'recurring'), 'Explains using the prime factors of ' + d + ' (only 2s and 5s → terminating)', 'Correct decimal ' + (n / d).toFixed(term_ ? String(n / d).split('.')[1].length : 4) + (term_ ? '' : '…')] };
+    model: 'The denominator ' + d + ' = ' + ({ 8: '2 × 2 × 2', 20: '2 × 2 × 5', 3: '3', 6: '2 × 3', 40: '2 × 2 × 2 × 5', 11: '11', 12: '2 × 2 × 3', 25: '5 × 5' }[d]) + (term_ ? ' has only 2s and 5s as prime factors' : ', which has a prime factor other than 2 or 5 (' + ({ 3: '3', 6: '3', 11: '11', 12: '3' }[d]) + ')') + ', so ' + n + '/' + d + ' is <b>' + (term_ ? 'terminating' : 'recurring') + '</b>. ' + n + ' ÷ ' + d + ' = <b>' + (term_ ? String(n / d) : (Math.floor(n / d * 1e4) / 1e4).toFixed(4) + '…') + '</b>.',
+    points: ['Says ' + (term_ ? 'terminating' : 'recurring'), 'Explains using the prime factors of ' + d + ' (only 2s and 5s → terminating)', 'Correct decimal ' + (term_ ? String(n / d) : (Math.floor(n / d * 1e4) / 1e4).toFixed(4) + '…')] };
 });
 longGen('lConvert', '3G', 'm', 'Convert and explain', () => {
   const p = pick([12.5, 15, 35, 40, 62.5, 75, 8, 120]); const f = Fr.of(p).div(100);

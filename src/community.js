@@ -284,8 +284,8 @@ export async function handleCommunityAdmin(req, env, url) {
 }
 
 // Leaderboard points: when progress is saved, count the newly correct answers and booklet marks for today.
-export async function addPoints(env, userId, before, after) {
-  const dc = Math.max(0, Math.min(100, after.correct - before.correct)), db = Math.max(0, Math.min(100, after.bookletRight - before.bookletRight));
+export async function addPoints(env, userId, before, after, bookletGain) {
+  const dc = Math.max(0, Math.min(100, after.correct - before.correct)), db = Math.max(0, Math.min(100, bookletGain ?? (after.bookletRight - before.bookletRight)));
   if (!dc && !db) return;
   await env.DB.prepare('INSERT INTO points_daily (user_id, day, correct, booklet) VALUES (?, ?, ?, ?) ON CONFLICT(user_id, day) DO UPDATE SET correct = correct + excluded.correct, booklet = booklet + excluded.booklet')
     .bind(userId, dayKey(now()), dc, db).run();

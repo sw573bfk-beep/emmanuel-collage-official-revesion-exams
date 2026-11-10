@@ -417,7 +417,8 @@ RENDER.exam = () => {
     Qs.forEach((Q, i) => { const c = questionCard(Q, { mode: 'exam', num: i + 1, onChange: prog }); cards.push(c); const w = h('<div class="card"></div>'); w.appendChild(c.el); list.appendChild(w); });
     const bottom = h('<div class="row"><button type="button" class="btn">Submit exam</button></div>'); list.appendChild(bottom);
     const start = Date.now(); let left = mins * 60;
-    if (mins) examTimer = setInterval(() => { left--; const c = $('#exClock', bar); if (!c) { clearInterval(examTimer); return; } c.textContent = Math.floor(left / 60) + ':' + String(left % 60).padStart(2, '0'); c.classList.toggle('low', left <= 60); if (left <= 0) { clearInterval(examTimer); toast('Time is up'); submit(); } }, 1000);
+    const deadline = start + mins * 60000; // use the clock, so the timer stays right even if the tab is in the background
+    if (mins) examTimer = setInterval(() => { left = Math.max(0, Math.round((deadline - Date.now()) / 1000)); const c = $('#exClock', bar); if (!c) { clearInterval(examTimer); return; } c.textContent = Math.floor(left / 60) + ':' + String(left % 60).padStart(2, '0'); c.classList.toggle('low', left <= 60); if (left <= 0) { clearInterval(examTimer); toast('Time is up'); submit(); } }, 1000);
     let armed = false;
     const trySubmit = btn => { const un = n - cards.filter(c => c.answered()).length; if (!armed && un > 0) { armed = true; btn.textContent = un + ' unanswered: tap again to submit'; setTimeout(() => { armed = false; btn.textContent = 'Submit exam'; }, 4000); return; } submit(); };
     $('#exSub', bar).onclick = e => trySubmit(e.target); $('button', bottom).onclick = e => trySubmit(e.target);
@@ -485,7 +486,7 @@ function askEngine(raw) {
     let a = +m[1], ua = m[2], b = +m[3], ub = m[4]; const steps = [];
     if (ua && ub && UNITS_CONV[ua] && UNITS_CONV[ub] && ua !== ub) {
       if (UNITS_CONV[ua][0] !== UNITS_CONV[ub][0]) throw new Error('Those units measure different things (' + ua + ' and ' + ub + ').');
-      const fa = UNITS_CONV[ua][1], fb = UNITS_CONV[ub][1];
+      const fa = UNITS_CONV[ua][1], fb = UNITS_CONV[ub][1]; const nice = u => ({ l: 'L', ml: 'mL', kl: 'kL' }[u] || u); ua = nice(ua); ub = nice(ub);
       if (fb > fa) { const nb = b * fb / fa; steps.push({ t: fmt(b) + ' ' + ub + ' = ' + fmt(nb) + ' ' + ua, why: 'Convert to the same units first' }); b = nb; }
       else { const na = a * fa / fb; steps.push({ t: fmt(a) + ' ' + ua + ' = ' + fmt(na) + ' ' + ub, why: 'Convert to the same units first' }); a = na; }
     }
@@ -494,8 +495,8 @@ function askEngine(raw) {
   }
   // p% of q
   if ((m = s.match(/(-?\d[\d.]*)\s*%\s*of\s*\$?(-?\d[\d.]*)/))) {
-    const p = +m[1], q = +m[2]; const v = p / 100 * q;
-    return ansBlock(fmt(p) + '% of ' + fmt(q) + ' = ' + fmt(v, 4), stepsHTML([{ t: fmt(p) + '/100 × ' + fmt(q) + ' = ' + fmt(v, 4), why: 'p% of Q = p/100 × Q' }, { t: '10% of ' + fmt(q) + ' = ' + fmt(q / 10, 4) + ', 1% = ' + fmt(q / 100, 4), why: 'Mental check' }]));
+    const p = +m[1], q = +m[2]; const v = p / 100 * q; const cash = /%\s*of\s*\$/.test(s), V = x => cash ? money(x) : fmt(x, 4);
+    return ansBlock(fmt(p) + '% of ' + (cash ? money(q) : fmt(q)) + ' = ' + V(v), stepsHTML([{ t: fmt(p) + '/100 × ' + fmt(q) + ' = ' + V(v), why: 'p% of Q = p/100 × Q' }, { t: '10% of ' + fmt(q) + ' = ' + fmt(q / 10, 4) + ', 1% = ' + fmt(q / 100, 4), why: 'Mental check' }]));
   }
   // % to fraction/decimal
   if ((m = s.match(/^(-?\d[\d.]*)\s*%\s*(?:as|to|in|into)?\s*(?:an? )?(fraction|decimal)?$/))) {
@@ -510,15 +511,19 @@ function askEngine(raw) {
   // fraction to decimal/%
   if ((m = s.match(/^(-?\d+)\s*\/\s*(\d+)\s*(?:as|to|in|into)?\s*(?:an? )?(decimal|percentage|percent|%|fraction|simplest form)?$/))) {
     const n = +m[1], d = +m[2]; if (!d) throw new Error('You cannot divide by zero.'); const f = new Fr(n, d); const ld = longDiv(f.n, f.d); const df = primeFactors(f.d);
-    return ansBlock(n + '/' + d + (f.n !== n ? ' = ' + f : '') + ' = ' + decHTML(ld), stepsHTML([f.n !== n ? { t: n + '/' + d + ' = ' + f, why: 'Simplest form (divide top and bottom by ' + gcd(n, d) + ')' } : null, { t: n + ' ÷ ' + d + ' = ' + decLong(ld, 3), why: ld.term ? 'Terminating: ' + f.d + ' = ' + (df.join(' × ') || '1') + ' (only 2s and 5s)' : 'Recurring: ' + f.d + ' = ' + df.join(' × ') + ' has a factor other than 2 or 5' }, ld.term ? null : { t: decHTML(ld), why: 'Line over the repeating digits (or dots above the first and last repeating digit)' }, { t: 'Rounded: ' + (n / d).toFixed(1) + ' (1 d.p.), ' + (n / d).toFixed(2) + ' (2 d.p.), ' + (n / d).toFixed(3) + ' (3 d.p.)', why: '' }, { t: n + '/' + d + ' × 100 = ' + fmt(n / d * 100, 4) + '%', why: 'As a percentage' }].filter(Boolean)));
+    const pc = f.v * 100, pcs = Number.isInteger(pc * 10000) ? fmt(pc, 4) + '%' : '≈ ' + fmt(pc, 2) + '%';
+    if (/percent|%/.test(m[3] || '')) return ansBlock(n + '/' + d + ' = ' + pcs.replace('≈ ', '') + (pcs[0] === '≈' ? ' (to 2 d.p.)' : ''), stepsHTML([{ t: n + '/' + d + ' × 100 ' + (pcs[0] === '≈' ? pcs : '= ' + pcs), why: 'Fraction → percentage: multiply by 100' }, { t: n + ' ÷ ' + d + ' = ' + decLong(ld, 3), why: 'As a decimal' }]));
+    return ansBlock(n + '/' + d + (f.n !== n ? ' = ' + f : '') + ' = ' + decHTML(ld), stepsHTML([f.n !== n ? { t: n + '/' + d + ' = ' + f, why: 'Simplest form (divide top and bottom by ' + gcd(n, d) + ')' } : null, { t: n + ' ÷ ' + d + ' = ' + decLong(ld, 3), why: ld.term ? 'Terminating: ' + f.d + ' = ' + (df.join(' × ') || '1') + ' (only 2s and 5s)' : 'Recurring: ' + (df.length > 1 ? f.d + ' = ' + df.join(' × ') + ', which' : f.d) + ' has a prime factor other than 2 or 5' }, ld.term ? null : { t: decHTML(ld), why: 'Line over the repeating digits (or dots above the first and last repeating digit)' }, { t: 'Rounded: ' + (n / d).toFixed(1) + ' (1 d.p.), ' + (n / d).toFixed(2) + ' (2 d.p.), ' + (n / d).toFixed(3) + ' (3 d.p.)', why: '' }, { t: n + '/' + d + ' × 100 ' + (pcs[0] === '≈' ? pcs + ' (to 2 d.p.)' : '= ' + pcs), why: 'As a percentage' }].filter(Boolean)));
   }
   // rounding
   if ((m = s.match(/round\s+(.+?)\s+to\s+(?:the\s+)?(?:(\d+)\s*(?:dp|d\.p\.?|decimal places?|decimal place)|nearest\s+(whole|whole number|integer|tenth|hundredth|thousandth|ten|hundred))/))) {
     const x = evalNum(m[1]); if (isNaN(x)) throw new Error('I could not read the number “' + m[1] + '”.');
     let dp = m[2] !== undefined ? +m[2] : { whole: 0, 'whole number': 0, integer: 0, tenth: 1, hundredth: 2, thousandth: 3, ten: -1, hundred: -2 }[m[3]];
     const r = dp >= 0 ? r2(x, dp).toFixed(dp) : String(Math.round(x / 10 ** -dp) * 10 ** -dp);
-    const digits = x.toFixed(Math.max(dp, 0) + 3);
-    return ansBlock(r, stepsHTML([{ t: m[1] + ' = ' + digits + '…', why: 'Write out a few extra digits' }, { t: r, why: 'Look at the next digit: 5 or more rounds up, 4 or less leaves it' }]));
+    const k = Math.max(dp, 0) + 3, cut = Math.floor(Math.abs(x) * 10 ** k + 1e-7) / 10 ** k, exact = Math.abs(cut - Math.abs(x)) < 1e-12;
+    const digits = (x < 0 ? '−' : '') + cut.toFixed(k).replace(exact ? /0+$/ : /$^/, '').replace(/\.$/, '') + (exact ? '' : '…');
+    const nxt = dp >= 0 ? cut.toFixed(k).split('.')[1].charAt(dp) : null;
+    return ansBlock(r, stepsHTML([{ t: m[1] + ' = ' + digits, why: 'Write out a few extra digits (don’t round yet)' }, { t: r, why: nxt != null ? 'The next digit is ' + nxt + ', so ' + (+nxt >= 5 ? 'round up' : 'leave it') : 'Look at the next digit: 5 or more rounds up, 4 or less leaves it' }]));
   }
   // scale factor
   if (/scale factor/.test(s) && (m = s.match(/(\d[\d.]*)\D+?(\d[\d.]*)/))) {
@@ -558,7 +563,7 @@ function askEngine(raw) {
   }
   // gradient / line through two points
   if (pts.length === 2 && /gradient|slope|line|rule|equation|through|join/.test(s)) {
-    const [[x1, y1], [x2, y2]] = pts; if (x1 === x2) return ansBlock('Vertical line x = ' + fmt(x1), '<p>The run is 0, so the gradient is undefined. The rule is x = ' + fmt(x1) + '.</p>');
+    const [[x1, y1], [x2, y2]] = pts; if (x1 === x2 && y1 === y2) throw new Error('Those are the same point, so they don’t make a line. Use two different points.'); if (x1 === x2) return ansBlock('Vertical line x = ' + fmt(x1), '<p>The run is 0, so the gradient is undefined. The rule is x = ' + fmt(x1) + '.</p>');
     const mm = Fr.of(y2).sub(y1).div(Fr.of(x2).sub(x1)); const c = Fr.of(y1).sub(mm.mul(x1));
     return ansBlock('Gradient m = ' + mm.show() + '; rule y = ' + fmtLin(mm, c), stepsHTML([{ t: 'm = (' + fmt(y2) + ' − ' + fmt(y1) + ') ÷ (' + fmt(x2) + ' − ' + fmt(x1) + ') = ' + fmt(y2 - y1) + ' ÷ ' + fmt(x2 - x1) + ' = ' + mm.show(), why: 'rise ÷ run' }, { t: fmt(y1) + ' = ' + numStr(mm) + ' × ' + (x1 < 0 ? '(' + fmt(x1) + ')' : fmt(x1)) + ' + c, so c = ' + numStr(c), why: 'Substitute a point into y = mx + c' }, { t: 'y = ' + fmtLin(mm, c), why: 'The rule' }]) + '<div class="qfig">' + gridSVG({ xmin: -8, xmax: 8, ymin: -8, ymax: 8, lines: [{ m: mm.v, c: c.v }], points: pts.map(p => ({ x: p[0], y: p[1], label: ptStr(p) })), size: 280 }) + '</div>');
   }
@@ -574,6 +579,8 @@ function askEngine(raw) {
       if (wx) { const xv = +wx[1]; extra = stepsHTML([{ t: 'y = ' + fmtLin(mm, c).replace(/x/g, '(' + fmt(xv) + ')') + ' = ' + fmt(mm.v * xv + c.v), why: 'Substitute x = ' + fmt(xv) }]); }
       if (wy) { extra = stepsHTML(solveRel(fmtLin(mm, c) + ' = ' + wy[1]).steps); }
       const xs = [-2, -1, 0, 1, 2, 3, 4], ys = xs.map(x => mm.v * x + c.v); const xi = mm.isZero() ? null : c.neg().div(mm);
+      if (/x-?intercept/.test(s) && !wx && !wy) { if (!xi) return ansBlock('No x-intercept', '<p>y = ' + numStr(c) + ' is a horizontal line that never crosses the x-axis.</p>'); return ansBlock('x-intercept: x = ' + xi.show() + ', the point (' + xi.show() + ', 0)', stepsHTML(solveRel(fmtLin(mm, c) + ' = 0').steps.map((st, i) => i ? st : { t: '0 = ' + fmtLin(mm, c), why: 'The x-intercept is where y = 0' }))); }
+      if (/y-?intercept/.test(s) && !wx && !wy) return ansBlock('y-intercept: c = ' + numStr(c) + ', the point (0, ' + numStr(c) + ')', stepsHTML([{ t: 'y = ' + fmtLin(mm, c), why: 'In y = mx + c, c is the y-intercept' }, { t: 'When x = 0: y = ' + numStr(c), why: 'Check: put x = 0' }]));
       return ansBlock('y = ' + fmtLin(mm, c), (extra ? '<div class="fb info">' + extra + '</div>' : '') + '<dl class="kv"><dt>Gradient m</dt><dd>' + mm.show() + (mm.isZero() ? ' (horizontal)' : mm.sign() > 0 ? ' (rises left to right)' : ' (falls left to right)') + '</dd><dt>y-intercept c</dt><dd>' + numStr(c) + ' → (0, ' + numStr(c) + ')</dd><dt>x-intercept</dt><dd>' + (xi ? 'put y = 0: x = ' + xi.show() : 'none (horizontal line)') + '</dd></dl>' + tableHTML(xs, ys) + '<div class="qfig">' + gridSVG({ xmin: -8, xmax: 8, ymin: -8, ymax: 8, lines: [{ m: mm.v, c: c.v }], size: 280 }) + '</div>');
     }
     const r = solveRel(Ls + ' ' + sp.op + ' ' + sp.R);
@@ -760,7 +767,7 @@ const TOOL_FN = {
       if (/%$/.test(raw)) { const v = evalNum(raw.slice(0, -1)); if (isNaN(v)) throw new Error('Type a number before the %.'); fr = Fr.of(v).div(100); }
       else { const pf = parseFracInput(raw); if (!pf) throw new Error('Type a fraction, decimal or percentage.'); fr = pf.fr; }
       const ld = longDiv(fr.n, fr.d); const df = primeFactors(fr.d);
-      return '<dl class="kv"><dt>Fraction (simplest)</dt><dd>' + fr + (Math.abs(fr.n) > fr.d && fr.d > 1 ? ' = ' + (fr.n < 0 ? '−' : '') + Math.floor(Math.abs(fr.n) / fr.d) + ' ' + (Math.abs(fr.n) % fr.d) + '/' + fr.d : '') + '</dd><dt>Decimal</dt><dd>' + decHTML(ld) + (ld.term ? ' (terminating)' : ' = ' + decLong(ld, 3) + ' (recurring)') + '</dd><dt>Percentage</dt><dd>' + fmt(fr.v * 100, 6) + '%</dd><dt>Why</dt><dd style="font-family:var(--f-body)">' + (fr.d === 1 ? 'Whole number.' : 'Denominator ' + fr.d + ' = ' + df.join(' × ') + (ld.term ? ': only 2s and 5s, so it terminates.' : ': has a factor other than 2 or 5, so it recurs.')) + '</dd><dt>Rounded</dt><dd>' + [0, 1, 2, 3].map(d => fr.v.toFixed(d) + ' (' + d + ' d.p.)').join(', ') + '</dd></dl>';
+      return '<dl class="kv"><dt>Fraction (simplest)</dt><dd>' + fr + (Math.abs(fr.n) > fr.d && fr.d > 1 ? ' = ' + (fr.n < 0 ? '−' : '') + Math.floor(Math.abs(fr.n) / fr.d) + ' ' + (Math.abs(fr.n) % fr.d) + '/' + fr.d : '') + '</dd><dt>Decimal</dt><dd>' + decHTML(ld) + (ld.term ? ' (terminating)' : ' = ' + decLong(ld, 3) + ' (recurring)') + '</dd><dt>Percentage</dt><dd>' + (Number.isInteger(fr.v * 1e6) ? fmt(fr.v * 100, 4) + '%' : '≈ ' + fmt(fr.v * 100, 2) + '% (to 2 d.p.)') + '</dd><dt>Why</dt><dd style="font-family:var(--f-body)">' + (fr.d === 1 ? 'Whole number.' : 'Denominator ' + fr.d + ' = ' + df.join(' × ') + (ld.term ? ': only 2s and 5s, so it terminates.' : ': it has a prime factor other than 2 or 5, so it recurs.')) + '</dd><dt>Rounded</dt><dd>' + [0, 1, 2, 3].map(d => r2(fr.v, d).toFixed(d) + ' (' + d + ' d.p.)').join(', ') + '</dd></dl>';
     });
   },
   pct(p) {
