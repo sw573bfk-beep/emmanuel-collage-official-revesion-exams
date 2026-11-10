@@ -58,7 +58,7 @@ function questionCard(Q, opts = {}) {
     if (Q.type === 'mcq') $$('.choice', el).forEach((b, i) => { b.disabled = true; if (i === Q.ans) b.classList.add('right'); else if (i === sel) b.classList.add('wrong'); });
     if (input) input.readOnly = true;
     const msg = r.ok ? '<b>Correct!</b>' + (tries > 1 ? ' (second try)' : '') : (r.gaveUp ? '<b>Answer:</b> ' : '<b>Not this time.</b> ' + (r.msg ? esc(r.msg) + ' ' : '') + 'Answer: ') + (r.ok ? '' : '<span class="m">' + esc(Q.ansText) + '</span>');
-    fb.appendChild(h('<div class="fb ' + (r.ok ? 'good' : 'bad') + '">' + msg + '</div>'));
+    fb.appendChild(h('<div class="fb ' + (r.ok ? 'good' : r.gaveUp ? 'info answer-shown' : 'bad') + '">' + msg + '</div>'));
     if (r.ok) { const d = h('<details class="ex"><summary>Show the working</summary></details>'); d.insertAdjacentHTML('beforeend', solHTML(Q)); fb.appendChild(d); }
     else fb.insertAdjacentHTML('beforeend', solHTML(Q));
     if (opts.onAnswer) opts.onAnswer(!!r.ok && (exam || tries <= 1), false, tries);

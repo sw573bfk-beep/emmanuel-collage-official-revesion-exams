@@ -90,9 +90,9 @@ function nearName(name) {
 const CHANGES = [
   ['melting chocolate', 'P'], ['toasting bread', 'C'], ['burning a candle wick', 'C'], ['a light bulb glowing', 'P'], ['dissolving salt in water', 'P'], ['burning wood', 'C'], ['baking chicken', 'C'], ['boiling water', 'P'],
   ['water evaporating from a river', 'P'], ['condensation on a window', 'P'], ['cutting paper', 'P'], ['milk turning sour', 'C'], ['breaking glass', 'P'], ['using a battery', 'C'], ['photosynthesis', 'C'], ['digesting food', 'C'],
-  ['an iron nail rusting', 'C'], ['ice melting', 'P'], ['frying an egg', 'C'], ['crushing a can', 'P'], ['mixing sand and water', 'P'], ['fireworks exploding', 'C'], ['baking a cake', 'C'], ['freezing juice into an ice block', 'P'],
+  ['an iron nail rusting', 'C'], ['ice melting', 'P'], ['frying an egg', 'C'], ['crushing a can', 'P'], ['mixing sand and water', 'P'], ['a firework exploding', 'C'], ['baking a cake', 'C'], ['freezing juice into an ice block', 'P'],
   ['sharpening a pencil', 'P'], ['fruit rotting', 'C'], ['tearing paper', 'P'], ['dissolving sugar in tea', 'P'], ['an antacid tablet fizzing in water', 'C'], ['mixing vinegar and baking soda', 'C'], ['bending a wire', 'P'], ['a silver spoon tarnishing', 'C'],
-  ['grinding coffee beans', 'P'], ['whipping cream', 'P'], ['striking a match', 'C'], ['a bicycle chain going rusty', 'C'], ['melting butter', 'P'], ['cooking a pancake', 'C'], ['stretching a rubber band', 'P'], ['leaves changing colour in autumn', 'C'],
+  ['grinding coffee beans', 'P'], ['whipping cream', 'P'], ['striking a match', 'C'], ['a bicycle chain going rusty', 'C'], ['melting butter', 'P'], ['cooking a pancake', 'C'], ['stretching a rubber band', 'P'], ['a leaf changing colour in autumn', 'C'],
   ['magnesium burning with a white flame', 'C'], ['dry ice turning straight into a gas', 'P'], ['a copper roof turning green', 'C'], ['bread dough rising because of yeast', 'C'], ['shaping clay into a pot', 'P'], ['firing a clay pot in a kiln', 'C'],
   ['filtering sand out of water', 'P'], ['distilling salty water', 'P'], ['petrol burning in a car engine', 'C'], ['a glow stick being snapped and glowing', 'C'], ['melting wax (without burning it)', 'P'], ['hair dye changing hair colour', 'C'],
   ['concrete setting hard', 'C'], ['an egg going rotten', 'C'], ['dew forming on grass', 'P'], ['chopping vegetables', 'P'], ['caramelising sugar in a pan', 'C'], ['mixing cordial into water', 'P'], ['a banana turning brown', 'C'], ['steam fogging up a mirror', 'P']
@@ -212,7 +212,9 @@ gen('rpFacts', 'C3', 'Reactants and products', () => {
     const right = first(pick(askP ? x.p : x.r)); const other = (askP ? x.r : x.p).map(first);
     const near = [right, ...other].map(nearName).filter(n => n && n !== right && !x.r.concat(x.p).map(first).includes(n));
     const extra = ['oxygen', 'water', 'carbon dioxide', 'hydrogen'].filter(n => !x.r.concat(x.p).map(first).includes(n));
-    return mcqFrom(x.d + '<br>Which substance is a <b>' + (askP ? 'product' : 'reactant') + '</b>?', right, other.concat(near, other.length + near.length < 3 ? extra : []),
+    const named = x.r.concat(x.p).map(first), base = [...new Set(other.concat(near))].filter(n => n !== right);
+    const fill = extra.concat(['nitrogen', 'sodium chloride', 'sulfur dioxide', 'iron oxide']).filter(n => n !== right && !base.includes(n) && !named.includes(n));
+    return mcqFrom(x.d + '<br>Which substance is a <b>' + (askP ? 'product' : 'reactant') + '</b>?', right, base.length >= 3 ? base : base.concat(fill.slice(0, 3 - base.length)),
       ['Reactants (what you start with): <b>' + x.r.map(first).join(', ') + '</b>.', 'Products (what is made): <b>' + x.p.map(first).join(', ') + '</b>.'], 'Reactants are used up; products are made.');
   }
   return bankQ([
@@ -258,7 +260,12 @@ gen('massClosed', 'C5', 'Find the missing mass (closed system)', () => {
   const all = x.r.map((t, i) => ['r', i, rm[i]]).concat(x.p.map((t, i) => ['p', i, pm[i]])); const [side, mi, mv] = pick(all);
   const lab = (arr, ms, s) => arr.map((t, k) => first(t) + ' (' + ((s === side && k === mi) ? '<b>? g</b>' : fmt(ms[k]) + ' g') + ')').join(' + ');
   return { type: 'num', q: 'This reaction happens in a <b>sealed (closed) container</b>:<div class="eqbox">' + lab(x.r, rm, 'r') + ' → ' + lab(x.p, pm, 'p') + '</div>Find the missing mass in grams.', ans: mv, tol: 0.051, ansText: fmt(mv) + ' g',
-    hint: 'In a closed system, total mass of reactants = total mass of products.', sol: ['Law of conservation of mass: mass of reactants = mass of products.', 'Total mass = ' + fmt(total) + ' g.', 'Missing mass = ' + fmt(total) + ' − ' + fmt(r2(total - mv, 1)) + ' = <b>' + fmt(mv) + ' g</b>'] };
+    hint: 'In a closed system, total mass of reactants = total mass of products.', sol: (() => {
+      const os = side === 'r' ? pm : rm, same = (side === 'r' ? rm : pm).filter((v, k) => k !== mi), osName = side === 'r' ? 'products' : 'reactants';
+      return ['Law of conservation of mass: total mass of reactants = total mass of products.',
+        'Total mass of the ' + osName + ' = ' + (os.length > 1 ? os.map(v => fmt(v)).join(' + ') + ' = ' : '') + fmt(total) + ' g.',
+        same.length ? 'Missing mass = ' + fmt(total) + ' − ' + (same.length > 1 ? '(' + same.map(v => fmt(v)).join(' + ') + ')' : fmt(same[0])) + ' = <b>' + fmt(mv) + ' g</b>' : 'The missing substance is the only ' + (side === 'r' ? 'reactant' : 'product') + ', so its mass is <b>' + fmt(mv) + ' g</b>.'];
+    })() };
 });
 gen('massOpen', 'C5', 'Open system: where did the mass go?', () => {
   const start = r2(rnd(800, 1600) / 10, 1), gas = r2(rnd(5, 40) / 10, 1), end = r2(start - gas, 1); const acid = pick(['marble chips (calcium carbonate) and hydrochloric acid', 'magnesium and hydrochloric acid', 'baking soda and vinegar', 'zinc and sulfuric acid', 'an antacid tablet and water']);
@@ -309,7 +316,7 @@ gen('atomCount', 'C5', 'Count the atoms', () => {
 gen('tempClassify', 'C6', 'Classify from temperature data', () => {
   const start = rnd(17, 25); const exo = Math.random() < 0.5; const dT = rnd(2, 18); const end = exo ? start + dT : start - dT;
   const thing = pick(['dissolved a salt in water', 'mixed two solutions', 'added a powder to water', 'reacted a metal with an acid', 'added citric acid to baking soda solution', 'mixed an acid and an alkali', 'added iron powder to copper sulfate solution']);
-  return { type: 'mcq', q: 'Students ' + thing + '. The temperature went from <b>' + start + ' °C</b> to <b>' + end + ' °C</b>. Classify the reaction.', choices: ['Exothermic', 'Endothermic'], ans: exo ? 0 : 1, ansText: exo ? 'Exothermic' : 'Endothermic',
+  return { type: 'mcq', q: 'Students ' + thing + '. The temperature went from <b>' + start + ' °C</b> to <b>' + fmt(end) + ' °C</b>. Classify the reaction.', choices: ['Exothermic', 'Endothermic'], ans: exo ? 0 : 1, ansText: exo ? 'Exothermic' : 'Endothermic',
     hint: 'Temperature up = exothermic (energy out). Temperature down = endothermic (energy in).', sol: [(exo ? 'The temperature increased by ' : 'The temperature decreased by ') + dT + ' °C.', exo ? '<b>Exothermic</b>: energy was released to the surroundings, so they got hotter.' : '<b>Endothermic</b>: energy was absorbed from the surroundings, so they got colder.'] };
 });
 gen('deltaT', 'C6', 'Calculate the temperature change (ΔT)', () => {
@@ -338,11 +345,11 @@ gen('energyDiagram', 'C6', 'Read an energy diagram', () => {
   const k = rnd(0, 2);
   if (k === 0) return { type: 'mcq', q: 'Is this reaction exothermic or endothermic?', fig, choices: ['Exothermic', 'Endothermic'], ans: exo ? 0 : 1, ansText: exo ? 'Exothermic' : 'Endothermic', hint: 'Compare the energy of the reactants (left) with the products (right).',
     sol: [exo ? 'Products (' + P2 + ' kJ) have <b>less</b> energy than reactants (' + R + ' kJ), so energy was <b>released</b>: exothermic.' : 'Products (' + P2 + ' kJ) have <b>more</b> energy than reactants (' + R + ' kJ), so energy was <b>absorbed</b>: endothermic.'] };
-  if (k === 1) return { type: 'num', q: 'How much energy is ' + (exo ? 'released' : 'absorbed') + ' in this reaction, in kJ?', fig, ans: diff, ansText: diff + ' kJ', hint: 'Energy change = difference between the reactants’ level and the products’ level (not the peak).', sol: ['|' + P2 + ' − ' + R + '| = <b>' + diff + ' kJ</b> ' + (exo ? 'released' : 'absorbed') + '.'] };
+  if (k === 1) return { type: 'num', q: 'How much energy is ' + (exo ? 'released' : 'absorbed') + ' in this reaction, in kJ?', fig, ans: diff, ansText: diff + ' kJ', hint: 'Energy change = difference between the reactants’ level and the products’ level (not the peak).', sol: ['Energy change = products − reactants = ' + P2 + ' − ' + R + ' = ' + (P2 > R ? '+' : '') + fmt(P2 - R) + ' kJ.', (exo ? 'Negative, so energy is released' : 'Positive, so energy is absorbed') + ': <b>' + diff + ' kJ</b>.'] };
   const right = (exo ? 'Exothermic: ' + diff + ' kJ released' : 'Endothermic: ' + diff + ' kJ absorbed');
   return mcqFrom('Which statement correctly describes this reaction?', right,
     [(exo ? 'Endothermic: ' + diff + ' kJ absorbed' : 'Exothermic: ' + diff + ' kJ released'), (exo ? 'Exothermic: ' : 'Endothermic: ') + (Math.min(400, peak) - Math.min(R, P2)) + ' kJ ' + (exo ? 'released' : 'absorbed'), (exo ? 'Exothermic: ' : 'Endothermic: ') + (R + P2) + ' kJ ' + (exo ? 'released' : 'absorbed'), (exo ? 'Endothermic: ' : 'Exothermic: ') + (Math.min(400, peak) - R) + ' kJ ' + (exo ? 'absorbed' : 'released')],
-    ['Energy change = products − reactants = ' + P2 + ' − ' + R + ' = ' + (P2 - R) + ' kJ. ' + (exo ? 'Negative: energy released (exothermic).' : 'Positive: energy absorbed (endothermic).'), 'The peak is the energy needed to start the reaction; it is not the overall energy change.'], 'Use the reactant and product levels, not the peak.', { fig });
+    ['Energy change = products − reactants = ' + P2 + ' − ' + R + ' = ' + fmt(P2 - R) + ' kJ. ' + (exo ? 'Negative: energy released (exothermic).' : 'Positive: energy absorbed (endothermic).'), 'The peak is the energy needed to start the reaction; it is not the overall energy change.'], 'Use the reactant and product levels, not the peak.', { fig });
 });
 const EXO_EX = ['burning wood', 'a hand warmer heating up', 'respiration in your cells', 'magnesium reacting with acid', 'an acid neutralising an alkali', 'petrol burning in an engine', 'fireworks exploding', 'iron slowly rusting', 'concrete setting', 'a candle burning', 'water freezing into ice', 'steam condensing on a mirror'];
 const ENDO_EX = ['photosynthesis', 'an instant cold pack working', 'baking a cake', 'cooking an egg', 'thermal decomposition of copper carbonate', 'citric acid reacting with baking soda', 'ice melting', 'water evaporating', 'dissolving ammonium nitrate in water', 'splitting water into hydrogen and oxygen with electricity', 'sherbet fizzing on your tongue (feels cold)', 'heating limestone to make quicklime'];
@@ -390,7 +397,7 @@ gen('combFacts', 'C7', 'Combustion ideas', () => {
   ]);
 });
 const FIRE = [
-  ['fuel', 'Turning off the gas at a stove'], ['fuel', 'Firefighters clearing a strip of bush ahead of a bushfire (a firebreak)'], ['fuel', 'A candle going out when all its wax is used up'], ['fuel', 'Turning off the gas tap on a Bunsen burner'], ['fuel', 'Removing the logs from a campfire'], ['fuel', 'A barbecue going out when the gas bottle runs empty'],
+  ['fuel', 'Turning off the gas at a stove'], ['fuel', 'Firefighters clearing a strip of bush ahead of a bushfire (a firebreak)'], ['fuel', 'Letting a candle burn until all its wax is used up'], ['fuel', 'Turning off the gas tap on a Bunsen burner'], ['fuel', 'Removing the logs from a campfire'], ['fuel', 'Letting a barbecue’s gas bottle run empty'],
   ['oxygen', 'Smothering a fire with a fire blanket'], ['oxygen', 'Putting a lid on a pan of burning oil'], ['oxygen', 'Covering a campfire with sand'], ['oxygen', 'Putting a jar over a burning candle'], ['oxygen', 'A carbon dioxide fire extinguisher pushing the air away'], ['oxygen', 'Closing the air vents on a wood heater'],
   ['heat', 'Spraying water on burning wood'], ['heat', 'Blowing out a match'], ['heat', 'Pouring water over campfire coals'], ['heat', 'Sprinklers spraying water on a burning shed'], ['heat', 'Licking your fingers and pinching out a candle wick'], ['heat', 'A wet towel cooling a small paper fire']
 ];
@@ -433,8 +440,9 @@ gen('corrNails', 'C8', 'Which nail rusts?', () => {
   if (Math.random() < 0.55 && set.filter(t => t[1] === set[most][1]).length === 1) return { type: 'mcq', q: 'Four test tubes each contain an iron nail:' + list + 'Which nail rusts the <b>most</b>?', choices: letters, ans: most, ansText: letters[most], sol, hint: 'Which one has oxygen, water and something that speeds rusting up?' };
   if (zeros.length === 1) return { type: 'mcq', q: 'Four test tubes each contain an iron nail:' + list + 'Which nail will <b>not</b> rust?', choices: letters, ans: zeros[0], ansText: letters[zeros[0]], sol, hint: 'Rusting needs both oxygen and water.' };
   const i = pick(set.map((t, i) => i)); const t = set[i];
+  const one = ['Rusting needs <b>oxygen and water</b>; salt and warmth speed it up.', 'This nail ' + (t[1] === 0 ? '<b>does not rust</b>: ' + t[2] + '.' : t[1] >= 3 ? '<b>rusts quickly</b>: it has oxygen and water, plus salt or warmth to speed it up.' : '<b>rusts</b>: it has both oxygen and water.')];
   return mcqFrom('An iron nail is set up like this: <b>' + t[0] + '</b>. What happens?', t[1] === 0 ? 'It does not rust, because ' + t[2] : t[1] >= 3 ? 'It rusts quickly, because salt or warmth speeds up rusting' : 'It rusts, because it has both oxygen and water',
-    ['It does not rust, because there is no salt', 'It rusts, because it has both oxygen and water', 'It rusts quickly, because salt or warmth speeds up rusting', 'It does not rust, because ' + (t[2] || 'there is no oxygen'), 'It rusts, because iron always rusts in a few days'].filter(s => s !== (t[1] === 0 ? 'It does not rust, because ' + t[2] : '')), sol, 'Check: is there oxygen? Is there water? Anything that speeds it up or blocks it?');
+    ['It does not rust, because there is no salt', 'It rusts, because it has both oxygen and water', 'It rusts quickly, because salt or warmth speeds up rusting', 'It does not rust, because ' + (t[2] || 'there is no oxygen'), 'It rusts, because iron always rusts in a few days'].filter(s => s !== (t[1] === 0 ? 'It does not rust, because ' + t[2] : '')), one, 'Check: is there oxygen? Is there water? Anything that speeds it up or blocks it?');
 });
 const METAL_OX = [['iron', [['iron oxide', 'rust']], 'rusts (forms flaky orange-brown iron oxide)'], ['zinc', ['zinc oxide'], 'slowly forms a dull white layer'], ['copper', [['copper oxide', 'copper carbonate']], 'slowly turns dull brown, then green'], ['aluminium', ['aluminium oxide'], 'forms a thin protective oxide layer'], ['magnesium', ['magnesium oxide'], 'slowly goes dull and white'], ['silver', [['silver oxide', 'silver sulfide']], 'tarnishes and goes dark']];
 gen('corrEq', 'C8', 'Corrosion word equations', () => {
@@ -454,20 +462,20 @@ const ELEMS = [['hydrogen', 'H', 1, 1], ['helium', 'He', 2, 4], ['lithium', 'Li'
   ['sodium', 'Na', 11, 23], ['magnesium', 'Mg', 12, 24], ['aluminium', 'Al', 13, 27], ['silicon', 'Si', 14, 28], ['phosphorus', 'P', 15, 31], ['sulfur', 'S', 16, 32], ['chlorine', 'Cl', 17, 35], ['argon', 'Ar', 18, 40], ['potassium', 'K', 19, 39], ['calcium', 'Ca', 20, 40],
   ['iron', 'Fe', 26, 56], ['copper', 'Cu', 29, 64], ['zinc', 'Zn', 30, 65], ['bromine', 'Br', 35, 80], ['silver', 'Ag', 47, 108], ['iodine', 'I', 53, 127], ['gold', 'Au', 79, 197], ['lead', 'Pb', 82, 207]];
 gen('massNumber', 'C9', 'Mass number calculations', () => {
-  const [name, sym, Z, A] = pick(ELEMS); const N = A - Z; const k = rnd(0, 4);
+  const [name, sym, Z, A] = pick(ELEMS); const N = A - Z; const k = rnd(0, 4); const pl = (n, w) => n + ' ' + w + (n === 1 ? '' : 's');
   if (k === 0) return { type: 'num', q: 'An atom of ' + name + ' (' + sym + ') has atomic number <b>' + Z + '</b> and mass number <b>' + A + '</b>. How many <b>neutrons</b> does it have?', ans: N, ansText: String(N), hint: 'Neutrons = mass number − atomic number.', sol: ['N = A − Z = ' + A + ' − ' + Z + ' = <b>' + N + '</b>'] };
-  if (k === 1) return { type: 'num', q: 'An atom has <b>' + Z + ' protons</b> and <b>' + N + ' neutrons</b>. What is its mass number?', ans: A, ansText: String(A), hint: 'Mass number = protons + neutrons.', sol: ['A = Z + N = ' + Z + ' + ' + N + ' = <b>' + A + '</b> (this is ' + name + ', ' + sym + ')'] };
+  if (k === 1) return { type: 'num', q: 'An atom has <b>' + pl(Z, 'proton') + '</b> and <b>' + pl(N, 'neutron') + '</b>. What is its mass number?', ans: A, ansText: String(A), hint: 'Mass number = protons + neutrons.', sol: ['A = Z + N = ' + Z + ' + ' + N + ' = <b>' + A + '</b> (this is ' + name + ', ' + sym + ')'] };
   if (k === 2) return { type: 'num', q: 'A neutral atom has a mass number of <b>' + A + '</b> and <b>' + N + ' neutrons</b>. How many <b>electrons</b> does it have?', ans: Z, ansText: String(Z), hint: 'Protons = A − N. In a neutral atom, electrons = protons.', sol: ['Protons = ' + A + ' − ' + N + ' = ' + Z + '.', 'Neutral atom, so electrons = protons = <b>' + Z + '</b> (' + name + ')'] };
-  if (k === 3 && Z > 1) return mcqFrom('An atom of ' + name + ' has mass number <b>' + A + '</b> and atomic number <b>' + Z + '</b>. Which is correct?', Z + ' protons, ' + N + ' neutrons, ' + Z + ' electrons',
-    [[Z, A, Z], [N, Z, N], [Z, N, N], [A, N, A], [Z, A + Z, Z], [Z, N, A], [A, Z, Z], [Z + 1, N - 1, Z + 1]].map(t => t[0] + ' protons, ' + t[1] + ' neutrons, ' + t[2] + ' electrons'),
+  if (k === 3 && Z > 1) return mcqFrom('An atom of ' + name + ' has mass number <b>' + A + '</b> and atomic number <b>' + Z + '</b>. Which is correct?', pl(Z, 'proton') + ', ' + pl(N, 'neutron') + ', ' + pl(Z, 'electron'),
+    [[Z, A, Z], [N, Z, N], [Z, N, N], [A, N, A], [Z, A + Z, Z], [Z, N, A], [A, Z, Z], [Z + 1, N - 1, Z + 1]].map(t => pl(t[0], 'proton') + ', ' + pl(t[1], 'neutron') + ', ' + pl(t[2], 'electron')),
     ['Protons = atomic number = ' + Z + '. Neutrons = ' + A + ' − ' + Z + ' = ' + N + '. Neutral atom, so electrons = protons = ' + Z + '.'], 'Which number tells you the protons? Then subtract for the neutrons.');
-  return { type: 'num', q: 'A neutral atom of ' + name + ' has ' + Z + ' protons, ' + N + ' neutrons and ' + Z + ' electrons. How many <b>subatomic particles</b> does it have altogether?', ans: 2 * Z + N, ansText: String(2 * Z + N), sol: [Z + ' + ' + N + ' + ' + Z + ' = <b>' + (2 * Z + N) + '</b>'] };
+  return { type: 'num', q: 'A neutral atom of ' + name + ' has ' + pl(Z, 'proton') + ', ' + pl(N, 'neutron') + ' and ' + pl(Z, 'electron') + '. How many <b>subatomic particles</b> does it have altogether?', ans: 2 * Z + N, ansText: String(2 * Z + N), sol: [Z + ' + ' + N + ' + ' + Z + ' = <b>' + (2 * Z + N) + '</b>'] };
 });
 gen('evidenceVsOpinion', 'C9', 'Conclusions with evidence', () => {
   const nm = pick(NAMES), t0 = rnd(18, 24), dT = rnd(4, 16), exo = Math.random() < 0.5, t1 = exo ? t0 + dT : t0 - dT, label = exo ? 'exothermic' : 'endothermic';
   if (Math.random() < 0.5) return mcqFrom(nm + '’s reaction went from ' + t0 + ' °C to ' + t1 + ' °C. Which conclusion is <b>best supported by evidence</b>?', 'It was ' + label + ' because the temperature ' + (exo ? 'rose' : 'fell') + ' by ' + dT + ' °C.',
     ['It was ' + (exo ? 'endothermic' : 'exothermic') + ' because the temperature ' + (exo ? 'rose' : 'fell') + ' by ' + dT + ' °C.', 'It was ' + label + ' because most reactions are.', 'It was ' + label + ' because the beaker ' + (exo ? 'felt warm' : 'felt cold') + ' to ' + nm + '.', 'It was ' + label + ' because the temperature changed by ' + (t0 + t1) + ' °C.'],
-    ['Use the measurement as evidence, and link it correctly: temperature up = exothermic; down = endothermic. ΔT = ' + t1 + ' − ' + t0 + ' = ' + (t1 - t0) + ' °C.'], 'Check the direction of the change and the size of ΔT.');
+    ['Use the measurement as evidence, and link it correctly: temperature up = exothermic; down = endothermic. ΔT = ' + t1 + ' − ' + t0 + ' = ' + (t1 > t0 ? '+' : '') + fmt(t1 - t0) + ' °C.'], 'Check the direction of the change and the size of ΔT.');
   const gas = pick(['carbon dioxide', 'hydrogen', 'oxygen']); const start = r2(rnd(800, 1500) / 10, 1), lost = r2(rnd(5, 35) / 10, 1);
   return mcqFrom('In an open beaker, the mass fell from ' + fmt(start) + ' g to ' + fmt(r2(start - lost, 1)) + ' g while ' + gas + ' gas bubbled off. Which explanation is <b>best</b>?', 'The ' + gas + ' produced escaped into the air, so ' + fmt(lost) + ' g less was left on the balance.',
     ['Mass was destroyed in the reaction, so ' + fmt(lost) + ' g disappeared.', 'The reaction released heat, and heat weighs ' + fmt(lost) + ' g.', 'The atoms got smaller during the reaction.', 'The ' + gas + ' escaped, so the total mass of everything really went down.'],

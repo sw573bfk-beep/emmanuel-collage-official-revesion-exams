@@ -66,8 +66,8 @@ longGen('lMassAtoms', 'C5', 'm', 'Conservation of mass with atoms', () => {
 longGen('lExoEndo', 'C6', 'h', 'Classify and explain energy change', () => {
   const t0 = rnd(17, 25), dT = rnd(3, 16), exo = Math.random() < 0.5, t1 = exo ? t0 + dT : t0 - dT, what = pick(['two solutions were mixed', 'a powder was added to water', 'a metal was added to an acid', 'citric acid was mixed with baking soda solution']);
   return { q: 'When ' + what + ', the temperature went from ' + t0 + ' °C to ' + t1 + ' °C. <b>Classify</b> the reaction and <b>explain</b> the energy transfer.',
-    model: 'ΔT = ' + t1 + ' − ' + t0 + ' = ' + (exo ? '+' : '') + (t1 - t0) + ' °C. The temperature ' + (exo ? 'rose' : 'fell') + ', so the reaction is <b>' + (exo ? 'exothermic' : 'endothermic') + '</b>: energy was ' + (exo ? 'released to' : 'absorbed from') + ' the surroundings, making them ' + (exo ? 'hotter' : 'colder') + '. The products have ' + (exo ? 'less' : 'more') + ' energy than the reactants.',
-    points: ['Classifies it as <b>' + (exo ? 'exothermic' : 'endothermic') + '</b>', 'Calculates the change: ' + (exo ? '+' : '') + (t1 - t0) + ' °C', 'Says energy was ' + (exo ? 'released to' : 'absorbed from') + ' the surroundings', 'Says the products have ' + (exo ? 'less' : 'more') + ' energy than the reactants'] };
+    model: 'ΔT = ' + t1 + ' − ' + t0 + ' = ' + (exo ? '+' : '') + fmt(t1 - t0) + ' °C. The temperature ' + (exo ? 'rose' : 'fell') + ', so the reaction is <b>' + (exo ? 'exothermic' : 'endothermic') + '</b>: energy was ' + (exo ? 'released to' : 'absorbed from') + ' the surroundings, making them ' + (exo ? 'hotter' : 'colder') + '. The products have ' + (exo ? 'less' : 'more') + ' energy than the reactants.',
+    points: ['Classifies it as <b>' + (exo ? 'exothermic' : 'endothermic') + '</b>', 'Calculates the change: ' + (exo ? '+' : '') + fmt(t1 - t0) + ' °C', 'Says energy was ' + (exo ? 'released to' : 'absorbed from') + ' the surroundings', 'Says the products have ' + (exo ? 'less' : 'more') + ' energy than the reactants'] };
 });
 longGen('lFire', 'C7', 'm', 'Use the fire triangle', () => {
   const [part, act] = pick(FIRE);
@@ -101,9 +101,9 @@ longGen('lAtom', 'C9', 'm', 'Explain an atom’s particles', () => {
     points: ['Protons = ' + Z + ' (from the atomic number)', 'Neutrons = ' + A + ' − ' + Z + ' = ' + N, 'Electrons = ' + Z, 'Explains electrons = protons because the atom is neutral'] };
 });
 longGen('lEvidence', 'C9', 'h', 'Write a justified conclusion', () => {
-  const nm = pick(NAMES), t0 = rnd(18, 24), dT = rnd(4, 16), exo = Math.random() < 0.5, t1 = exo ? t0 + dT : t0 - dT; const trials = [0, 0, 0].map(() => t1 + rnd(-6, 6) / 10);
-  return { q: nm + ' repeated a reaction three times. The starting temperature was ' + t0 + ' °C each time and the final temperatures were ' + trials.map(v => fmt(r2(v, 1))).join(' °C, ') + ' °C. Write a conclusion that is <b>justified with evidence</b>.',
-    model: 'The mean final temperature was ' + fmt(r2(trials.reduce((a, b) => a + b, 0) / 3, 1)) + ' °C, a change of about ' + (exo ? '+' : '−') + dT + ' °C from ' + t0 + ' °C. Because the temperature ' + (exo ? 'rose' : 'fell') + ', the reaction is <b>' + (exo ? 'exothermic' : 'endothermic') + '</b>. The three results are close together, so they are reliable.',
+  const nm = pick(NAMES), t0 = rnd(18, 24), dT = rnd(4, 16), exo = Math.random() < 0.5, t1 = exo ? t0 + dT : t0 - dT; const trials = [0, 0, 0].map(() => r2(t1 + rnd(-6, 6) / 10, 1)); const sum = r2(trials[0] + trials[1] + trials[2], 1), mean = r2(sum / 3, 1), chg = r2(mean - t0, 1);
+  return { q: nm + ' repeated a reaction three times. The starting temperature was ' + t0 + ' °C each time and the final temperatures were ' + trials.map(v => v.toFixed(1)).join(' °C, ') + ' °C. Write a conclusion that is <b>justified with evidence</b>.',
+    model: 'Mean final temperature = (' + trials.map(v => v.toFixed(1)).join(' + ') + ') ÷ 3 = ' + sum.toFixed(1) + ' ÷ 3 = ' + mean.toFixed(1) + ' °C (to 1 decimal place). Temperature change = ' + mean.toFixed(1) + ' − ' + t0 + ' = ' + (chg > 0 ? '+' : '−') + Math.abs(chg).toFixed(1) + ' °C. Because the temperature ' + (exo ? 'rose' : 'fell') + ', the reaction is <b>' + (exo ? 'exothermic' : 'endothermic') + '</b>. The three results are close together, so they are reliable.',
     points: ['Calculates or uses the mean final temperature', 'States the temperature change', 'Concludes ' + (exo ? 'exothermic' : 'endothermic') + ' and links it to the rise/fall', 'Comments that the repeated results are close (reliable/consistent)'] };
 });
 const LONG_GENS = {};

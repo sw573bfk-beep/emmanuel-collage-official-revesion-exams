@@ -233,3 +233,18 @@ input[readonly]{background:var(--card-2)}
 .toc{top:calc(env(safe-area-inset-top,0px) + var(--navh,58px) + 12px);max-height:calc(100vh - var(--navh,58px) - 24px)}
 .topic-sec,.bk-q{scroll-margin-top:calc(var(--navh,70px) + 16px)}
 .th-sec{scroll-margin-top:calc(var(--navh,70px) + 80px)}
+
+/* ---------- worked solutions: one step per line, spaced out, reasons underneath ---------- */
+.view:not(#v-booklet) .sol{border:1.5px solid var(--rule);border-left:5px solid var(--accent);border-radius:12px;background:var(--card-2);padding:16px 20px 18px;gap:14px;margin-top:4px}
+.view:not(#v-booklet) .sol-title{font-family:var(--f-display);font-size:1.125rem;font-weight:700;color:var(--accent)}
+.view:not(#v-booklet) .steps{gap:0}
+.view:not(#v-booklet) .steps li{grid-template-columns:30px 1fr;gap:4px 14px;align-items:start;padding:12px 0}
+.view:not(#v-booklet) .steps li + li{border-top:1px dashed var(--rule)}
+.view:not(#v-booklet) .steps li::before{width:28px;height:28px;font-size:.875rem;font-weight:700;color:var(--accent);background:var(--accent-soft);border-color:var(--accent-line);margin-top:1px}
+.view:not(#v-booklet) .steps .st{font-size:1.0625rem;line-height:1.7;color:var(--ink);letter-spacing:.01em}
+.view:not(#v-booklet) .steps .why{font-size:.9375rem;line-height:1.5;color:var(--muted);margin-top:2px}
+.view:not(#v-booklet) .steps .why::before{content:"↳ ";color:var(--accent)}
+.view:not(#v-booklet) .steps svg{margin-top:6px}
+.view:not(#v-booklet) .fb.answer-shown{border-width:2px}
+.view:not(#v-booklet) details.ex[open] .sol{margin-top:10px}
+@media (max-width:560px){.view:not(#v-booklet) .sol{padding:14px 14px 16px}.view:not(#v-booklet) .steps li{grid-template-columns:26px 1fr;gap:4px 10px}.view:not(#v-booklet) .steps li::before{width:24px;height:24px}}

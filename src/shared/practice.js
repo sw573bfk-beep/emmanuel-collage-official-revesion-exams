@@ -35,7 +35,9 @@ function asMCQ(Q) {
     right = Q.ansText; const t = right;
     const swaps = [[/ \+ /, ' − '], [/ − /, ' + '], [/=\s*−/, '= '], [/= (?=\d)/, '= −'], [/&lt;=|≤/, '&lt;'], [/&gt;=|≥/, '&gt;'], [/&lt;(?!=)/, '&gt;'], [/&gt;(?!=)/, '&lt;'], [/≤/, '≥'], [/≥/, '≤'], [/</, '>'], [/>/, '<']];
     swaps.forEach(([re, to]) => { if (re.test(t)) wrongs.push(t.replace(re, to)); });
-    const m = t.match(/=\s*(−?[\d.]*)x\s*([+−])\s*([\d.]+)/); if (m) wrongs.push(t.replace(m[0], '= ' + (m[2] === '−' ? '−' : '') + m[3] + 'x ' + '+ ' + (m[1] || '1').replace('−', '')));
+    // swap the gradient and the intercept (a common slip), written tidily: no "1x", no dangling "+"
+    const m = t.match(/=\s*(−?[\d.]*)x\s*([+−])\s*([\d.]+)/);
+    if (m) { const g = m[1].replace('−', '') || '1'; wrongs.push(t.replace(m[0], '= ' + (m[2] === '−' ? '−' : '') + (m[3] === '1' ? '' : m[3]) + 'x + ' + g)); }
   } else return null;
   wrongs = [...new Set(wrongs.filter(w => w && w !== right))];
   if (wrongs.length < 3 || !right) return null;

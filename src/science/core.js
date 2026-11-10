@@ -168,15 +168,37 @@ function solveRel(str) {
   let op = sp.op; const ineq = op !== '=';
   const steps = []; const line = (t, why) => steps.push({ t, why });
   line(pretty(sp.L) + ' ' + opD(op) + ' ' + pretty(sp.R), ineq ? 'The inequality to solve' : 'The equation to solve');
-  let a = L.a, b = L.b; const c = R.a; let d = R.b;
+  let a = L.a, b = L.b; let c = R.a; let d = R.b; let shown = steps[0].t;
+  // "(x − 2)/3 = 5": multiply both sides by 3 first (clearer than splitting the fraction)
+  const fr = sp.L.trim().match(/^\((.+)\)\s*\/\s*(\d+(?:\.\d+)?)$/);
+  if (fr && c.isZero()) {
+    const k = Fr.of(+fr[2]), inner = parseLin(fr[1]);
+    a = inner.a; b = inner.b; d = d.mul(k); shown = pretty(fr[1]) + ' ' + opD(op) + ' ' + numStr(d);
+    line(shown, 'Multiply both sides by ' + fr[2] + ' (' + numStr(R.b) + ' × ' + fr[2] + ' = ' + numStr(d) + ')');
+  }
+  // only show a "simplify" step when something really changed (brackets expanded or like terms collected), not just the order
+  const terms = t => norm(t).split(/(<=|>=|<|>|=)/).map(side => side.replace(/^(?=[^+-])/, '+').match(/[+-][^+-]+/g) || []).map(ts => ts.slice().sort().join('')).join('|');
   const s1 = fmtLin(a, b, v) + ' ' + opD(op) + ' ' + fmtLin(c, d, v);
-  if (norm(s1) !== norm(steps[0].t)) line(s1, 'Expand any brackets and simplify each side');
+  if (norm(s1) !== norm(shown) && terms(s1) !== terms(shown)) line(s1, 'Expand any brackets and simplify each side');
+  // x on both sides of an equation, with more on the right: take away the smaller x term so x stays positive
+  if (!ineq && !c.isZero() && !a.isZero() && c.v > a.v) {
+    const why = a.sign() > 0 ? 'Subtract ' + coefStr(a, v) + ' from both sides' : 'Add ' + coefStr(a.neg(), v) + ' to both sides';
+    c = c.sub(a); a = new Fr(0); line(numStr(b) + ' = ' + fmtLin(c, d, v), why);
+    if (!d.isZero()) { const w2 = d.sign() > 0 ? 'Subtract ' + numStr(d) + ' from both sides' : 'Add ' + numStr(d.neg()) + ' to both sides'; b = b.sub(d); d = new Fr(0); line(numStr(b) + ' = ' + coefStr(c, v), w2); }
+    const val = b.div(c);
+    if (!c.eq(1)) line(v + ' = ' + val.show(), 'Divide both sides by ' + numStr(c));
+    else line(v + ' = ' + val.show(), 'Swap the sides so ' + v + ' is on the left');
+    const lv = L.a.mul(val).add(L.b), rv = R.a.mul(val).add(R.b);
+    steps.push({ t: 'Check: left side = ' + numStr(lv) + ', right side = ' + numStr(rv) + ' ✓', why: 'Substitute ' + v + ' = ' + numStr(val) + ' back into the original' });
+    return { v, op, val, kind: 'eq', steps };
+  }
   if (!c.isZero()) {
     const why = c.sign() > 0 ? 'Subtract ' + coefStr(c, v) + ' from both sides' : 'Add ' + coefStr(c.neg(), v) + ' to both sides';
     a = a.sub(c); line(fmtLin(a, b, v) + ' ' + opD(op) + ' ' + numStr(d), why);
   }
   if (a.isZero()) {
     const ok = holds(b.v, op, d.v);
+    if (steps.length && steps[steps.length - 1].t === numStr(b) + ' ' + opD(op) + ' ' + numStr(d)) steps.pop();
     line(numStr(b) + ' ' + opD(op) + ' ' + numStr(d), 'The ' + v + ' terms cancel out. This statement is ' + (ok ? 'always true, so every value of ' + v + ' works' : 'never true, so there is no solution'));
     return { v, op, val: null, special: ok ? 'all' : 'none', kind: ineq ? 'ineq' : 'eq', steps };
   }
@@ -197,7 +219,9 @@ function solveRel(str) {
     const lv = L.a.mul(val).add(L.b), rv = R.a.mul(val).add(R.b);
     steps.push({ t: 'Check: left side = ' + numStr(lv) + ', right side = ' + numStr(rv) + ' ✓', why: 'Substitute ' + v + ' = ' + numStr(val) + ' back into the original' });
   } else {
-    const tv = op.includes('>') ? Math.floor(val.v) + 1 : Math.ceil(val.v) - 1;
+    const dir = op.includes('>') ? 1 : -1, start = op.includes('>') ? Math.floor(val.v) + 1 : Math.ceil(val.v) - 1;
+    const neat = x => Math.abs(x * 100 - Math.round(x * 100)) < 1e-9; let tv = start;
+    for (let i = 0; i < 12; i++) { const t = start + dir * i; if (neat(L.a.v * t + L.b.v) && neat(R.a.v * t + R.b.v)) { tv = t; break; } }
     const lv = L.a.v * tv + L.b.v, rv = R.a.v * tv + R.b.v;
     steps.push({ t: 'Check: try ' + v + ' = ' + fmt(tv) + ' → ' + fmt(lv) + ' ' + opD(sp.op) + ' ' + fmt(rv) + ' is true ✓', why: 'Test a number from your answer in the original' });
   }

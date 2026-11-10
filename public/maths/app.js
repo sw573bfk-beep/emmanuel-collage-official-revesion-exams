@@ -168,15 +168,37 @@ function solveRel(str) {
   let op = sp.op; const ineq = op !== '=';
   const steps = []; const line = (t, why) => steps.push({ t, why });
   line(pretty(sp.L) + ' ' + opD(op) + ' ' + pretty(sp.R), ineq ? 'The inequality to solve' : 'The equation to solve');
-  let a = L.a, b = L.b; const c = R.a; let d = R.b;
+  let a = L.a, b = L.b; let c = R.a; let d = R.b; let shown = steps[0].t;
+  // "(x − 2)/3 = 5": multiply both sides by 3 first (clearer than splitting the fraction)
+  const fr = sp.L.trim().match(/^\((.+)\)\s*\/\s*(\d+(?:\.\d+)?)$/);
+  if (fr && c.isZero()) {
+    const k = Fr.of(+fr[2]), inner = parseLin(fr[1]);
+    a = inner.a; b = inner.b; d = d.mul(k); shown = pretty(fr[1]) + ' ' + opD(op) + ' ' + numStr(d);
+    line(shown, 'Multiply both sides by ' + fr[2] + ' (' + numStr(R.b) + ' × ' + fr[2] + ' = ' + numStr(d) + ')');
+  }
+  // only show a "simplify" step when something really changed (brackets expanded or like terms collected), not just the order
+  const terms = t => norm(t).split(/(<=|>=|<|>|=)/).map(side => side.replace(/^(?=[^+-])/, '+').match(/[+-][^+-]+/g) || []).map(ts => ts.slice().sort().join('')).join('|');
   const s1 = fmtLin(a, b, v) + ' ' + opD(op) + ' ' + fmtLin(c, d, v);
-  if (norm(s1) !== norm(steps[0].t)) line(s1, 'Expand any brackets and simplify each side');
+  if (norm(s1) !== norm(shown) && terms(s1) !== terms(shown)) line(s1, 'Expand any brackets and simplify each side');
+  // x on both sides of an equation, with more on the right: take away the smaller x term so x stays positive
+  if (!ineq && !c.isZero() && !a.isZero() && c.v > a.v) {
+    const why = a.sign() > 0 ? 'Subtract ' + coefStr(a, v) + ' from both sides' : 'Add ' + coefStr(a.neg(), v) + ' to both sides';
+    c = c.sub(a); a = new Fr(0); line(numStr(b) + ' = ' + fmtLin(c, d, v), why);
+    if (!d.isZero()) { const w2 = d.sign() > 0 ? 'Subtract ' + numStr(d) + ' from both sides' : 'Add ' + numStr(d.neg()) + ' to both sides'; b = b.sub(d); d = new Fr(0); line(numStr(b) + ' = ' + coefStr(c, v), w2); }
+    const val = b.div(c);
+    if (!c.eq(1)) line(v + ' = ' + val.show(), 'Divide both sides by ' + numStr(c));
+    else line(v + ' = ' + val.show(), 'Swap the sides so ' + v + ' is on the left');
+    const lv = L.a.mul(val).add(L.b), rv = R.a.mul(val).add(R.b);
+    steps.push({ t: 'Check: left side = ' + numStr(lv) + ', right side = ' + numStr(rv) + ' ✓', why: 'Substitute ' + v + ' = ' + numStr(val) + ' back into the original' });
+    return { v, op, val, kind: 'eq', steps };
+  }
   if (!c.isZero()) {
     const why = c.sign() > 0 ? 'Subtract ' + coefStr(c, v) + ' from both sides' : 'Add ' + coefStr(c.neg(), v) + ' to both sides';
     a = a.sub(c); line(fmtLin(a, b, v) + ' ' + opD(op) + ' ' + numStr(d), why);
   }
   if (a.isZero()) {
     const ok = holds(b.v, op, d.v);
+    if (steps.length && steps[steps.length - 1].t === numStr(b) + ' ' + opD(op) + ' ' + numStr(d)) steps.pop();
     line(numStr(b) + ' ' + opD(op) + ' ' + numStr(d), 'The ' + v + ' terms cancel out. This statement is ' + (ok ? 'always true, so every value of ' + v + ' works' : 'never true, so there is no solution'));
     return { v, op, val: null, special: ok ? 'all' : 'none', kind: ineq ? 'ineq' : 'eq', steps };
   }
@@ -197,7 +219,9 @@ function solveRel(str) {
     const lv = L.a.mul(val).add(L.b), rv = R.a.mul(val).add(R.b);
     steps.push({ t: 'Check: left side = ' + numStr(lv) + ', right side = ' + numStr(rv) + ' ✓', why: 'Substitute ' + v + ' = ' + numStr(val) + ' back into the original' });
   } else {
-    const tv = op.includes('>') ? Math.floor(val.v) + 1 : Math.ceil(val.v) - 1;
+    const dir = op.includes('>') ? 1 : -1, start = op.includes('>') ? Math.floor(val.v) + 1 : Math.ceil(val.v) - 1;
+    const neat = x => Math.abs(x * 100 - Math.round(x * 100)) < 1e-9; let tv = start;
+    for (let i = 0; i < 12; i++) { const t = start + dir * i; if (neat(L.a.v * t + L.b.v) && neat(R.a.v * t + R.b.v)) { tv = t; break; } }
     const lv = L.a.v * tv + L.b.v, rv = R.a.v * tv + R.b.v;
     steps.push({ t: 'Check: try ' + v + ' = ' + fmt(tv) + ' → ' + fmt(lv) + ' ' + opD(sp.op) + ' ' + fmt(rv) + ' is true ✓', why: 'Test a number from your answer in the original' });
   }
@@ -438,8 +462,8 @@ function reflectRule(L) {
     case 'y-axis': return 'Reflecting in the y-axis changes the sign of x and keeps y the same: (x, y) → (−x, y).';
     case 'y=x': return 'Reflecting in the line y = x swaps the coordinates: (x, y) → (y, x).';
     case 'y=-x': return 'Reflecting in y = −x swaps the coordinates and changes both signs: (x, y) → (−y, −x).';
-    case 'x=k': return 'The mirror is the vertical line x = ' + fmt(L.k) + '. The y-value stays the same; the image is the same distance on the other side of the line, so x′ = 2 × ' + fmt(L.k) + ' − x.';
-    case 'y=k': return 'The mirror is the horizontal line y = ' + fmt(L.k) + '. The x-value stays the same; the image is the same distance on the other side, so y′ = 2 × ' + fmt(L.k) + ' − y.';
+    case 'x=k': return 'The mirror is the vertical line x = ' + fmt(L.k) + '. The y-value stays the same; the image is the same distance on the other side of the line, so x′ = 2 × ' + (L.k < 0 ? '(' + fmt(L.k) + ')' : fmt(L.k)) + ' − x.';
+    case 'y=k': return 'The mirror is the horizontal line y = ' + fmt(L.k) + '. The x-value stays the same; the image is the same distance on the other side, so y′ = 2 × ' + (L.k < 0 ? '(' + fmt(L.k) + ')' : fmt(L.k)) + ' − y.';
   }
 }
 function rotatePt(p, ang, dir, c = [0, 0]) {
@@ -546,9 +570,9 @@ gen('ineqConcept', '7I', 'Inequality facts', () => {
   const k = rnd(0, 4), v = rnd(-9, 12);
   if (k === 0) {
     const op = pick(['<', '>', '<=', '>=']); const closed = op.includes('='), right = op[0] === '>';
-    const opt = (c, r) => (c ? 'Closed (filled) circle' : 'Open circle') + ' at ' + v + ', arrow pointing ' + (r ? 'right' : 'left');
-    return mcq4('How do you show <b>x ' + opD(op) + ' ' + v + '</b> on a number line?', opt(closed, right), [opt(!closed, right), opt(closed, !right), opt(!closed, !right)],
-      'For &lt; and &gt; the number is not included (open circle); for ≤ and ≥ it is included (closed circle). x &gt; or ≥ means the arrow points right (bigger numbers).', 'Is ' + v + ' itself included? Which way are the bigger numbers?');
+    const opt = (c, r) => (c ? 'Closed (filled) circle' : 'Open circle') + ' at ' + fmt(v) + ', arrow pointing ' + (r ? 'right' : 'left');
+    return mcq4('How do you show <b>x ' + opD(op) + ' ' + fmt(v) + '</b> on a number line?', opt(closed, right), [opt(!closed, right), opt(closed, !right), opt(!closed, !right)],
+      'For &lt; and &gt; the number is not included (open circle); for ≤ and ≥ it is included (closed circle). x &gt; or ≥ means the arrow points right (bigger numbers).', 'Is ' + fmt(v) + ' itself included? Which way are the bigger numbers?');
   }
   if (k === 1) {
     let a = rnd(-6, 8), b = a + rnd(1, 6); const m = rnd(2, 6);
@@ -558,8 +582,8 @@ gen('ineqConcept', '7I', 'Inequality facts', () => {
   }
   if (k === 2) {
     const op = pick(['<', '>', '<=', '>=']); const flip = { '<': '>', '>': '<', '<=': '>=', '>=': '<=' }[op];
-    return mcq4('Which inequality means the same as <b>' + v + ' ' + opD(op) + ' x</b>?', 'x ' + opD(flip) + ' ' + v, ['x ' + opD(op) + ' ' + v, 'x ' + opD({ '<': '<=', '>': '>=', '<=': '<', '>=': '>' }[flip]) + ' ' + v, 'x ' + opD({ '<': '<=', '>': '>=', '<=': '<', '>=': '>' }[op]) + ' ' + v],
-      'Read it starting from x: swap the sides and turn the sign around so it still points at the same number. ' + v + ' ' + opD(op) + ' x is the same as <b>x ' + opD(flip) + ' ' + v + '</b>.', 'Read it backwards, starting from x.');
+    return mcq4('Which inequality means the same as <b>' + fmt(v) + ' ' + opD(op) + ' x</b>?', 'x ' + opD(flip) + ' ' + fmt(v), ['x ' + opD(op) + ' ' + fmt(v), 'x ' + opD({ '<': '<=', '>': '>=', '<=': '<', '>=': '>' }[flip]) + ' ' + fmt(v), 'x ' + opD({ '<': '<=', '>': '>=', '<=': '<', '>=': '>' }[op]) + ' ' + fmt(v)],
+      'Read it starting from x: swap the sides and turn the sign around so it still points at the same number. ' + fmt(v) + ' ' + opD(op) + ' x is the same as <b>x ' + opD(flip) + ' ' + fmt(v) + '</b>.', 'Read it backwards, starting from x.');
   }
   if (k === 3) {
     const W = [['at most', '≤'], ['no more than', '≤'], ['a maximum of', '≤'], ['up to and including', '≤'], ['at least', '≥'], ['no less than', '≥'], ['a minimum of', '≥'], ['more than', '&gt;'], ['over', '&gt;'], ['greater than', '&gt;'], ['fewer than', '&lt;'], ['less than', '&lt;'], ['under', '&lt;']];
@@ -569,8 +593,8 @@ gen('ineqConcept', '7I', 'Inequality facts', () => {
   }
   const op = pick(['<', '>', '<=', '>=']), c = rnd(-8, 10), a = rnd(2, 9), neg = Math.random() < 0.5;
   const steps = neg ? 'divide both sides by −' + a : pick(['add ' + a + ' to both sides', 'subtract ' + a + ' from both sides', 'multiply both sides by ' + a, 'divide both sides by ' + a]);
-  return mcq4('Solving <b>' + (neg ? '−' + a + 'x' : 'x') + ' ' + opD(op) + ' ' + c + '</b>, you ' + steps + '. What happens to the inequality sign?', neg ? 'It reverses' : 'It stays the same',
-    [neg ? 'It stays the same' : 'It reverses', 'It becomes an equals sign', neg ? 'It reverses only if ' + c + ' is negative' : 'It reverses because there is a negative number', 'It changes from &lt; to ≤'],
+  return mcq4('Solving <b>' + (neg ? '−' + a + 'x' : 'x') + ' ' + opD(op) + ' ' + fmt(c) + '</b>, you ' + steps + '. What happens to the inequality sign?', neg ? 'It reverses' : 'It stays the same',
+    [neg ? 'It stays the same' : 'It reverses', 'It becomes an equals sign', neg ? 'It reverses only if the number on the right is negative' : 'It reverses because there is a negative number', 'It changes from &lt; to ≤'],
     'Only multiplying or dividing both sides by a <b>negative</b> number reverses the sign. Adding, subtracting, or multiplying/dividing by a positive never does.', 'Is it multiplying or dividing by a negative?');
 });
 /* ---------- 7J solving inequalities ---------- */
@@ -601,13 +625,13 @@ gen('ineqContext', '7J', 'Inequality word problem', () => {
   const ctx = pick([
     () => { const rate = rnd(10, 18), bonus = pick([20, 30, 40, 50]), goal = pick([200, 250, 300, 350]); const v = (goal - bonus) / rate; const need = Math.ceil(v - 1e-9);
       return { q: 'Sam is paid $' + rate + ' per hour plus a $' + bonus + ' bonus. Sam wants to earn <b>at least</b> $' + goal + '. What is the least number of <b>whole</b> hours Sam must work?', ans: need,
-        sol: [{ t: rate + 'h + ' + bonus + ' ≥ ' + goal, why: 'Write the inequality' }, { t: rate + 'h ≥ ' + (goal - bonus), why: 'Subtract ' + bonus }, { t: 'h ≥ ' + fmt(v, 2), why: 'Divide by ' + rate }, { t: 'h = ' + need, why: 'Whole hours, so round up' }] }; },
+        sol: [{ t: rate + 'h + ' + bonus + ' ≥ ' + goal, why: 'Write the inequality' }, { t: rate + 'h ≥ ' + (goal - bonus), why: 'Subtract ' + bonus }, { t: 'h ≥ ' + fmt(v, 2) + (Number.isInteger(v * 100) ? '' : '…'), why: 'Divide by ' + rate }, { t: 'h = ' + need, why: 'Whole hours, so round up' }] }; },
     () => { const cost = rnd(4, 9), have = rnd(40, 90); const v = Math.floor(have / cost);
       return { q: 'Movie tickets cost $' + cost + ' each. Mia has $' + have + '. What is the greatest number of tickets she can buy?', ans: v,
-        sol: [{ t: cost + 't ≤ ' + have, why: 'She can spend at most $' + have }, { t: 't ≤ ' + fmt(have / cost, 2), why: 'Divide by ' + cost }, { t: 't = ' + v, why: 'Whole tickets, so round down' }] }; },
+        sol: [{ t: cost + 't ≤ ' + have, why: 'She can spend at most $' + have }, { t: 't ≤ ' + fmt(have / cost, 2) + (Number.isInteger(have / cost * 100) ? '' : '…'), why: 'Divide by ' + cost }, { t: 't = ' + v, why: 'Whole tickets, so round down' }] }; },
     () => { const per = rnd(5, 9), max = pick([40, 50, 60]), already = rnd(3, 12); const v = Math.floor((max - already) / per);
       return { q: 'A van can carry at most ' + max + ' boxes. It already has ' + already + ' boxes. Crates of ' + per + ' boxes are added. What is the greatest number of crates that can be added?', ans: v,
-        sol: [{ t: already + ' + ' + per + 'c ≤ ' + max, why: 'At most ' + max }, { t: per + 'c ≤ ' + (max - already), why: 'Subtract ' + already }, { t: 'c ≤ ' + fmt((max - already) / per, 2), why: 'Divide by ' + per }, { t: 'c = ' + v, why: 'Round down to a whole number' }] }; }
+        sol: [{ t: already + ' + ' + per + 'c ≤ ' + max, why: 'At most ' + max }, { t: per + 'c ≤ ' + (max - already), why: 'Subtract ' + already }, { t: 'c ≤ ' + fmt((max - already) / per, 2) + (Number.isInteger((max - already) / per * 100) ? '' : '…'), why: 'Divide by ' + per }, { t: 'c = ' + v, why: 'Round down to a whole number' }] }; }
   ])();
   return { type: 'num', q: ctx.q, ans: ctx.ans, ansText: fmt(ctx.ans), hint: 'Write an inequality, solve it, then think about whether to round up or down.', sol: ctx.sol };
 });
@@ -624,6 +648,9 @@ gen('eqSolve', 'EQ', 'Solve a linear equation', () => {
   else if (f === 7) { const a = rnd(2, 4), b = nz(-4, 4), c = rnd(2, 5), d = nz(-9, 9); if (a * 2 === c) return G.eqSolve.fn(); const A = a * 2; str = a + '(2x ' + sgn(b) + ' ' + Math.abs(b) + ') = ' + linStr(c, d); if (A === c) return G.eqSolve.fn(); }
   else { const a = pick([3, 4, 6, 7, 8]), b = nz(-9, 9), c = rnd(-10, 20); if ((c - b) % a === 0) return G.eqSolve.fn(); str = linStr(a, b) + ' = ' + fmt(c); }
   const r = solveRel(str); if (r.special) return G.eqSolve.fn();
+  const fr = str.match(/^\(x ([+−]) (\d+)\)\/(\d+) = (−?\d+)$/);
+  if (fr) { const b = (fr[1] === '+' ? 1 : -1) * +fr[2], a = +fr[3], k = +fr[4].replace('−', '-'), x = a * k - b;
+    r.steps = [{ t: str, why: 'The equation to solve' }, { t: 'x ' + fr[1] + ' ' + fr[2] + ' = ' + fmt(a * k), why: 'Multiply both sides by ' + a + ' (' + fmt(k) + ' × ' + a + ' = ' + fmt(a * k) + ')' }, { t: 'x = ' + fmt(x), why: (b > 0 ? 'Subtract ' + b + ' from' : 'Add ' + (-b) + ' to') + ' both sides' }, { t: 'Check: (' + fmt(x) + ' ' + fr[1] + ' ' + fr[2] + ') ÷ ' + a + ' = ' + fmt(x + b) + ' ÷ ' + a + ' = ' + fmt(k) + ' ✓', why: 'Substitute x = ' + fmt(x) + ' back into the original' }]; }
   const exact = r.val.isInt() || longDiv(r.val.n, r.val.d).term;
   return { type: 'num', q: 'Solve <b>' + str + '</b>' + (exact ? '.' : ' (give your answer as a fraction or to 2 decimal places).'), ans: r.val.v, ansText: 'x = ' + r.val.show(),
     hint: 'Expand brackets, collect the x terms on one side, then undo + and − before × and ÷.', sol: r.steps };
@@ -638,14 +665,18 @@ gen('eqWord', 'EQ', 'Equation word problem', () => {
   const x = rnd(15, 35), a1 = rnd(2, 3), b1 = rnd(5, 25), b2 = b1 + rnd(10, 60);
   const big = a1 * x + b1; void b2;
   return { type: 'num', q: 'The opposite angles of a parallelogram are (' + a1 + 'x + ' + b1 + ')° and (' + (a1 - 1 === 1 ? '' : a1 - 1) + 'x + ' + (b1 + x) + ')°. Find x.', ans: x, ansText: 'x = ' + x,
-    sol: ['Opposite angles of a parallelogram are equal.'].concat(solveRel(a1 + 'x + ' + b1 + ' = ' + (a1 - 1) + 'x + ' + (b1 + x)).steps).concat(['Each of these angles is ' + big + '°; the other two are 180 − ' + big + ' = ' + (180 - big) + '° each.']) };
+    sol: ['Opposite angles of a parallelogram are equal.'].concat(solveRel(a1 + 'x + ' + b1 + ' = ' + (a1 - 1 === 1 ? '' : a1 - 1) + 'x + ' + (b1 + x)).steps).concat(['Each of these angles is ' + big + '°; the other two are 180 − ' + big + ' = ' + (180 - big) + '° each.']) };
 });
 
 /* ---------- linear relations ---------- */
+const br = v => (v < 0 ? '(' + fmt(v) + ')' : fmt(v)); // negative numbers go in brackets in working
+// "m × x" written the way you'd write it by hand: 2 × (−3), −(−3), −1 × 0, or just 4 when m = 1
+const mx = (m, x) => (m === 1 ? br(x) : m === -1 ? (x === 0 ? '−1 × 0' : '−' + br(x)) : fmt(m) + ' × ' + br(x));
+const cTail = c => (c === 0 ? '' : ' ' + sgn(c) + ' ' + Math.abs(c)); // "+ 3", "− 2", or nothing when c = 0
 gen('tableFill', 'L1', 'Complete a table of values', () => {
   const m = nz(-3, 4), c = rnd(-6, 8); const start = rnd(-2, 0); const xs = [0, 1, 2, 3, 4].map(i => start + i); const ys = xs.map(x => m * x + c);
   return { type: 'nums', q: 'Complete the table for <b>y = ' + linStr(m, c) + '</b>. Type the five y-values in order, separated by commas.', fig: tableHTML(xs, xs.map(() => null)), ans: ys, ansText: ys.map(y => fmt(y)).join(', '),
-    hint: 'Substitute each x-value into the rule.', sol: xs.map(x => 'x = ' + fmt(x) + ': y = ' + (m === 1 ? '' : m === -1 ? '−' : fmt(m) + ' × ') + (x < 0 ? '(' + fmt(x) + ')' : fmt(x)) + ' ' + sgn(c) + ' ' + Math.abs(c) + ' = ' + fmt(m * x + c)).concat([gridSVG({ xmin: -3, xmax: 5, ymin: Math.min(-2, ...ys) - 1, ymax: Math.max(2, ...ys) + 1, lines: [{ m, c }], points: xs.map((x, i) => ({ x, y: ys[i] })), size: 260 })]) };
+    hint: 'Substitute each x-value into the rule.', sol: xs.map(x => 'x = ' + fmt(x) + ': y = ' + mx(m, x) + cTail(c) + ' = ' + fmt(m * x + c)).concat([gridSVG({ xmin: -3, xmax: 5, ymin: Math.min(-2, ...ys) - 1, ymax: Math.max(2, ...ys) + 1, lines: [{ m, c }], points: xs.map((x, i) => ({ x, y: ys[i] })), size: 260 })]) };
 });
 gen('plotRead', 'L1', 'Read coordinates from a grid', () => {
   const x = nz(-5, 5), y = nz(-5, 5); const lb = pick(['A', 'B', 'P', 'Q', 'R', 'M']);
@@ -667,7 +698,7 @@ gen('gradient2', 'L2', 'Gradient between two points', () => {
   let x1 = rnd(-6, 6), y1 = rnd(-6, 8), x2 = rnd(-6, 6), y2 = rnd(-8, 10); if (x1 === x2) return G.gradient2.fn();
   const m = new Fr(y2 - y1, x2 - x1); if (Math.abs(m.d) > 4) return G.gradient2.fn();
   return { type: 'num', q: 'Find the gradient of the line through <b>' + ptStr([x1, y1]) + '</b> and <b>' + ptStr([x2, y2]) + '</b>.', ans: m.v, ansText: m.show(),
-    hint: 'm = rise ÷ run = (y₂ − y₁) ÷ (x₂ − x₁)', sol: [{ t: 'm = (y₂ − y₁) / (x₂ − x₁)', why: 'Gradient formula' }, { t: 'm = (' + fmt(y2) + ' − ' + (y1 < 0 ? '(' + fmt(y1) + ')' : fmt(y1)) + ') / (' + fmt(x2) + ' − ' + (x1 < 0 ? '(' + fmt(x1) + ')' : fmt(x1)) + ')', why: 'Substitute' }, { t: 'm = ' + fmt(y2 - y1) + ' / ' + fmt(x2 - x1) + ' = ' + m.show(), why: m.isZero() ? 'Zero gradient: a horizontal line' : (m.sign() > 0 ? 'Positive: the line goes up from left to right' : 'Negative: the line goes down from left to right') }] };
+    hint: 'm = rise ÷ run = (y₂ − y₁) ÷ (x₂ − x₁)', sol: [{ t: 'm = (y₂ − y₁) ÷ (x₂ − x₁)', why: 'Gradient = rise ÷ run' }, { t: 'm = (' + fmt(y2) + ' − ' + br(y1) + ') ÷ (' + fmt(x2) + ' − ' + br(x1) + ')', why: 'Substitute' }, { t: 'm = ' + fmt(y2 - y1) + ' ÷ ' + br(x2 - x1) + ' = ' + m.show(), why: m.isZero() ? 'Zero gradient: a horizontal line' : (m.sign() > 0 ? 'Positive: the line goes up from left to right' : 'Negative: the line goes down from left to right') }] };
 });
 gen('gradientType', 'L2', 'Gradient facts', () => {
   const k = rnd(0, 4); const line = (m, c) => 'y = ' + (m === 1 ? '' : m === -1 ? '−' : fmt(m)) + 'x' + (c ? (c > 0 ? ' + ' : ' − ') + fmt(Math.abs(c)) : '');
@@ -685,17 +716,17 @@ gen('gradientType', 'L2', 'Gradient facts', () => {
   if (k === 2) {
     const x1 = rnd(-5, 4), x2 = x1 + rnd(1, 5), y1 = rnd(-6, 6), dy = pick([-6, -4, -3, -2, -1, 1, 2, 3, 4, 6, 0]); const y2 = y1 + dy;
     const right = dy > 0 ? 'Positive' : dy < 0 ? 'Negative' : 'Zero';
-    return mcq4('A line passes through <b>(' + x1 + ', ' + y1 + ')</b> and <b>(' + x2 + ', ' + y2 + ')</b>. What kind of gradient does it have?', right, ['Positive', 'Negative', 'Zero', 'Undefined'],
-      ['Rise = ' + y2 + ' − ' + (y1 < 0 ? '(' + y1 + ')' : y1) + ' = ' + dy + ', run = ' + (x2 - x1) + '.', 'Gradient = ' + dy + ' ÷ ' + (x2 - x1) + (dy === 0 ? ' = 0 (horizontal line).' : ', which is <b>' + right.toLowerCase() + '</b>.')], 'Does the line go up, down or stay level from left to right?');
+    return mcq4('A line passes through <b>' + ptStr([x1, y1]) + '</b> and <b>' + ptStr([x2, y2]) + '</b>. What kind of gradient does it have?', right, ['Positive', 'Negative', 'Zero', 'Undefined'],
+      ['Rise = ' + fmt(y2) + ' − ' + br(y1) + ' = ' + fmt(dy) + ', run = ' + fmt(x2) + ' − ' + br(x1) + ' = ' + fmt(x2 - x1) + '.', 'Gradient = ' + fmt(dy) + ' ÷ ' + fmt(x2 - x1) + (dy === 0 ? ' = 0 (horizontal line).' : ', which is <b>' + right.toLowerCase() + '</b>.')], 'Does the line go up, down or stay level from left to right?');
   }
   if (k === 3) {
     const n = rnd(-8, 9), vert = Math.random() < 0.5;
-    return mcq4('What is the gradient of the line <b>' + (vert ? 'x' : 'y') + ' = ' + n + '</b>?', vert ? 'Undefined (it is vertical)' : '0 (it is horizontal)', [vert ? '0 (it is horizontal)' : 'Undefined (it is vertical)', String(n), '1', n ? String(-n) : '−1'],
-      vert ? 'x = ' + n + ' is a vertical line. The run is 0 and you can’t divide by 0, so the gradient is undefined.' : 'y = ' + n + ' is a horizontal line: the rise is 0, so the gradient is 0.', 'Sketch it: is it flat or straight up and down?');
+    return mcq4('What is the gradient of the line <b>' + (vert ? 'x' : 'y') + ' = ' + fmt(n) + '</b>?', vert ? 'Undefined (it is vertical)' : '0 (it is horizontal)', [vert ? '0 (it is horizontal)' : 'Undefined (it is vertical)', fmt(n), '1', n ? fmt(-n) : '−1'].filter(v => v !== '0' || vert),
+      vert ? 'x = ' + fmt(n) + ' is a vertical line. The run is 0 and you can’t divide by 0, so the gradient is undefined.' : 'y = ' + fmt(n) + ' is a horizontal line: the rise is 0, so the gradient is 0.', 'Sketch it: is it flat or straight up and down?');
   }
   const rise = rnd(-9, 9) || 4, run = rnd(1, 6);
-  return mcq4('A line rises <b>' + rise + '</b> for every <b>' + run + '</b> across' + (rise < 0 ? ' (it falls)' : '') + '. What is its gradient?', fmt(r2(rise / run, 4)), [fmt(r2(run / rise, 4)), fmt(r2(-rise / run, 4)), fmt(rise * run), fmt(rise + run)].filter(v => v !== fmt(r2(rise / run, 4))),
-    'Gradient = rise ÷ run = ' + rise + ' ÷ ' + run + ' = <b>' + fmt(r2(rise / run, 4)) + '</b>.', 'Rise over run.');
+  return mcq4('A line rises <b>' + fmt(rise) + '</b> for every <b>' + run + '</b> across' + (rise < 0 ? ' (it falls)' : '') + '. What is its gradient?', fmt(r2(rise / run, 4)), [fmt(r2(run / rise, 4)), fmt(r2(-rise / run, 4)), fmt(rise * run), fmt(rise + run)].filter(v => v !== fmt(r2(rise / run, 4))),
+    'Gradient = rise ÷ run = ' + fmt(rise) + ' ÷ ' + run + ' = <b>' + fmt(r2(rise / run, 4)) + '</b>.', 'Rise over run.');
 });
 gen('gradientGraph', 'L2', 'Gradient from a graph', () => {
   const m = pick([-3, -2, -1, -0.5, 0.5, 1, 2, 3, 1.5, -1.5]), c = rnd(-3, 3);
@@ -721,7 +752,7 @@ gen('rule2pts', 'L3', 'Rule through two points', () => {
   const m = pick([-3, -2, -1, 1, 2, 3, 4, 0.5]), c = rnd(-6, 6); let x1 = rnd(-3, 2), x2 = x1 + pick([2, 4]);
   const p1 = [x1, m * x1 + c], p2 = [x2, m * x2 + c];
   return { type: 'rule', q: 'Find the rule of the straight line through <b>' + ptStr(p1) + '</b> and <b>' + ptStr(p2) + '</b>.', ans: { lhs: 'y', a: m, b: c }, ansText: 'y = ' + linStr(m, c),
-    hint: 'Find m first, then substitute one point into y = mx + c to find c.', sol: [{ t: 'm = (' + fmt(p2[1]) + ' − ' + fmt(p1[1]) + ') / (' + fmt(x2) + ' − ' + fmt(x1) + ') = ' + fmt(m), why: 'Gradient' }, { t: fmt(p1[1]) + ' = ' + fmt(m) + ' × ' + (x1 < 0 ? '(' + fmt(x1) + ')' : fmt(x1)) + ' + c', why: 'Substitute ' + ptStr(p1) }, { t: 'c = ' + fmt(c), why: 'Solve for c' }, { t: 'y = ' + linStr(m, c), why: 'Write the rule' }] };
+    hint: 'Find m first, then substitute one point into y = mx + c to find c.', sol: [{ t: 'm = (' + fmt(p2[1]) + ' − ' + br(p1[1]) + ') ÷ (' + fmt(x2) + ' − ' + br(x1) + ') = ' + fmt(p2[1] - p1[1]) + ' ÷ ' + fmt(x2 - x1) + ' = ' + fmt(m), why: 'Gradient = rise ÷ run' }, { t: fmt(p1[1]) + ' = ' + fmt(m) + ' × ' + br(x1) + ' + c', why: 'Substitute ' + ptStr(p1) }, { t: 'c = ' + fmt(c), why: 'Solve for c' }, { t: 'y = ' + linStr(m, c), why: 'Write the rule' }] };
 });
 gen('xint', 'L3', 'Find the x-intercept', () => {
   const m = nz(-5, 5), x0 = rnd(-6, 8); const c = -m * x0; if (c === 0) return G.xint.fn();
@@ -748,20 +779,21 @@ gen('ruleWords', 'L4', 'Rule from a worded situation', () => {
   return { type: 'rule', q: c.t + ' Write a rule using ' + c.lw + '.', ans: { lhs: c.L, v: c.v, a: c.a, b: c.b }, ansText: ctxRule(c),
     hint: 'The starting amount (fixed fee) is c. The amount per unit is m — negative if it goes down.', sol: ['Start value (when ' + c.v + ' = 0): ' + fmt(c.b) + '. Change per unit: ' + fmt(c.a) + '.', '<b>' + ctxRule(c) + '</b>'] };
 });
+const withUnit = (v, u) => (u === '$' ? money(v) : u === '%' ? fmt(v, 2) + '%' : fmt(v, 2) + (u ? ' ' + u : ''));
 gen('ruleUse', 'L5', 'Use a rule in context', () => {
   const c = pick(CONTEXTS)(); const ruleS = ctxRule(c);
   if (Math.random() < 0.5) {
     const xv = rnd(2, 12); const y = c.a * xv + c.b;
-    return { type: 'num', q: c.t + ' The rule is <b>' + ruleS + '</b>. Find the ' + c.what + ' when ' + c.v + ' = ' + xv + '.', ans: r2(y, 4), ansText: fmt(y, 2) + ' ' + c.unit,
-      sol: [{ t: c.L + ' = ' + fmt(c.b) + ' + ' + (c.a < 0 ? '(' + fmt(c.a) + ')' : fmt(c.a)) + ' × ' + xv, why: 'Substitute ' + c.v + ' = ' + xv }, { t: c.L + ' = ' + fmt(y, 2), why: 'Calculate' }] };
+    return { type: 'num', q: c.t + ' The rule is <b>' + ruleS + '</b>. Find the ' + c.what + ' when ' + c.v + ' = ' + xv + '.', ans: r2(y, 4), ansText: withUnit(y, c.unit),
+      sol: [{ t: c.L + ' = ' + fmt(c.b) + ' ' + (c.a < 0 ? '−' : '+') + ' ' + fmt(Math.abs(c.a)) + ' × ' + xv, why: 'Substitute ' + c.v + ' = ' + xv }, { t: c.L + ' = ' + fmt(c.b) + ' ' + (c.a < 0 ? '−' : '+') + ' ' + fmt(Math.abs(c.a * xv)) + ' = ' + fmt(y, 2), why: 'Multiply first, then ' + (c.a < 0 ? 'subtract' : 'add') }] };
   }
   const xv = rnd(2, 15); const target = r2(c.a * xv + c.b, 4); const r = solveRel(fmtLinN(c.a, c.b, c.v) + ' = ' + fmt(target).replace('−', '-'));
-  return { type: 'num', q: c.t + ' The rule is <b>' + ruleS + '</b>. Find ' + c.v + ' when the ' + c.what + ' is ' + fmt(target) + ' ' + c.unit + '.', ans: xv, ansText: c.v + ' = ' + xv + ' ' + c.x, sol: r.steps };
+  return { type: 'num', q: c.t + ' The rule is <b>' + ruleS + '</b>. Find ' + c.v + ' when the ' + c.what + ' is ' + withUnit(target, c.unit) + '.', ans: xv, ansText: c.v + ' = ' + xv + ' ' + c.x, sol: r.steps };
 });
 gen('evalRule', 'L5', 'Substitute into a rule', () => {
   const m = nz(-5, 5), c = rnd(-9, 9), x = rnd(-6, 8);
   return { type: 'num', q: 'Use <b>y = ' + linStr(m, c) + '</b> to find y when <b>x = ' + fmt(x) + '</b>.', ans: m * x + c, ansText: 'y = ' + fmt(m * x + c),
-    sol: [{ t: 'y = ' + fmt(m) + ' × ' + (x < 0 ? '(' + fmt(x) + ')' : fmt(x)) + ' ' + sgn(c) + ' ' + Math.abs(c), why: 'Substitute' }, { t: 'y = ' + fmt(m * x) + ' ' + sgn(c) + ' ' + Math.abs(c) + ' = ' + fmt(m * x + c), why: 'Multiply first, then add' }] };
+    sol: c === 0 ? [{ t: 'y = ' + mx(m, x) + ' = ' + fmt(m * x), why: 'Substitute' + (Math.abs(m) === 1 ? '' : ' and multiply') }] : [{ t: 'y = ' + mx(m, x) + cTail(c), why: 'Substitute' }, { t: 'y = ' + fmt(m * x) + cTail(c) + ' = ' + fmt(m * x + c), why: 'Multiply first, then ' + (c > 0 ? 'add' : 'subtract') }] };
 });
 gen('solveRule', 'L5', 'Find x for a given y', () => {
   const m = nz(-5, 5), c = rnd(-9, 9), x = rnd(-6, 10); const y = m * x + c;
@@ -770,21 +802,21 @@ gen('solveRule', 'L5', 'Find x for a given y', () => {
 gen('onLine', 'L5', 'Is the point on the line?', () => {
   const m = nz(-4, 4), c = rnd(-8, 8), x = rnd(-5, 6); const yes = Math.random() < 0.5; const y = m * x + c + (yes ? 0 : nz(-2, 2));
   return { type: 'mcq', q: 'Does the point <b>' + ptStr([x, y]) + '</b> lie on the line <b>y = ' + linStr(m, c) + '</b>?', choices: ['Yes', 'No'], ans: yes ? 0 : 1, ansText: yes ? 'Yes' : 'No',
-    hint: 'Substitute the x-value. Do you get the y-value?', sol: ['Substitute x = ' + fmt(x) + ': y = ' + fmt(m) + ' × ' + (x < 0 ? '(' + fmt(x) + ')' : fmt(x)) + ' ' + sgn(c) + ' ' + Math.abs(c) + ' = ' + fmt(m * x + c) + '.', yes ? 'This equals ' + fmt(y) + ', so <b>yes</b>, the point is on the line.' : 'This is not ' + fmt(y) + ', so <b>no</b>, the point is not on the line.'] };
+    hint: 'Substitute the x-value. Do you get the y-value?', sol: ['Substitute x = ' + fmt(x) + ': y = ' + mx(m, x) + cTail(c) + ' = ' + fmt(m * x + c) + '.', yes ? 'This equals ' + fmt(y) + ', so <b>yes</b>, the point is on the line.' : 'This is not ' + fmt(y) + ', so <b>no</b>, the point is not on the line.'] };
 });
 gen('breakEven', 'L5', 'When do two plans cost the same?', () => {
   const f1 = rnd(4, 14) * 5, r1 = rnd(8, 15) * 3, f2 = rnd(0, 6) * 5, r2v = r1 + rnd(2, 6) * 2; if (f1 <= f2) return G.breakEven.fn();
   const t = (f1 - f2) / (r2v - r1); const nm = pick([['Plumber A', 'Plumber B', 'h', 'hours'], ['Gym A', 'Gym B', 'w', 'weeks'], ['Phone plan A', 'Phone plan B', 'm', 'months']]);
-  return { type: 'num', q: nm[0] + ' charges $' + f1 + ' plus $' + r1 + ' per ' + nm[3].slice(0, -1) + '. ' + nm[1] + ' charges $' + f2 + ' plus $' + r2v + ' per ' + nm[3].slice(0, -1) + '. After how many ' + nm[3] + ' do they cost the same? (2 d.p. if needed)', ans: r2(t, 2), tol: 0.011, ansText: fmt(t, 2) + ' ' + nm[3],
-    sol: [{ t: f1 + ' + ' + r1 + nm[2] + ' = ' + f2 + ' + ' + r2v + nm[2], why: 'Set the two costs equal' }, { t: (f1 - f2) + ' = ' + (r2v - r1) + nm[2], why: 'Subtract ' + f2 + ' and ' + r1 + nm[2] }, { t: nm[2] + ' = ' + fmt(t, 2), why: 'Divide by ' + (r2v - r1) }, 'For longer than this, ' + nm[0] + ' is cheaper because its rate per ' + nm[3].slice(0, -1) + ' is lower.'] };
+  return { type: 'num', q: nm[0] + ' charges $' + f1 + ' plus $' + r1 + ' per ' + nm[3].slice(0, -1) + '. ' + nm[1] + (f2 ? ' charges $' + f2 + ' plus $' + r2v : ' charges just $' + r2v) + ' per ' + nm[3].slice(0, -1) + '. After how many ' + nm[3] + ' do they cost the same? (2 d.p. if needed)', ans: r2(t, 2), tol: 0.011, ansText: fmt(t, 2) + ' ' + (t === 1 ? nm[3].slice(0, -1) : nm[3]),
+    sol: [{ t: f1 + ' + ' + r1 + nm[2] + ' = ' + (f2 ? f2 + ' + ' : '') + r2v + nm[2], why: 'Set the two costs equal' }, { t: (f1 - f2) + ' = ' + (r2v - r1) + nm[2], why: 'Subtract ' + (f2 ? f2 + ' and ' : '') + r1 + nm[2] + ' from both sides' }, { t: nm[2] + ' = ' + fmt(t, 2), why: 'Divide by ' + (r2v - r1) }, 'For longer than this, ' + nm[0] + ' is cheaper because its rate per ' + nm[3].slice(0, -1) + ' is lower.'] };
 });
 
 /* ---------- 10A reflection ---------- */
 gen('reflectPt', '10A', 'Reflect a point', () => {
   const x = nz(-6, 6), y = nz(-6, 6); const L = pick([{ t: 'x-axis' }, { t: 'y-axis' }, { t: 'x-axis' }, { t: 'y-axis' }, { t: 'x=k', k: nz(-3, 3) }, { t: 'y=k', k: nz(-3, 3) }, { t: 'y=x' }]);
-  const r = reflectPt([x, y], L); if (Math.abs(r[0]) > 9 || Math.abs(r[1]) > 9) return G.reflectPt.fn();
+  const r = reflectPt([x, y], L); if (Math.abs(r[0]) > 9 || Math.abs(r[1]) > 9 || (r[0] === x && r[1] === y)) return G.reflectPt.fn();
   return { type: 'coord', q: 'Reflect the point <b>' + ptStr([x, y]) + '</b> in the <b>' + lineName(L) + '</b>. Write the coordinates of the image.', ans: [r], ansText: ptStr(r),
-    hint: reflectRule(L), sol: [reflectRule(L), 'Image: <b>' + ptStr(r) + '</b>', gridSVG({ xmin: -9, xmax: 9, ymin: -9, ymax: 9, mirrors: [L], points: [{ x, y, label: 'P' }, { x: r[0], y: r[1], label: 'P′', cls: 'b' }], size: 260 })] };
+    hint: reflectRule(L), sol: [reflectRule(L)].concat(L.t === 'x=k' ? ['x′ = 2 × ' + br(L.k) + ' − ' + br(x) + ' = ' + fmt(r[0]) + ', and y stays ' + fmt(y) + '.'] : L.t === 'y=k' ? ['y′ = 2 × ' + br(L.k) + ' − ' + br(y) + ' = ' + fmt(r[1]) + ', and x stays ' + fmt(x) + '.'] : []).concat(['Image: <b>' + ptStr(r) + '</b>', gridSVG({ xmin: -9, xmax: 9, ymin: -9, ymax: 9, mirrors: [L], points: [{ x, y, label: 'P' }, { x: r[0], y: r[1], label: 'P′', cls: 'b' }], size: 260 })]) };
 });
 const TRI_NAMES = [['A', 'B', 'C'], ['D', 'E', 'F'], ['P', 'Q', 'R'], ['X', 'Y', 'Z'], ['J', 'K', 'L']];
 function randTri(lim = 5) {
@@ -827,7 +859,7 @@ gen('rotatePt', '10C', 'Rotate a point about the origin', () => {
   const x = nz(-6, 6), y = nz(-6, 6), o = pick([[90, 'cw'], [90, 'acw'], [180, 'cw'], [270, 'cw'], [270, 'acw']]); const r = rotatePt([x, y], o[0], o[1]);
   const desc = o[0] + '° ' + (o[0] === 180 ? '' : o[1] === 'cw' ? 'clockwise ' : 'anticlockwise ') + 'about the origin';
   return { type: 'coord', q: 'Rotate <b>' + ptStr([x, y]) + '</b> ' + desc + '.', ans: [r], ansText: ptStr(r), hint: 'Sketch it, or use the rules: 90° clockwise (x, y) → (y, −x); 90° anticlockwise (x, y) → (−y, x); 180° (x, y) → (−x, −y).',
-    sol: [rotRule(o[0], o[1]), 'Image: <b>' + ptStr(r) + '</b>', gridSVG({ xmin: -7, xmax: 7, ymin: -7, ymax: 7, polys: [{ pts: [[0, 0], [x, y]], cls: '' }, { pts: [[0, 0], r], cls: 'b' }], points: [{ x, y, label: 'P' }, { x: r[0], y: r[1], label: 'P′', cls: 'b' }], size: 250 })] };
+    sol: (o[0] === 270 ? ['270° ' + (o[1] === 'cw' ? 'clockwise' : 'anticlockwise') + ' is the same as 90° ' + (o[1] === 'cw' ? 'anticlockwise' : 'clockwise') + ' (270° + 90° = 360°, a full turn).'] : []).concat([rotRule(o[0], o[1]), ptStr([x, y]) + ' → <b>' + ptStr(r) + '</b>', gridSVG({ xmin: -7, xmax: 7, ymin: -7, ymax: 7, polys: [{ pts: [[0, 0], [x, y]], cls: '' }, { pts: [[0, 0], r], cls: 'b' }], points: [{ x, y, label: 'P' }, { x: r[0], y: r[1], label: 'P′', cls: 'b' }], size: 250 })]) };
 });
 gen('rotateShape', '10C', 'Rotate a triangle', () => {
   const nm = pick(TRI_NAMES), P = randTri(4), o = pick([[90, 'cw'], [90, 'acw'], [180, 'cw']]); const R = P.map(p => rotatePt(p, o[0], o[1]));
@@ -836,16 +868,16 @@ gen('rotateShape', '10C', 'Rotate a triangle', () => {
     ans: R, ansText: nm.map((n, i) => n + '′' + ptStr(R[i])).join(', '), hint: rotRule(o[0], o[1]), sol: [rotRule(o[0], o[1]), nm.map((n, i) => n + ptStr(P[i]) + ' → ' + n + '′' + ptStr(R[i])).join('<br>'), gridSVG({ xmin: -5, xmax: 5, ymin: -5, ymax: 5, polys: [{ pts: P, labels: nm }, { pts: R, labels: nm.map(n => n + '′'), cls: 'b' }], size: 240 })] };
 });
 gen('transFacts', '10C', 'Transformation facts', () => {
-  const k = rnd(0, 3), x = rnd(-7, 7) || 3, y = rnd(-7, 7) || -2; const P = (a, b) => '(' + a + ', ' + b + ')';
+  const k = rnd(0, 3), x = rnd(-7, 7) || 3, y = rnd(-7, 7) || -2; const P = (a, b) => '(' + fmt(a) + ', ' + fmt(b) + ')';
   const cands = [P(-x, y), P(x, -y), P(-x, -y), P(y, x), P(-y, x), P(y, -x), P(-y, -x)];
   if (k === 0) {
-    const t = pick([['reflect it in the x-axis', P(x, -y)], ['reflect it in the y-axis', P(-x, y)], ['rotate it 180° about the origin', P(-x, -y)], ['rotate it 90° clockwise about the origin', P(y, -x)], ['rotate it 90° anticlockwise about the origin', P(-y, x)], ['reflect it in the line y = x', P(y, x)]]);
-    return mcq4('Start with the point <b>' + P(x, y) + '</b> and ' + t[0] + '. Where does it end up?', t[1], cands, ['x-axis reflection: (x, y) → (x, −y). y-axis: (x, y) → (−x, y). 180°: (x, y) → (−x, −y).', '90° clockwise: (x, y) → (y, −x). 90° anticlockwise: (x, y) → (−y, x). Line y = x: (x, y) → (y, x).', 'Answer: <b>' + t[1] + '</b>'], 'Sketch it on a grid if you’re not sure.');
+    const t = pick([['reflect it in the x-axis', P(x, -y), 'Reflecting in the x-axis: (x, y) → (x, −y). x stays the same and y changes sign.'], ['reflect it in the y-axis', P(-x, y), 'Reflecting in the y-axis: (x, y) → (−x, y). x changes sign and y stays the same.'], ['rotate it 180° about the origin', P(-x, -y), 'Rotating 180° about the origin: (x, y) → (−x, −y). Both coordinates change sign.'], ['rotate it 90° clockwise about the origin', P(y, -x), 'Rotating 90° clockwise about the origin: (x, y) → (y, −x). Swap them, then change the sign of the new y.'], ['rotate it 90° anticlockwise about the origin', P(-y, x), 'Rotating 90° anticlockwise about the origin: (x, y) → (−y, x). Swap them, then change the sign of the new x.'], ['reflect it in the line y = x', P(y, x), 'Reflecting in the line y = x: (x, y) → (y, x). The coordinates swap.']]);
+    return mcq4('Start with the point <b>' + P(x, y) + '</b> and ' + t[0] + '. Where does it end up?', t[1], cands, [t[2], P(x, y) + ' → <b>' + t[1] + '</b>'], 'Sketch it on a grid if you’re not sure.');
   }
   if (k === 1) {
     const a = rnd(-6, 6), b = rnd(-6, 6); const r = P(x + a, y + b);
-    return mcq4('Translate <b>' + P(x, y) + '</b> by the vector <b>(' + a + ', ' + b + ')</b>. Where does it end up?', r, [P(x - a, y - b), P(x + b, y + a), P(x + a, y - b), P(x - a, y + b), P(a, b)],
-      'Add the vector: (' + x + ' + ' + a + ', ' + y + ' + ' + b + ') = <b>' + r + '</b>.', 'The first number moves left/right, the second moves up/down.');
+    return mcq4('Translate <b>' + P(x, y) + '</b> by the vector <b>' + P(a, b) + '</b>. Where does it end up?', r, [P(x - a, y - b), P(x + b, y + a), P(x + a, y - b), P(x - a, y + b), P(a, b)],
+      'Add the vector: (' + fmt(x) + ' + ' + br(a) + ', ' + fmt(y) + ' + ' + br(b) + ') = <b>' + r + '</b>.', 'The first number moves left/right, the second moves up/down.');
   }
   if (k === 2) {
     const ang = pick([90, 180, 270]), dir = pick(['clockwise', 'anticlockwise']); const other = dir === 'clockwise' ? 'anticlockwise' : 'clockwise';
@@ -924,7 +956,7 @@ gen('quadAngles', '10G', 'Angles and sides in special quadrilaterals', () => {
   if (k === 5) { const b = rnd(50, 130); if (b % 2) return G.quadAngles.fn(); const w = pick(['BAD', 'BAC']); const v = w === 'BAD' ? 180 - b : (180 - b) / 2;
     return { type: 'num', q: 'In rhombus ABCD, ∠ABC = ' + b + '°. Find ∠' + w + (w === 'BAC' ? ' (the diagonal AC bisects ∠BAD)' : '') + '.', ans: v, ansText: v + '°', sol: ['∠BAD = 180° − ' + b + '° = ' + (180 - b) + '° (co-interior angles, AD ∥ BC).', w === 'BAC' ? 'AC bisects ∠BAD, so ∠BAC = ' + (180 - b) + ' ÷ 2 = ' + v + '°.' : ''] }; }
   const x = rnd(10, 30), a1 = rnd(2, 4), b1 = rnd(5, 20); const b2 = b1 + x; const ang = a1 * x + b1; if (ang >= 170) return G.quadAngles.fn();
-  return { type: 'num', q: 'Opposite angles of a parallelogram are (' + a1 + 'x + ' + b1 + ')° and (' + (a1 - 1 === 1 ? '' : a1 - 1) + 'x + ' + b2 + ')°. Find x.', ans: x, ansText: 'x = ' + x, sol: ['Opposite angles are equal.'].concat(solveRel(a1 + 'x + ' + b1 + ' = ' + (a1 - 1) + 'x + ' + b2).steps) };
+  return { type: 'num', q: 'Opposite angles of a parallelogram are (' + a1 + 'x + ' + b1 + ')° and (' + (a1 - 1 === 1 ? '' : a1 - 1) + 'x + ' + b2 + ')°. Find x.', ans: x, ansText: 'x = ' + x, sol: ['Opposite angles are equal.'].concat(solveRel(a1 + 'x + ' + b1 + ' = ' + (a1 - 1 === 1 ? '' : a1 - 1) + 'x + ' + b2).steps) };
 });
 // properties of the special quadrilaterals: [statement, list of shapes it is always true for]
 const QPROP = [
@@ -986,7 +1018,7 @@ gen('similarSide', '10H', 'Unknown side using the scale factor', () => {
 gen('similarCheck', '10H', 'Are the figures similar?', () => {
   const a = rnd(2, 8), b = rnd(3, 10); const k = pick([1.5, 2, 3, 2.5]); const yes = Math.random() < 0.5; const c = a * k, d = yes ? b * k : b * k + pick([1, 2, -1]);
   return { type: 'mcq', q: 'Rectangle A is ' + a + ' cm by ' + b + ' cm. Rectangle B is ' + fmt(c) + ' cm by ' + fmt(d) + ' cm. Are they similar?', choices: ['Yes', 'No'], ans: yes ? 0 : 1, ansText: yes ? 'Yes' : 'No',
-    sol: ['Compare matching sides: ' + fmt(c) + ' ÷ ' + a + ' = ' + fmt(c / a, 3) + ' and ' + fmt(d) + ' ÷ ' + b + ' = ' + fmt(d / b, 3) + '.', yes ? 'The ratios are equal, so the rectangles are similar.' : 'The ratios are different, so they are not similar.'] };
+    sol: ['Compare matching sides: ' + fmt(c) + ' ÷ ' + a + ' ' + (Number.isInteger(c / a * 1000) ? '=' : '≈') + ' ' + fmt(c / a, 3) + ' and ' + fmt(d) + ' ÷ ' + b + ' ' + (Number.isInteger(d / b * 1000) ? '=' : '≈') + ' ' + fmt(d / b, 3) + '.', yes ? 'The ratios are equal, so the rectangles are similar.' : 'The ratios are different, so they are not similar.'] };
 });
 gen('shadow', '10I', 'Shadows and heights', () => {
   const k = pick([1.5, 2, 2.5, 3, 4, 5, 6, 8, 10, 12.5]), h = pick([1.2, 1.5, 1.6, 1.8, 2, 3, 4.5]), s = pick([1.2, 1.5, 2, 2.4, 3, 4]); const S = s * k;
@@ -1054,13 +1086,15 @@ gen('termOrRec', '3F', 'Terminating or recurring?', () => {
 gen('roundDec', '3F', 'Round a decimal', () => {
   const x = rnd(0, 99) + rnd(1, 99999) / 100000; const k = pick([[0, 'the nearest whole number'], [1, '1 decimal place'], [2, '2 decimal places'], [3, '3 decimal places']]); const ans = r2(x, k[0]);
   const s = x.toFixed(5).replace(/0+$/, '');
-  return { type: 'num', q: 'Round <b>' + s + '</b> to ' + k[1] + '.', ans, tol: 1e-9, ansText: ans.toFixed(k[0]), sol: ['Look at the digit straight after the place you are rounding to. 5 or more → round up; 4 or less → leave it.', '<b>' + ans.toFixed(k[0]) + '</b>'] };
+  return { type: 'num', q: 'Round <b>' + s + '</b> to ' + k[1] + '.', ans, tol: 1e-9, ansText: ans.toFixed(k[0]), sol: (() => { const pos = s.indexOf('.') + k[0] + (k[0] ? 1 : 1), nxt = s.charAt(pos) || '0', up = +nxt >= 5;
+      return ['Look at the digit straight after the place you are rounding to. 5 or more → round up; 4 or less → leave it.', 'Rounding to ' + k[1] + ': the next digit is <b>' + nxt + '</b>, so ' + (up ? 'round up' : 'leave it') + ': <b>' + ans.toFixed(k[0]) + '</b>'];
+    })() };
 });
 gen('recNotation', '3F', 'Recurring decimal notation', () => {
   const pairs = [[1, 3], [2, 3], [1, 6], [5, 6], [1, 9], [4, 9], [7, 9], [4, 11], [1, 11], [9, 11], [7, 12], [5, 12], [1, 7], [5, 7], [2, 15], [7, 15], [1, 12], [11, 12], [5, 18], [7, 18], [8, 33], [5, 33], [1, 15], [13, 30], [7, 30], [2, 9], [3, 11], [1, 18]]; const [n, d] = pick(pairs); const ld = longDiv(n, d); const right = decHTML(ld);
   const wrongs = [decHTML({ ...ld, nonRep: ld.nonRep + ld.rep, rep: '' }), decHTML({ ...ld, nonRep: '', rep: ld.nonRep + ld.rep }), decHTML({ ...ld, nonRep: ld.nonRep + ld.rep.slice(0, 1), rep: ld.rep.slice(1) || ld.rep })];
   const opts = shuffle([right, ...new Set(wrongs.filter(w => w !== right))].slice(0, 4)); const a = opts.indexOf(right);
-  return { type: 'mcq', q: 'Which shows <b>' + n + '/' + d + '</b> correctly as a recurring decimal? (The line over digits means they repeat forever.)', choices: opts, ans: a, ansText: decLong(ld),
+  return { type: 'mcq', q: 'Which shows <b>' + n + '/' + d + '</b> correctly as a recurring decimal? (The line over digits means they repeat forever.)', choices: opts, ans: a, ansText: decLong(ld, 2),
     sol: [n + ' ÷ ' + d + ' = ' + decLong(ld, 4) + '. The repeating block is “' + ld.rep + '”.', 'In your book you may see dots over the first and last digit of the repeating block instead of a line.'] };
 });
 
@@ -1068,7 +1102,7 @@ gen('recNotation', '3F', 'Recurring decimal notation', () => {
 gen('pctToFrac', '3G', 'Percentage → fraction', () => {
   const p = Math.random() < 0.75 ? rnd(1, 199) : pick([2.5, 7.5, 12.5, 17.5, 22.5, 37.5, 62.5, 87.5, 0.5, 1.5]); const f = Fr.of(p).div(100);
   return { type: 'frac', q: 'Write <b>' + fmt(p) + '%</b> as a fraction in simplest form.', ans: f, ansText: f.toString(), hint: 'Put it over 100, then simplify. For decimals like 12.5%, multiply top and bottom by 10 first.',
-    sol: [fmt(p) + '% = ' + fmt(p) + '/100' + (Number.isInteger(p) ? '' : ' = ' + (p * 10) + '/1000') + ' = <b>' + f + '</b>' + (f.n > f.d ? ' = ' + Math.floor(f.n / f.d) + ' ' + (f.n % f.d) + '/' + f.d : '')] };
+    sol: [fmt(p) + '% = ' + fmt(p) + '/100' + (Number.isInteger(p) ? '' : ' = ' + (p * 10) + '/1000') + (String(f) === fmt(p) + '/100' ? ' (already in simplest form) = <b>' + f + '</b>' : ' = <b>' + f + '</b>') + (f.n > f.d ? ' = ' + Math.floor(f.n / f.d) + ' ' + (f.n % f.d) + '/' + f.d : '')] };
 });
 gen('pctToDec', '3G', 'Percentage → decimal', () => {
   const p = Math.random() < 0.6 ? rnd(1, 350) : r2(rnd(1, 999) / 10, 1);
@@ -1080,7 +1114,7 @@ gen('fracToPct', '3G', 'Fraction → percentage', () => {
 });
 gen('decToPct', '3G', 'Decimal → percentage', () => {
   const x = pick([r2(rnd(1, 99) / 100, 2), r2(rnd(1, 999) / 1000, 3), r2(rnd(100, 350) / 100, 2), r2(rnd(1, 9) / 1000, 3)]);
-  return { type: 'num', q: 'Write <b>' + fmt(x, 6) + '</b> as a percentage.', ans: r2(x * 100, 6), tol: 1e-9, ansText: fmt(x * 100, 4) + '%', sol: ['Multiply by 100 (move the point 2 places right): <b>' + fmt(x * 100, 4) + '%</b>'] };
+  return { type: 'num', q: 'Write <b>' + fmt(x, 6) + '</b> as a percentage.', ans: r2(x * 100, 6), tol: 1e-9, ansText: fmt(x * 100, 4) + '%', sol: ['Multiply by 100 (move the decimal point 2 places right): ' + fmt(x, 6) + ' × 100 = <b>' + fmt(x * 100, 4) + '%</b>'] };
 });
 gen('decToFrac', '3G', 'Decimal → fraction', () => {
   const dp = pick([1, 2, 2, 3]); let x = r2(rnd(1, 10 ** dp - 1) / 10 ** dp + (Math.random() < 0.15 ? rnd(1, 2) : 0), dp); if (Number.isInteger(x)) x = 0.25;
@@ -1112,7 +1146,8 @@ gen('asPct', '3H', 'Express one quantity as a % of another', () => {
 gen('incDec', '3I', 'Increase or decrease by a percentage', () => {
   const A = pick([250, 85, 480, 1250, 64, 120, 75, 360, 48, 900, 32]), p = pick([5, 10, 12, 15, 20, 25, 30, 35, 7.5, 3.5, 40, 8]); const inc = Math.random() < 0.5; const mult = 1 + (inc ? 1 : -1) * p / 100; const v = A * mult;
   return { type: 'num', q: (inc ? 'Increase' : 'Decrease') + ' <b>$' + A + '</b> by <b>' + fmt(p) + '%</b>.', ans: r2(v, 4), ansText: money(v), hint: 'Multiply by ' + fmt(mult) + ' (that is ' + fmt(100 + (inc ? p : -p)) + '%).',
-    sol: [{ t: fmt(p) + '% of $' + A + ' = ' + money(A * p / 100), why: 'Method 1: find the percentage amount' }, { t: '$' + A + ' ' + (inc ? '+' : '−') + ' ' + money(A * p / 100) + ' = ' + money(v), why: inc ? 'Add it on' : 'Take it off' }, { t: '$' + A + ' × ' + fmt(mult) + ' = ' + money(v), why: 'Method 2: multiplier ' + fmt(100 + (inc ? p : -p)) + '% = ' + fmt(mult) }] };
+    sol: (() => { const amt = A * p / 100, cents = x => Math.abs(x * 100 - Math.round(x * 100)) < 1e-9, $ = x => cents(x) ? money(x) : '$' + fmt(x, 4), end = cents(v) ? '' : ' ≈ <b>' + money(v) + '</b> (to the nearest cent)';
+      return [{ t: fmt(p) + '% of $' + A + ' = ' + fmt(p / 100) + ' × ' + A + ' = ' + $(amt), why: 'Method 1: find the percentage amount' }, { t: '$' + A + ' ' + (inc ? '+' : '−') + ' ' + $(amt) + ' = ' + $(v) + end, why: inc ? 'Add it on' : 'Take it off' }, { t: '$' + A + ' × ' + fmt(mult) + ' = ' + $(v) + end, why: 'Method 2: multiplier ' + fmt(100 + (inc ? p : -p)) + '% = ' + fmt(mult) }]; })() };
 });
 gen('shopping', '3I', 'Discount, mark-up, GST and profit', () => {
   const k = rnd(0, 6);
@@ -1161,7 +1196,7 @@ gen('reversePct', '3K', 'Find the original amount', () => {
   if (Math.abs(N / m - O) > 0.001) return G.reversePct.fn();
   const what = O >= 1000 ? ['A town’s population ' + (inc ? 'grew' : 'fell') + ' by ' + fmt(p) + '% to ' + fmt(N) + '. What was it before?', fmt(O) + ' people'] : ['After a ' + fmt(p) + '% ' + (inc ? 'increase' : 'discount') + ', the price is ' + money(N) + '. What was the original price?', money(O)];
   return { type: 'num', q: what[0], ans: O, ansText: what[1], hint: 'The new amount is ' + fmt(100 + (inc ? p : -p)) + '% of the original. Divide by ' + fmt(m) + '.',
-    sol: [{ t: fmt(100 + (inc ? p : -p)) + '% = ' + fmt(N), why: 'The new amount as a % of the original' }, { t: '1% = ' + fmt(N) + ' ÷ ' + fmt(100 + (inc ? p : -p)) + ' = ' + fmt(N / (100 + (inc ? p : -p)), 4), why: 'Unitary method' }, { t: '100% = ' + fmt(O), why: 'Or in one step: ' + fmt(N) + ' ÷ ' + fmt(m) + ' = ' + fmt(O) }, 'Do not just ' + (inc ? 'subtract' : 'add') + ' ' + fmt(p) + '% of the new amount: that gives the wrong answer.'] };
+    sol: [{ t: fmt(100 + (inc ? p : -p)) + '% = ' + fmt(N), why: 'The new amount as a % of the original' }, { t: '1% = ' + fmt(N) + ' ÷ ' + fmt(100 + (inc ? p : -p)) + ' = ' + fmt(N / (100 + (inc ? p : -p)), 4), why: 'Unitary method' }, { t: '100% = ' + fmt(N / (100 + (inc ? p : -p)), 4) + ' × 100 = ' + (O >= 1000 ? fmt(O) : money(O)), why: 'Or in one step: ' + fmt(N) + ' ÷ ' + fmt(m) + ' = ' + fmt(O) }, 'Do not just ' + (inc ? 'subtract' : 'add') + ' ' + fmt(p) + '% of the new amount: that gives the wrong answer.'] };
 });
 gen('successive', '3K', 'Successive percentage changes', () => {
   const a = pick([10, 20, 25, 50, 30]), b = pick([10, 20, 25, 40]); const up = Math.random() < 0.5; const m1 = 1 + (up ? a : -a) / 100, m2 = 1 + (up ? -b : b) / 100; const m = m1 * m2; const pc = (m - 1) * 100;
@@ -1171,7 +1206,7 @@ gen('successive', '3K', 'Successive percentage changes', () => {
 gen('multiStepPct', '3K', 'Multi-step percentage problem', () => {
   const k = rnd(0, 2);
   if (k === 0) { const C = pick([250, 300, 200, 400]), m = pick([45, 30, 50, 40]), d = pick([10, 20, 15]); const sale = C * (1 + m / 100) * (1 - d / 100); const pr = sale - C; const pp = pr / C * 100;
-    return { type: 'num', q: 'A shop buys a bike for $' + C + ', marks it up by ' + m + '%, then discounts the marked price by ' + d + '% in a sale. Find the profit as a percentage of the cost price (2 d.p. if needed).', ans: r2(pp, 6), ansText: fmt(pp, 2) + '%', sol: ['Marked price = ' + C + ' × ' + fmt(1 + m / 100) + ' = ' + money(C * (1 + m / 100)) + '.', 'Sale price = × ' + fmt(1 - d / 100) + ' = ' + money(sale) + '.', 'Profit = ' + money(pr) + '; ' + fmt(pr, 2) + ' ÷ ' + C + ' × 100 = <b>' + fmt(pp, 2) + '%</b>.'] }; }
+    return { type: 'num', q: 'A shop buys a bike for $' + C + ', marks it up by ' + m + '%, then discounts the marked price by ' + d + '% in a sale. Find the profit as a percentage of the cost price (2 d.p. if needed).', ans: r2(pp, 6), ansText: fmt(pp, 2) + '%', sol: ['Marked price = ' + C + ' × ' + fmt(1 + m / 100) + ' = ' + money(C * (1 + m / 100)) + '.', 'Sale price = ' + money(C * (1 + m / 100)) + ' × ' + fmt(1 - d / 100) + ' = ' + money(sale) + '.', 'Profit = ' + money(pr) + '; ' + fmt(pr, 2) + ' ÷ ' + C + ' × 100 = <b>' + fmt(pp, 2) + '%</b>.'] }; }
   if (k === 1) { const S = pick([351, 234, 468]); const m = 1.3 * 0.9; const C = S / m; return { type: 'num', q: 'Boots were marked up by 30% for retail, then the retail price was discounted by 10%. The sale price was $' + S + '. What was the original cost price?', ans: r2(C, 4), ansText: money(C), sol: ['Overall multiplier: 1.30 × 0.90 = 1.17.', 'Cost price = ' + S + ' ÷ 1.17 = <b>' + money(C) + '</b>'] }; }
   const N = pick([300, 400, 500, 200]), w = pick([40, 30, 35]), b = pick([25, 20, 30]), bike = 5; const driven = 100 - w - b - bike; const n = N * driven / 100;
   return { type: 'num', q: 'In a survey, ' + w + '% walk to school, ' + b + '% catch the bus, ' + bike + '% ride a bike and the rest are driven. ' + n + ' students are driven. How many students were surveyed?', ans: N, ansText: String(N), sol: ['Driven = 100 − ' + w + ' − ' + b + ' − ' + bike + ' = ' + driven + '%.', driven + '% = ' + n + ', so 1% = ' + fmt(n / driven) + ' and 100% = <b>' + N + '</b>.'] };
@@ -1280,7 +1315,7 @@ const TOPICS = [
 <div class="rule-box"><span class="m">gradient m = rise ÷ run = (y₂ − y₁) ÷ (x₂ − x₁)</span></div>
 <ul><li><b>Positive</b> gradient: the line goes up from left to right.</li><li><b>Negative</b>: the line goes down from left to right.</li><li><b>Zero</b>: a horizontal line (y = c).</li><li><b>Undefined</b>: a vertical line (x = k), because the run is 0.</li><li>The bigger the number (ignoring the sign), the steeper the line. Parallel lines have equal gradients.</li></ul>
 <p><b>From a graph:</b> pick two points where the line crosses grid corners exactly, then count the rise (up is +, down is −) and the run (always go left to right).</p>`,
-    ex: [{ q: 'Find the gradient through (1, 2) and (4, 11).', s: ['m = (11 − 2) ÷ (4 − 1) = 9 ÷ 3 = <b>3</b>'] }, { q: 'Find the gradient through (−3, 4) and (−1, −8).', s: ['m = (−8 − 4) ÷ (−1 − (−3)) = −12 ÷ 2 = <b>−6</b>'] }, { q: 'Find the gradient through (2, 7) and (−4, 7).', s: ['m = (7 − 7) ÷ (−4 − 2) = 0 ÷ −6 = <b>0</b>, a horizontal line.'] }],
+    ex: [{ q: 'Find the gradient through (1, 2) and (4, 11).', s: ['m = (11 − 2) ÷ (4 − 1) = 9 ÷ 3 = <b>3</b>'] }, { q: 'Find the gradient through (−3, 4) and (−1, −8).', s: ['m = (−8 − 4) ÷ (−1 − (−3)) = −12 ÷ 2 = <b>−6</b>'] }, { q: 'Find the gradient through (2, 7) and (−4, 7).', s: ['m = (7 − 7) ÷ (−4 − 2) = 0 ÷ (−6) = <b>0</b>, a horizontal line.'] }],
     mistakes: ['Putting run over rise.', 'Subtracting the points in a different order on top and bottom.', 'Losing a negative sign when subtracting a negative coordinate.'] },
 
   { id: 'L3', unit: 'lin', name: 'y = mx + c and intercepts', tool: 'graph', bk: ['A2', 'A11', 'A12', 'D10'],
@@ -1907,7 +1942,7 @@ longGen('lIneqNeg', '7J', 'h', 'Solve an inequality and explain', () => {
   const a = rnd(2, 6), x0 = rnd(-5, 6), b = rnd(-9, 9), op = pick(['<', '>', '≤', '≥']); const c = -a * x0 + b; const flip = { '<': '>', '>': '<', '≤': '≥', '≥': '≤' }[op];
   const lhs = '−' + a + 'x' + (b ? (b > 0 ? ' + ' + b : ' − ' + Math.abs(b)) : '');
   return { q: 'Solve <b>' + lhs + ' ' + op.replace('<', '&lt;').replace('>', '&gt;') + ' ' + lsg(c) + '</b>. Show each step, explain what happens to the inequality sign, and describe how to show the answer on a number line.',
-    model: (b ? (b > 0 ? 'Subtract ' + b : 'Add ' + Math.abs(b)) + ' from both sides: −' + a + 'x ' + op + ' ' + lsg(c - b) + '. ' : '') + 'Divide both sides by −' + a + '. Because we divided by a <b>negative</b>, the sign <b>reverses</b>: <b>x ' + flip + ' ' + lsg(x0) + '</b>. On a number line: ' + (flip.length === 1 && '<>'.includes(flip) ? 'an open circle' : 'a closed (filled) circle') + ' at ' + lsg(x0) + ' with an arrow pointing ' + ('>≥'.includes(flip) ? 'right' : 'left') + '.',
+    model: (b ? (b > 0 ? 'Subtract ' + b + ' from' : 'Add ' + Math.abs(b) + ' to') + ' both sides: −' + a + 'x ' + op + ' ' + lsg(c - b) + '. ' : '') + 'Divide both sides by −' + a + '. Because we divided by a <b>negative</b>, the sign <b>reverses</b>: <b>x ' + flip + ' ' + lsg(x0) + '</b>. On a number line: ' + (flip.length === 1 && '<>'.includes(flip) ? 'an open circle' : 'a closed (filled) circle') + ' at ' + lsg(x0) + ' with an arrow pointing ' + ('>≥'.includes(flip) ? 'right' : 'left') + '.',
     points: [b ? 'Correctly deals with the ' + lsg(b) + ' first (−' + a + 'x ' + op + ' ' + lsg(c - b) + ')' : 'Sets up the division by −' + a, 'Divides by −' + a, 'Explains the sign reverses because of dividing by a negative', 'Correct answer: x ' + flip + ' ' + lsg(x0), 'Correct number line: ' + ('<>'.includes(flip) ? 'open' : 'closed') + ' circle, arrow ' + ('>≥'.includes(flip) ? 'right' : 'left')] };
 });
 longGen('lIneqWords', '7I', 'm', 'Write and explain an inequality', () => {
@@ -1933,8 +1968,8 @@ longGen('lEqWord', 'EQ', 'h', 'Write and solve an equation', () => {
 longGen('lPlot', 'L1', 'm', 'Table of values and the line', () => {
   const m = pick([-3, -2, -1, 1, 2, 3]), c = rnd(-4, 4); const xs = [-1, 0, 1, 2, 3]; const ys = xs.map(x => m * x + c);
   return { q: 'Complete a table of values for <b>' + lterm(m, c) + '</b> for x = −1, 0, 1, 2, 3. Then describe the line you would draw: is it linear, which way does it slope, and where does it cross the y-axis?',
-    model: 'y-values: ' + ys.map(sgn).join(', ') + '. The points go up/down by the same amount each time (' + lsg(m) + '), so the relationship is <b>linear</b>. The line slopes <b>' + (m > 0 ? 'upwards' : 'downwards') + '</b> (gradient ' + lsg(m) + ') and crosses the y-axis at <b>(0, ' + lsg(c) + ')</b>.',
-    points: ['Correct y-values: ' + ys.map(sgn).join(', '), 'Says it is linear (constant change of ' + lsg(m) + ')', 'Slopes ' + (m > 0 ? 'up' : 'down') + ' from left to right', 'Crosses the y-axis at (0, ' + lsg(c) + ')'] };
+    model: 'y-values: ' + ys.map(v => lsg(v)).join(', ') + ' (for x = −1, 0, 1, 2, 3). The points go up/down by the same amount each time (' + lsg(m) + '), so the relationship is <b>linear</b>. The line slopes <b>' + (m > 0 ? 'upwards' : 'downwards') + '</b> (gradient ' + lsg(m) + ') and crosses the y-axis at <b>(0, ' + lsg(c) + ')</b>.',
+    points: ['Correct y-values: ' + ys.map(v => lsg(v)).join(', '), 'Says it is linear (constant change of ' + lsg(m) + ')', 'Slopes ' + (m > 0 ? 'up' : 'down') + ' from left to right', 'Crosses the y-axis at (0, ' + lsg(c) + ')'] };
 });
 longGen('lGradient', 'L2', 'm', 'Find and explain a gradient', () => {
   const x1 = rnd(-5, 3), y1 = rnd(-6, 6), run = rnd(1, 5), m = pick([-3, -2, -1, 1, 2, 3, 0.5, -0.5]); const x2 = x1 + run * (m % 1 ? 2 : 1), y2 = y1 + m * (x2 - x1);
@@ -1945,34 +1980,35 @@ longGen('lGradient', 'L2', 'm', 'Find and explain a gradient', () => {
 longGen('lRule2', 'L3', 'h', 'Rule through two points', () => {
   const m = pick([-3, -2, -1, 1, 2, 3]), c = rnd(-6, 6), x1 = rnd(-3, 1), x2 = x1 + rnd(1, 4); const y1 = m * x1 + c, y2 = m * x2 + c;
   return { q: 'Find the rule of the line through <b>(' + lsg(x1) + ', ' + lsg(y1) + ')</b> and <b>(' + lsg(x2) + ', ' + lsg(y2) + ')</b>. Show all working and check your rule.',
-    model: 'm = (' + lsg(y2) + ' − ' + (y1 < 0 ? '(' + lsg(y1) + ')' : y1) + ') ÷ (' + x2 + ' − ' + (x1 < 0 ? '(' + lsg(x1) + ')' : x1) + ') = ' + lsg(y2 - y1) + ' ÷ ' + (x2 - x1) + ' = ' + lsg(m) + '. Substitute (' + lsg(x1) + ', ' + lsg(y1) + '): ' + lsg(y1) + ' = ' + lsg(m) + ' × ' + lsg(x1) + ' + c, so c = ' + lsg(c) + '. Rule: <b>' + lterm(m, c) + '</b>. Check with (' + lsg(x2) + ', ' + lsg(y2) + '): ' + lsg(m) + ' × ' + lsg(x2) + ' ' + (c >= 0 ? '+ ' + c : '− ' + Math.abs(c)) + ' = ' + lsg(y2) + ' ✓',
+    model: 'm = (' + lsg(y2) + ' − ' + (y1 < 0 ? '(' + lsg(y1) + ')' : y1) + ') ÷ (' + lsg(x2) + ' − ' + (x1 < 0 ? '(' + lsg(x1) + ')' : x1) + ') = ' + lsg(y2 - y1) + ' ÷ ' + (x2 - x1) + ' = ' + lsg(m) + '. Substitute (' + lsg(x1) + ', ' + lsg(y1) + '): ' + lsg(y1) + ' = ' + lsg(m) + ' × ' + (x1 < 0 ? '(' + lsg(x1) + ')' : x1) + ' + c, so c = ' + lsg(c) + '. Rule: <b>' + lterm(m, c) + '</b>. Check with (' + lsg(x2) + ', ' + lsg(y2) + '): ' + lsg(m) + ' × ' + (x2 < 0 ? '(' + lsg(x2) + ')' : x2) + (c ? ' ' + (c > 0 ? '+ ' + c : '− ' + Math.abs(c)) : '') + ' = ' + lsg(y2) + ' ✓',
     points: ['Finds the gradient m = ' + lsg(m), 'Substitutes a point to find c', 'c = ' + lsg(c), 'Writes the rule ' + lterm(m, c), 'Checks with the other point'] };
 });
 longGen('lRuleWords', 'L4', 'h', 'Rule from a situation', () => {
   const fee = rnd(2, 10), per = pick([1.5, 2, 2.5, 3, 4, 5]), k = rnd(3, 12); const tot = fee + per * k;
-  return { q: 'A taxi charges a flag fall of $' + fee + ' plus $' + fmt(per) + ' per km. Write a rule for the cost C after d km, explain what each part of the rule means, and use it to find the cost of a ' + k + ' km trip.',
-    model: '<b>C = ' + fmt(per) + 'd + ' + fee + '</b>. The gradient ' + fmt(per) + ' is the cost per km; the y-intercept ' + fee + ' is the starting fee (cost at 0 km). For d = ' + k + ': C = ' + fmt(per) + ' × ' + k + ' + ' + fee + ' = <b>$' + fmt(tot) + '</b>.',
-    points: ['Correct rule C = ' + fmt(per) + 'd + ' + fee, 'Explains ' + fmt(per) + ' is the cost per km (gradient)', 'Explains ' + fee + ' is the starting fee (y-intercept)', 'Correct cost for ' + k + ' km: $' + fmt(tot)] };
+  return { q: 'A taxi charges a flag fall of $' + fee + ' plus ' + money(per) + ' per km. Write a rule for the cost C after d km, explain what each part of the rule means, and use it to find the cost of ' + (k === 8 || k === 11 ? 'an ' : 'a ') + k + ' km trip.',
+    model: '<b>C = ' + fmt(per) + 'd + ' + fee + '</b>. The gradient ' + fmt(per) + ' is the cost per km; the y-intercept ' + fee + ' is the starting fee (cost at 0 km). For d = ' + k + ': C = ' + fmt(per) + ' × ' + k + ' + ' + fee + ' = ' + fmt(per * k) + ' + ' + fee + ' = <b>' + money(tot) + '</b>.',
+    points: ['Correct rule C = ' + fmt(per) + 'd + ' + fee, 'Explains ' + fmt(per) + ' is the cost per km (gradient)', 'Explains ' + fee + ' is the starting fee (y-intercept)', 'Correct cost for ' + k + ' km: ' + money(tot)] };
 });
 longGen('lBreakEven', 'L5', 'h', 'Compare two plans', () => {
   const a1 = rnd(10, 40), r1 = rnd(2, 6), r2_ = r1 + rnd(2, 5), a2 = a1 - (r2_ - r1) * rnd(3, 10); const x = (a1 - a2) / (r2_ - r1);
   const A = a2 < 0 ? null : a2; if (A === null) return LONG.lBreakEven.fn();
   const n = x + rnd(2, 5);
-  return { q: 'Plan A costs $' + a1 + ' plus $' + r1 + ' per hour. Plan B costs $' + A + ' plus $' + r2_ + ' per hour. Write a rule for each plan, find when they cost the same, and explain which plan is cheaper for ' + n + ' hours.',
-    model: 'A = ' + r1 + 'h + ' + a1 + ', B = ' + r2_ + 'h + ' + A + '. Same cost when ' + r1 + 'h + ' + a1 + ' = ' + r2_ + 'h + ' + A + ', so ' + (a1 - A) + ' = ' + (r2_ - r1) + 'h and <b>h = ' + x + '</b> hours. For ' + n + ' hours: A = $' + (r1 * n + a1) + ', B = $' + (r2_ * n + A) + ', so <b>Plan A</b> is cheaper (its hourly rate is lower, so after ' + x + ' hours it costs less).',
+  const B = A ? r2_ + 'h + ' + A : r2_ + 'h';
+  return { q: 'Plan A costs $' + a1 + ' plus $' + r1 + ' per hour. Plan B costs ' + (A ? '$' + A + ' plus $' + r2_ : 'just $' + r2_) + ' per hour. Write a rule for each plan, find when they cost the same, and explain which plan is cheaper for ' + n + ' hours.',
+    model: 'A = ' + r1 + 'h + ' + a1 + ', B = ' + B + '. Same cost when ' + r1 + 'h + ' + a1 + ' = ' + B + ', so ' + (a1 - A) + ' = ' + (r2_ - r1) + 'h and <b>h = ' + x + '</b> hours. For ' + n + ' hours: A = $' + (r1 * n + a1) + ', B = $' + (r2_ * n + A) + ', so <b>Plan A</b> is cheaper (its hourly rate is lower, so after ' + x + ' hours it costs less).',
     points: ['Correct rules for both plans', 'Sets the rules equal to each other', 'Break-even at h = ' + x, 'Works out both costs for ' + n + ' hours', 'Concludes Plan A is cheaper, with a reason'] };
 });
 longGen('lTransform', '10C', 'h', 'Describe a transformation fully', () => {
   const x = rnd(1, 6), y = rnd(1, 6); const k = rnd(0, 3);
   const T = [['reflection in the y-axis', [-x, y], ['Names it a reflection', 'Gives the mirror line: the y-axis (x = 0)']], ['reflection in the x-axis', [x, -y], ['Names it a reflection', 'Gives the mirror line: the x-axis (y = 0)']], ['rotation of 180° about the origin', [-x, -y], ['Names it a rotation', 'Gives the angle 180°', 'Gives the centre: the origin (0, 0)']], ['rotation of 90° clockwise about the origin', [y, -x], ['Names it a rotation', 'Gives the angle 90° and the direction clockwise', 'Gives the centre: the origin (0, 0)']]][k];
-  return { q: 'The point P(' + x + ', ' + y + ') is moved to P′(' + T[1].map(sgn).join(', ') + '). <b>Describe fully</b> the single transformation, and explain how the coordinates show it.',
+  return { q: 'The point P(' + x + ', ' + y + ') is moved to P′(' + T[1].map(v => lsg(v)).join(', ') + '). <b>Describe fully</b> the single transformation, and explain how the coordinates show it.',
     model: 'It is a <b>' + T[0] + '</b>. ' + ['(x, y) → (−x, y): the x-coordinate changes sign, so it flips across the y-axis.', '(x, y) → (x, −y): the y-coordinate changes sign, so it flips across the x-axis.', '(x, y) → (−x, −y): both coordinates change sign.', '(x, y) → (y, −x): the coordinates swap and the new y changes sign.'][k],
     points: T[2].concat(['Explains the coordinate rule using P and P′']) };
 });
 longGen('lTranslate', '10B', 'm', 'Describe a translation', () => {
   const x = rnd(-5, 5), y = rnd(-5, 5), a = rnd(-6, 6) || 2, b = rnd(-6, 6) || -3;
   return { q: 'Triangle ABC is translated so that A(' + lsg(x) + ', ' + lsg(y) + ') moves to A′(' + lsg(x + a) + ', ' + lsg(y + b) + '). Find the translation vector, describe it in words, and find where B(' + lsg(x + 2) + ', ' + lsg(y + 1) + ') moves to.',
-    model: 'Vector = (' + lsg(x + a) + ' − ' + (x < 0 ? '(' + lsg(x) + ')' : x) + ', ' + lsg(y + b) + ' − ' + (y < 0 ? '(' + lsg(y) + ')' : y) + ') = <b>(' + lsg(a) + ', ' + lsg(b) + ')</b>: ' + Math.abs(a) + ' units ' + (a > 0 ? 'right' : 'left') + ' and ' + Math.abs(b) + ' units ' + (b > 0 ? 'up' : 'down') + '. B′ = (' + lsg(x + 2 + a) + ', ' + lsg(y + 1 + b) + ').',
+    model: 'Vector = (' + lsg(x + a) + ' − ' + (x < 0 ? '(' + lsg(x) + ')' : x) + ', ' + lsg(y + b) + ' − ' + (y < 0 ? '(' + lsg(y) + ')' : y) + ') = <b>(' + lsg(a) + ', ' + lsg(b) + ')</b>: ' + Math.abs(a) + (Math.abs(a) === 1 ? ' unit ' : ' units ') + (a > 0 ? 'right' : 'left') + ' and ' + Math.abs(b) + (Math.abs(b) === 1 ? ' unit ' : ' units ') + (b > 0 ? 'up' : 'down') + '. B′ = (' + lsg(x + 2 + a) + ', ' + lsg(y + 1 + b) + ').',
     points: ['Vector (' + lsg(a) + ', ' + lsg(b) + ')', 'Describes it in words: ' + Math.abs(a) + ' ' + (a > 0 ? 'right' : 'left') + ', ' + Math.abs(b) + ' ' + (b > 0 ? 'up' : 'down'), 'B′ = (' + lsg(x + 2 + a) + ', ' + lsg(y + 1 + b) + ')'] };
 });
 longGen('lReflect', '10A', 'm', 'Reflect and explain', () => {
@@ -2018,15 +2054,15 @@ longGen('lShadow', '10I', 'h', 'Similar triangles in context', () => {
     points: ['Explains the angles are equal (same sun angle, right angles)', 'Names it similar (AAA)', 'Scale factor ' + fmt(r2(k, 3)), 'Tree height ' + fmt(r2(ph * k, 2)) + ' m'] };
 });
 longGen('l3D', 'XYZ', 'm', 'Positions in 3D', () => {
-  const x = rnd(1, 6), y = rnd(1, 6), z = rnd(1, 6), dx = rnd(-3, 3), dz = rnd(1, 3);
-  return { q: 'A drone is at (' + x + ', ' + y + ', ' + z + '). Describe what each coordinate tells you. It then moves ' + Math.abs(dx) + ' units ' + (dx >= 0 ? 'in the positive' : 'in the negative') + ' x direction and rises ' + dz + ' units. Give its new position.',
-    model: 'x = ' + x + ' is how far along the x-axis, y = ' + y + ' is how far along the y-axis, and z = ' + z + ' is the height (z-axis). New position: <b>(' + (x + dx) + ', ' + y + ', ' + (z + dz) + ')</b>.',
-    points: ['Explains x, y as positions along the axes', 'Explains z as the height', 'New position (' + (x + dx) + ', ' + y + ', ' + (z + dz) + ')'] };
+  const x = rnd(1, 6), y = rnd(1, 6), z = rnd(1, 6), dx = pick([-3, -2, -1, 1, 2, 3]), dz = rnd(1, 3); const u = n => n + (n === 1 ? ' unit' : ' units');
+  return { q: 'A drone is at (' + x + ', ' + y + ', ' + z + '). Describe what each coordinate tells you. It then moves ' + u(Math.abs(dx)) + ' ' + (dx >= 0 ? 'in the positive' : 'in the negative') + ' x direction and rises ' + u(dz) + '. Give its new position.',
+    model: 'x = ' + x + ' is how far along the x-axis, y = ' + y + ' is how far along the y-axis, and z = ' + z + ' is the height (z-axis). New position: <b>(' + lsg(x + dx) + ', ' + y + ', ' + (z + dz) + ')</b>.',
+    points: ['Explains x, y as positions along the axes', 'Explains z as the height', 'New position (' + lsg(x + dx) + ', ' + y + ', ' + (z + dz) + ')'] };
 });
 longGen('lRecurring', '3F', 'm', 'Terminating or recurring?', () => {
   const [n, d, term_] = pick([[3, 8, true], [7, 20, true], [2, 3, false], [5, 6, false], [9, 40, true], [4, 11, false], [7, 12, false], [13, 25, true]]);
   return { q: 'Without a calculator, decide whether <b>' + n + '/' + d + '</b> is a terminating or recurring decimal. Explain how you know, then write it as a decimal.',
-    model: 'The denominator ' + d + ' has ' + (term_ ? 'only 2s and 5s as prime factors' : 'a prime factor other than 2 or 5') + ', so ' + n + '/' + d + ' is <b>' + (term_ ? 'terminating' : 'recurring') + '</b>. ' + n + ' ÷ ' + d + ' = <b>' + (n / d).toFixed(term_ ? String(n / d).split('.')[1].length : 4) + (term_ ? '' : '…') + '</b>.',
+    model: 'The denominator ' + d + ' = ' + ({ 8: '2 × 2 × 2', 20: '2 × 2 × 5', 3: '3', 6: '2 × 3', 40: '2 × 2 × 2 × 5', 11: '11', 12: '2 × 2 × 3', 25: '5 × 5' }[d]) + (term_ ? ' has only 2s and 5s as prime factors' : ', which has a prime factor other than 2 or 5 (' + ({ 3: '3', 6: '3', 11: '11', 12: '3' }[d]) + ')') + ', so ' + n + '/' + d + ' is <b>' + (term_ ? 'terminating' : 'recurring') + '</b>. ' + n + ' ÷ ' + d + ' = <b>' + (n / d).toFixed(term_ ? String(n / d).split('.')[1].length : 4) + (term_ ? '' : '…') + '</b>.',
     points: ['Says ' + (term_ ? 'terminating' : 'recurring'), 'Explains using the prime factors of ' + d + ' (only 2s and 5s → terminating)', 'Correct decimal ' + (n / d).toFixed(term_ ? String(n / d).split('.')[1].length : 4) + (term_ ? '' : '…')] };
 });
 longGen('lConvert', '3G', 'm', 'Convert and explain', () => {
@@ -2044,20 +2080,20 @@ longGen('lPctOf', '3H', 'm', 'Percentage of an amount', () => {
 longGen('lDiscount', '3I', 'h', 'Discount and GST', () => {
   const price = pick([80, 120, 150, 240, 360]), d = pick([10, 15, 20, 25, 30]); const sale = price * (1 - d / 100);
   return { q: 'A jacket is marked $' + price + '. It is discounted by ' + d + '%. Find the sale price two ways and explain why both work. Then find how much GST (10%) is included if the sale price already includes GST.',
-    model: 'Way 1: discount = ' + d + '% × ' + price + ' = $' + fmt(price * d / 100) + ', so sale price = ' + price + ' − ' + fmt(price * d / 100) + ' = <b>$' + fmt(sale) + '</b>. Way 2: pay ' + (100 - d) + '%, so ' + fmt((100 - d) / 100) + ' × ' + price + ' = $' + fmt(sale) + '. GST included = $' + fmt(sale) + ' ÷ 11 = <b>$' + fmt(r2(sale / 11, 2)) + '</b> (the price is 110%, so 10% of it is 1/11).',
-    points: ['Sale price $' + fmt(sale), 'Way 1: work out the discount and subtract', 'Way 2: multiply by ' + fmt((100 - d) / 100), 'GST included ≈ $' + fmt(r2(sale / 11, 2)) + ' (divide by 11)'] };
+    model: 'Way 1: discount = ' + d + '% × ' + price + ' = ' + money(price * d / 100) + ', so sale price = ' + price + ' − ' + fmt(price * d / 100) + ' = <b>' + money(sale) + '</b>. Way 2: pay ' + (100 - d) + '%, so ' + fmt((100 - d) / 100) + ' × ' + price + ' = ' + money(sale) + '. GST included = ' + money(sale) + ' ÷ 11 ' + (Math.abs(sale / 11 * 100 - Math.round(sale / 11 * 100)) < 1e-9 ? '=' : '≈') + ' <b>' + money(sale / 11) + '</b> (the price is 110%, so 10% of it is 1/11).',
+    points: ['Sale price ' + money(sale), 'Way 1: work out the discount and subtract', 'Way 2: multiply by ' + fmt((100 - d) / 100), 'GST included ≈ ' + money(sale / 11) + ' (divide by 11)'] };
 });
 longGen('lChange', '3J', 'm', 'Percentage change', () => {
   const o = pick([40, 50, 80, 120, 200, 250]), up = Math.random() < 0.5, ch = pick([10, 15, 20, 25, 30, 40]) * o / 100; const n = up ? o + ch : o - ch;
-  return { q: 'A price changed from $' + o + ' to $' + fmt(n) + '. Calculate the percentage change, showing your working, and explain why you divide by $' + o + ' and not $' + fmt(n) + '.',
+  return { q: 'A price changed from $' + o + ' to ' + money(n) + '. Calculate the percentage change, showing your working, and explain why you divide by $' + o + ' and not ' + money(n) + '.',
     model: 'Change = ' + fmt(n) + ' − ' + o + ' = ' + (up ? '' : '−') + fmt(ch) + '. % change = ' + fmt(ch) + ' ÷ ' + o + ' × 100 = <b>' + fmt(ch / o * 100) + '% ' + (up ? 'increase' : 'decrease') + '</b>. You divide by the <b>original</b> amount because the change is measured compared with where it started.',
-    points: ['Change of $' + fmt(ch), 'Divides by the original ($' + o + ') and × 100', fmt(ch / o * 100) + '% ' + (up ? 'increase' : 'decrease'), 'Explains you compare with the original amount'] };
+    points: ['Change of ' + money(ch), 'Divides by the original ($' + o + ') and × 100', fmt(ch / o * 100) + '% ' + (up ? 'increase' : 'decrease'), 'Explains you compare with the original amount'] };
 });
 longGen('lReverse', '3K', 'h', 'Find the original price', () => {
   const orig = pick([40, 60, 80, 120, 150, 200]), d = pick([10, 20, 25, 30, 40]); const sale = orig * (1 - d / 100);
-  return { q: 'After a ' + d + '% discount, shoes cost $' + fmt(sale) + '. Find the original price. Explain why taking ' + d + '% of $' + fmt(sale) + ' and adding it back does <b>not</b> work.',
-    model: 'The sale price is ' + (100 - d) + '% of the original. 1% = ' + fmt(sale) + ' ÷ ' + (100 - d) + ' = ' + fmt(r2(sale / (100 - d), 4)) + ', so 100% = <b>$' + fmt(orig) + '</b>. Adding ' + d + '% of $' + fmt(sale) + ' gives $' + fmt(r2(sale * (1 + d / 100), 2)) + ', which is wrong because the ' + d + '% was taken off the <b>original</b> price, not the sale price.',
-    points: ['Says $' + fmt(sale) + ' is ' + (100 - d) + '% of the original', 'Uses the unitary method or divides by ' + fmt((100 - d) / 100), 'Original price $' + fmt(orig), 'Explains the percentage was of the original, not the sale price'] };
+  return { q: 'After a ' + d + '% discount, shoes cost ' + money(sale) + '. Find the original price. Explain why taking ' + d + '% of ' + money(sale) + ' and adding it back does <b>not</b> work.',
+    model: 'The sale price is ' + (100 - d) + '% of the original. 1% = ' + fmt(sale) + ' ÷ ' + (100 - d) + ' = ' + fmt(r2(sale / (100 - d), 4)) + ', so 100% = <b>' + money(orig) + '</b>. Adding ' + d + '% of ' + money(sale) + ' gives ' + money(sale * (1 + d / 100)) + ', which is wrong because the ' + d + '% was taken off the <b>original</b> price, not the sale price.',
+    points: ['Says ' + money(sale) + ' is ' + (100 - d) + '% of the original', 'Uses the unitary method or divides by ' + fmt((100 - d) / 100), 'Original price ' + money(orig), 'Explains the percentage was of the original, not the sale price'] };
 });
 const LONG_GENS = {};
 Object.keys(LONG).forEach(id => { (LONG_GENS[LONG[id].t] = LONG_GENS[LONG[id].t] || []).push(id); });
@@ -2100,7 +2136,9 @@ function asMCQ(Q) {
     right = Q.ansText; const t = right;
     const swaps = [[/ \+ /, ' − '], [/ − /, ' + '], [/=\s*−/, '= '], [/= (?=\d)/, '= −'], [/&lt;=|≤/, '&lt;'], [/&gt;=|≥/, '&gt;'], [/&lt;(?!=)/, '&gt;'], [/&gt;(?!=)/, '&lt;'], [/≤/, '≥'], [/≥/, '≤'], [/</, '>'], [/>/, '<']];
     swaps.forEach(([re, to]) => { if (re.test(t)) wrongs.push(t.replace(re, to)); });
-    const m = t.match(/=\s*(−?[\d.]*)x\s*([+−])\s*([\d.]+)/); if (m) wrongs.push(t.replace(m[0], '= ' + (m[2] === '−' ? '−' : '') + m[3] + 'x ' + '+ ' + (m[1] || '1').replace('−', '')));
+    // swap the gradient and the intercept (a common slip), written tidily: no "1x", no dangling "+"
+    const m = t.match(/=\s*(−?[\d.]*)x\s*([+−])\s*([\d.]+)/);
+    if (m) { const g = m[1].replace('−', '') || '1'; wrongs.push(t.replace(m[0], '= ' + (m[2] === '−' ? '−' : '') + (m[3] === '1' ? '' : m[3]) + 'x + ' + g)); }
   } else return null;
   wrongs = [...new Set(wrongs.filter(w => w && w !== right))];
   if (wrongs.length < 3 || !right) return null;
@@ -2249,7 +2287,7 @@ function questionCard(Q, opts = {}) {
     if (Q.type === 'mcq') $$('.choice', el).forEach((b, i) => { b.disabled = true; if (i === Q.ans) b.classList.add('right'); else if (i === sel) b.classList.add('wrong'); });
     if (input) input.readOnly = true;
     const msg = r.ok ? '<b>Correct!</b>' + (tries > 1 ? ' (second try)' : '') : (r.gaveUp ? '<b>Answer:</b> ' : '<b>Not this time.</b> ' + (r.msg ? esc(r.msg) + ' ' : '') + 'Answer: ') + (r.ok ? '' : '<span class="m">' + esc(Q.ansText) + '</span>');
-    fb.appendChild(h('<div class="fb ' + (r.ok ? 'good' : 'bad') + '">' + msg + '</div>'));
+    fb.appendChild(h('<div class="fb ' + (r.ok ? 'good' : r.gaveUp ? 'info answer-shown' : 'bad') + '">' + msg + '</div>'));
     if (r.ok) { const d = h('<details class="ex"><summary>Show the working</summary></details>'); d.insertAdjacentHTML('beforeend', solHTML(Q)); fb.appendChild(d); }
     else fb.insertAdjacentHTML('beforeend', solHTML(Q));
     if (opts.onAnswer) opts.onAnswer(!!r.ok && (exam || tries <= 1), false, tries);

@@ -75,7 +75,7 @@ const TOPICS = [
 <div class="rule-box"><span class="m">gradient m = rise ÷ run = (y₂ − y₁) ÷ (x₂ − x₁)</span></div>
 <ul><li><b>Positive</b> gradient: the line goes up from left to right.</li><li><b>Negative</b>: the line goes down from left to right.</li><li><b>Zero</b>: a horizontal line (y = c).</li><li><b>Undefined</b>: a vertical line (x = k), because the run is 0.</li><li>The bigger the number (ignoring the sign), the steeper the line. Parallel lines have equal gradients.</li></ul>
 <p><b>From a graph:</b> pick two points where the line crosses grid corners exactly, then count the rise (up is +, down is −) and the run (always go left to right).</p>`,
-    ex: [{ q: 'Find the gradient through (1, 2) and (4, 11).', s: ['m = (11 − 2) ÷ (4 − 1) = 9 ÷ 3 = <b>3</b>'] }, { q: 'Find the gradient through (−3, 4) and (−1, −8).', s: ['m = (−8 − 4) ÷ (−1 − (−3)) = −12 ÷ 2 = <b>−6</b>'] }, { q: 'Find the gradient through (2, 7) and (−4, 7).', s: ['m = (7 − 7) ÷ (−4 − 2) = 0 ÷ −6 = <b>0</b>, a horizontal line.'] }],
+    ex: [{ q: 'Find the gradient through (1, 2) and (4, 11).', s: ['m = (11 − 2) ÷ (4 − 1) = 9 ÷ 3 = <b>3</b>'] }, { q: 'Find the gradient through (−3, 4) and (−1, −8).', s: ['m = (−8 − 4) ÷ (−1 − (−3)) = −12 ÷ 2 = <b>−6</b>'] }, { q: 'Find the gradient through (2, 7) and (−4, 7).', s: ['m = (7 − 7) ÷ (−4 − 2) = 0 ÷ (−6) = <b>0</b>, a horizontal line.'] }],
     mistakes: ['Putting run over rise.', 'Subtracting the points in a different order on top and bottom.', 'Losing a negative sign when subtracting a negative coordinate.'] },
 
   { id: 'L3', unit: 'lin', name: 'y = mx + c and intercepts', tool: 'graph', bk: ['A2', 'A11', 'A12', 'D10'],
