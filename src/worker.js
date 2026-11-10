@@ -24,8 +24,12 @@ import messageHtml from '../public/message/index.html';
 import msgJs from '../public/msg.js';
 import chatHtml from '../public/chat/index.html';
 import boardHtml from '../public/leaderboard/index.html';
+import playHtml from '../public/play/index.html';
+import playSciJs from '../public/play/sci.js';
+import playMathsJs from '../public/play/maths.js';
 import { checkText, checkName } from './filter.js';
 import { handleCommunity, handleCommunityAdmin, addPoints, logBlocked } from './community.js';
+import { handleGames } from './games.js';
 
 const HTML = 'text/html; charset=utf-8';
 const PAGES = {
@@ -38,6 +42,7 @@ const PAGES = {
   '/message/': [messageHtml, HTML], '/message/index.html': [messageHtml, HTML],
   '/chat/': [chatHtml, HTML], '/chat/index.html': [chatHtml, HTML],
   '/leaderboard/': [boardHtml, HTML], '/leaderboard/index.html': [boardHtml, HTML],
+  '/play/': [playHtml, HTML], '/play/index.html': [playHtml, HTML], '/play/sci.js': [playSciJs, 'text/javascript; charset=utf-8'], '/play/maths.js': [playMathsJs, 'text/javascript; charset=utf-8'],
   '/maths/': [mathsHtml, HTML], '/maths/index.html': [mathsHtml, HTML], '/maths/app.js': [mathsJs, 'text/javascript; charset=utf-8'],
   '/science/': [scienceHtml, HTML], '/science/index.html': [scienceHtml, HTML], '/science/app.js': [scienceJs, 'text/javascript; charset=utf-8'],
   '/admin/': [adminHtml, HTML], '/admin/index.html': [adminHtml, HTML],
@@ -45,7 +50,7 @@ const PAGES = {
 };
 const SECURITY_HEADERS = { 'x-content-type-options': 'nosniff', 'referrer-policy': 'same-origin', 'x-frame-options': 'DENY' };
 function servePage(url) {
-  if (['/maths', '/science', '/admin', '/feedback', '/message', '/chat', '/leaderboard'].includes(url.pathname)) return Response.redirect(url.origin + url.pathname + '/' + url.search, 301);
+  if (['/maths', '/science', '/admin', '/feedback', '/message', '/chat', '/leaderboard', '/play'].includes(url.pathname)) return Response.redirect(url.origin + url.pathname + '/' + url.search, 301);
   const page = PAGES[url.pathname];
   if (!page) return new Response(notFoundHtml, { status: 404, headers: { 'content-type': HTML, ...SECURITY_HEADERS } });
   const [body, type] = page;
@@ -181,6 +186,7 @@ async function handleApi(req, env, url) {
   }
   if (!user) return err(401, 'Not logged in');
   const cm = await handleCommunity(req, env, url, user); if (cm) return cm;
+  const gm = await handleGames(req, env, url, user); if (gm) return gm;
 
   if (path === '/api/ping' && method === 'POST') {
     let body; try { body = await readJson(req); } catch { return err(400, 'Bad request'); }

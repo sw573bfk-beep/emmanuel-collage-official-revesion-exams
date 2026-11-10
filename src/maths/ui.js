@@ -282,15 +282,20 @@ RENDER.practice = () => {
   v.appendChild(h('<div class="view-head"><h2>Practice</h2><p>Pick a topic, answer the question, press <b>Check</b>. You get two tries, and you can always see the working.</p></div>'));
   const ctr = h('<div class="card row" style="justify-content:space-between"><label class="f" style="flex:1 1 260px">Topic' + topicSelect('pSel', state.practice) + '</label><div class="row" id="pStats" style="gap:18px"></div></div>');
   v.appendChild(ctr);
+  v.appendChild(practiceFilters(() => next()));
   const sel = $('#pSel', ctr); sel.value = state.practice;
   const host = h('<div class="card stack"></div>'); v.appendChild(host);
   const statsEl = $('#pStats', ctr);
   const drawStats = () => { statsEl.innerHTML = '<div><div class="bignum" style="font-size:1.5rem">' + sess.c + '/' + sess.n + '</div><div class="small muted">this session</div></div><div><div class="bignum" style="font-size:1.5rem">' + sess.streak + '</div><div class="small muted">streak</div></div><div><div class="bignum" style="font-size:1.5rem">' + sess.best + '</div><div class="small muted">best streak</div></div>'; };
   drawStats();
   function next() {
-    const tid = pickTopic(sel.value); const Q = makeQ(pick(TOPIC_GENS[tid]));
+    const tid = pickTopic(sel.value);
+    const got = pickPractice(tid, store.get('pDiff', 'any'), store.get('pType', 'any')); const Q = got.Q;
     host.innerHTML = '';
-    const card = questionCard(Q, { onAnswer: (ok, partial) => {
+    if (!Q) { host.appendChild(h('<p class="muted">' + got.note + '</p>')); return; }
+    if (got.note) host.appendChild(h('<p class="small muted pf-note">' + got.note + '</p>'));
+    const lvl = Q.diff || diffOf(Q.gen); host.appendChild(h('<span class="pf-level pf-' + lvl + '">' + DIFF_NAME[lvl] + '</span>'));
+    const card = (Q.type === 'long' ? longCard : questionCard)(Q, { onAnswer: (ok, partial) => {
       if (partial) return; record(tid, ok); sess.n++; if (ok) { sess.c++; sess.streak++; if (sess.streak > sess.best) { sess.best = sess.streak; store.set('best', sess.best); } if (sess.streak && sess.streak % 5 === 0) toast(sess.streak + ' in a row!'); } else sess.streak = 0; drawStats();
       nb.focus();
     } });

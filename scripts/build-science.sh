@@ -28,5 +28,5 @@ ACCOUNT='<span class="acct"><span class="acct-name" id="acctName"></span><span c
   echo '</body>'
   echo '</html>'
 } > "$OUT/index.html"
-cat "$SRC/core.js" "$SRC/gens.js" "$SRC/data.js" "$SRC/ui.js" > "$OUT/app.js"
+cat "$SRC/core.js" "$SRC/gens.js" "$SRC/long.js" "$SRC/data.js" src/shared/practice.js "$SRC/ui.js" > "$OUT/app.js"
 echo "Built $OUT/index.html and $OUT/app.js"

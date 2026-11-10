@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html lang="en" data-build="1794268782">
+<head>
+<meta charset="utf-8">
+<script src="/acct.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>EC Revisions Play</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Lexend:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="/site.css">
+<style>
+.wrap{max-width:1040px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.two{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:18px;align-items:start}
+.modes{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,190px),1fr));gap:10px}
+.mode{display:flex;flex-direction:column;gap:4px;text-align:left;font:inherit;color:var(--ink);background:var(--card);border:2px solid var(--rule);border-radius:14px;padding:12px 14px;cursor:pointer}
+.mode:hover{border-color:var(--accent)}.mode.on{border-color:var(--accent);background:var(--accent-soft)}
+.mode .ic{font-size:1.8rem;line-height:1}.mode b{font-size:1.05rem}.mode span{font-size:.85rem;color:var(--muted)}
+.pills{display:flex;flex-wrap:wrap;gap:6px}
+.pill{font:inherit;font-size:.9rem;border:1.5px solid var(--rule);background:var(--card);color:var(--ink);border-radius:999px;padding:5px 13px;cursor:pointer}
+.pill.on{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+select{font:inherit;color:var(--ink);background:var(--card);border:1.5px solid var(--rule);border-radius:8px;padding:9px 10px;width:100%}
+.codebig{font-family:var(--f-mono);font-size:clamp(2.6rem,9vw,4.6rem);font-weight:600;letter-spacing:.12em;color:var(--accent);line-height:1}
+.players{display:flex;flex-wrap:wrap;gap:8px}
+.players span{background:var(--accent-soft);border-radius:999px;padding:5px 12px;font-weight:600}
+.hud{display:flex;flex-wrap:wrap;gap:10px 22px;align-items:center;justify-content:space-between;background:var(--ink);color:#fff;border-radius:14px;padding:12px 18px}
+.hud b{font-size:1.4rem;font-family:var(--f-display)}.hud .lbl{font-size:.75rem;opacity:.75;text-transform:uppercase;letter-spacing:.08em;display:block}
+.game{display:grid;grid-template-columns:minmax(0,1fr) 280px;gap:16px;align-items:start}
+@media (max-width:820px){.game{grid-template-columns:1fr}}
+.qbox{display:flex;flex-direction:column;gap:12px}
+.qtext{font-size:1.12rem;line-height:1.5}
+.qtext .eqbox{font-family:var(--f-mono);background:var(--accent-soft);border-radius:8px;padding:6px 10px;margin:6px 0;display:inline-block}
+.opts{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:10px}
+.opt{font:inherit;font-size:1rem;text-align:left;color:#fff;border:0;border-radius:12px;padding:14px 16px;cursor:pointer;min-height:60px;display:flex;align-items:center;gap:10px}
+.opt:nth-child(1){background:#2443c2}.opt:nth-child(2){background:#0f7a6c}.opt:nth-child(3){background:#b7461f}.opt:nth-child(4){background:#7a3db8}.opt:nth-child(5){background:#5b6474}
+.opt:hover{filter:brightness(1.1)}.opt:disabled{cursor:default}
+.opt.right{outline:4px solid #16c26b;outline-offset:2px}.opt.wrong{opacity:.45}
+.opt .k{background:rgba(255,255,255,.2);border-radius:6px;padding:1px 8px;font-weight:700}
+.opt svg{background:#fff;border-radius:6px;max-width:100%}
+.flash{font-family:var(--f-display);font-size:1.6rem;font-weight:800;text-align:center;padding:10px;border-radius:12px}
+.flash.good{background:#e0f2e7;color:#16774a}.flash.bad{background:#fbe4e2;color:#b3261e}
+.chests{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.chestb{font:inherit;font-size:3rem;background:linear-gradient(#fff4d6,#ffe39a);border:3px solid #e0a100;border-radius:16px;padding:18px 6px;cursor:pointer;transition:transform .15s}
+.chestb:hover{transform:translateY(-4px) rotate(-2deg)}.chestb:disabled{opacity:.5;cursor:default;transform:none}
+.reveal{font-family:var(--f-display);font-size:1.5rem;font-weight:800;text-align:center;padding:16px;border-radius:14px;background:#fff4d6;border:2px solid #e0a100;animation:pop .35s ease}
+@keyframes pop{0%{transform:scale(.6);opacity:0}100%{transform:scale(1);opacity:1}}
+.board{display:flex;flex-direction:column;gap:6px}
+.row2{display:flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:10px;padding:7px 10px}
+.row2.me{background:var(--accent-soft);border-color:var(--accent)}
+.row2 .rk{width:26px;font-weight:800;text-align:center}.row2 .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.row2 .sc{font-family:var(--f-mono);font-weight:600}
+.feed{display:flex;flex-direction:column;gap:4px;font-size:.88rem;color:var(--muted);max-height:180px;overflow-y:auto}
+.runwrap{background:linear-gradient(#cfe6ff,#eef6ff);border-radius:14px;overflow:hidden;position:relative;border:1px solid var(--rule)}
+.runwrap canvas{display:block;width:100%;height:190px;touch-action:manipulation}
+.runbar{display:flex;flex-wrap:wrap;align-items:center;gap:10px;justify-content:space-between}
+.energy{flex:1;min-width:160px;height:16px;background:var(--line);border-radius:999px;overflow:hidden}
+.energy i{display:block;height:100%;background:linear-gradient(90deg,#f5b400,#16c26b);transition:width .2s}
+.track{position:relative;height:30px;background:#e9edf5;border-radius:8px;margin-top:4px}
+.track .dot{position:absolute;top:5px;width:20px;height:20px;border-radius:50%;background:#7a8599;border:2px solid #fff;transform:translateX(-50%);font-size:.6rem;color:#fff;display:grid;place-items:center;font-weight:700}
+.track .dot.me{background:var(--accent);z-index:2}
+.track .fin{position:absolute;right:4px;top:4px;font-size:1rem}
+.podium{display:flex;justify-content:center;align-items:flex-end;gap:10px;margin:10px 0}
+.pod{display:flex;flex-direction:column;align-items:center;gap:6px;width:min(30%,170px)}
+.pod .blk{width:100%;border-radius:12px 12px 0 0;display:grid;place-items:center;color:#fff;font-family:var(--f-display);font-size:1.8rem;font-weight:800}
+.pod.p1 .blk{height:130px;background:#e0a100}.pod.p2 .blk{height:95px;background:#8a95a8}.pod.p3 .blk{height:70px;background:#b7652a}
+.pod .who{font-weight:700;text-align:center;overflow-wrap:anywhere}
+.muted2{color:var(--muted)}
+</style>
+</head>
+<body>
+<main class="wrap">
+  <div class="brand"><span class="mark">EC Revisions</span><h1>🎮 Play with friends</h1><p>Host a game and share the code, or join a friend’s game. Everyone answers at their own pace: no waiting.</p></div>
+  <p id="loading" class="muted">Loading…</p>
+  <div id="msg" role="alert"></div>
+
+  <!-- setup -->
+  <section id="setup" class="two" hidden>
+    <div class="card stack">
+      <h2 style="font-size:1.4rem">Host a game</h2>
+      <div class="stack" style="gap:6px"><b>1. Game mode</b><div class="modes" id="modes"></div></div>
+      <div class="stack" style="gap:6px"><b>2. Subject and topic</b>
+        <div class="pills" id="subjects"><button type="button" class="pill" data-s="science">Science</button><button type="button" class="pill" data-s="maths">Maths</button></div>
+        <label class="sr" for="topic">Topic</label><select id="topic"></select></div>
+      <div class="stack" style="gap:6px"><b>3. Difficulty</b><div class="pills" id="diffs"></div></div>
+      <div class="stack" style="gap:6px"><b>4. Length</b><div class="pills" id="lens"></div></div>
+      <button class="btn" type="button" id="create" style="align-self:flex-start;font-size:1.05rem;padding:12px 22px">Create game</button>
+    </div>
+    <div class="card stack">
+      <h2 style="font-size:1.4rem">Join a game</h2>
+      <p class="muted">Type the 6-digit code from the host’s screen.</p>
+      <label class="sr" for="code">Game code</label><input id="code" inputmode="numeric" autocomplete="off" maxlength="7" placeholder="e.g. 482913" style="font-size:1.6rem;letter-spacing:.2em;font-family:var(--f-mono)">
+      <button class="btn" type="button" id="join" style="align-self:flex-start">Join game</button>
+      <hr style="border:0;border-top:1px solid var(--line);width:100%">
+      <p class="small muted"><b>How it works:</b> questions come from the topic the host picks. Answer as many as you can before time runs out. Only your account name is shown to other players.</p>
+    </div>
+  </section>
+
+  <!-- lobby -->
+  <section id="lobby" class="card stack" hidden style="text-align:center;align-items:center">
+    <span class="eyebrow" id="lobbyMode"></span>
+    <p class="muted">Friends join at <b id="joinUrl"></b> with code</p>
+    <div class="codebig" id="lobbyCode"></div>
+    <p class="muted" id="lobbyInfo"></p>
+    <div class="players" id="lobbyPlayers" style="justify-content:center"></div>
+    <button class="btn" type="button" id="start" style="font-size:1.1rem;padding:12px 26px" hidden>Start the game</button>
+    <p class="muted" id="waitHost" hidden>Waiting for the host to start…</p>
+  </section>
+
+  <!-- live -->
+  <section id="live" class="stack" hidden>
+    <div class="hud"><div><span class="lbl" id="hudModeL">Mode</span><b id="hudMode"></b></div><div><span class="lbl" id="hudScoreL">Score</span><b id="hudScore">0</b></div><div><span class="lbl">Place</span><b id="hudRank">–</b></div><div><span class="lbl">Streak</span><b id="hudStreak">0</b></div><div><span class="lbl">Time left</span><b id="hudTime">–</b></div></div>
+    <div class="game">
+      <div class="stack">
+        <div id="runner" class="card stack" hidden>
+          <div class="runwrap"><canvas id="cv" height="190" aria-label="Parkour course. Tap or press the up arrow to jump."></canvas></div>
+          <div class="runbar"><span class="small"><b>Energy</b></span><div class="energy" aria-hidden="true"><i id="enBar" style="width:0%"></i></div><b id="enNum">0</b><button class="btn" type="button" id="jumpBtn">⬆ Jump</button></div>
+          <div class="small muted" id="runTip">Answer questions to get energy. Your runner moves while you have energy. Tap the course, press ⬆ or W, or use the Jump button to jump the boxes!</div>
+          <div class="track" id="track"><span class="fin">🏁</span></div>
+        </div>
+        <div class="card qbox" id="qbox"></div>
+      </div>
+      <aside class="stack">
+        <div class="card stack"><h3 style="font-size:1.05rem">Scoreboard</h3><div class="board" id="board"></div></div>
+        <div class="card stack"><h3 style="font-size:1.05rem">What’s happening</h3><div class="feed" id="feed"></div></div>
+        <button class="btn quiet sm" type="button" id="endBtn" hidden>End game for everyone</button>
+      </aside>
+    </div>
+  </section>
+
+  <!-- results -->
+  <section id="over" class="card stack" hidden style="text-align:center">
+    <h2 style="font-size:1.8rem">🏆 Game over!</h2>
+    <div class="podium" id="podium"></div>
+    <div class="board" id="final" style="max-width:520px;margin:0 auto;width:100%;text-align:left"></div>
+    <div class="row" style="justify-content:center"><button class="btn" type="button" id="again">Play another game</button><a class="btn quiet" href="/" id="back">Back to subjects</a></div>
+  </section>
+</main>
+<script>
+(function () {
+  const $ = s => document.querySelector(s), $$ = s => Array.from(document.querySelectorAll(s));
+  const el = (tag, cls, html) => { const e = document.createElement(tag); if (cls) e.className = cls; if (html != null) e.innerHTML = html; return e; };
+  const text = (tag, cls, t) => { const e = document.createElement(tag); if (cls) e.className = cls; e.textContent = t; return e; };
+  const params = new URLSearchParams(location.search);
+  const MODES = { speed: ['⚡', 'Speed Quiz', 'Faster right answers score more. Build a streak for bonus points.', 'Points'], treasure: ['💰', 'Treasure Chests', 'Every right answer opens a chest: gold, jackpots, steals, swaps… or oops!', 'Gold'], parkour: ['🏃', 'Parkour Run', 'Right answers give energy. Spend it running and jumping to the finish line.', 'Metres'] };
+  const DIFFS = [['any', 'Mixed'], ['e', 'Easy'], ['m', 'Medium'], ['h', 'Hard']], LENS = [3, 5, 8, 10];
+  const setup = { mode: 'speed', subject: params.get('subject') === 'maths' ? 'maths' : 'science', topic: 'all', diff: 'any', minutes: 5 };
+  let code = null, st = null, evLast = 0, loadedSubject = null, pollT = null, showing = '';
+  async function api(path, method = 'GET', body) {
+    const r = await fetch(path, { method, credentials: 'same-origin', headers: body ? { 'content-type': 'application/json' } : {}, body: body ? JSON.stringify(body) : undefined });
+    if (r.status === 401) { location.replace('/?next=play'); throw new Error('login'); }
+    let j = {}; try { j = await r.json(); } catch (e) { /* empty */ }
+    return { ok: r.ok, status: r.status, data: j };
+  }
+  const say = (t, good) => { const m = $('#msg'); m.innerHTML = ''; if (t) m.appendChild(text('div', 'msg ' + (good ? 'good' : 'bad'), t)); };
+  const view = v => { ['setup', 'lobby', 'live', 'over'].forEach(x => $('#' + x).hidden = x !== v); showing = v; };
+  // the question makers for each subject are loaded on demand
+  function loadSubject(s) {
+    if (loadedSubject === s) return Promise.resolve();
+    if (loadedSubject && loadedSubject !== s) { location.href = '/play/?' + (code ? 'code=' + code : 'subject=' + s); return new Promise(() => {}); }
+    return new Promise((res, rej) => { const sc = document.createElement('script'); sc.src = '/play/' + (s === 'maths' ? 'maths' : 'sci') + '.js?v=' + (document.documentElement.dataset.build || '1'); sc.onload = () => { loadedSubject = s; res(); }; sc.onerror = rej; document.body.appendChild(sc); });
+  }
+
+  /* ---------- setup ---------- */
+  function drawSetup() {
+    const mb = $('#modes'); mb.innerHTML = '';
+    Object.entries(MODES).forEach(([k, [ic, n, d]]) => { const b = el('button', 'mode' + (setup.mode === k ? ' on' : '')); b.type = 'button'; b.append(text('span', 'ic', ic), text('b', '', n), text('span', '', d)); b.onclick = () => { setup.mode = k; drawSetup(); }; mb.appendChild(b); });
+    $$('#subjects .pill').forEach(b => { b.classList.toggle('on', b.dataset.s === setup.subject); b.onclick = () => { if (setup.subject !== b.dataset.s) { setup.subject = b.dataset.s; if (loadedSubject && loadedSubject !== setup.subject) location.href = '/play/?subject=' + setup.subject; else drawSetup(); } }; });
+    const sel = $('#topic'); sel.innerHTML = '<option value="all">All topics (mixed)</option>';
+    if (loadedSubject === setup.subject) TOPICS.forEach(t => { const o = text('option', '', (t.id.length <= 3 ? t.id + ' · ' : '') + t.name); o.value = t.id; sel.appendChild(o); });
+    sel.value = setup.topic; sel.onchange = () => { setup.topic = sel.value; };
+    const dp = $('#diffs'); dp.innerHTML = ''; DIFFS.forEach(([k, n]) => { const b = text('button', 'pill' + (setup.diff === k ? ' on' : ''), n); b.type = 'button'; b.onclick = () => { setup.diff = k; drawSetup(); }; dp.appendChild(b); });
+    const lp = $('#lens'); lp.innerHTML = ''; LENS.forEach(n => { const b = text('button', 'pill' + (setup.minutes === n ? ' on' : ''), n + ' min'); b.type = 'button'; b.onclick = () => { setup.minutes = n; drawSetup(); }; lp.appendChild(b); });
+  }
+  $('#create').onclick = async () => {
+    say(''); $('#create').disabled = true;
+    const r = await api('/api/game/create', 'POST', setup); $('#create').disabled = false;
+    if (!r.ok) return say(r.data.error || 'Couldn’t create the game.');
+    enter(r.data.code);
+  };
+  $('#join').onclick = async () => {
+    say(''); const c = $('#code').value.replace(/\D/g, '');
+    if (c.length !== 6) return say('The code has 6 digits.');
+    const r = await api('/api/game/join', 'POST', { code: c });
+    if (!r.ok) return say(r.data.error || 'Couldn’t join that game.');
+    enter(r.data.code);
+  };
+  $('#code').addEventListener('keydown', e => { if (e.key === 'Enter') $('#join').click(); });
+  function enter(c) { code = c; history.replaceState(null, '', '/play/?code=' + c); poll(); }
+
+  /* ---------- polling ---------- */
+  async function poll() {
+    clearTimeout(pollT);
+    try {
+      const r = await api('/api/game/' + code + '?ev=' + evLast);
+      if (!r.ok) { say(r.data.error || 'That game isn’t available.'); code = null; history.replaceState(null, '', '/play/'); view('setup'); return; }
+      st = r.data; st.skew = st.now - Date.now();
+      await loadSubject(st.subject);
+      render();
+    } catch (e) { /* try again */ }
+    pollT = setTimeout(poll, st && st.status === 'lobby' ? 2000 : 2500);
+  }
+  function render() {
+    if (st.status === 'lobby') return renderLobby();
+    if (st.status === 'ended') return renderOver();
+    renderLive();
+  }
+  function renderLobby() {
+    view('lobby');
+    $('#lobbyMode').textContent = MODES[st.mode][0] + ' ' + MODES[st.mode][1];
+    $('#joinUrl').textContent = location.host + '/play';
+    $('#lobbyCode').textContent = st.code;
+    $('#lobbyInfo').textContent = (st.subject === 'maths' ? 'Maths' : 'Science') + ' · ' + (st.topic === 'all' ? 'all topics' : (window.TOPIC && TOPIC[st.topic] ? TOPIC[st.topic].name : st.topic)) + ' · ' + DIFFS.find(d => d[0] === st.diff)[1] + ' · ' + st.minutes + ' minutes';
+    const pl = $('#lobbyPlayers'); pl.innerHTML = ''; st.players.forEach(p => pl.appendChild(text('span', '', p.name + (p.host ? ' (host)' : ''))));
+    $('#start').hidden = !st.isHost; $('#waitHost').hidden = st.isHost;
+  }
+  $('#start').onclick = async () => { $('#start').disabled = true; await api('/api/game/' + code + '/start', 'POST', {}); $('#start').disabled = false; poll(); };
+  $('#endBtn').onclick = async () => { if (!confirm('End the game for everyone now?')) return; await api('/api/game/' + code + '/end', 'POST', {}); poll(); };
+
+  /* ---------- live ---------- */
+  let started = false, me = null;
+  function renderLive() {
+    const first = showing !== 'live'; view('live');
+    me = st.me;
+    const M = MODES[st.mode];
+    $('#hudMode').textContent = M[0] + ' ' + M[1]; $('#hudScoreL').textContent = M[3];
+    $('#hudScore').textContent = st.mode === 'parkour' ? (runDist() + ' / ' + st.finish + ' m') : me.score;
+    $('#hudStreak').textContent = me.streak; const mine = st.players.find(p => p.me); $('#hudRank').textContent = mine ? mine.rank + ' / ' + st.players.length : '–';
+    $('#endBtn').hidden = !st.isHost;
+    const b = $('#board'); b.innerHTML = '';
+    st.players.slice(0, 10).concat(mine && mine.rank > 10 ? [mine] : []).forEach(p => {
+      const r = el('div', 'row2' + (p.me ? ' me' : '')); r.append(text('span', 'rk', p.rank <= 3 ? ['🥇', '🥈', '🥉'][p.rank - 1] : String(p.rank)), text('span', 'nm', p.name + (p.me ? ' (you)' : '')), text('span', 'sc', st.mode === 'parkour' ? (p.done ? '🏁' : (p.me ? runDist() : p.dist) + ' m') : String(p.score)));
+      b.appendChild(r);
+    });
+    if (st.events.length) { evLast = st.events[st.events.length - 1].id; const f = $('#feed'); st.events.forEach(e => f.prepend(text('div', '', e.text))); while (f.children.length > 30) f.lastChild.remove(); }
+    if (st.mode === 'parkour') { $('#runner').hidden = false; runnerSync(); }
+    if (first || !started) { started = true; heartbeat(); if (st.mode === 'parkour') startRunner(); nextQuestion(); }
+  }
+  // timer
+  setInterval(() => {
+    if (!st || st.status !== 'live' || !st.endsAt) return;
+    const left = Math.max(0, Math.round((st.endsAt - (Date.now() + st.skew)) / 1000));
+    $('#hudTime').textContent = Math.floor(left / 60) + ':' + String(left % 60).padStart(2, '0');
+    if (left === 0) poll();
+  }, 500);
+
+  // questions: multiple choice from the chosen topic and level
+  let Q = null, shownAt = 0, busy = false;
+  function makeGameQ() {
+    const topics = Object.keys(TOPIC_GENS);
+    for (let i = 0; i < 12; i++) {
+      const tid = st.topic === 'all' || !TOPIC_GENS[st.topic] ? topics[Math.floor(Math.random() * topics.length)] : st.topic;
+      const r = pickPractice(tid, st.diff, 'mcq'); if (r.Q && r.Q.type === 'mcq') return r.Q;
+    }
+    return asMCQ(makeQ(pick(TOPIC_GENS[topics[0]]))) || makeQ(TOPIC_GENS[topics[0]][0]);
+  }
+  function nextQuestion() {
+    if (!st || st.status !== 'live') return;
+    if (st.mode === 'treasure' && me && me.chest) return showChests();
+    Q = makeGameQ(); shownAt = Date.now(); busy = false;
+    const box = $('#qbox'); box.innerHTML = '';
+    box.appendChild(el('div', 'qtext', Q.q)); if (Q.fig) box.appendChild(el('div', 'qfig', Q.fig));
+    const opts = el('div', 'opts');
+    Q.choices.forEach((c, i) => { const b = el('button', 'opt', '<span class="k">' + 'ABCDE'[i] + '</span><span>' + c + '</span>'); b.type = 'button'; b.onclick = () => answer(i, b); opts.appendChild(b); });
+    box.appendChild(opts);
+  }
+  async function answer(i, btn) {
+    if (busy) return; busy = true;
+    const ok = i === Q.ans, took = Date.now() - shownAt;
+    $$('.opt').forEach((b, j) => { b.disabled = true; if (j === Q.ans) b.classList.add('right'); else if (j === i) b.classList.add('wrong'); });
+    const r = await api('/api/game/' + code + '/answer', 'POST', { correct: ok, ms: took });
+    const box = $('#qbox');
+    if (!r.ok) { if (r.status === 409) { poll(); setTimeout(nextQuestion, 600); return; } setTimeout(() => { busy = false; nextQuestion(); }, 900); return; }
+    const d = r.data; me.streak = d.streak; me.score = d.score; $('#hudStreak').textContent = d.streak;
+    let msg = ok ? 'Correct!' : 'Not quite.';
+    if (st.mode === 'speed' && ok) { msg = '+' + d.add + ' points' + (took < 6000 ? ' ⚡ fast!' : ''); $('#hudScore').textContent = d.score; }
+    if (st.mode === 'parkour' && ok) { msg = '+' + (d.energy - me.energy) + ' energy ⚡'; me.energy = d.energy; run.serverEnergy = d.energy; }
+    if (st.mode === 'treasure' && ok) msg = 'Correct! Pick a chest…';
+    const f = text('div', 'flash ' + (ok ? 'good' : 'bad'), msg); box.appendChild(f);
+    if (!ok && Q.sol && Q.sol.length) box.appendChild(el('div', 'small muted2', 'Answer: <b>' + Q.ansText + '</b>'));
+    if (st.mode === 'treasure' && ok) { me.chest = true; setTimeout(showChests, 700); }
+    else setTimeout(nextQuestion, ok ? 900 : 1800);
+  }
+  function showChests() {
+    const box = $('#qbox'); box.innerHTML = ''; box.appendChild(el('div', 'qtext', '<b>Pick a chest!</b> What’s inside? 💰'));
+    const row = el('div', 'chests');
+    for (let i = 0; i < 3; i++) { const c = text('button', 'chestb', '🎁'); c.type = 'button'; c.setAttribute('aria-label', 'Chest ' + (i + 1)); c.onclick = () => openChest(c); row.appendChild(c); }
+    box.appendChild(row);
+  }
+  async function openChest(c) {
+    $$('.chestb').forEach(b => b.disabled = true); c.textContent = '✨';
+    const r = await api('/api/game/' + code + '/chest', 'POST', { pick: 1 });
+    const box = $('#qbox');
+    if (!r.ok) { me.chest = false; setTimeout(nextQuestion, 600); return; }
+    me.chest = false; me.score = r.data.score; $('#hudScore').textContent = r.data.score;
+    const icons = { gold: '🪙', big: '💰', double: '✖️2', lose: '💸', steal: '🏴‍☠️', swap: '🔄', gift: '🎁' };
+    c.textContent = icons[r.data.kind] || '🪙';
+    box.appendChild(text('div', 'reveal', r.data.text));
+    setTimeout(nextQuestion, 1700);
+  }
+
+  /* ---------- parkour runner ---------- */
+  const run = { serverEnergy: 0, spent: 0, spentF: 0, gain: 0, distF: 0, base: 0, x: 0, y: 0, vy: 0, obs: [], hitT: 0, last: 0, syncing: false, done: false, nextObs: 8 };
+  const runDist = () => Math.min(st ? st.finish : 300, Math.max(0, Math.round(run.base + run.gain)));
+  function runnerSync() {
+    // take the server's numbers when nothing is waiting to be sent
+    if (!run.syncing && run.spent === 0 && Math.abs(run.gain) < 0.01) { run.base = me.dist; run.serverEnergy = me.energy; }
+    run.done = !!me.done || runDist() >= st.finish;
+    const tr = $('#track'); $$('#track .dot').forEach(d => d.remove());
+    st.players.forEach((p, i) => { const d = text('span', 'dot' + (p.me ? ' me' : ''), p.me ? 'You'.slice(0, 1) : p.name.slice(0, 1).toUpperCase()); d.title = p.name; d.style.left = (4 + 88 * Math.min(1, (p.me ? runDist() : p.dist) / st.finish)) + '%'; tr.appendChild(d); });
+  }
+  const energyLeft = () => Math.max(0, run.serverEnergy - run.spent - run.spentF);
+  function jump() { if (run.y === 0 && !run.done) run.vy = 520; }
+  $('#jumpBtn').onclick = jump;
+  document.addEventListener('keydown', e => { if (st && st.mode === 'parkour' && (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W')) { e.preventDefault(); jump(); } });
+  function startRunner() {
+    const cv = $('#cv'); cv.addEventListener('pointerdown', jump);
+    const ctx = cv.getContext('2d'); const PPM = 14, SPEED = 5, G = 1500; // pixels per metre, metres per second, gravity
+    function frame(t) {
+      const dt = Math.min(0.05, (t - (run.last || t)) / 1000); run.last = t;
+      const w = cv.clientWidth; if (cv.width !== w) cv.width = w;
+      const H = cv.height, ground = H - 34, px = 70;
+      let moving = !run.done && run.hitT <= 0 && energyLeft() > 0.001 && st.status === 'live';
+      if (run.hitT > 0) run.hitT -= dt;
+      if (moving) { const dm = SPEED * dt; run.gain += dm; run.distF += dm; run.spentF += dm / 4; if (run.spentF >= 1) { const k = Math.floor(run.spentF); run.spent += k; run.spentF -= k; } }
+      // jump physics
+      if (run.y > 0 || run.vy > 0) { run.vy -= G * dt; run.y = Math.max(0, run.y + run.vy * dt); if (run.y === 0) run.vy = 0; }
+      // obstacles in metres ahead
+      while (run.nextObs < run.distF + 40) { run.obs.push({ m: run.nextObs, h: Math.random() < 0.3 ? 34 : 22, hit: false }); run.nextObs += 5 + Math.random() * 7; }
+      run.obs = run.obs.filter(o => o.m > run.distF - 6);
+      for (const o of run.obs) {
+        const ox = px + (o.m - run.distF) * PPM;
+        if (!o.hit && ox < px + 16 && ox + 18 > px && run.y < o.h - 2) { o.hit = true; run.hitT = 0.7; run.gain -= 2; run.distF -= 2; }
+      }
+      if (runDist() >= st.finish) run.done = true;
+      // draw
+      ctx.clearRect(0, 0, cv.width, H);
+      ctx.fillStyle = '#9fd18b'; ctx.fillRect(0, ground, cv.width, H - ground); ctx.fillStyle = '#6fae5a'; ctx.fillRect(0, ground, cv.width, 4);
+      ctx.fillStyle = 'rgba(255,255,255,.7)'; for (let i = 0; i < 4; i++) { const cx = ((i * 230 - run.distF * PPM * 0.3) % (cv.width + 200) + cv.width + 200) % (cv.width + 200) - 100; ctx.beginPath(); ctx.ellipse(cx, 30 + i * 9, 34, 11, 0, 0, Math.PI * 2); ctx.fill(); }
+      ctx.fillStyle = '#3d4657'; ctx.font = '12px Lexend, sans-serif';
+      for (let m = Math.floor(run.distF / 25) * 25; m < run.distF + cv.width / PPM; m += 25) { const x = px + (m - run.distF) * PPM; ctx.fillRect(x, ground + 4, 2, 10); ctx.fillText(m + ' m', x + 4, ground + 26); }
+      const fx = px + (st.finish - (run.base + run.gain) + run.distF - run.distF) * PPM; if (fx < cv.width + 20) { ctx.fillStyle = '#222'; for (let k = 0; k < 8; k++) { ctx.fillStyle = k % 2 ? '#fff' : '#222'; ctx.fillRect(fx, ground - 80 + k * 10, 10, 10); } }
+      for (const o of run.obs) { const ox = px + (o.m - run.distF) * PPM; ctx.fillStyle = o.hit ? '#c9a27a' : '#b7652a'; ctx.fillRect(ox, ground - o.h, 18, o.h); ctx.strokeStyle = '#7a3f15'; ctx.strokeRect(ox + .5, ground - o.h + .5, 17, o.h - 1); }
+      // runner
+      const ry = ground - 30 - run.y, step = moving ? Math.sin(t / 70) * 5 : 0;
+      ctx.fillStyle = run.hitT > 0 ? '#d93025' : '#2443c2'; ctx.beginPath(); ctx.arc(px + 8, ry - 6, 7, 0, Math.PI * 2); ctx.fill();
+      ctx.fillRect(px + 4, ry + 1, 8, 16); ctx.strokeStyle = ctx.fillStyle; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(px + 8, ry + 17); ctx.lineTo(px + 4 - step, ry + 30); ctx.moveTo(px + 8, ry + 17); ctx.lineTo(px + 12 + step, ry + 30); ctx.stroke();
+      if (!moving && !run.done && energyLeft() <= 0.001) { ctx.fillStyle = 'rgba(24,32,47,.75)'; ctx.font = '600 15px Lexend, sans-serif'; ctx.fillText('Out of energy! Answer a question ⚡', px + 40, 40); }
+      if (run.done) { ctx.fillStyle = '#16774a'; ctx.font = '800 22px Lexend, sans-serif'; ctx.fillText('🏁 Finished!', px + 40, 48); }
+      const e = energyLeft(); $('#enBar').style.width = Math.min(100, e / 30 * 100) + '%'; $('#enNum').textContent = Math.floor(e);
+      if (st.mode === 'parkour' && showing === 'live') $('#hudScore').textContent = runDist() + ' / ' + st.finish + ' m';
+      requestAnimationFrame(frame);
+    }
+    requestAnimationFrame(frame);
+    // send progress to the server every 1.5 s
+    setInterval(async () => {
+      if (run.syncing || !st || st.status !== 'live' || (run.spent === 0 && Math.abs(run.gain) < 0.5)) return;
+      run.syncing = true; const spent = run.spent, gain = Math.round(run.gain);
+      const r = await api('/api/game/' + code + '/run', 'POST', { spent, dist: gain });
+      if (r.ok) { run.spent -= spent; run.gain -= gain; run.base = r.data.dist; run.serverEnergy = r.data.energy; me.dist = r.data.dist; me.energy = r.data.energy; if (r.data.done) run.done = true; }
+      run.syncing = false;
+    }, 1500);
+  }
+
+  /* ---------- study time: playing counts while you're active ---------- */
+  let hb = null, lastInput = Date.now();
+  ['pointerdown', 'keydown'].forEach(ev => window.addEventListener(ev, () => { lastInput = Date.now(); }, { passive: true, capture: true }));
+  const visit = Array.from(crypto.getRandomValues(new Uint8Array(12)), b => b.toString(16).padStart(2, '0')).join('');
+  function heartbeat() {
+    if (hb) return; const ping = () => { if (st && st.status === 'live' && document.visibilityState === 'visible' && Date.now() - lastInput < 180000) fetch('/api/ping', { method: 'POST', credentials: 'same-origin', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ subject: st.subject, visit }) }).catch(() => {}); };
+    ping(); hb = setInterval(ping, 60000);
+  }
+
+  /* ---------- results ---------- */
+  function renderOver() {
+    if (showing === 'over') return; view('over');
+    const ps = st.players, unit = st.mode === 'parkour' ? (p => (p.done ? '🏁 ' : '') + p.dist + ' m') : (p => p.score + ' ' + MODES[st.mode][3].toLowerCase());
+    const pod = $('#podium'); pod.innerHTML = '';
+    [ps[1], ps[0], ps[2]].forEach((p, i) => { if (!p) return; const k = [2, 1, 3][i]; const d = el('div', 'pod p' + k); d.append(text('div', 'who', p.name + (p.me ? ' (you)' : '')), text('div', 'small muted2', unit(p)), text('div', 'blk', String(k))); pod.appendChild(d); });
+    const f = $('#final'); f.innerHTML = '';
+    ps.forEach(p => { const r = el('div', 'row2' + (p.me ? ' me' : '')); r.append(text('span', 'rk', String(p.rank)), text('span', 'nm', p.name + (p.me ? ' (you)' : '')), text('span', 'small muted2', p.correct + '/' + p.answered + ' right'), text('span', 'sc', unit(p))); f.appendChild(r); });
+    $('#back').href = '/' + (st.subject === 'maths' ? 'maths' : 'science') + '/';
+    $('#back').textContent = 'Back to ' + (st.subject === 'maths' ? 'Maths' : 'Science');
+    clearTimeout(pollT);
+  }
+  $('#again').onclick = () => { location.href = '/play/?subject=' + (st ? st.subject : setup.subject); };
+
+  /* ---------- start ---------- */
+  (async () => {
+    try { const r = await api('/api/me'); if (!r.ok) return; } catch (e) { $('#loading').textContent = 'Can’t reach the server. Check your connection and reload.'; return; }
+    $('#loading').hidden = true;
+    const c = (params.get('code') || '').replace(/\D/g, '');
+    if (c.length === 6) { const r = await api('/api/game/join', 'POST', { code: c }); if (r.ok) return enter(c); say(r.data.error || 'Couldn’t join that game.'); history.replaceState(null, '', '/play/'); }
+    view('setup'); drawSetup();
+    loadSubject(setup.subject).then(drawSetup).catch(() => {});
+  })();
+})();
+</script>
+<script src="/help.js" defer></script>
+</body>
+</html>

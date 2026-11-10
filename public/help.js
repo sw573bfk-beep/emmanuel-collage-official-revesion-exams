@@ -26,6 +26,7 @@
         { h: 'More than one account', t: 'Tap <b>Switch account</b> to add another account or swap between them. Each tab can use a different account, so you can be logged into two at once.', sel: '#switchBtn' },
         { h: 'Send feedback', t: 'Found a mistake or have an idea? Tell Beau here.', sel: ['#pickView a.card[href="/feedback/"]', '#whoBox a[href="/feedback/"]'] },
         { h: 'Leaderboard and Chat', t: 'See the top 50 studiers and your place, or chat with other students. Chats are monitored and strictly filtered.', sel: ['#whoBox a[data-chat]', '#pickView a[href="/leaderboard/"]'] },
+        { h: 'Play with friends', t: 'Make a live quiz game and share the 6-digit code. Pick <b>Speed Quiz</b> (fast right answers score more), <b>Treasure Chests</b> (open a chest after each right answer) or <b>Parkour Run</b> (right answers give energy to run the course).', sel: '#pickView a[href="/play/"]' },
         { h: 'Message Beau', t: 'A private chat with Beau. A red number appears on the button when Beau replies.', sel: ['#whoBox a[data-msg]', '#pickView a.card[data-msg]'] },
         { h: 'Account settings', t: 'Change your password or delete your account here.', sel: '#pickView details.acct' },
         helpStep
@@ -46,7 +47,7 @@
         { h: 'Booklet links', t: 'The small blue links (like <b>R2</b> or <b>T1</b>) jump straight to that question in the workbook.', sel: 'table.check .reflink' },
         { h: 'How sure are you?', t: 'Tap <b>Not yet</b>, <b>Nearly</b> or <b>Got it</b> for each skill. Work on anything that isn’t “Got it” yet.', sel: 'table.check .conf' },
         { h: 'A topic tab', t: 'Each topic tab has the notes, an example, common mistakes, flashcards (tap to flip), key words and questions.', sel: '#tabs a[data-v="t1"]' },
-        { h: 'Practice', t: 'Three ways to practise: <b>Mixed</b> (all topics), <b>One topic</b>, or a <b>Timed test</b> like the real exam.', sel: '#tabs a[data-v="practice"]' },
+        { h: 'Practice', t: 'Three ways to practise: <b>Mixed</b> (all topics), <b>One topic</b>, or a <b>Timed test</b> like the real exam. Pick the <b>difficulty</b> and <b>question type</b> (multiple choice, short answer or long response). Long responses are self-marked with a checklist. <b>🎮 Play with friends</b> starts a live game.', sel: '#tabs a[data-v="practice"]' },
         { h: 'Booklet', t: 'The revision workbook questions and the graph task. Try a question, then check your answer.', sel: '#tabs a[data-v="booklet"]' },
         ...topBar, helpStep
       ],
@@ -64,6 +65,7 @@
         { h: 'Short on time?', t: '<b>Need to know</b> has everything on one page, plus a question on every topic.', sel: ['.need-tip', '#tabs a[data-v="need"]'] },
         { h: 'Exam countdown', t: 'Put in your exam date and it counts down the days.', sel: '#examDate', get: label },
         { h: 'Skills checklist', t: 'Tap any skill (the underlined writing) for a simple explanation and practice questions, one at a time. Tap how sure you feel about each skill. The blue links jump to the matching booklet question.', sel: ['table.check .skill-link', 'table.check'] },
+        { h: 'Practise', t: 'Questions without end. Pick the <b>difficulty</b> and <b>question type</b> (multiple choice, short answer or long response). Long responses are self-marked with a checklist. <b>🎮 Play with friends</b> starts a live game.', sel: '#tabs a[data-v="practice"]' },
         { h: 'Test yourself', t: 'A timed practice exam. Nothing is marked until you finish.', sel: '#tabs a[data-v="exam"]' },
         { h: 'Tools', t: 'Change the numbers and the answer and working update straight away.', sel: '#tabs a[data-v="tools"]' },
         { h: 'Ask', t: 'Type any maths question and get the answer with every step.', sel: '#tabs a[data-v="ask"]' },

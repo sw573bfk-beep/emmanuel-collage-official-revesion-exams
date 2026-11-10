@@ -1030,6 +1030,116 @@ const TOPIC_GENS = {
   C8: ['corrFacts', 'corrNails', 'corrNails', 'corrEq'],
   C9: ['verbs', 'verbs', 'massNumber', 'massNumber', 'evidenceVsOpinion']
 };
+/* ================= Science: difficulty of each question type, and long-response questions ================= */
+const DIFF = {
+  chgClassify: 'e', chgPick: 'e', chgEvidence: 'm', chgDefine: 'm',
+  obsClassify: 'h', obsVsOpinion: 'm', obsVerb: 'm',
+  rpIdentify: 'e', rpFacts: 'e',
+  eqConstruct: 'h', eqMissing: 'm', eqChoose: 'm',
+  massClosed: 'm', massOpen: 'm', massLaw: 'e', atomCount: 'm',
+  tempClassify: 'e', deltaT: 'm', meanUnc: 'h', energyDiagram: 'm', exoEndoFacts: 'e',
+  combEq: 'm', combFacts: 'e', combTriangle: 'e',
+  corrFacts: 'e', corrNails: 'm', corrEq: 'm',
+  verbs: 'e', massNumber: 'm', evidenceVsOpinion: 'h'
+};
+// Long response: q (question), model (model answer), points (marking checklist). Built from parts, so they vary.
+const LONG = {};
+function longGen(id, t, d, name, fn) { LONG[id] = { t, d, name, fn }; }
+
+longGen('lChange', 'C1', 'h', 'Explain a change', () => {
+  const [c, k] = pick(CHANGES); const chem = k === 'C';
+  return { q: 'Explain whether <b>' + c + '</b> is a physical change or a chemical change. Justify your answer.',
+    model: chem ? cap(c) + ' is a <b>chemical change</b> because a <b>new substance</b> is formed. You might see clues such as a colour change, gas, heat or light, a new smell, or a solid forming. The new substance can’t easily be turned back into what you started with, so the change is <b>irreversible</b>.'
+      : cap(c) + ' is a <b>physical change</b> because <b>no new substance</b> is formed. Only the form, shape, size or state changes; it is still the same substance. It can usually be <b>reversed</b> (e.g. by cooling, heating or evaporating).',
+    points: ['States the correct type: <b>' + (chem ? 'chemical' : 'physical') + '</b>', chem ? 'Says a new substance forms' : 'Says no new substance forms (still the same substance)', chem ? 'Gives a piece of evidence (e.g. colour change, gas, heat, light, smell)' : 'Says only the form, shape or state changes', chem ? 'Says it can’t easily be reversed' : 'Says it can usually be reversed'] };
+});
+longGen('lDistinguish', 'C1', 'm', 'Distinguish physical and chemical change', () => {
+  const p = pick(CHANGES.filter(x => x[1] === 'P'))[0], c = pick(CHANGES.filter(x => x[1] === 'C'))[0];
+  return { q: '<b>Distinguish</b> between a physical change and a chemical change. Give one example of each.',
+    model: 'In a <b>physical change</b> no new substance is made; only the shape, size or state changes, and it can usually be reversed (e.g. ' + p + '). In a <b>chemical change</b> a new substance is made, and it usually can’t be reversed (e.g. ' + c + ').',
+    points: ['Physical change: no new substance', 'Chemical change: a new substance forms', 'Mentions reversible vs irreversible', 'A correct example of a physical change', 'A correct example of a chemical change'] };
+});
+longGen('lObsJustify', 'C2', 'h', 'Analyse observations', () => {
+  const s = pick(SCEN), chem = s.k === 'C';
+  return { q: s.what + ' They observed that <b>' + s.obs + '</b>.<br><b>Analyse</b> the observations and <b>justify</b> whether a chemical change happened.',
+    model: (chem ? 'A <b>chemical change</b> happened. ' : 'This was a <b>physical change</b>. ') + cap(s.ev) + '. ' + (chem ? 'These observations are evidence that a new substance formed.' : 'No new substance formed, so it can be reversed.'),
+    points: ['Correctly classifies it as <b>' + (chem ? 'chemical' : 'physical') + '</b>', 'Uses a specific observation from this experiment as evidence', 'Uses a number or measurement if one was given (e.g. a temperature change)', chem ? 'Links the evidence to a new substance forming' : 'Links the evidence to no new substance forming'] };
+});
+longGen('lObsRecord', 'C2', 'm', 'Improve an observation', () => {
+  const t0 = rnd(18, 24), dT = rnd(4, 15), secs = rnd(3, 12) * 10, nm = pick(NAMES);
+  return { q: nm + ' wrote this observation: <i>“It got heaps hotter and was kind of bubbly.”</i> The temperature actually went from ' + t0 + ' °C to ' + (t0 + dT) + ' °C, and bubbles formed for ' + secs + ' seconds.<br>Rewrite it as an accurate scientific observation and explain why yours is better.',
+    model: '“The temperature rose from ' + t0 + ' °C to ' + (t0 + dT) + ' °C (an increase of ' + dT + ' °C) and bubbles of gas were produced for ' + secs + ' seconds.” This is better because it uses <b>measurements with units</b> and describes exactly what was seen, instead of vague words like “heaps” or opinions.',
+    points: ['Includes the temperature measurements with °C', 'Includes the time (' + secs + ' s) or the temperature change (' + dT + ' °C)', 'Describes the bubbles/gas clearly', 'Explains that numbers and units make it accurate and objective (not vague)'] };
+});
+longGen('lReactProd', 'C3', 'm', 'Reactants and products', () => {
+  const x = pick(RX);
+  return { q: x.d + '<br><b>Identify</b> the reactants and the products, and explain how you decided.',
+    model: 'Reactants: <b>' + x.r.map(first).join(', ') + '</b>. Products: <b>' + x.p.map(first).join(', ') + '</b>. Reactants are the substances you start with, which get used up; products are the new substances made in the reaction.',
+    points: ['Lists the reactants: ' + x.r.map(first).join(', '), 'Lists the products: ' + x.p.map(first).join(', '), 'Explains that reactants are the starting substances (used up)', 'Explains that products are the new substances made'] };
+});
+longGen('lWordEq', 'C4', 'h', 'Word equation and meaning', () => {
+  const x = pick(RX.filter(y => y.r.length + y.p.length >= 3));
+  return { q: x.d + '<br>Write the <b>word equation</b>, then explain what the arrow (→) and the plus signs (+) mean.',
+    model: '<b>' + eqText(x.r, x.p) + '</b>. The arrow means “reacts to form”: reactants are on the left and products on the right. The plus signs separate the different substances on each side.',
+    points: ['Reactants on the left: ' + x.r.map(first).join(' + '), 'Products on the right: ' + x.p.map(first).join(' + '), 'Explains the arrow means “reacts to form” / produces', 'Explains + separates the substances'] };
+});
+longGen('lMassClaim', 'C5', 'h', 'Evaluate a claim about mass', () => {
+  const start = r2(rnd(800, 1600) / 10, 1), lost = r2(rnd(5, 40) / 10, 1), gas = pick(['carbon dioxide', 'hydrogen']), what = gas === 'hydrogen' ? 'magnesium and hydrochloric acid' : 'marble chips and hydrochloric acid', nm = pick(NAMES);
+  return { q: 'In an open beaker, ' + what + ' reacted and the mass fell from ' + fmt(start) + ' g to ' + fmt(r2(start - lost, 1)) + ' g. ' + nm + ' says: <i>“This proves mass was destroyed.”</i><br><b>Evaluate</b> this claim.',
+    model: 'The claim is <b>wrong</b>. Mass is never created or destroyed in a chemical reaction (law of conservation of mass). The ' + fmt(lost) + ' g that seemed to disappear is the <b>' + gas + ' gas</b> that was produced and escaped from the <b>open</b> beaker. In a <b>sealed (closed)</b> container the mass would stay at ' + fmt(start) + ' g.',
+    points: ['Says the claim is incorrect', 'States the law of conservation of mass', 'Explains a gas (' + gas + ') escaped because the beaker was open', 'Uses the numbers: ' + fmt(lost) + ' g lost', 'Says a closed/sealed container would show no change'] };
+});
+longGen('lMassAtoms', 'C5', 'm', 'Conservation of mass with atoms', () => {
+  const [eq, counts] = pick(FORMULA_EQ); const el = pick(Object.keys(counts));
+  return { q: 'Use the balanced equation <b>' + eq + '</b> to explain why mass is conserved in a chemical reaction.',
+    model: 'Atoms are not created or destroyed in a chemical reaction; they are only <b>rearranged</b> into new substances. In this equation there are ' + counts[el][0] + ' ' + el + ' atoms on each side (and the same is true for every element), so the total mass of the products equals the total mass of the reactants.',
+    points: ['States mass is conserved (not created or destroyed)', 'Says atoms are rearranged, not created or destroyed', 'Uses the equation: the same number of each type of atom on both sides (e.g. ' + counts[el][0] + ' ' + el + ')', 'Concludes total mass of reactants = total mass of products'] };
+});
+longGen('lExoEndo', 'C6', 'h', 'Classify and explain energy change', () => {
+  const t0 = rnd(17, 25), dT = rnd(3, 16), exo = Math.random() < 0.5, t1 = exo ? t0 + dT : t0 - dT, what = pick(['two solutions were mixed', 'a powder was added to water', 'a metal was added to an acid', 'citric acid was mixed with baking soda solution']);
+  return { q: 'When ' + what + ', the temperature went from ' + t0 + ' °C to ' + t1 + ' °C. <b>Classify</b> the reaction and <b>explain</b> the energy transfer.',
+    model: 'ΔT = ' + t1 + ' − ' + t0 + ' = ' + (exo ? '+' : '') + (t1 - t0) + ' °C. The temperature ' + (exo ? 'rose' : 'fell') + ', so the reaction is <b>' + (exo ? 'exothermic' : 'endothermic') + '</b>: energy was ' + (exo ? 'released to' : 'absorbed from') + ' the surroundings, making them ' + (exo ? 'hotter' : 'colder') + '. The products have ' + (exo ? 'less' : 'more') + ' energy than the reactants.',
+    points: ['Classifies it as <b>' + (exo ? 'exothermic' : 'endothermic') + '</b>', 'Calculates the change: ' + (exo ? '+' : '') + (t1 - t0) + ' °C', 'Says energy was ' + (exo ? 'released to' : 'absorbed from') + ' the surroundings', 'Says the products have ' + (exo ? 'less' : 'more') + ' energy than the reactants'] };
+});
+longGen('lFire', 'C7', 'm', 'Use the fire triangle', () => {
+  const [part, act] = pick(FIRE);
+  return { q: '<b>' + act + '</b> puts the fire out. Use the fire triangle to explain why.', fig: fireTriangleSVG(),
+    model: 'Combustion needs all three parts of the fire triangle: <b>fuel, oxygen and heat</b>. ' + act + ' removes the <b>' + part + '</b>, so the fire triangle is broken and the combustion reaction stops.',
+    points: ['Names the three parts: fuel, oxygen, heat', 'Identifies that it removes the <b>' + part + '</b>', 'Explains combustion stops when one part is removed'] };
+});
+longGen('lCombust', 'C7', 'h', 'Describe combustion', () => {
+  const [name, alts] = pick(FUELS);
+  return { q: 'Describe what happens when <b>' + name + '</b> burns completely in plenty of oxygen. Include the word equation and explain why it is exothermic.',
+    model: 'The ' + name + ' reacts with oxygen (combustion) to make carbon dioxide and water: <b>' + alts[0] + ' + oxygen → carbon dioxide + water</b>. It is <b>exothermic</b> because it releases energy to the surroundings as heat and light.',
+    points: ['Says the fuel reacts with oxygen', 'Correct word equation: ' + alts[0] + ' + oxygen → carbon dioxide + water', 'Says it is exothermic', 'Explains energy is released as heat and light'] };
+});
+longGen('lRustPredict', 'C8', 'h', 'Predict and explain rusting', () => {
+  let set, rates; do { set = shuffle(TUBES).slice(0, 3); rates = set.map(x => x[1]); } while (new Set(rates).size < 3 || Math.min(...rates) !== 0);
+  const L = ['A', 'B', 'C']; const most = rates.indexOf(Math.max(...rates)), none = rates.indexOf(0);
+  return { q: 'Three iron nails are set up:<ul>' + set.map((t, i) => '<li><b>' + L[i] + ':</b> ' + t[0] + '</li>').join('') + '</ul><b>Predict</b> which nail rusts most and which does not rust. <b>Explain</b> your predictions.',
+    model: 'Rusting needs <b>oxygen and water</b>. Nail <b>' + L[most] + '</b> rusts most because it has oxygen and water' + (set[most][1] >= 3 ? ', and salt/warmth speeds rusting up' : '') + '. Nail <b>' + L[none] + '</b> does not rust because ' + set[none][2] + '.',
+    points: ['Says rusting needs both oxygen and water', 'Predicts ' + L[most] + ' rusts most, with a reason', 'Predicts ' + L[none] + ' does not rust', 'Explains why ' + L[none] + ' doesn’t rust (' + set[none][2] + ')'] };
+});
+longGen('lRustPrevent', 'C8', 'm', 'Prevent rusting', () => {
+  const thing = pick(['a steel bike chain', 'an iron garden gate', 'a car body', 'steel nails in a deck', 'a ship’s hull', 'an iron barbecue grill', 'a steel bridge', 'a metal letterbox near the beach']);
+  return { q: 'Suggest <b>two</b> ways to stop <b>' + thing + '</b> from rusting, and explain how each one works.',
+    model: 'Rusting needs oxygen and water. You could <b>paint it</b> (or oil/grease it, or coat it in plastic), which forms a barrier keeping oxygen and water off the iron. You could <b>galvanise</b> it (coat it in zinc), which keeps air and water out and corrodes instead of the iron. Keeping it dry also helps.',
+    points: ['A correct first method (e.g. paint, oil, grease, plastic coating, galvanising)', 'A correct second, different method', 'Explains the method stops oxygen and/or water reaching the iron', 'States rusting needs oxygen and water'] };
+});
+longGen('lAtom', 'C9', 'm', 'Explain an atom’s particles', () => {
+  const [name, sym, Z, A] = pick(ELEMS); const N = A - Z;
+  return { q: 'An atom of ' + name + ' (' + sym + ') has atomic number ' + Z + ' and mass number ' + A + '. Find the number of protons, neutrons and electrons, and explain how you worked each one out.',
+    model: 'Protons = atomic number = <b>' + Z + '</b>. Neutrons = mass number − atomic number = ' + A + ' − ' + Z + ' = <b>' + N + '</b>. Electrons = protons = <b>' + Z + '</b>, because the atom is neutral.',
+    points: ['Protons = ' + Z + ' (from the atomic number)', 'Neutrons = ' + A + ' − ' + Z + ' = ' + N, 'Electrons = ' + Z, 'Explains electrons = protons because the atom is neutral'] };
+});
+longGen('lEvidence', 'C9', 'h', 'Write a justified conclusion', () => {
+  const nm = pick(NAMES), t0 = rnd(18, 24), dT = rnd(4, 16), exo = Math.random() < 0.5, t1 = exo ? t0 + dT : t0 - dT; const trials = [0, 0, 0].map(() => t1 + rnd(-6, 6) / 10);
+  return { q: nm + ' repeated a reaction three times. The starting temperature was ' + t0 + ' °C each time and the final temperatures were ' + trials.map(v => fmt(r2(v, 1))).join(' °C, ') + ' °C. Write a conclusion that is <b>justified with evidence</b>.',
+    model: 'The mean final temperature was ' + fmt(r2(trials.reduce((a, b) => a + b, 0) / 3, 1)) + ' °C, a change of about ' + (exo ? '+' : '−') + dT + ' °C from ' + t0 + ' °C. Because the temperature ' + (exo ? 'rose' : 'fell') + ', the reaction is <b>' + (exo ? 'exothermic' : 'endothermic') + '</b>. The three results are close together, so they are reliable.',
+    points: ['Calculates or uses the mean final temperature', 'States the temperature change', 'Concludes ' + (exo ? 'exothermic' : 'endothermic') + ' and links it to the rise/fall', 'Comments that the repeated results are close (reliable/consistent)'] };
+});
+const LONG_GENS = {};
+Object.keys(LONG).forEach(id => { (LONG_GENS[LONG[id].t] = LONG_GENS[LONG[id].t] || []).push(id); });
 /* ================= science topics (Exam Checklist 2: Chemical changes and reactions) ================= */
 const UNITS = [
   { id: 'chg', name: 'Physical and chemical change', ch: 'Checklist 1–2' },
@@ -1322,6 +1432,132 @@ const SKILL_INFO = [
   { x: 'Be able to write a word equation from a description, and read one to find the reactants and products.', eg: 'hydrogen + oxygen → water: reactants hydrogen and oxygen, product water.', g: ['eqConstruct', 'rpIdentify', 'eqMissing'] }
 ];
 if (SKILL_INFO.length !== CHECKLIST.reduce((a, c) => a + c[1].length, 0)) console.error('SKILL_INFO does not match the checklist length');
+/* ================= Practice filters (shared by Maths and Science) =================
+   Difficulty: each question type has a level in DIFF (easy e / medium m / hard h, set in long.js).
+   Type: multiple choice, short answer (typed), or long response (explain, self-marked with a checklist).
+   Typed questions can be turned into multiple choice with believable wrong answers (common slips),
+   and two-option questions can be turned into a short typed answer, so every topic offers every type. */
+const PDIFF = [['any', 'Any level'], ['e', 'Easy'], ['m', 'Medium'], ['h', 'Hard']];
+const PTYPE = [['any', 'Any type'], ['mcq', 'Multiple choice'], ['short', 'Short answer'], ['long', 'Long response']];
+const DIFF_NAME = { e: 'Easy', m: 'Medium', h: 'Hard' };
+const diffOf = id => (typeof DIFF !== 'undefined' && DIFF[id]) || 'm';
+const near = { e: ['e', 'm', 'h'], m: ['m', 'e', 'h'], h: ['h', 'm', 'e'] };
+
+// numbers as the site shows them (keeps − signs tidy)
+const showNum = v => (typeof fmt === 'function' ? fmt(v) : String(v)).replace(/^-/, '−');
+function numWrongs(a) {
+  const out = new Set(); const w = v => { if (isFinite(v) && Math.abs(v - a) > 1e-9) out.add(showNum(Math.round(v * 10000) / 10000)); };
+  w(-a); w(a + 1); w(a - 1); w(a * 2); w(a / 2); w(a * 10); w(a / 10); w(a + 10); w(a - 10); w(100 - a); w(a + 2); w(a - 2);
+  if (Number.isInteger(a) && Math.abs(a) > 3) { w(a + (a > 0 ? 5 : -5)); w(Math.round(a * 1.1)); }
+  return [...out];
+}
+// Turn a typed-answer question into multiple choice. Returns null when it can't be done sensibly.
+function asMCQ(Q) {
+  if (!Q) return null;
+  if (Q.type === 'mcq') return Q;
+  let right = null, wrongs = [];
+  if (Q.type === 'num' && typeof Q.ans === 'number') { right = showNum(Q.ans); wrongs = numWrongs(Q.ans); }
+  else if (Q.type === 'coord' && Array.isArray(Q.ans) && Q.ans.length >= 2 && Q.ans.length <= 3 && Q.ans.every(v => typeof v === 'number')) {
+    const [x, y, z] = Q.ans; const P = (...c) => '(' + c.map(showNum).join(', ') + ')';
+    right = z === undefined ? P(x, y) : P(x, y, z);
+    wrongs = z === undefined ? [P(y, x), P(-x, y), P(x, -y), P(-x, -y), P(-y, x), P(y, -x)] : [P(y, x, z), P(x, z, y), P(z, y, x), P(-x, y, z), P(x, -y, z)];
+  } else if (Q.type === 'text' && Q.accept && Q.ansText) return null;
+  else if (typeof Q.ansText === 'string' && Q.ansText && Q.type === 'frac') {
+    const [n, d] = Q.ansText.split('/'); right = Q.ansText;
+    if (d) wrongs = [d + '/' + n, n + '/' + (+d * 2), (+n + 1) + '/' + d, (+n * 2) + '/' + (+d * 2) === right ? (+n + 1) + '/' + (+d + 1) : (+n * 2) + '/' + d, n + '/' + (+d + 1)];
+  } else if (typeof Q.ansText === 'string' && Q.ansText && (Q.type === 'rule' || Q.type === 'ineq')) {
+    right = Q.ansText; const t = right;
+    const swaps = [[/ \+ /, ' − '], [/ − /, ' + '], [/=\s*−/, '= '], [/= (?=\d)/, '= −'], [/&lt;=|≤/, '&lt;'], [/&gt;=|≥/, '&gt;'], [/&lt;(?!=)/, '&gt;'], [/&gt;(?!=)/, '&lt;'], [/≤/, '≥'], [/≥/, '≤'], [/</, '>'], [/>/, '<']];
+    swaps.forEach(([re, to]) => { if (re.test(t)) wrongs.push(t.replace(re, to)); });
+    const m = t.match(/=\s*(−?[\d.]*)x\s*([+−])\s*([\d.]+)/); if (m) wrongs.push(t.replace(m[0], '= ' + (m[2] === '−' ? '−' : '') + m[3] + 'x ' + '+ ' + (m[1] || '1').replace('−', '')));
+  } else return null;
+  wrongs = [...new Set(wrongs.filter(w => w && w !== right))];
+  if (wrongs.length < 3 || !right) return null;
+  const opts = shuffle([right].concat(shuffle(wrongs).slice(0, 3)));
+  return Object.assign({}, Q, { type: 'mcq', choices: opts, ans: opts.indexOf(right), ansText: right, hint: Q.hint });
+}
+// Turn a short two/three-option multiple choice (e.g. Physical/Chemical, True/False) into a typed answer.
+function asShort(Q) {
+  if (!Q) return null;
+  if (Q.type !== 'mcq') return Q;
+  if (Q.choices.length <= 5 && Q.choices.every(c => !/[<>]/.test(c) && c.split(' ').length <= 3 && c.length <= 26)) {
+    const a = Q.choices[Q.ans]; const short = a.replace(/ change$/i, '');
+    return Object.assign({}, Q, { type: 'text', q: Q.q + '<br><span class="small muted">Type your answer: ' + Q.choices.map(c => '<i>' + c.replace(/ change$/i, '') + '</i>').join(' or ') + '.</span>', accept: [a, short, a.toLowerCase(), short.toLowerCase()], ansText: a, choices: undefined });
+  }
+  return null;
+}
+let TYPE_CAN = null; // which kinds each generator can produce (worked out once by sampling)
+function typeCan(id) {
+  if (!TYPE_CAN) TYPE_CAN = {};
+  if (!TYPE_CAN[id]) { const s = new Set(); for (let i = 0; i < 8; i++) { try { const q = G[id].fn(); s.add(q.type === 'mcq' ? 'mcq' : 'short'); if (q.type !== 'mcq' && asMCQ(q)) s.add('mcq?'); if (q.type === 'mcq' && asShort(q)) s.add('short?'); } catch (e) { /* skip */ } } TYPE_CAN[id] = s; }
+  return TYPE_CAN[id];
+}
+// Pick a question for a topic with the chosen level and type. Returns { Q, note } (note explains any fallback).
+function pickPractice(tid, diff, type) {
+  if (type === 'long') {
+    const pool = (LONG_GENS[tid] || []);
+    if (!pool.length) return { Q: null, note: 'There are no long-response questions for this topic yet.' };
+    for (const d of diff === 'any' ? ['any'] : near[diff]) {
+      const ok = pool.filter(id => d === 'any' || LONG[id].d === d);
+      if (ok.length) return { Q: makeLong(pick(ok)), note: d !== diff && diff !== 'any' ? 'No ' + DIFF_NAME[diff].toLowerCase() + ' long-response questions here yet, so this one is ' + DIFF_NAME[d].toLowerCase() + '.' : '' };
+    }
+  }
+  const gens = TOPIC_GENS[tid];
+  for (const d of diff === 'any' ? ['any'] : near[diff]) {
+    const ok = gens.filter(id => d === 'any' || diffOf(id) === d);
+    if (!ok.length) continue;
+    for (let i = 0; i < 40; i++) {
+      const id = pick(ok);
+      if (type !== 'any') { const can = typeCan(id); if (type === 'mcq' && !can.has('mcq') && !can.has('mcq?')) continue; if (type === 'short' && !can.has('short') && !can.has('short?')) continue; }
+      let Q = makeQ(id);
+      if (type === 'mcq') Q = asMCQ(Q); else if (type === 'short') Q = asShort(Q);
+      if (Q) return { Q, note: d !== diff && diff !== 'any' ? 'This topic has no ' + DIFF_NAME[diff].toLowerCase() + (type === 'any' ? '' : ' ' + PTYPE.find(t => t[0] === type)[1].toLowerCase()) + ' questions, so this one is ' + DIFF_NAME[d].toLowerCase() + '.' : '' };
+    }
+  }
+  // nothing fits that type: say so and give a normal question
+  return { Q: makeQ(pick(gens)), note: 'This topic doesn’t have ' + PTYPE.find(t => t[0] === type)[1].toLowerCase() + ' questions, so here’s a different kind.' };
+}
+function makeLong(id) { const L = LONG[id]; const q = L.fn(); q.type = 'long'; q.gen = id; q.topic = L.t; q.gname = L.name; q.diff = L.d; return q; }
+
+// Long response: write, then compare with the model answer and tick off the marking points.
+function longCard(Q, opts = {}) {
+  const el = h('<div class="qcard"></div>');
+  el.innerHTML = '<div class="qhead"><span class="row" style="gap:6px"><span class="tag">' + Q.topic + '</span><span class="small muted">' + esc(Q.gname || '') + ' · long response</span></span><span class="small muted">' + Q.points.length + ' marks</span></div>' +
+    '<div class="qtext">' + Q.q + '</div>' + (Q.fig ? '<div class="qfig">' + Q.fig + '</div>' : '') +
+    '<label class="sr" for="lr' + (++svgN) + '">Your answer</label><textarea id="lr' + svgN + '" class="long-ans" rows="6" placeholder="Write your answer in full sentences. Use science/maths words and any numbers you have."></textarea>' +
+    '<div class="row"><button type="button" class="btn" data-check>Check my answer</button><span class="small muted">You’ll see a model answer and tick off the marking points yourself.</span></div><div class="lr-mark stack" hidden></div>';
+  const ta = $('textarea', el), mark = $('.lr-mark', el);
+  $('[data-check]', el).onclick = () => {
+    if (ta.value.trim().length < 15 && !confirm('Your answer is very short. Check it anyway?')) return;
+    $('[data-check]', el).disabled = true; ta.readOnly = true; mark.hidden = false;
+    mark.innerHTML = '<div class="fb info"><b>Model answer:</b> ' + Q.model + '</div><b>Tick each marking point your answer includes:</b><div class="lr-points stack"></div><div class="row"><button type="button" class="btn" data-done>Done marking</button></div><div class="lr-score" aria-live="polite"></div>';
+    const pts = $('.lr-points', mark);
+    Q.points.forEach((p, i) => pts.appendChild(h('<label class="lr-pt"><input type="checkbox" data-i="' + i + '"> <span>' + p + '</span></label>')));
+    $('[data-done]', mark).onclick = () => {
+      const got = $$('input:checked', pts).length, tot = Q.points.length; const ok = got / tot >= 0.6;
+      $$('input', pts).forEach(x => x.disabled = true); $('[data-done]', mark).disabled = true;
+      $('.lr-score', mark).innerHTML = '<div class="fb ' + (ok ? 'good' : 'bad') + '"><b>' + got + ' / ' + tot + ' marks.</b> ' + (ok ? 'Nice work.' : 'Compare your answer with the model answer and see what was missing.') + '</div>';
+      el.dataset.done = '1'; if (opts.onAnswer) opts.onAnswer(ok, false);
+    };
+  };
+  return { el, focus: () => ta.focus() };
+}
+// Filter bar shown at the top of Practice
+function practiceFilters(onChange) {
+  const bar = h('<div class="pfilters"><div class="pf-row" role="group" aria-label="Difficulty"><span class="small muted">Difficulty</span></div><div class="pf-row" role="group" aria-label="Question type"><span class="small muted">Question type</span></div></div>');
+  const rows = $$('.pf-row', bar);
+  const subj = location.pathname.startsWith('/maths') ? 'maths' : 'science';
+  bar.appendChild(h('<a class="pf-play" href="/play/?subject=' + subj + '"><span><b>🎮 Play with friends</b> <span class="small muted">Make a game code, your friends join, and you race to answer.</span></span><span class="btn sm">Play →</span></a>'));
+  [[PDIFF, 'pDiff', rows[0]], [PTYPE, 'pType', rows[1]]].forEach(([list, key, row]) => {
+    list.forEach(([k, n]) => {
+      const b = h('<button type="button" class="chip">' + n + '</button>'); b.dataset.k = k;
+      const on = () => (store.get(key, 'any') === k); b.classList.toggle('on', on()); b.setAttribute('aria-pressed', on());
+      b.onclick = () => { store.set(key, k); $$('.chip', row).forEach(x => { const o = x.dataset.k === k; x.classList.toggle('on', o); x.setAttribute('aria-pressed', o); }); onChange(); };
+      row.appendChild(b);
+    });
+  });
+  return bar;
+}
 /* ================= small UI helpers ================= */
 function h(html) { const t = document.createElement('template'); t.innerHTML = html.trim(); return t.content.firstElementChild; }
 let toastT;
@@ -1630,15 +1866,20 @@ const practiceInto = (v) => {
   v.appendChild(h('<div class="view-head"><h2>Practice</h2><p>Pick a topic, answer the question, press <b>Check</b>. For word equations, type them like <i>magnesium + oxygen → magnesium oxide</i>. You get two tries, and you can always see the working.</p></div>'));
   const ctr = h('<div class="card row" style="justify-content:space-between"><label class="f" style="flex:1 1 260px">Topic' + topicSelect('pSel', state.practice) + '</label><div class="row" id="pStats" style="gap:18px"></div></div>');
   v.appendChild(ctr);
+  v.appendChild(practiceFilters(() => next()));
   const sel = $('#pSel', ctr); sel.value = state.practice;
   const host = h('<div class="card stack"></div>'); v.appendChild(host);
   const statsEl = $('#pStats', ctr);
   const drawStats = () => { statsEl.innerHTML = '<div><div class="bignum" style="font-size:1.5rem">' + sess.c + '/' + sess.n + '</div><div class="small muted">this session</div></div><div><div class="bignum" style="font-size:1.5rem">' + sess.streak + '</div><div class="small muted">streak</div></div><div><div class="bignum" style="font-size:1.5rem">' + sess.best + '</div><div class="small muted">best streak</div></div>'; };
   drawStats();
   function next() {
-    const tid = pickTopic(sel.value); const Q = makeQ(pick(TOPIC_GENS[tid]));
+    const tid = pickTopic(sel.value);
+    const got = pickPractice(tid, store.get('pDiff', 'any'), store.get('pType', 'any')); const Q = got.Q;
     host.innerHTML = '';
-    const card = questionCard(Q, { onAnswer: (ok, partial) => {
+    if (!Q) { host.appendChild(h('<p class="muted">' + got.note + '</p>')); return; }
+    if (got.note) host.appendChild(h('<p class="small muted pf-note">' + got.note + '</p>'));
+    const lvl = Q.diff || diffOf(Q.gen); host.appendChild(h('<span class="pf-level pf-' + lvl + '">' + DIFF_NAME[lvl] + '</span>'));
+    const card = (Q.type === 'long' ? longCard : questionCard)(Q, { onAnswer: (ok, partial) => {
       if (partial) return; record(tid, ok); sess.n++; if (ok) { sess.c++; sess.streak++; if (sess.streak > sess.best) { sess.best = sess.streak; store.set('best', sess.best); } if (sess.streak && sess.streak % 5 === 0) toast(sess.streak + ' in a row!'); } else sess.streak = 0; drawStats();
       nb.focus();
     } });
