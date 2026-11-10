@@ -16,6 +16,7 @@
 .bubble{max-width:82%;padding:9px 13px;border-radius:16px;line-height:1.45;white-space:pre-wrap;overflow-wrap:anywhere}
 .bubble.me{align-self:flex-end;background:var(--accent);color:var(--accent-ink);border-bottom-right-radius:5px}
 .bubble.them{align-self:flex-start;background:var(--accent-soft);color:var(--ink);border-bottom-left-radius:5px}
+.bubble.note{font-weight:600}.bubble.them.note{background:var(--good-soft);color:var(--ink);border:1.5px solid var(--good)}
 .when{font-size:.875rem;color:var(--muted);margin:0 4px}
 .when.me{align-self:flex-end}.when.them{align-self:flex-start}
 .empty{margin:auto;text-align:center;color:var(--muted);max-width:340px}
@@ -54,6 +55,8 @@
     const empty = chat.querySelector('.empty'); if (empty) empty.remove();
     const side = m.mine ? 'me' : 'them';
     const b = document.createElement('div'); b.className = 'bubble ' + side; b.textContent = m.body;
+    const special = m.mine ? { '[unlock-request]': '🔔 You asked Beau to unlock the completed Science booklet.' } : { '[unlock-allowed]': '✅ Beau unlocked the completed Science booklet for you! Open Science → Booklet → Completed booklet.', '[unlock-declined]': 'Beau said not yet for the completed booklet. Send Beau a message if you have a question.' };
+    if (special[m.body]) { b.textContent = special[m.body]; b.classList.add('note'); if (m.body === '[unlock-allowed]') { const a = document.createElement('a'); a.href = '/science/#theory'; a.textContent = 'Open the booklet →'; a.style.display = 'block'; a.style.marginTop = '6px'; a.style.fontWeight = '700'; a.style.color = 'inherit'; b.appendChild(a); } }
     const w = document.createElement('div'); w.className = 'when ' + side; w.textContent = (m.mine ? 'You' : 'Beau') + ' · ' + fmt(m.at);
     chat.append(b, w); last = Math.max(last, m.id);
   }

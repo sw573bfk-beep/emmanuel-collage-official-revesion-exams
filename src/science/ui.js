@@ -592,15 +592,36 @@ const theoryInto = async (v) => {
   v.appendChild(h('<div class="view-head"><h2>Completed theory booklet</h2><p>The whole Year 8 Chemistry theory workbook, completed, page by page. <b>Normal</b> shows each completed page, <b>Minimal</b> gives short answers, <b>Extra info</b> adds explanations.</p></div>'));
   const body = h('<div class="stack"><p class="muted">Checking access…</p></div>'); v.appendChild(body);
   let st; try { st = await (await fetch('/api/unlock/theory', { credentials: 'same-origin' })).json(); } catch (e) { body.innerHTML = '<div class="fb bad">Can’t reach the server. Check your connection and try again.</div>'; return; }
-  if (!st.unlocked) return lockedView(body);
+  if (!st.unlocked) return lockedView(body, st.requested);
   loadTheory(body);
 };
-function lockedView(body) {
+let unlockPoll = null;
+function lockedView(body, requested) {
   body.innerHTML = '';
-  const c = h('<div class="card stack lock-card"><span class="eyebrow">Locked</span><h3>Enter your unlock code</h3><p>Got a 6-digit code? Type it below. Each code works once, and then this account can open the completed booklet forever.</p><form class="row" id="unlockForm"><label class="sr" for="codeIn">Unlock code</label><input id="codeIn" class="ans" inputmode="numeric" autocomplete="one-time-code" maxlength="7" placeholder="e.g. 482913" style="width:min(100%,200px);font-size:1.2rem;letter-spacing:.15em"><button class="btn" type="submit">Unlock</button></form><p class="small muted" id="askBeau" hidden>Don’t have a code? Ask Beau for one.</p><div id="unlockMsg"></div></div>');
+  const c = h('<div class="card stack lock-card"><span class="eyebrow">Locked</span><h3>Enter your unlock code</h3><p>Got a 6-digit code? Type it below. Each code works once, and then this account can open the completed booklet forever.</p><form class="row" id="unlockForm"><label class="sr" for="codeIn">Unlock code</label><input id="codeIn" class="ans" inputmode="numeric" autocomplete="one-time-code" maxlength="7" placeholder="e.g. 482913" style="width:min(100%,200px);font-size:1.2rem;letter-spacing:.15em"><button class="btn" type="submit">Unlock</button></form><div id="unlockMsg"></div><div class="ask-beau stack" id="askBeau"><b>Don’t have a code? Ask Beau for one.</b><p class="small muted">Tap the button and Beau gets a notification. When Beau says yes, the booklet opens here by itself.</p><div class="row"><button type="button" class="btn" id="askBtn">🔔 Ask Beau to unlock it</button><a class="btn quiet" href="/message/?from=science">💬 Message Beau</a></div><div id="askOut" role="status"></div></div></div>');
   body.appendChild(c);
-  const ask = () => { $('#askBeau', c).hidden = false; };
-  $('#codeIn', c).addEventListener('focus', ask); $('#codeIn', c).addEventListener('click', ask);
+  const ask = () => {};
+  const waiting = () => {
+    $('#askBtn', c).disabled = true; $('#askBtn', c).textContent = '🔔 Request sent';
+    $('#askOut', c).innerHTML = '<div class="fb info">Beau has been asked. You’ll see a red number on <b>Message Beau</b> when Beau answers, and this page unlocks by itself.</div>';
+    clearInterval(unlockPoll);
+    unlockPoll = setInterval(async () => {
+      if (!c.isConnected) { clearInterval(unlockPoll); return; }
+      if (document.visibilityState !== 'visible') return;
+      try { const s = await (await fetch('/api/unlock/theory', { credentials: 'same-origin' })).json(); if (s.unlocked) { clearInterval(unlockPoll); toast('Beau unlocked the booklet for you'); loadTheory(body); } else if (!s.requested) { clearInterval(unlockPoll); $('#askBtn', c).disabled = false; $('#askBtn', c).textContent = '🔔 Ask Beau to unlock it'; $('#askOut', c).innerHTML = '<div class="fb info">Beau said not yet. Check <b>Message Beau</b> for a reply.</div>'; } } catch (e) { /* try again */ }
+    }, 15000);
+  };
+  if (requested) waiting();
+  $('#askBtn', c).onclick = async () => {
+    $('#askBtn', c).disabled = true; $('#askOut', c).innerHTML = '';
+    try {
+      const r = await fetch('/api/unlock/request', { method: 'POST', credentials: 'same-origin', headers: { 'content-type': 'application/json' }, body: '{}' });
+      const j = await r.json();
+      if (j.unlocked) { loadTheory(body); return; }
+      if (!r.ok) { $('#askBtn', c).disabled = false; $('#askOut', c).innerHTML = '<div class="fb bad">' + esc(j.error || 'That didn’t work.') + '</div>'; return; }
+      waiting();
+    } catch (e) { $('#askBtn', c).disabled = false; $('#askOut', c).innerHTML = '<div class="fb bad">Can’t reach the server. Try again.</div>'; }
+  };
   $('#unlockForm', c).onsubmit = async e => {
     e.preventDefault(); const m = $('#unlockMsg', c); m.innerHTML = '';
     try {

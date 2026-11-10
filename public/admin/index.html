@@ -84,6 +84,8 @@ table.mini td,table.mini th{border-bottom:1px solid var(--rule);padding:5px 6px;
 .toolbar{display:flex;gap:10px;flex-wrap:wrap;align-items:center;justify-content:space-between}
 .toolbar input{max-width:300px}
 details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
+.bubble.askcard{background:var(--warn-soft);border:2px solid var(--warn);color:var(--ink);white-space:normal}
+.prev.ask{color:var(--warn);font-weight:700}
 </style>
 <script src="/theme.js"></script>
 <link rel="stylesheet" href="/theme.css?v=1">
@@ -282,14 +284,32 @@ details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
       const b = document.createElement('button'); b.type = 'button'; b.className = 'conv' + (convOpen && convOpen.id === c.id ? ' on' : '');
       const top = document.createElement('span'); top.className = 'top'; const nm = document.createElement('b'); nm.textContent = c.username; top.appendChild(nm);
       if (c.unread) { const n = document.createElement('span'); n.className = 'n'; n.textContent = c.unread; top.appendChild(n); }
-      const pv = document.createElement('span'); pv.className = 'prev'; pv.textContent = (c.lastFromAdmin ? 'You: ' : '') + c.last;
+      const pv = document.createElement('span'); pv.className = 'prev'; pv.textContent = (c.lastFromAdmin ? 'You: ' : '') + (unlockTxt(c.last, !!c.lastFromAdmin) || c.last);
+      if (c.last === '[unlock-request]' && !c.lastFromAdmin) pv.classList.add('ask');
       const w = document.createElement('span'); w.className = 'small muted'; w.textContent = ago(c.at);
       b.append(top, pv, w); b.onclick = () => openConv({ id: c.id, name: c.username }); box.appendChild(b);
     });
   }
+  const UNLOCK_TXT = { '[unlock-request]': '🔔 Asked you to unlock the completed booklet', '[unlock-allowed]': '✅ You unlocked the completed booklet', '[unlock-declined]': 'You said not yet to the booklet' };
+  const unlockTxt = (body, fromBeau) => (fromBeau ? body !== '[unlock-request]' : body === '[unlock-request]') ? UNLOCK_TXT[body] : null;
+  let convUnlocked = false, convLastAsk = 0;
   function addBubble(chat, m, name) {
     const side = m.mine ? 'me' : 'them';
-    const b = document.createElement('div'); b.className = 'bubble ' + side; b.textContent = m.body;
+    const b = document.createElement('div'); b.className = 'bubble ' + side; b.textContent = unlockTxt(m.body, m.mine) || m.body;
+    if (!m.mine && m.body === '[unlock-request]') {
+      b.classList.add('askcard'); b.textContent = '';
+      const t1 = document.createElement('b'); t1.textContent = '🔔 ' + name + ' asked you to unlock the completed Science booklet';
+      b.appendChild(t1);
+      if (convUnlocked) { const d = document.createElement('div'); d.className = 'small'; d.textContent = '✅ Unlocked'; b.appendChild(d); }
+      else if (m.id === convLastAsk) {
+        const row = document.createElement('div'); row.className = 'row'; row.style.marginTop = '8px';
+        const yes = document.createElement('button'); yes.type = 'button'; yes.className = 'btn sm'; yes.textContent = '✅ Allow';
+        const no = document.createElement('button'); no.type = 'button'; no.className = 'btn quiet sm'; no.textContent = 'Not now';
+        const go = async allow => { yes.disabled = no.disabled = true; const r = await api('/api/admin/unlock-answer', 'POST', { id: convOpen.id, allow }); if (!r.ok) { yes.disabled = no.disabled = false; return; } convSig = ''; pollConv(); loadConvs && loadConvs(); };
+        yes.onclick = () => go(true); no.onclick = () => go(false);
+        row.append(yes, no); b.appendChild(row);
+      } else { const d = document.createElement('div'); d.className = 'small'; d.textContent = 'Answered'; b.appendChild(d); }
+    }
     const w = document.createElement('div'); w.className = 'when ' + side; w.textContent = (m.mine ? 'You' : name) + ' · ' + fmtAt(m.at) + (m.mine ? (m.read ? ' · seen' : ' · not seen yet') : '');
     chat.append(b, w); convLast = Math.max(convLast, m.id);
   }
@@ -298,7 +318,10 @@ details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
     if (!convOpen) return; const chat = $('#chat'); if (!chat) return;
     // fetch the whole chat (they're short) so "seen" updates too; redraw only when something changed
     const r = await api('/api/admin/messages/' + convOpen.id); if (!r.ok) return;
-    const sig = r.data.messages.map(m => m.id + (m.read ? 'r' : '')).join(',');
+    convUnlocked = !!r.data.unlocked;
+    const notes = r.data.messages.filter(m => (!m.mine && m.body === '[unlock-request]') || (m.mine && (m.body === '[unlock-allowed]' || m.body === '[unlock-declined]')));
+    const lastNote = notes[notes.length - 1]; convLastAsk = lastNote && !lastNote.mine ? lastNote.id : 0;
+    const sig = (convUnlocked ? 'U' : '') + r.data.messages.map(m => m.id + (m.read ? 'r' : '')).join(',');
     if (sig === convSig) return; convSig = sig;
     const near = chat.scrollHeight - chat.scrollTop - chat.clientHeight < 80, top = chat.scrollTop;
     if (r.data.messages.length) chat.replaceChildren();

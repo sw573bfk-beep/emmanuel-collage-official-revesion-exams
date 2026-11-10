@@ -62,6 +62,12 @@ function servePage(url) {
   return new Response(body, { headers: { 'content-type': type, 'cache-control': cache, ...SECURITY_HEADERS } });
 }
 
+// Booklet unlock requests live in the Message Beau chat as these special messages
+const REQ_ASK = '[unlock-request]', REQ_YES = '[unlock-allowed]', REQ_NO = '[unlock-declined]';
+async function lastUnlockNote(env, userId) {
+  const r = await env.DB.prepare('SELECT body FROM messages WHERE user_id = ? AND ((body = ? AND from_admin = 0) OR (body IN (?, ?) AND from_admin = 1)) ORDER BY id DESC LIMIT 1').bind(userId, REQ_ASK, REQ_YES, REQ_NO).first();
+  return r ? r.body : null;
+}
 const SESSION_DAYS = 30;
 const PBKDF2_ITERATIONS = 100000; // the maximum Workers allows
 const SUBJECTS = new Set(['maths', 'science']);
@@ -214,7 +220,20 @@ async function handleApi(req, env, url) {
     return json({ ok: true, counted: add });
   }
 
-  if (path === '/api/unlock/theory' && method === 'GET') return json({ unlocked: await hasUnlock(env, user, 'theory') });
+  if (path === '/api/unlock/theory' && method === 'GET') {
+    const unlocked = await hasUnlock(env, user, 'theory');
+    return json({ unlocked, requested: !unlocked && (await lastUnlockNote(env, user.id)) === REQ_ASK });
+  }
+  // "Ask Beau to unlock it": a request in Message Beau that Beau can allow with one tap
+  if (path === '/api/unlock/request' && method === 'POST') {
+    if (await hasUnlock(env, user, 'theory')) return json({ ok: true, unlocked: true });
+    if (isAdmin(user, env)) return err(400, 'You’re the admin.');
+    const lastNote = await env.DB.prepare('SELECT body, created_at FROM messages WHERE user_id = ? AND ((body = ? AND from_admin = 0) OR (body IN (?, ?) AND from_admin = 1)) ORDER BY id DESC LIMIT 1').bind(user.id, REQ_ASK, REQ_YES, REQ_NO).first();
+    if (lastNote && lastNote.body === REQ_ASK) return json({ ok: true, pending: true });
+    if (lastNote && lastNote.body === REQ_NO && now() - lastNote.created_at < 86400) return err(429, 'Beau said not yet. You can ask again tomorrow, or send Beau a message.');
+    await env.DB.prepare('INSERT INTO messages (user_id, from_admin, body, created_at) VALUES (?, 0, ?, ?)').bind(user.id, REQ_ASK, now()).run();
+    return json({ ok: true, pending: true }, 201);
+  }
   if (path === '/api/unlock' && method === 'POST') {
     let body; try { body = await readJson(req); } catch { return err(400, 'Bad request'); }
     if (await hasUnlock(env, user, 'theory')) return json({ ok: true, already: true });
@@ -449,7 +468,8 @@ async function handleAdmin(req, env, path, method, me) {
     const who = await env.DB.prepare('SELECT id, username FROM users WHERE id = ?').bind(uid).first(); if (!who) return err(404, 'No such user');
     const rows = await env.DB.prepare('SELECT id, from_admin, body, created_at, read_at FROM messages WHERE user_id = ? AND id > ? ORDER BY id LIMIT 500').bind(uid, after).all();
     await env.DB.prepare('UPDATE messages SET read_at = ? WHERE user_id = ? AND from_admin = 0 AND read_at IS NULL').bind(t, uid).run();
-    return json({ user: who, messages: rows.results.map(r => ({ id: r.id, mine: !!r.from_admin, body: r.body, at: r.created_at, read: !!r.read_at })) });
+    const ul = await env.DB.prepare("SELECT 1 FROM unlocks WHERE user_id = ? AND feature = 'theory'").bind(uid).first();
+    return json({ user: who, unlocked: !!ul, messages: rows.results.map(r => ({ id: r.id, mine: !!r.from_admin, body: r.body, at: r.created_at, read: !!r.read_at })) });
   }
   const um = path.match(/^\/api\/admin\/user\/(\d+)$/);
   if (um && method === 'GET') {
@@ -491,6 +511,14 @@ async function handleAdmin(req, env, path, method, me) {
   if (path === '/api/admin/set-stats') {
     const r = await env.DB.prepare('UPDATE users SET in_stats = ? WHERE id = ?').bind(body.inStats ? 1 : 0, id).run();
     if (!r.meta.changes) return err(404, 'No such user');
+    return json({ ok: true });
+  }
+  if (path === '/api/admin/unlock-answer') {
+    if (!await env.DB.prepare('SELECT id FROM users WHERE id = ?').bind(id).first()) return err(404, 'No such user');
+    const stmts = [env.DB.prepare('INSERT INTO messages (user_id, from_admin, body, created_at) VALUES (?, 1, ?, ?)').bind(id, body.allow ? REQ_YES : REQ_NO, t),
+      env.DB.prepare('UPDATE messages SET read_at = ? WHERE user_id = ? AND from_admin = 0 AND read_at IS NULL').bind(t, id)];
+    if (body.allow) stmts.unshift(env.DB.prepare("INSERT OR IGNORE INTO unlocks (user_id, feature, unlocked_at, code) VALUES (?, 'theory', ?, 'admin')").bind(id, t));
+    await env.DB.batch(stmts);
     return json({ ok: true });
   }
   if (path === '/api/admin/set-unlock') {
