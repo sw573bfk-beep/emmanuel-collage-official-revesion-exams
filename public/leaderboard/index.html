@@ -85,7 +85,7 @@ tr.me td{background:var(--accent-soft);font-weight:600}
       tr.appendChild(el('td', '', p.name + (p.me ? ' (you)' : '')));
       [p.points, p.minutes, p.correct, p.booklet].forEach(v => tr.appendChild(el('td', 'num', String(v))));
       const c = el('td');
-      if (!p.me) { const a = el('a', 'btn quiet sm', 'Chat'); a.href = '/chat/?with=' + p.id + '&name=' + encodeURIComponent(p.name); c.appendChild(a); }
+      if (!p.me) { const a = el('a', 'btn quiet sm', '➕ Add friend'); a.href = '/chat/?with=' + p.id + '&name=' + encodeURIComponent(p.name); c.appendChild(a); }
       tr.appendChild(c); tb.appendChild(tr);
     });
   }

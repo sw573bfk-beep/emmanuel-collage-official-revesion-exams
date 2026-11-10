@@ -346,7 +346,8 @@ details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
     const r = await api('/api/admin/chat/dm/' + t.id); if (!r.ok) return;
     box.replaceChildren(btn('← All 1-on-1 chats', () => { chatThread = null; drawChats(); }), mk('b', '', t.a_name + ' and ' + t.b_name + ' (' + t.status + ')'));
     if (!r.data.messages.length) box.appendChild(mk('p', 'muted small', 'No messages yet.'));
-    r.data.messages.forEach(m => box.appendChild(line([m.name, fmtC(m.created_at)], m.body, m.hidden, [hideBtn('dm', m.id, m.hidden)])));
+    const gameMsg = t => { const g = /^\[game:(\d{6}):(\w+):(\w+)\]$/.exec(t || ''); return g ? '🎮 Game invite (' + g[2] + ', ' + g[3] + ', code ' + g[1] + ')' : t; };
+    r.data.messages.forEach(m => box.appendChild(line([m.name, fmtC(m.created_at)], gameMsg(m.body), m.hidden, [hideBtn('dm', m.id, m.hidden)])));
   }
   function drawChats() {
     if (!chatData) return;

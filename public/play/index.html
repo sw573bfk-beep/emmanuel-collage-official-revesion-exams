@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-build="1794270500">
+<html lang="en" data-build="1794294038">
 <head>
 <meta charset="utf-8">
 <script src="/acct.js"></script>
@@ -65,6 +65,13 @@ select{font:inherit;color:var(--ink);background:var(--card);border:2px solid var
 .pod.p1 .blk{height:130px;background:#e0a100}.pod.p2 .blk{height:95px;background:#8a95a8}.pod.p3 .blk{height:70px;background:#b7652a}
 .pod .who{font-weight:700;text-align:center;overflow-wrap:anywhere}
 .muted2{color:var(--muted)}
+.invites{width:100%;max-width:560px;text-align:left;border-top:1px solid var(--rule);padding-top:14px;margin-top:4px}
+.ilist{display:flex;flex-direction:column;gap:8px}
+.irow{display:flex;align-items:center;gap:10px;border:1.5px solid var(--rule);border-radius:12px;padding:8px 12px;background:var(--card)}
+.irow .nm{flex:1;min-width:0;font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.irow .on{color:var(--good);font-size:.9375rem;font-weight:600}
+.irow .sent{color:var(--good);font-weight:700;font-size:.9375rem}
+.invite-tip{border:2px solid var(--accent);background:var(--accent-soft);border-radius:12px;padding:12px 16px}
 </style>
 <script src="/theme.js"></script>
 <link rel="stylesheet" href="/theme.css?v=1">
@@ -106,6 +113,7 @@ select{font:inherit;color:var(--ink);background:var(--card);border:2px solid var
     <div class="players" id="lobbyPlayers" style="justify-content:center"></div>
     <button class="btn" type="button" id="start" style="font-size:1.1rem;padding:12px 26px" hidden>Start the game</button>
     <p class="muted" id="waitHost" hidden>Waiting for the host to start…</p>
+    <div class="invites stack" id="inviteBox" hidden><b>Invite friends</b><p class="small muted" id="inviteNote">They get the invite in Chat → Friends and can join with one tap.</p><div class="ilist" id="inviteList"></div></div>
   </section>
 
   <!-- live -->
@@ -147,6 +155,29 @@ select{font:inherit;color:var(--ink);background:var(--card);border:2px solid var
   const DIFFS = [['any', 'Mixed'], ['e', 'Easy'], ['m', 'Medium'], ['h', 'Hard']], LENS = [3, 5, 8, 10];
   const setup = { mode: 'speed', subject: params.get('subject') === 'maths' ? 'maths' : 'science', topic: 'all', diff: 'any', minutes: 5 };
   let code = null, st = null, evLast = 0, loadedSubject = null, pollT = null, showing = '';
+  const inviteTo = +params.get('invite') || 0, invited = new Set(); let friends = null, friendsAt = 0;
+  async function getFriends(force) {
+    if (!force && friends && Date.now() - friendsAt < 15000) return friends;
+    const r = await api('/api/chat/threads'); friendsAt = Date.now();
+    friends = r.ok ? r.data.threads.filter(t => t.status === 'active').sort((a, b) => (b.online - a.online) || a.name.localeCompare(b.name)) : [];
+    return friends;
+  }
+  async function sendInvite(threadId) {
+    const r = await api('/api/chat/dm/' + threadId, 'POST', { invite: code });
+    if (r.ok) invited.add(threadId); return r;
+  }
+  async function drawInvites() {
+    const box = $('#inviteBox'), list = $('#inviteList'); const fr = await getFriends();
+    box.hidden = !fr.length; if (!fr.length) return;
+    list.innerHTML = '';
+    fr.forEach(f => {
+      const row = el('div', 'irow'); row.appendChild(text('span', 'nm', f.name));
+      if (f.online) row.appendChild(text('span', 'on', '● online'));
+      if (invited.has(f.id)) row.appendChild(text('span', 'sent', '✓ Invited'));
+      else { const b = text('button', 'btn sm', 'Invite'); b.type = 'button'; b.onclick = async () => { b.disabled = true; const r = await sendInvite(f.id); if (!r.ok) { b.disabled = false; say(r.data.error || 'Couldn’t send the invite.'); } drawInvites(); }; row.appendChild(b); }
+      list.appendChild(row);
+    });
+  }
   async function api(path, method = 'GET', body) {
     const r = await fetch(path, { method, credentials: 'same-origin', headers: body ? { 'content-type': 'application/json' } : {}, body: body ? JSON.stringify(body) : undefined });
     if (r.status === 401) { location.replace('/?next=play'); throw new Error('login'); }
@@ -178,6 +209,7 @@ select{font:inherit;color:var(--ink);background:var(--card);border:2px solid var
     const r = await api('/api/game/create', 'POST', setup); $('#create').disabled = false;
     if (!r.ok) return say(r.data.error || 'Couldn’t create the game.');
     enter(r.data.code);
+    if (inviteTo) { const s = await sendInvite(inviteTo); if (!s.ok) say(s.data.error || 'Couldn’t send the invite.'); }
   };
   $('#join').onclick = async () => {
     say(''); const c = $('#code').value.replace(/\D/g, '');
@@ -214,6 +246,7 @@ select{font:inherit;color:var(--ink);background:var(--card);border:2px solid var
     $('#lobbyInfo').textContent = (st.subject === 'maths' ? 'Maths' : 'Science') + ' · ' + (st.topic === 'all' ? 'all topics' : (window.TOPIC && TOPIC[st.topic] ? TOPIC[st.topic].name : st.topic)) + ' · ' + DIFFS.find(d => d[0] === st.diff)[1] + ' · ' + st.minutes + ' minutes';
     const pl = $('#lobbyPlayers'); pl.innerHTML = ''; st.players.forEach(p => pl.appendChild(text('span', '', p.name + (p.host ? ' (host)' : ''))));
     $('#start').hidden = !st.isHost; $('#waitHost').hidden = st.isHost;
+    drawInvites();
   }
   $('#start').onclick = async () => { $('#start').disabled = true; await api('/api/game/' + code + '/start', 'POST', {}); $('#start').disabled = false; poll(); };
   $('#endBtn').onclick = async () => { if (!confirm('End the game for everyone now?')) return; await api('/api/game/' + code + '/end', 'POST', {}); poll(); };
@@ -393,6 +426,7 @@ select{font:inherit;color:var(--ink);background:var(--card);border:2px solid var
     const c = (params.get('code') || '').replace(/\D/g, '');
     if (c.length === 6) { const r = await api('/api/game/join', 'POST', { code: c }); if (r.ok) return enter(c); say(r.data.error || 'Couldn’t join that game.'); history.replaceState(null, '', '/play/'); }
     view('setup'); drawSetup();
+    if (inviteTo) getFriends(true).then(fr => { const f = fr.find(x => x.id === inviteTo); if (f) { const m = $('#msg'); m.innerHTML = ''; m.appendChild(text('div', 'invite-tip', '🎮 Pick a game below and tap Create game. ' + f.name + ' will get an invite in Chat straight away.')); } });
     loadSubject(setup.subject).then(drawSetup).catch(() => {});
   })();
 })();
