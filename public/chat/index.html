@@ -71,26 +71,19 @@ button.person:hover{border-color:var(--accent);background:var(--accent-soft)}
 </head>
 <body>
 <main class="wrap">
-  <div class="brand"><span class="mark">EC Revisions</span><h1>Chat</h1><p>Everything in one place: the group chat, your friends, and a private chat with Beau.</p></div>
+  <div class="brand"><span class="mark">EC Revisions</span><h1>Chat</h1><p>Chat 1-on-1 with your friends, and privately with Beau.</p></div>
   <p class="rules"><b>Chats are monitored by Beau.</b> Be kind. Never share personal details (phone number, address, school timetable, social media). Rude or unsafe messages are blocked, and you can report anything that worries you.</p>
   <p id="loading" class="muted">Loading…</p>
   <p id="mutedNote" class="msg bad" hidden>Beau has paused chatting on your account. You can still read chats and message Beau in the <b>✉️ Beau</b> tab.</p>
   <section id="app" class="stack" hidden>
-    <div class="tabs2" role="tablist"><button type="button" role="tab" id="tabGroup" class="on">Group chat <span class="n" id="nGroup" hidden></span></button><button type="button" role="tab" id="tabMine">👥 Friends <span class="n" id="nMine" hidden></span></button><button type="button" role="tab" id="tabBeau">✉️ Beau <span class="n" id="nBeau" hidden></span></button></div>
+    <div class="tabs2" role="tablist"><button type="button" role="tab" id="tabMine" class="on">👥 Friends <span class="n" id="nMine" hidden></span></button><button type="button" role="tab" id="tabBeau">✉️ Beau <span class="n" id="nBeau" hidden></span></button></div>
 
     <div id="viewLocked" class="card stack lockcard" hidden>
       <h3>🔒 Ask Beau to use Chat</h3>
-      <p>To see the group chat and chat with friends, Beau has to let you in first. Tap the button and Beau will get your request.</p>
+      <p>To add friends and chat with them, Beau has to let you in first. Tap the button and Beau will get your request.</p>
       <p class="small muted">You can still message Beau any time in the <b>✉️ Beau</b> tab.</p>
       <button class="btn" type="button" id="askChat" style="align-self:flex-start">🙋 Ask Beau for chat access</button>
       <div id="askChatOut" role="status"></div>
-    </div>
-
-    <div id="viewGroup" class="card stack">
-      <div class="chat" id="groupChat" aria-live="polite" aria-label="Group chat messages"></div>
-      <form class="compose" id="groupForm" novalidate><label class="sr" for="groupText">Message to everyone</label><textarea id="groupText" rows="1" maxlength="500" placeholder="Message everyone…"></textarea><button class="btn" type="submit">Send</button></form>
-      <div id="groupOut" role="status"></div>
-      <p class="small muted">Everyone who uses EC Revisions can read the group chat. Enter sends; Shift + Enter for a new line.</p>
     </div>
 
     <div id="viewMine" class="stack" hidden>
@@ -141,7 +134,7 @@ button.person:hover{border-color:var(--accent);background:var(--accent-soft)}
   const say = (box, text, good) => { const o = $(box); o.innerHTML = ''; if (text) { const d = el('div', 'msg ' + (good ? 'good' : 'bad'), text); o.appendChild(d); } };
   const grow = t => { t.style.height = 'auto'; t.style.height = Math.min(150, t.scrollHeight + 2) + 'px'; };
   const enterSends = (t, f) => { t.addEventListener('input', () => grow(t)); t.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); f.requestSubmit(); } }); };
-  let view = 'group', groupLast = 0, thread = null, dmLast = 0, timer = null, me = { admin: false, access: null, requested: false };
+  let view = 'mine', thread = null, dmLast = 0, timer = null, me = { admin: false, access: null, requested: false };
   const MODE = { speed: '⚡ Speed Quiz', treasure: '💰 Treasure Chests', parkour: '🏃 Parkour Run' };
   const GAME = /^\[game:(\d{6}):(speed|treasure|parkour):(science|maths)\]$/;
   const ago = (s, now) => { const d = Math.max(0, (now || Date.now() / 1000) - s); if (!s) return 'Not seen yet'; if (d < 180) return 'Online now'; if (d < 3600) return 'Last seen ' + Math.round(d / 60) + ' min ago'; if (d < 86400) return 'Last seen ' + Math.round(d / 3600) + ' h ago'; const n = Math.round(d / 86400); return 'Last seen ' + n + (n === 1 ? ' day' : ' days') + ' ago'; };
@@ -161,7 +154,6 @@ button.person:hover{border-color:var(--accent);background:var(--accent-soft)}
       const rep = el('button', '', 'Report'); rep.type = 'button';
       rep.onclick = async () => { if (!confirm('Report this message to Beau?')) return; const r = await api('/api/chat/report', 'POST', { kind, id: m.id }); rep.textContent = r.ok ? 'Reported' : 'Couldn’t report'; rep.disabled = true; };
       who.appendChild(rep);
-      if (kind === 'group' && m.uid) { const bl = el('button', '', 'Block'); bl.type = 'button'; bl.onclick = () => block(m.uid, m.name); who.appendChild(bl); }
     }
     const g = GAME.exec(m.body || '');
     if (g) {
@@ -174,14 +166,7 @@ button.person:hover{border-color:var(--accent);background:var(--accent-soft)}
   }
   async function block(uid, name) {
     if (!confirm('Block ' + name + '? You won’t see each other’s messages and they can’t chat with you.')) return;
-    await api('/api/chat/block', 'POST', { userId: uid }); groupLast = 0; $('#groupChat').innerHTML = ''; thread = null; show(view === 'thread' ? 'mine' : view);
-  }
-  async function pollGroup() {
-    const box = $('#groupChat'), near = box.scrollHeight - box.scrollTop - box.clientHeight < 80;
-    const r = await api('/api/chat/group?after=' + groupLast); if (!r.ok) return;
-    r.data.messages.forEach(m => { bubble(box, m, 'group'); groupLast = Math.max(groupLast, m.id); });
-    if (!groupLast && !box.querySelector('.empty')) box.appendChild(el('p', 'empty', 'No messages yet. Say hi and ask a revision question!'));
-    if (r.data.messages.length && near) box.scrollTop = box.scrollHeight;
+    await api('/api/chat/block', 'POST', { userId: uid }); thread = null; show(view === 'thread' ? 'mine' : view);
   }
   async function loadMine() {
     const r = await api('/api/chat/threads'); if (!r.ok) return;
@@ -238,7 +223,7 @@ button.person:hover{border-color:var(--accent);background:var(--accent-soft)}
   }
   // ✉️ Beau: the private chat with Beau (was the Message Beau page)
   let beauLast = 0;
-  const BEAU_NOTE = { me: { '[unlock-request]': '🔔 You asked Beau to unlock the completed Science booklet.', '[chat-request]': '🙋 You asked Beau to let you use Chat.' }, them: { '[unlock-allowed]': '✅ Beau unlocked the completed Science booklet for you!', '[unlock-declined]': 'Beau said not yet for the completed booklet. Send Beau a message if you have a question.', '[chat-allowed]': '✅ Beau let you into Chat! You can use the group chat and add friends now.', '[chat-declined]': 'Beau said not yet for Chat. Send Beau a message if you have a question.', '[chat-removed]': 'Beau turned off Chat for your account. Send Beau a message if you have a question.' } };
+  const BEAU_NOTE = { me: { '[unlock-request]': '🔔 You asked Beau to unlock the completed Science booklet.', '[chat-request]': '🙋 You asked Beau to let you use Chat.' }, them: { '[unlock-allowed]': '✅ Beau unlocked the completed Science booklet for you!', '[unlock-declined]': 'Beau said not yet for the completed booklet. Send Beau a message if you have a question.', '[chat-allowed]': '✅ Beau let you into Chat! You can add friends and chat with them now.', '[chat-declined]': 'Beau said not yet for Chat. Send Beau a message if you have a question.', '[chat-removed]': 'Beau turned off Chat for your account. Send Beau a message if you have a question.' } };
   function beauBubble(box, m) {
     const empty = box.querySelector('.empty'); if (empty) empty.remove();
     const w = el('div', 'm' + (m.mine ? ' me' : ' beau'));
@@ -257,12 +242,12 @@ button.person:hover{border-color:var(--accent);background:var(--accent-soft)}
   }
   async function counts() {
     const r = await api('/api/chat/summary'); if (!r.ok) return;
-    const g = r.data.unreadGroup, mine = r.data.requests + r.data.unreadDm;
-    $('#nGroup').hidden = !g || view === 'group'; $('#nGroup').textContent = g; $('#nMine').hidden = !mine; $('#nMine').textContent = mine;
+    const mine = r.data.requests + r.data.unreadDm;
+    $('#nMine').hidden = !mine; $('#nMine').textContent = mine;
     $('#mutedNote').hidden = !r.data.muted; me.admin = r.data.admin;
     if (r.data.admin) $('#tabMine').hidden = true;
     const had = me.access; me.access = !!r.data.access; me.requested = !!r.data.requested;
-    $('#tabGroup').firstChild.textContent = (me.access ? '' : '🔒 ') + 'Group chat '; $('#tabMine').firstChild.textContent = (me.access ? '' : '🔒 ') + '👥 Friends ';
+    $('#tabMine').firstChild.textContent = (me.access ? '' : '🔒 ') + '👥 Friends ';
     drawLock(); if (had === false && me.access && view !== 'beau') show(view);
     const u = await api('/api/messages/unread'); if (u.ok) { const n = view === 'beau' ? 0 : u.data.unread; $('#nBeau').hidden = !n; $('#nBeau').textContent = n; }
   }
@@ -280,15 +265,14 @@ button.person:hover{border-color:var(--accent);background:var(--accent-soft)}
     view = v; clearInterval(timer);
     const lock = !me.access && v !== 'beau';
     $('#viewLocked').hidden = !lock;
-    $('#viewGroup').hidden = lock || v !== 'group'; $('#viewMine').hidden = lock || v !== 'mine'; $('#viewThread').hidden = lock || v !== 'thread'; $('#viewBeau').hidden = v !== 'beau';
-    $('#tabGroup').classList.toggle('on', v === 'group'); $('#tabMine').classList.toggle('on', v === 'mine' || v === 'thread'); $('#tabBeau').classList.toggle('on', v === 'beau');
-    [['#tabGroup', 'group'], ['#tabMine', 'mine'], ['#tabBeau', 'beau']].forEach(([t, k]) => $(t).setAttribute('aria-selected', String(k === v || (k === 'mine' && v === 'thread'))));
+    $('#viewMine').hidden = lock || v !== 'mine'; $('#viewThread').hidden = lock || v !== 'thread'; $('#viewBeau').hidden = v !== 'beau';
+    $('#tabMine').classList.toggle('on', v === 'mine' || v === 'thread'); $('#tabBeau').classList.toggle('on', v === 'beau');
+    [['#tabMine', 'mine'], ['#tabBeau', 'beau']].forEach(([t, k]) => $(t).setAttribute('aria-selected', String(k === v || (k === 'mine' && v === 'thread'))));
     try { const q = new URLSearchParams(location.search); q.set('tab', v === 'thread' ? 'mine' : v); q.delete('with'); q.delete('name'); history.replaceState(null, '', '?' + q); } catch (e) { /* fine */ }
-    const tick = async () => { if (document.visibilityState !== 'visible') return; if (lock) return counts(); if (view === 'group') await pollGroup(); else if (view === 'mine') await loadMine(); else if (view === 'beau') await pollBeau(); else await pollThread(); counts(); };
-    tick().then(() => { const b = { group: '#groupChat', thread: '#dmChat', beau: '#beauChat' }[v]; if (b) $(b).scrollTop = $(b).scrollHeight; if (v === 'beau' && !$('#beauText').closest('[hidden]') && matchMedia('(min-width: 700px)').matches) $('#beauText').focus(); });
+    const tick = async () => { if (document.visibilityState !== 'visible') return; if (lock) return counts(); if (view === 'mine') await loadMine(); else if (view === 'beau') await pollBeau(); else await pollThread(); counts(); };
+    tick().then(() => { const b = { thread: '#dmChat', beau: '#beauChat' }[v]; if (b) $(b).scrollTop = $(b).scrollHeight; if (v === 'beau' && !$('#beauText').closest('[hidden]') && matchMedia('(min-width: 700px)').matches) $('#beauText').focus(); });
     timer = setInterval(tick, lock || v === 'mine' ? 10000 : v === 'beau' ? 8000 : 5000);
   }
-  $('#tabGroup').onclick = () => show('group');
   $('#tabMine').onclick = () => show('mine');
   $('#tabBeau').onclick = () => show('beau');
   $('#backToMine').onclick = () => { thread = null; show('mine'); };
@@ -297,18 +281,12 @@ button.person:hover{border-color:var(--accent);background:var(--accent-soft)}
     if (!thread || !confirm('Remove ' + thread.name + ' as a friend? You won’t be able to chat until one of you sends a new friend request.')) return;
     await api('/api/chat/unfriend', 'POST', { id: thread.id }); thread = null; show('mine');
   };
-  enterSends($('#groupText'), $('#groupForm')); enterSends($('#dmText'), $('#dmForm')); enterSends($('#beauText'), $('#beauForm'));
+  enterSends($('#dmText'), $('#dmForm')); enterSends($('#beauText'), $('#beauForm'));
   $('#beauForm').onsubmit = async e => {
     e.preventDefault(); const t = $('#beauText'), body = t.value.trim(); if (!body) return; say('#beauOut', '');
     const r = await api('/api/messages', 'POST', { body });
     if (!r.ok) return say('#beauOut', r.data.error || 'Couldn’t send it.');
     t.value = ''; grow(t); await pollBeau(); const b = $('#beauChat'); b.scrollTop = b.scrollHeight;
-  };
-  $('#groupForm').onsubmit = async e => {
-    e.preventDefault(); const t = $('#groupText'), body = t.value.trim(); if (!body) return; say('#groupOut', '');
-    const r = await api('/api/chat/group', 'POST', { body });
-    if (!r.ok) return say('#groupOut', r.data.error || 'Couldn’t send it.');
-    t.value = ''; grow(t); await pollGroup(); const b = $('#groupChat'); b.scrollTop = b.scrollHeight;
   };
   $('#dmForm').onsubmit = async e => {
     e.preventDefault(); const t = $('#dmText'), body = t.value.trim(); if (!body || !thread) return; say('#dmOut', '');
@@ -349,7 +327,7 @@ button.person:hover{border-color:var(--accent);background:var(--accent-soft)}
     try { await counts(); } catch (e) { $('#loading').textContent = 'Can’t reach the server. Check your connection and reload.'; return; }
     $('#loading').hidden = true; $('#app').hidden = false;
     const withId = +params.get('with') || 0, withName = params.get('name');
-    if (withId && withName) { show('mine'); request({ id: withId, name: withName }, $('#found')); } else show(['mine', 'beau'].includes(params.get('tab')) ? params.get('tab') : 'group');
+    if (withId && withName) { show('mine'); request({ id: withId, name: withName }, $('#found')); } else show(me.admin || params.get('tab') === 'beau' ? 'beau' : 'mine');
     document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') show(view === 'thread' && thread ? 'thread' : view); });
   })();
 })();

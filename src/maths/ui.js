@@ -9,7 +9,7 @@ const acc = tid => { const s = tstats[tid]; return s && s.a ? s.c / s.a : null; 
 const canStore = store.get('can', {});
 const ckStore = store.get('check', {});
 const bkMarks = store.get('bk', {});
-function solHTML(Q) { return '<div class="sol"><div class="sol-title">Working</div>' + stepsHTML(Q.sol || []) + '</div>'; }
+function solHTML(Q) { return '<div class="sol"><div class="sol-head"><div class="sol-title">Working</div>' + simpleToggleHTML() + '</div>' + simpleBox(Q.gen) + stepsHTML(Q.sol || []) + '</div>'; }
 const KEYS = { ineq: ['<', '>', '≤', '≥', '−'], num: ['−', '/', '.', '$', '%'], coord: ['(', ')', ',', '−'], rule: ['=', 'x', '−', '/', '(', ')'], frac: ['/', '−'], nums: [',', '−', '.'], text: ['∠', '△'] };
 function keypad(input, type) {
   const k = h('<div class="keys" aria-label="Symbol keys"></div>');
@@ -445,7 +445,16 @@ RENDER.exam = () => {
 let askQuery = '';
 const ASK_EXAMPLES = ['5 - 2x < 11', '3(2x - 1) = 4x + 5', 'gradient (1,2) and (4,11)', 'y = -2x + 8', 'does (3,2) lie on y = -2x + 8', 'reflect (4,1) in the x-axis', 'rotate (2,3) 90 clockwise', 'translate (1,2) by (3,-2)', '35% of 80', '600 mL out of 2 L', 'increase 250 by 12%', 'percentage change from 80 to 100', 'after a 20% increase the price is 144', '8% of the total is 36', 'price including GST is 176', '3/7 as a decimal', '62.5% as a fraction', 'round 2/3 to 3 dp', 'scale factor from 6 to 15', 'line through (0,3) and (2,-1)', 'what is SAS', '(3*4 - 2)/5'];
 const UNITS_CONV = { mg: ['m', 0.001], g: ['m', 1], kg: ['m', 1000], t: ['m', 1e6], ml: ['v', 1], l: ['v', 1000], kl: ['v', 1e6], mm: ['l', 0.1], cm: ['l', 1], m: ['l', 100], km: ['l', 100000], s: ['t', 1], sec: ['t', 1], secs: ['t', 1], seconds: ['t', 1], second: ['t', 1], min: ['t', 60], mins: ['t', 60], minutes: ['t', 60], minute: ['t', 60], h: ['t', 3600], hr: ['t', 3600], hrs: ['t', 3600], hours: ['t', 3600], hour: ['t', 3600], c: ['c', 1], cents: ['c', 1], $: ['c', 100], dollars: ['c', 100] };
-function ansBlock(title, body) { return '<div class="card stack"><span class="eyebrow">Answer</span><h3>' + title + '</h3>' + body + '</div>'; }
+// which "Super simple" explanation fits an Ask answer (worked out from its title)
+function askSimpleId(t) {
+  t = String(t).replace(/<[^>]+>/g, '');
+  const R = [[/GST/, 'shopping'], [/^Original amount/, 'reversePct'], [/^(Increased|Decreased) amount/, 'incDec'], [/% (increase|decrease)$/, 'pctChange'], [/% of /, 'pctOf'], [/^Scale factor/, 'scaleFactor'],
+    [/^Vector/, 'findVector'], [/^Gradient m/, 'rule2pts'], [/x-intercept/, 'xint'], [/y-intercept/, 'mcRule'], [/ is (on|in) /, 'axisPlane'], [/[<>≤≥]/, 'ineqSolve'],
+    [/^-?[\d.]+% = /, 'pctToFrac'], [/^\d+\/\d+ = .*%/, 'fracToPct'], [/^\d+\/\d+ = /, 'fracDecT'], [/^-?\d*\.\d+ = .*%/, 'decToPct'], [/^-?\d*\.\d+ = /, 'decToFrac'], [/^[a-z] = /, 'eqSolve']];
+  for (const [re, id] of R) if (re.test(t)) return id;
+  return null;
+}
+function ansBlock(title, body) { return '<div class="card stack"><div class="sol-head"><span class="eyebrow">Answer</span>' + simpleToggleHTML() + '</div><h3>' + title + '</h3>' + simpleBox(askSimpleId(title)) + body + '</div>'; }
 function askEngine(raw) {
   const s0 = clean(raw).replace(/[?]$/, '').trim(); const s = s0.toLowerCase().replace(/^(please |can you |how do i |what is |what's |find |calculate |work out |solve |convert |write |express |change )+/, '').trim();
   const N = '(-?\\d+(?:\\.\\d+)?)', P = '\\(\\s*(-?[\\d.]+)\\s*,\\s*(-?[\\d.]+)\\s*\\)', P3 = '\\(\\s*(-?[\\d.]+)\\s*,\\s*(-?[\\d.]+)\\s*,\\s*(-?[\\d.]+)\\s*\\)';

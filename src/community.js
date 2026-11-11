@@ -1,4 +1,4 @@
-// Student chats (one group chat + 1-on-1 chats that start with a request), the leaderboard,
+// Student chats (1-on-1 chats between friends that start with a friend request), the leaderboard,
 // and Beau's moderation tools. Every student message goes through the strict filter in filter.js.
 import { checkText } from './filter.js';
 
@@ -97,36 +97,13 @@ export async function handleCommunity(req, env, url, user) {
 
   /* ---------- badge counts ---------- */
   if (path === '/api/chat/summary' && method === 'GET') {
-    const [req_, dm, grp, u] = await env.DB.batch([
+    const [req_, dm, u] = await env.DB.batch([
       env.DB.prepare("SELECT COUNT(*) AS n FROM dm_threads WHERE status = 'pending' AND requested_by != ?1 AND (a = ?1 OR b = ?1)").bind(me),
       env.DB.prepare("SELECT COUNT(*) AS n FROM dm_messages m JOIN dm_threads t ON t.id = m.thread_id WHERE t.status = 'active' AND (t.a = ?1 OR t.b = ?1) AND m.user_id != ?1 AND m.hidden = 0 AND m.id > (CASE WHEN t.a = ?1 THEN t.a_read ELSE t.b_read END)").bind(me),
-      env.DB.prepare('SELECT COUNT(*) AS n FROM group_messages g WHERE g.id > (SELECT group_read FROM users WHERE id = ?1) AND g.user_id != ?1 AND g.hidden = 0 AND g.user_id NOT IN (SELECT blocked_id FROM blocks WHERE user_id = ?1)').bind(me),
       env.DB.prepare('SELECT chat_muted FROM users WHERE id = ?').bind(me)
     ]);
     await env.DB.prepare('UPDATE users SET last_seen = ?1 WHERE id = ?2 AND (last_seen IS NULL OR last_seen < ?1 - 60)').bind(now(), me).run();
-    return json({ access: true, requests: req_.results[0].n, unreadDm: dm.results[0].n, unreadGroup: Math.min(99, grp.results[0].n), muted: !!(u.results[0] || {}).chat_muted, admin });
-  }
-
-  /* ---------- group chat ---------- */
-  if (path === '/api/chat/group' && method === 'GET') {
-    const after = Math.max(0, parseInt(url.searchParams.get('after') || '0', 10) || 0);
-    const rows = await env.DB.prepare(`SELECT g.id, g.user_id, g.body, g.created_at, u.username FROM group_messages g JOIN users u ON u.id = g.user_id
-      WHERE g.hidden = 0 AND g.id > ?1 AND g.user_id NOT IN (SELECT blocked_id FROM blocks WHERE user_id = ?2) ORDER BY g.id DESC LIMIT 100`).bind(after, me).all();
-    const list = rows.results.reverse();
-    if (list.length) await env.DB.prepare('UPDATE users SET group_read = MAX(group_read, ?) WHERE id = ?').bind(list[list.length - 1].id, me).run();
-    const adminName = String(env.ADMIN_USERNAME || '').toLowerCase();
-    return json({ messages: list.map(r => ({ id: r.id, uid: r.user_id, name: r.username, admin: r.username.toLowerCase() === adminName, mine: r.user_id === me, body: r.body, at: r.created_at })) });
-  }
-  if (path === '/api/chat/group' && method === 'POST') {
-    let b; try { b = await body(req); } catch { return err(400, 'Bad request'); }
-    const text = String(b.body || '').replace(/\r\n?/g, '\n').trim();
-    if (!admin) { const bad = await vet(env, user, 'group chat', text); if (bad) return bad; }
-    else { // Beau's posts go through the same filter (no speed limit)
-      if (!text) return err(400, 'Type a message first.');
-      const r = checkText(text); if (!r.ok) { await logBlocked(env, me, 'group chat (Beau)', r.why, text); return err(422, r.message); }
-    }
-    const r = await env.DB.prepare('INSERT INTO group_messages (user_id, body, created_at) VALUES (?, ?, ?)').bind(me, text.slice(0, 2000), now()).run();
-    return json({ ok: true, id: r.meta.last_row_id }, 201);
+    return json({ access: true, requests: req_.results[0].n, unreadDm: dm.results[0].n, unreadGroup: 0, muted: !!(u.results[0] || {}).chat_muted, admin });
   }
 
   /* ---------- 1-on-1 chats ---------- */
@@ -251,10 +228,8 @@ export async function handleCommunity(req, env, url, user) {
   }
   if (path === '/api/chat/report' && method === 'POST') {
     let b; try { b = await body(req); } catch { return err(400, 'Bad request'); }
-    const kind = b.kind === 'dm' ? 'dm' : 'group', id = +b.id || 0;
-    const msg = kind === 'dm'
-      ? await env.DB.prepare('SELECT m.id FROM dm_messages m JOIN dm_threads t ON t.id = m.thread_id WHERE m.id = ? AND (t.a = ? OR t.b = ?) AND m.user_id != ?').bind(id, me, me, me).first()
-      : await env.DB.prepare('SELECT id FROM group_messages WHERE id = ? AND user_id != ?').bind(id, me).first();
+    const kind = 'dm', id = +b.id || 0; // the everyone group chat was removed: only 1-on-1 messages can be reported
+    const msg = await env.DB.prepare('SELECT m.id FROM dm_messages m JOIN dm_threads t ON t.id = m.thread_id WHERE m.id = ? AND (t.a = ? OR t.b = ?) AND m.user_id != ?').bind(id, me, me, me).first();
     if (!msg) return err(404, 'That message isn’t there.');
     const dup = await env.DB.prepare('SELECT id FROM chat_reports WHERE reporter_id = ? AND kind = ? AND message_id = ?').bind(me, kind, id).first();
     if (!dup) await env.DB.prepare('INSERT INTO chat_reports (reporter_id, kind, message_id, created_at) VALUES (?, ?, ?, ?)').bind(me, kind, id, now()).run();

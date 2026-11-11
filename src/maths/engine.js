@@ -228,7 +228,8 @@ function solveRel(str) {
   return { v, op, val, kind: ineq ? 'ineq' : 'eq', steps };
 }
 function stepsHTML(steps) {
-  return '<ol class="steps">' + steps.map(s => typeof s === 'string' ? '<li><span class="st" style="font-family:var(--f-body)">' + s + '</span></li>' : '<li><span class="st">' + s.t + '</span>' + (s.why ? '<span class="why">' + s.why + '</span>' : '') + '</li>').join('') + '</ol>';
+  const why = w => { if (!w) return ''; const sw = typeof simpleWhy === 'function' ? simpleWhy(w) : w; return sw !== w ? '<span class="why why-n">' + w + '</span><span class="why why-s">' + sw + '</span>' : '<span class="why">' + w + '</span>'; };
+  return '<ol class="steps">' + steps.map(s => typeof s === 'string' ? '<li><span class="st" style="font-family:var(--f-body)">' + s + '</span></li>' : '<li><span class="st">' + s.t + '</span>' + why(s.why) + '</li>').join('') + '</ol>';
 }
 
 /* ================= answer parsing ================= */

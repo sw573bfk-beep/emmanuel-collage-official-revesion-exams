@@ -1,6 +1,5 @@
 /* EC Revisions: the red number on the 💬 Chat buttons. Counts friend requests, unread 1-on-1 messages
-   and unread messages from Beau (for Beau: unread student messages); a blue dot means new group chat
-   messages. Checks again every minute. Old "Message Beau" links (data-msg) get the Beau count too. */
+   and unread messages from Beau (for Beau: unread student messages). Checks again every minute. Old "Message Beau" links (data-msg) get the Beau count too. */
 (() => {
   const chats = () => document.querySelectorAll('a[data-chat]');
   const links = () => document.querySelectorAll('a[data-msg]');
@@ -14,7 +13,7 @@
     const [c, m] = await Promise.all([chats().length ? get('/api/chat/summary') : null, get('/api/messages/unread')]);
     const beau = m ? m.unread : 0;
     if (c || m) chats().forEach(a => {
-      const n = (c ? c.requests + c.unreadDm : 0) + beau, dot = c && c.unreadGroup, b = badge(a);
+      const n = (c ? c.requests + c.unreadDm : 0) + beau, dot = false, b = badge(a);
       b.hidden = !n && !dot; b.textContent = n ? (n > 99 ? '99+' : n) : '•';
       b.style.background = n ? '' : 'var(--accent,#2453d6)';
       a.setAttribute('aria-label', 'Chat' + (n ? ' (' + n + ' new)' : dot ? ' (new group messages)' : ''));

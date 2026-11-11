@@ -192,8 +192,8 @@ details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
       <div id="studyBody" class="chatlog" style="max-height:none"></div>
     </section>
 
-    <section class="card stack sec" id="chats" data-title="💬 Chats &amp; messages" data-hint="messages to you, reports and student chats">
-      <div class="ctabs" id="chatTabs" role="tablist"><button type="button" class="chip on" data-c="messages">✉️ Messages to you <span class="badge" id="bMsg" hidden></span></button><button type="button" class="chip" data-c="access">🙋 Chat access <span class="badge" id="bAcc" hidden></span></button><button type="button" class="chip" data-c="reports">🚩 Reports <span class="badge" id="bRep" hidden></span></button><button type="button" class="chip" data-c="group">Group chat</button><button type="button" class="chip" data-c="dms">1-on-1 chats</button><button type="button" class="chip" data-c="blocked">Blocked by the filter</button></div>
+    <section class="card stack sec" id="chats" data-title="💬 Chats &amp; messages" data-hint="messages to you, chat access, reports and 1-on-1 chats">
+      <div class="ctabs" id="chatTabs" role="tablist"><button type="button" class="chip on" data-c="messages">✉️ Messages to you <span class="badge" id="bMsg" hidden></span></button><button type="button" class="chip" data-c="access">🙋 Chat access <span class="badge" id="bAcc" hidden></span></button><button type="button" class="chip" data-c="reports">🚩 Reports <span class="badge" id="bRep" hidden></span></button><button type="button" class="chip" data-c="dms">1-on-1 chats</button><button type="button" class="chip" data-c="blocked">Blocked by the filter</button></div>
       <p class="small muted" id="chatHelp"></p>
       <div id="mutedList" class="row"></div>
       <div class="msgs" id="msgsView"><div class="convs" id="convs"></div><div class="thread" id="thread"><p class="muted small">Pick a chat on the left.</p></div></div>
@@ -442,7 +442,7 @@ details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
     }
     if (!m.mine && m.body === '[chat-request]') {
       b.classList.add('askcard'); b.textContent = '';
-      b.appendChild(mk('b', '', '🙋 ' + name + ' asked to use Chat (group chat and friends)'));
+      b.appendChild(mk('b', '', '🙋 ' + name + ' asked to use Chat (1-on-1 chats with friends)'));
       if (convChatReq && m.id === convLastChatAsk) {
         const row = mk('div', 'row'); row.style.marginTop = '8px';
         const yes = btn('✅ Allow', null, 'go'), no = btn('Not now', null);
@@ -510,9 +510,8 @@ details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
   let chatTab = 'messages', chatData = null, chatThread = null;
   const CHAT_HELP = {
     messages: 'Private chats students send you from Chat → ✉️ Beau. Tap a person to read and reply. Booklet unlock requests show here with Allow / Not now.',
-    access: 'Students have to ask before they can see the group chat or chat with friends. Allow or say not now here. They can always message you, even without access.',
+    access: 'Students have to ask before they can add friends and chat 1-on-1. Allow or say not now here. They can always message you, even without access.',
     reports: 'Messages students reported. Delete hides a message from everyone.',
-    group: 'Everything in the group chat. You can post in it as Beau from the Chat page.',
     dms: '1-on-1 chats between friends.',
     blocked: 'Messages and names the filter stopped (rude words or personal details). Nobody saw these.'
   };
@@ -571,9 +570,6 @@ details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
         if (r.kind === 'dm' && r.thread) acts.push(btn('Open the chat', () => { const t = chatData.threads.find(x => x.id === r.thread); if (t) openChatThread(t); }));
         box.appendChild(line([st, (r.author || '?') + ' wrote (' + (r.kind === 'dm' ? '1-on-1' : 'group') + ')', 'reported by ' + r.reporter + ' · ' + fmtC(r.created_at)], r.body, r.hidden, acts));
       });
-    } else if (chatTab === 'group') {
-      if (!chatData.group.length) none('No group chat messages yet.');
-      chatData.group.forEach(m => box.appendChild(line([m.name, fmtC(m.created_at)], m.body, m.hidden, [hideBtn('group', m.id, m.hidden)])));
     } else if (chatTab === 'dms') {
       if (!chatData.threads.length) none('No 1-on-1 chats yet.');
       chatData.threads.forEach(t => box.appendChild(line([t.a_name + ' and ' + t.b_name, t.status + ' · ' + t.n + ' messages', fmtC(t.updated_at)], '', false, [btn('Read', () => openChatThread(t))])));
