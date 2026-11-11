@@ -193,6 +193,9 @@ const cleanName = s => String(s || '').normalize('NFKC').replace(/\s+/g, ' ').tr
 const QLD_OFFSET = 10 * 3600; // Queensland is UTC+10 all year
 const dayKey = t => new Date((t + QLD_OFFSET) * 1000).toISOString().slice(0, 10);
 const deviceOf = req => { const ua = req.headers.get('user-agent') || ''; return /iPad|Tablet/i.test(ua) ? 'tablet' : /Mobi|Android|iPhone/i.test(ua) ? 'phone' : 'computer'; };
+// Dashboard access: 'owner' (Beau), 'top' (Top tier admin) or 'basic' (Basic admin), from the codes below. Otherwise null.
+const staffRole = (user, env) => !user ? null : isAdmin(user, env) ? 'owner' : user.role === 'top' || user.role === 'basic' ? user.role : null;
+const ROLE_NAME = { owner: 'Owner', top: 'Top tier admin', basic: 'Basic admin' };
 const isAdmin = (user, env) => !!user && user.username.toLowerCase() === String(env.ADMIN_USERNAME || '').toLowerCase();
 
 const enc = new TextEncoder();
@@ -242,9 +245,9 @@ async function startSession(env, userId, url, slot = 0, days = SESSION_DAYS) {
 }
 async function currentUser(req, env, slot = slotOf(req)) {
   const token = getCookie(req, sidName(slot)); if (!token || !/^[0-9a-f]{64}$/.test(token)) return null;
-  const row = await env.DB.prepare('SELECT u.id, u.username, s.expires_at FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token_hash = ?').bind(await sha256(token)).first();
+  const row = await env.DB.prepare('SELECT u.id, u.username, u.role, u.tester, s.expires_at FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token_hash = ?').bind(await sha256(token)).first();
   if (!row || row.expires_at < now()) return null;
-  return { id: row.id, username: row.username, tokenHash: await sha256(token) };
+  return { id: row.id, username: row.username, role: row.role || null, tester: !!row.tester, tokenHash: await sha256(token) };
 }
 async function readJson(req) {
   if (!(req.headers.get('content-type') || '').includes('application/json')) throw new Error('Expected JSON');
@@ -319,7 +322,7 @@ async function handleApi(req, env, url) {
   if (path === '/api/me' && method === 'GET') {
     if (!user) return err(401, 'Not logged in');
     const rows = await env.DB.prepare('SELECT subject, updated_at FROM progress WHERE user_id = ?').bind(user.id).all();
-    return json({ username: user.username, admin: isAdmin(user, env), subjects: Object.fromEntries(rows.results.map(r => [r.subject, r.updated_at])) });
+    return json({ username: user.username, admin: isAdmin(user, env), role: staffRole(user, env), tester: user.tester, subjects: Object.fromEntries(rows.results.map(r => [r.subject, r.updated_at])) });
   }
   if (path === '/api/logout' && method === 'POST') {
     if (user) await env.DB.prepare('DELETE FROM sessions WHERE token_hash = ?').bind(user.tokenHash).run();
@@ -330,7 +333,7 @@ async function handleApi(req, env, url) {
   if (path === '/api/live' && method === 'GET') {
     const out = { now: now(), notice: await liveNotice(env), study: null, chat: null, me: null };
     if (user) {
-      out.me = { name: user.username, admin: isAdmin(user, env) };
+      out.me = { name: user.username, admin: isAdmin(user, env), role: staffRole(user, env) };
       out.study = await studyPayload(env, user);
       if (!out.study.study) out.chat = await liveChat(env, user);
     }
@@ -381,7 +384,7 @@ async function handleApi(req, env, url) {
     const lb = study ? null : { week: (await leaderboard(env, me, 'week', isAdmin(user, env))).me, all: (await leaderboard(env, me, 'all', isAdmin(user, env))).me };
     const NOTE = { '[unlock-request]': '🔔 You asked to unlock the booklet', '[unlock-allowed]': '✅ Beau unlocked the booklet', '[unlock-declined]': 'Beau said not yet', '[chat-request]': '🙋 You asked to use Chat', '[chat-allowed]': '✅ Beau let you into Chat', '[chat-declined]': 'Beau said not yet', '[chat-removed]': 'Chat turned off', '[study-request]': '📚 You asked to leave study mode', '[study-allowed]': '✅ Study mode off', '[study-declined]': 'Beau said not yet' };
     const b0 = beau.results[0];
-    return json({ now: t, name: u.results[0].username, joined: u.results[0].created_at, study,
+    return json({ now: t, name: u.results[0].username, joined: u.results[0].created_at, study, role: staffRole(user, env), roleName: ROLE_NAME[staffRole(user, env)] || null, tester: user.tester, booklet: await hasUnlock(env, user, 'theory'),
       time: { today: D[today] || 0, week: Array.from({ length: 7 }, (_, i) => D[back(i)] || 0).reduce((a, x) => a + x, 0), all: all.results[0].s || 0, last14, streak },
       leaderboard: lb, topics, friends: fr.results[0].n,
       messages: study ? null : { beau: { last: b0 ? (NOTE[b0.body] || b0.body) : null, mine: b0 ? !b0.from_admin : false, at: b0 ? b0.created_at : null, unread: beauN.results[0].n },
@@ -436,16 +439,31 @@ async function handleApi(req, env, url) {
     if (fails.n >= 5) return err(429, 'Too many wrong codes. Wait an hour and try again.');
     const ik = await ipKey(req); // and per device, so making lots of accounts doesn't give more guesses
     if (await overLimit(env, 'codefail:' + ik, 15, 3600, false)) return err(429, 'Too many wrong codes from here. Wait an hour and try again.');
-    const code = String(body.code || '').replace(/\D/g, '');
+    const code = String(body.code || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
     const fail = async msg => { await env.DB.batch([env.DB.prepare('INSERT INTO unlock_attempts (user_id, at) VALUES (?, ?)').bind(user.id, t), env.DB.prepare('INSERT INTO rate_hits (k, at) VALUES (?, ?)').bind('codefail:' + ik, t)]); return err(400, msg + ' (' + (4 - fails.n) + ' tries left this hour)'); };
-    if (!/^\d{6}$/.test(code)) return fail('Codes are 6 digits.');
-    const row = await env.DB.prepare("SELECT code, redeemed_by FROM codes WHERE code = ? AND feature = 'theory'").bind(code).first();
-    if (!row) return fail('That code isn’t right.');
+    if (!/^[A-Z0-9]{5}$/.test(code)) return fail('Codes are 5 letters and numbers.');
+    const row = await env.DB.prepare("SELECT code, feature, redeemed_by FROM codes WHERE code = ? AND feature = 'theory'").bind(code).first();
+    if (!row) return fail('That isn’t a booklet code. (Other codes go in your profile.)');
     if (row.redeemed_by !== null) return fail('That code has already been used.');
-    const claim = await env.DB.prepare('UPDATE codes SET redeemed_by = ?, redeemed_at = ? WHERE code = ? AND redeemed_by IS NULL').bind(user.id, t, code).run();
-    if (!claim.meta.changes) return fail('That code has already been used.');
-    await env.DB.prepare("INSERT OR IGNORE INTO unlocks (user_id, feature, unlocked_at, code) VALUES (?, 'theory', ?, ?)").bind(user.id, t, code).run();
+    const r = await useCode(env, user, row, t); if (r.error) return err(400, r.error);
     return json({ ok: true });
+  }
+  // 🎟️ Codes typed into your profile: booklet, Top tier admin, Basic admin or Official tester
+  if (path === '/api/code' && method === 'POST') {
+    let body; try { body = await readJson(req); } catch { return err(400, 'Bad request'); }
+    const t = now();
+    const fails = await env.DB.prepare('SELECT COUNT(*) AS n FROM unlock_attempts WHERE user_id = ? AND at > ?').bind(user.id, t - 3600).first();
+    if (fails.n >= 5) return err(429, 'Too many wrong codes. Wait an hour and try again.');
+    const ik = await ipKey(req);
+    if (await overLimit(env, 'codefail:' + ik, 15, 3600, false)) return err(429, 'Too many wrong codes from here. Wait an hour and try again.');
+    const fail = async msg => { await env.DB.batch([env.DB.prepare('INSERT INTO unlock_attempts (user_id, at) VALUES (?, ?)').bind(user.id, t), env.DB.prepare('INSERT INTO rate_hits (k, at) VALUES (?, ?)').bind('codefail:' + ik, t)]); return err(400, msg + ' (' + (4 - fails.n) + ' tries left this hour)'); };
+    const code = String(body.code || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+    if (!/^[A-Z0-9]{5}$/.test(code)) return fail('Codes are 5 letters and numbers.');
+    const row = await env.DB.prepare('SELECT code, feature, redeemed_by FROM codes WHERE code = ?').bind(code).first();
+    if (!row || !CODE_TYPES[row.feature]) return fail('That code isn’t right.');
+    if (row.redeemed_by !== null) return fail('That code has already been used.');
+    const r = await useCode(env, user, row, t); if (r.error) return err(400, r.error);
+    return json({ ok: true, type: row.feature, message: r.message });
   }
   if (path === '/api/theory' && method === 'GET') {
     if (!(await hasUnlock(env, user, 'theory'))) return err(403, 'Locked. Enter a code to unlock the completed booklet.');
@@ -509,8 +527,9 @@ async function handleApi(req, env, url) {
   }
 
   if (path.startsWith('/api/admin/')) {
-    if (!isAdmin(user, env)) return err(403, 'Only the site admin can see this.');
-    return handleAdmin(req, env, path, method, user);
+    const role = staffRole(user, env);
+    if (!role) return err(403, 'Only the site admin can see this.');
+    return handleAdmin(req, env, path, method, user, role);
   }
 
   const m = path.match(/^\/api\/progress\/([a-z]+)$/);
@@ -582,7 +601,25 @@ async function hasUnlock(env, user, feature) {
   const row = await env.DB.prepare('SELECT 1 AS ok FROM unlocks WHERE user_id = ? AND feature = ?').bind(user.id, feature).first();
   return !!row;
 }
-function newCode() { const n = crypto.getRandomValues(new Uint32Array(1))[0] % 1000000; return String(n).padStart(6, '0'); }
+// 5-character codes from letters and numbers that can't be mixed up (no 0/O, 1/I/L), typed in any case
+const CODE_CHARS = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+function newCode() { const b = crypto.getRandomValues(new Uint8Array(5)); return Array.from(b, x => CODE_CHARS[x % CODE_CHARS.length]).join(''); }
+const CODE_TYPES = { theory: '📘 Science booklet', top: '⭐ Top tier admin', basic: '🛡️ Basic admin', tester: '🧪 Official tester' };
+// What a code does. Codes are only used up if they actually give you something new.
+async function useCode(env, user, row, t) {
+  const f = row.feature, owner = isAdmin(user, env);
+  if (f === 'theory' && await hasUnlock(env, user, 'theory')) return { error: 'You already have the completed booklet, so this code wasn’t used. Give it to someone else.' };
+  if ((f === 'top' || f === 'basic') && owner) return { error: 'You’re the owner already.' };
+  if (f === 'top' && user.role === 'top') return { error: 'You’re already a Top tier admin, so this code wasn’t used.' };
+  if (f === 'basic' && (user.role === 'top' || user.role === 'basic')) return { error: 'You already have ' + (user.role === 'top' ? 'Top tier' : 'Basic') + ' admin, so this code wasn’t used.' };
+  if (f === 'tester' && user.tester) return { error: 'You’re already an Official tester, so this code wasn’t used.' };
+  const claim = await env.DB.prepare('UPDATE codes SET redeemed_by = ?, redeemed_at = ? WHERE code = ? AND redeemed_by IS NULL').bind(user.id, t, row.code).run();
+  if (!claim.meta.changes) return { error: 'That code has already been used.' };
+  if (f === 'theory') await env.DB.prepare("INSERT OR IGNORE INTO unlocks (user_id, feature, unlocked_at, code) VALUES (?, 'theory', ?, ?)").bind(user.id, t, row.code).run();
+  if (f === 'top' || f === 'basic') await env.DB.prepare('UPDATE users SET role = ? WHERE id = ?').bind(f, user.id).run();
+  if (f === 'tester') await env.DB.prepare('UPDATE users SET tester = 1 WHERE id = ?').bind(user.id).run();
+  return { message: { theory: '📘 The completed Science booklet is unlocked! Open Science → Booklet.', top: '⭐ You’re now a Top tier admin. Open the dashboard from your profile.', basic: '🛡️ You’re now a Basic admin. Open the dashboard from your profile.', tester: '🧪 You’re now an Official tester! Check out your profile banner.' }[f] };
+}
 
 // Summarise one student's saved maths progress for the dashboard.
 function mathsStats(data) {
@@ -596,9 +633,13 @@ function mathsStats(data) {
   return out;
 }
 
-async function handleAdmin(req, env, path, method, me) {
+async function handleAdmin(req, env, path, method, me, role = 'owner') {
   const t = now(), today = dayKey(t), url = new URL(req.url);
-  const cma = await handleCommunityAdmin(req, env, url); if (cma) return cma;
+  // Helpers (Top tier and Basic admins) only get chat moderation, study mode and feedback. Everything else is Beau's.
+  const owner = role === 'owner';
+  if (!owner && !/^\/api\/admin\/(overview|chat\/|study|study-all|feedback|feedback-status)$/.test(path) && !path.startsWith('/api/admin/chat/')) return err(403, 'Only Beau can do this.');
+  if (!owner && path === '/api/admin/overview') return json({ now: t, role, roleName: ROLE_NAME[role], staff: true });
+  const cma = await handleCommunityAdmin(req, env, url, role); if (cma) return cma;
   if (path === '/api/admin/overview' && method === 'GET') {
     const since30 = dayKey(t - 29 * 86400), since7 = dayKey(t - 6 * 86400);
     const [users, perUser, perUser7, today_, visits, daily, signups, progress, sciProgress, unlockRows, codeCount, fbCount] = await env.DB.batch([
@@ -646,16 +687,27 @@ async function handleAdmin(req, env, path, method, me) {
     return json({ feedback: rows.results });
   }
   if (path === '/api/admin/codes' && method === 'GET') {
-    const rows = await env.DB.prepare("SELECT c.code, c.created_at, c.redeemed_at, u.username AS redeemed_name FROM codes c LEFT JOIN users u ON u.id = c.redeemed_by WHERE c.feature = 'theory' ORDER BY c.redeemed_at IS NOT NULL, c.redeemed_at DESC, c.created_at, c.code").all();
-    return json({ codes: rows.results });
+    const [rows, staff] = await env.DB.batch([
+      env.DB.prepare("SELECT c.code, c.feature, c.created_at, c.redeemed_at, u.username AS redeemed_name FROM codes c LEFT JOIN users u ON u.id = c.redeemed_by ORDER BY c.feature, c.redeemed_at IS NOT NULL, c.redeemed_at DESC, c.created_at, c.code"),
+      env.DB.prepare("SELECT id, username AS name, role, tester FROM users WHERE role IS NOT NULL OR tester = 1 ORDER BY username COLLATE NOCASE")
+    ]);
+    return json({ codes: rows.results, types: CODE_TYPES, people: staff.results });
+  }
+  if (path === '/api/admin/role' && method === 'POST') {
+    let b; try { b = await readJson(req); } catch { return err(400, 'Bad request'); }
+    const id = +b.id || 0, set = [];
+    if ('role' in b) set.push(env.DB.prepare('UPDATE users SET role = ? WHERE id = ?').bind(b.role === 'top' || b.role === 'basic' ? b.role : null, id));
+    if ('tester' in b) set.push(env.DB.prepare('UPDATE users SET tester = ? WHERE id = ?').bind(b.tester ? 1 : 0, id));
+    if (set.length) await env.DB.batch(set);
+    return json({ ok: true });
   }
   if (path === '/api/admin/codes' && method === 'POST') {
     let body; try { body = await readJson(req); } catch { return err(400, 'Bad request'); }
-    const want = Math.max(1, Math.min(100, Math.floor(+body.count || 0)));
+    const want = Math.max(1, Math.min(100, Math.floor(+body.count || 0))), type = CODE_TYPES[body.type] ? body.type : 'theory';
     const made = [];
     for (let tries = 0; made.length < want && tries < want * 20; tries++) {
       const c = newCode();
-      const r = await env.DB.prepare("INSERT OR IGNORE INTO codes (code, feature, created_at) VALUES (?, 'theory', ?)").bind(c, t).run();
+      const r = await env.DB.prepare('INSERT OR IGNORE INTO codes (code, feature, created_at) VALUES (?, ?, ?)').bind(c, type, t).run();
       if (r.meta.changes) made.push(c);
     }
     return json({ ok: true, codes: made });
@@ -713,13 +765,14 @@ async function handleAdmin(req, env, path, method, me) {
   }
   // Study mode: the site-wide switch, one person on/off (answers their request if they asked)
   if (path === '/api/admin/study' && method === 'GET') {
-    const rows = await env.DB.prepare('SELECT id, username AS name, study_mode, study_free, study_req, last_seen FROM users WHERE username != ? COLLATE NOCASE ORDER BY study_req IS NULL, study_req, username COLLATE NOCASE').bind(String(env.ADMIN_USERNAME || '')).all();
+    const rows = await env.DB.prepare('SELECT id, username AS name, study_mode, study_free, study_req, last_seen, chat_muted FROM users WHERE username != ? COLLATE NOCASE ORDER BY study_req IS NULL, study_req, username COLLATE NOCASE').bind(String(env.ADMIN_USERNAME || '')).all();
     const site = await studyAll(env, true);
-    return json({ now: t, site, people: rows.results.map(u => ({ id: u.id, name: u.name, study: !!u.study_mode || (site && !u.study_free), own: !!u.study_mode, req: u.study_req, seen: u.last_seen })) });
+    return json({ now: t, site, people: rows.results.map(u => ({ id: u.id, name: u.name, study: !!u.study_mode || (site && !u.study_free), own: !!u.study_mode, req: u.study_req, seen: u.last_seen, muted: !!u.chat_muted })), role });
   }
   if (path === '/api/admin/study-all' && method === 'POST') {
     let b; try { b = await readJson(req); } catch { return err(400, 'Bad request'); }
     const on = !!b.on;
+    if (!on && role === 'basic') return err(403, 'Only Beau or a Top tier admin can turn study mode off.');
     const stmts = [env.DB.prepare("INSERT INTO settings (key, value) VALUES ('study_all', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value").bind(on ? '1' : '0')];
     if (on) stmts.push(env.DB.prepare('UPDATE users SET study_free = 0'));
     await env.DB.batch(stmts); await studyAll(env, true);
@@ -728,6 +781,7 @@ async function handleAdmin(req, env, path, method, me) {
   if (path === '/api/admin/study' && method === 'POST') {
     let b; try { b = await readJson(req); } catch { return err(400, 'Bad request'); }
     const id = +b.id || 0, u = await env.DB.prepare('SELECT study_req FROM users WHERE id = ?').bind(id).first(); if (!u) return err(404, 'No such user');
+    if (!b.on && role === 'basic') return err(403, 'Only Beau or a Top tier admin can take someone out of study mode.');
     const on = !!b.on, stmts = [on ? env.DB.prepare('UPDATE users SET study_mode = 1, study_free = 0, study_req = NULL WHERE id = ?').bind(id) : env.DB.prepare('UPDATE users SET study_mode = 0, study_free = 1, study_req = NULL WHERE id = ?').bind(id)];
     if (u.study_req) stmts.push(env.DB.prepare('INSERT INTO messages (user_id, from_admin, body, created_at) VALUES (?, 1, ?, ?)').bind(id, on ? '[study-declined]' : '[study-allowed]', t),
       env.DB.prepare("UPDATE messages SET read_at = ? WHERE user_id = ? AND from_admin = 0 AND read_at IS NULL AND body = '[study-request]'").bind(t, id));
@@ -770,6 +824,7 @@ async function handleAdmin(req, env, path, method, me) {
     return json({ ok: true });
   }
   if (path === '/api/admin/feedback-status') {
+    if (body.status === 'delete' && !owner) return err(403, 'Only Beau can delete feedback.');
     if (body.status === 'delete') await env.DB.prepare('DELETE FROM feedback WHERE id = ?').bind(id).run();
     else if (['new', 'done'].includes(body.status)) await env.DB.prepare('UPDATE feedback SET status = ? WHERE id = ?').bind(body.status, id).run();
     else return err(400, 'Bad status');

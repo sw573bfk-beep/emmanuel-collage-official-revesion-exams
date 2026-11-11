@@ -197,7 +197,7 @@ details.acct[open] summary{margin-bottom:12px}
   function picked(me) {
     if (['maths', 'science', 'feedback', 'message', 'chat', 'leaderboard', 'play', 'me'].includes(next)) { location.replace('/' + next + '/'); return; }
     if (next === 'admin' && me.admin) { location.replace('/admin/'); return; }
-    $('#adminCard').hidden = !me.admin;
+    $('#adminCard').hidden = !(me.admin || me.role);
     $('#who').textContent = me.username; $('#who2').textContent = me.username;
     const t = me.subjects && me.subjects.maths;
     $('#mathsLast').textContent = t ? 'Last saved ' + new Date(t * 1000).toLocaleString('en-AU', { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }) : 'Not started yet';

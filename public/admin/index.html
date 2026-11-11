@@ -192,6 +192,12 @@ details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
       <details id="bcRecentBox"><summary>Recent pop-ups</summary><div class="bc-rec" id="bcRecent"></div></details>
     </section>
 
+    <section class="card stack sec" id="moderate" data-title="🛡️ Moderate a student" data-hint="pause chatting and study mode" hidden>
+      <p class="small muted" id="modHelp"></p>
+      <input type="search" id="modSearch" placeholder="Search for a student by name" aria-label="Search for a student by name">
+      <div id="modList" class="chatlog" style="max-height:none"></div>
+    </section>
+
     <section class="card stack sec" id="study" data-title="📚 Study mode" data-hint="Maths, Science and Play only">
       <p class="small muted">In study mode a student can only use <b>Maths</b>, <b>Science</b> and <b>Play with friends</b>. Chat (including messaging you), the leaderboard and feedback are turned off, and they get a button to ask you to turn it off.</p>
       <div class="study-all" id="studyAll"></div>
@@ -218,10 +224,17 @@ details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
       <div class="tablewrap"><table class="users"><thead><tr id="thead"></tr></thead><tbody id="tbody"></tbody></table></div>
     </section>
 
-    <section class="card stack sec" id="codes" data-title="🔑 Unlock codes" data-hint="for the completed Science booklet" data-closed>
-      <div class="toolbar"><p class="small muted" style="flex:1 1 300px">Each 6-digit code works once. Whoever enters it can open the completed booklet on their account forever. You can also unlock someone by tapping their name in Everyone.</p><div class="row"><button class="btn quiet sm" type="button" id="copyCodes">Copy unused codes</button><button class="btn sm" type="button" id="moreCodes">Make 10 more codes</button></div></div>
+    <section class="card stack sec" id="codes" data-title="🎟️ Codes" data-hint="booklet, admin levels and tester">
+      <p class="small muted">Students type a code into <b>🎟️ Codes</b> on their profile (5 letters/numbers, any case). Each code works once. <b>📘 Science booklet</b> unlocks the completed booklet. <b>⭐ Top tier admin</b> and <b>🛡️ Basic admin</b> open a smaller dashboard (see below). <b>🧪 Official tester</b> adds a banner to their profile (looks only).</p>
+      <div class="row" id="codeTypes"></div>
+      <div class="toolbar"><span class="small" id="codesCount"></span><div class="row"><button class="btn quiet sm" type="button" id="copyCodes">Copy unused codes</button><button class="btn sm" type="button" id="moreCodes">Make 5 more</button></div></div>
       <p class="small" id="codesMsg"></p>
       <div class="tablewrap" style="max-height:420px;overflow-y:auto"><table class="mini" id="codesTable"></table></div>
+      <details open><summary>Who has an admin level or the tester banner</summary><div id="rolePeople" class="chatlog" style="margin-top:8px"></div></details>
+      <details><summary>What each admin level can do</summary><div class="small" style="margin-top:8px;line-height:1.6">
+        <p><b>🛡️ Basic admin</b> can only <b>restrict</b>: read reported messages, 1-on-1 chats and what the filter blocked; delete messages; say <b>Not now</b> to chats or <b>end</b> them; <b>pause chatting</b>; put people <b>into study mode</b> (or everyone); read feedback and mark it done.</p>
+        <p><b>⭐ Top tier admin</b> can do all of that, <b>plus</b> approve chats, let people chat again, take people out of study mode and restore deleted messages.</p>
+        <p>Neither can see your messages, delete accounts, reset passwords, unlock the booklet, make codes, send pop-ups, or see Security, usage or everyone’s stats. Only you can remove an admin level.</p></div></details>
     </section>
 
     <section class="card stack sec" id="security" data-title="🔐 Security" data-hint="sign-ins to your account">
@@ -295,11 +308,12 @@ details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
     x.tog.title = open ? 'Fold this section away' : 'Open this section'; x.mb.classList.toggle('off', !open);
     closedSecs = closedSecs.filter(k => k !== id); if (!open) closedSecs.push(id);
     if (!quiet) saveClosed(); if (allBtn) allLabel();
-    if (open && id === 'stats' && data) drawCharts();
+    if (open && id === 'stats' && data && data.days) drawCharts();
   }
   function openSec(id, scroll) { setOpen(id, true); if (scroll) SEC[id].sec.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
   function setBadge(id, n) { SEC[id].badges.forEach(b => { b.hidden = !n; b.textContent = n > 99 ? '99+' : n; }); }
   allLabel();
+  SEC.moderate.mb.hidden = true; // only the helpers' dashboard shows this section
   $$('[data-go]').forEach(t => t.onclick = () => { if (t.dataset.tab) pickChatTab(t.dataset.tab); openSec(t.dataset.go, true); });
   const tip = $('#tip');
   function showTip(e, html) { tip.innerHTML = html; tip.hidden = false; const r = (e.target.getBoundingClientRect ? e.target.getBoundingClientRect() : { left: e.clientX, top: e.clientY, width: 0 }); const x = Math.min(window.innerWidth - tip.offsetWidth - 8, Math.max(8, r.left + r.width / 2 - tip.offsetWidth / 2)); tip.style.left = x + 'px'; tip.style.top = Math.max(8, r.top - tip.offsetHeight - 8) + 'px'; }
@@ -348,6 +362,24 @@ details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
     });
     if (!rows.length) { const tr = document.createElement('tr'); const td = cell(tr, data.users.length ? 'No names match.' : 'No accounts yet. Share the link and they will appear here.'); td.colSpan = COLS.length; tb.appendChild(tr); }
   }
+  // Top tier and Basic admins: a smaller dashboard with chat moderation, study mode and feedback only
+  let ROLE = 'owner', staffReady = false;
+  async function loadStaff(d) {
+    ROLE = d.role; data = { now: d.now, users: [], staff: true };
+    if (!staffReady) {
+      staffReady = true;
+      document.querySelector('.head h1').textContent = 'EC Revisions ' + (ROLE === 'top' ? '⭐ Top tier admin' : '🛡️ Basic admin');
+      ['overview', 'broadcast', 'people', 'codes', 'security', 'usage', 'stats'].forEach(id => { if (SEC[id]) { SEC[id].sec.hidden = true; SEC[id].mb.hidden = true; } });
+      SEC.moderate.sec.hidden = false; SEC.moderate.mb.hidden = false;
+      const mt = document.querySelector('#chatTabs [data-c="messages"]'); if (mt) mt.hidden = true;
+      pickChatTab('access');
+      const note = mk('p', 'small muted'); note.textContent = ROLE === 'top' ? 'You can restrict and approve: approve or say no to chats, pause chatting, study mode on and off, delete and restore messages.' : 'You can restrict: say no to or end chats, pause chatting, put people in study mode and delete messages. Only Beau or a Top tier admin can undo these.';
+      document.querySelector('.head > div').appendChild(note);
+    }
+    $('#dash').hidden = false; $('#amenu').hidden = false;
+    await Promise.all([loadChats(), loadStudy(), loadFeedback()]); drawModerate();
+    $('#updated').textContent = 'Updated ' + new Date().toLocaleTimeString('en-AU', { timeZone: TZ, hour: 'numeric', minute: '2-digit' }) + '. Refreshes every 30 seconds.';
+  }
   async function load() {
     $('#dash').style.opacity = data ? .6 : 1;
     const r = await api('/api/admin/overview');
@@ -355,6 +387,8 @@ details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
     if (r.status === 401) { location.replace('/?next=admin'); return; }
     if (r.status === 403) { $('#denied').hidden = false; $('#updated').textContent = ''; return; }
     if (!r.ok) { $('#updated').textContent = 'Couldn’t load. Retrying in 30 seconds.'; return; }
+    if (r.data.staff) return loadStaff(r.data);
+    ROLE = 'owner';
     data = r.data; const T = data.totals;
     $('#dash').hidden = false; $('#amenu').hidden = false;
     $('#tOnline').textContent = T.online; $('#tUsers').textContent = T.users; $('#tUsersL').textContent = 'accounts (' + T.signupsToday + ' new today, ' + T.signupsWeek + ' this week)' + (T.leftOut ? ' · ' + T.leftOut + ' left out of stats' : '');
@@ -552,7 +586,7 @@ details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
     return d;
   }
   function btn(text, fn, cls) { const b = mk('button', 'btn ' + (cls || 'quiet') + ' sm', text); b.type = 'button'; b.onclick = fn; return b; }
-  const hideBtn = (kind, id, hidden) => btn(hidden ? 'Restore' : 'Delete', async () => { await api('/api/admin/chat/hide', 'POST', { kind, id, hidden: !hidden }); await loadChats(); if (chatThread) openChatThread(chatThread); }, hidden ? 'quiet' : 'danger');
+  const hideBtn = (kind, id, hidden) => hidden && ROLE === 'basic' ? mk('span', 'small muted', 'deleted') : btn(hidden ? 'Restore' : 'Delete', async () => { await api('/api/admin/chat/hide', 'POST', { kind, id, hidden: !hidden }); await loadChats(); if (chatThread) openChatThread(chatThread); }, hidden ? 'quiet' : 'danger');
   async function openChatThread(t) {
     chatThread = t; const box = $('#chatBody'); box.replaceChildren(mk('p', 'muted small', 'Loading…'));
     const r = await api('/api/admin/chat/dm/' + t.id); if (!r.ok) return;
@@ -564,7 +598,7 @@ details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
   function drawChats() {
     if (!chatData) return;
     const ml = $('#mutedList'); ml.replaceChildren();
-    if (chatData.muted.length) { ml.appendChild(mk('span', 'small muted', 'Chatting paused for:')); chatData.muted.forEach(u => ml.appendChild(btn(u.name + ' · Allow again', async () => { await api('/api/admin/chat/mute', 'POST', { id: u.id, muted: false }); load(); }))); }
+    if (chatData.muted.length && ROLE !== 'basic') { ml.appendChild(mk('span', 'small muted', 'Chatting paused for:')); chatData.muted.forEach(u => ml.appendChild(btn(u.name + ' · Allow again', async () => { await api('/api/admin/chat/mute', 'POST', { id: u.id, muted: false }); load(); }))); }
     if (chatTab === 'messages') return;
     if (chatThread) return openChatThread(chatThread);
     const box = $('#chatBody'); box.replaceChildren();
@@ -574,7 +608,7 @@ details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
       const waitP = chatData.threads.filter(x => x.status === 'approval'), liveP = chatData.threads.filter(x => x.status === 'active');
       box.appendChild(mk('h3', '', '🙋 Waiting for you (' + waitP.length + ')'));
       if (!waitP.length) none('No chats waiting. When two students both agree to be friends, the pair shows up here.');
-      waitP.forEach(t => box.appendChild(line([mk('span', 'pill warn', 'both agreed'), t.a_name + ' and ' + t.b_name, fmtC(t.updated_at)], '', false, [btn('✅ Approve chat', pair(t, 'allow'), 'go'), btn('Not now', pair(t, 'refuse'))])));
+      waitP.forEach(t => box.appendChild(line([mk('span', 'pill warn', 'both agreed'), t.a_name + ' and ' + t.b_name, fmtC(t.updated_at)], '', false, (ROLE === 'basic' ? [] : [btn('✅ Approve chat', pair(t, 'allow'), 'go')]).concat([btn('Not now', pair(t, 'refuse'))]))));
       const dd = mk('details'); dd.open = true; dd.appendChild(mk('summary', '', '💬 Chats you approved (' + liveP.length + ')')); const w = mk('div', 'chatlog'); w.style.marginTop = '8px';
       liveP.forEach(t => w.appendChild(line([t.a_name + ' and ' + t.b_name, t.n + ' messages', fmtC(t.updated_at)], '', false, [btn('Read', () => { pickChatTab('dms'); openChatThread(t); }), btn('End chat', pair(t, 'end'), 'danger')])));
       if (!liveP.length) w.appendChild(mk('p', 'muted small', 'None yet.')); dd.appendChild(w); box.appendChild(dd);
@@ -627,6 +661,7 @@ details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
       done.onclick = async () => { await api('/api/admin/feedback-status', 'POST', { id: f.id, status: f.status === 'done' ? 'new' : 'done' }); load(); };
       const del = document.createElement('button'); del.type = 'button'; del.className = 'btn danger sm'; del.textContent = 'Delete'; let armed = false;
       del.onclick = async () => { if (!armed) { armed = true; del.textContent = 'Tap again to delete'; setTimeout(() => { armed = false; del.textContent = 'Delete'; }, 4000); return; } await api('/api/admin/feedback-status', 'POST', { id: f.id, status: 'delete' }); load(); };
+      if (ROLE !== 'owner') del.hidden = true;
       acts.append(done, del); d.append(meta, msg, acts); list.appendChild(d);
     });
   }
@@ -690,6 +725,7 @@ details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
     const d = studyData, all = $('#studyAll'); all.replaceChildren(); all.classList.toggle('on', d.site);
     const sw = mk('button', 'switch'); sw.type = 'button'; sw.setAttribute('role', 'switch'); sw.setAttribute('aria-checked', String(d.site)); sw.setAttribute('aria-label', 'Study mode for everyone');
     const st = mk('div', 'st'); st.append(mk('b', '', d.site ? '📚 Study mode is ON for everyone' : 'Study mode for everyone is off'), mk('span', 'small muted', d.site ? 'Every student (and every new account) is in study mode, except anyone you let out below.' : 'Only the people you put in study mode below are in it. Turn this on to put every student in study mode at once.'));
+    if (d.site && ROLE === 'basic') sw.disabled = true;
     sw.onclick = async () => { if (!d.site && !confirm('Turn on study mode for EVERY student? They’ll only be able to use Maths, Science and Play with friends.')) return; sw.disabled = true; await api('/api/admin/study-all', 'POST', { on: !d.site }); loadStudy(); };
     all.append(sw, st);
     const box = $('#studyBody'); box.replaceChildren();
@@ -698,9 +734,9 @@ details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
     setBadge('study', pend.length);
     box.appendChild(mk('h3', '', '🙋 Asking to leave study mode (' + pend.length + ')'));
     if (!pend.length) box.appendChild(mk('p', 'muted small', 'Nobody is asking right now.'));
-    pend.forEach(u => box.appendChild(line([mk('span', 'pill warn', 'asked'), u.name, 'asked ' + fmtC(u.req)], '', false, [btn('✅ Turn off study mode', () => setStudy(u, false), 'go'), btn('Not now', () => setStudy(u, true))])));
+    pend.forEach(u => box.appendChild(line([mk('span', 'pill warn', 'asked'), u.name, 'asked ' + fmtC(u.req)], '', false, (ROLE === 'basic' ? [] : [btn('✅ Turn off study mode', () => setStudy(u, false), 'go')]).concat([btn('Not now', () => setStudy(u, true))]))));
     const group = (title, list, mkBtn, open) => { const dd = mk('details'); dd.open = open; dd.appendChild(mk('summary', '', title + ' (' + list.length + ')')); const w = mk('div', 'chatlog'); w.style.marginTop = '8px'; list.forEach(u => w.appendChild(line([u.name, 'last on ' + (u.seen ? ago(u.seen) : 'never')], '', false, [mkBtn(u)]))); if (!list.length) w.appendChild(mk('p', 'muted small', studyQ ? 'No names match.' : 'Nobody.')); dd.appendChild(w); box.appendChild(dd); };
-    group('📚 In study mode', inS, u => btn('Turn off for ' + u.name.split(' ')[0], () => setStudy(u, false)), !!studyQ || inS.length <= 15);
+    group('📚 In study mode', inS, u => ROLE === 'basic' ? mk('span', 'small muted', 'in study mode') : btn('Turn off for ' + u.name.split(' ')[0], () => setStudy(u, false)), !!studyQ || inS.length <= 15);
     group('Not in study mode', out, u => btn('Put in study mode', () => setStudy(u, true)), !!studyQ);
     box.querySelectorAll('.cl .body').forEach(b => { if (!b.textContent) b.remove(); });
   }
@@ -754,15 +790,46 @@ details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
     loadBroadcast(); if (window.ecNoticeCheck) window.ecNoticeCheck();
   };
   bcLabel();
-  let codes = [];
+  let codes = [], codeType = 'theory', codeTypes = {};
   async function loadCodes() {
-    const r = await api('/api/admin/codes'); if (!r.ok) return; codes = r.data.codes;
+    const r = await api('/api/admin/codes'); if (!r.ok) return; codes = r.data.codes; codeTypes = r.data.types;
+    const ct = $('#codeTypes'); ct.replaceChildren();
+    Object.entries(codeTypes).forEach(([k, label]) => { const unused = codes.filter(c => c.feature === k && !c.redeemed_at).length; const b = btn(label + ' (' + unused + ' unused)', () => { codeType = k; loadCodes(); }, k === codeType ? 'go' : 'quiet'); ct.appendChild(b); });
+    const list = codes.filter(c => c.feature === codeType);
+    $('#codesCount').textContent = list.filter(c => !c.redeemed_at).length + ' unused · ' + list.filter(c => c.redeemed_at).length + ' used';
     const t = $('#codesTable'); t.replaceChildren(); const hr = document.createElement('tr'); ['Code', 'Status', 'Used by', 'When'].forEach(x => { const th = document.createElement('th'); th.textContent = x; hr.appendChild(th); }); t.appendChild(hr);
-    codes.forEach(c => { const tr = document.createElement('tr'); const code = cell(tr, c.code); code.style.fontFamily = 'var(--f-mono)'; code.style.fontWeight = '600'; code.style.letterSpacing = '.08em'; cell(tr, c.redeemed_at ? 'used' : 'unused'); cell(tr, c.redeemed_at ? (c.redeemed_name || '(deleted account)') : '—'); cell(tr, c.redeemed_at ? when(c.redeemed_at) : '—'); if (c.redeemed_at) tr.style.color = 'var(--muted)'; t.appendChild(tr); });
-    if (!codes.length) { const tr = document.createElement('tr'); cell(tr, 'No codes yet. Press “Make 10 more codes”.').colSpan = 4; t.appendChild(tr); }
+    list.forEach(c => { const tr = document.createElement('tr'); const code = cell(tr, c.code); code.style.fontFamily = 'var(--f-mono)'; code.style.fontWeight = '600'; code.style.letterSpacing = '.12em'; cell(tr, c.redeemed_at ? 'used' : 'unused'); cell(tr, c.redeemed_at ? (c.redeemed_name || '(deleted account)') : '—'); cell(tr, c.redeemed_at ? when(c.redeemed_at) : '—'); if (c.redeemed_at) tr.style.color = 'var(--muted)'; t.appendChild(tr); });
+    if (!list.length) { const tr = document.createElement('tr'); cell(tr, 'No codes of this kind yet. Press “Make 5 more”.').colSpan = 4; t.appendChild(tr); }
+    const rp = $('#rolePeople'); rp.replaceChildren();
+    if (!r.data.people.length) rp.appendChild(mk('p', 'muted small', 'Nobody yet.'));
+    r.data.people.forEach(u => {
+      const acts = []; if (u.role) acts.push(btn('Remove ' + (u.role === 'top' ? 'Top tier' : 'Basic') + ' admin', async () => { if (!confirm('Take away ' + u.name + '’s admin level?')) return; await api('/api/admin/role', 'POST', { id: u.id, role: null }); loadCodes(); }, 'danger'));
+      if (u.tester) acts.push(btn('Remove tester banner', async () => { await api('/api/admin/role', 'POST', { id: u.id, tester: false }); loadCodes(); }));
+      rp.appendChild(line([u.name, [u.role === 'top' ? '⭐ Top tier admin' : u.role === 'basic' ? '🛡️ Basic admin' : '', u.tester ? '🧪 Official tester' : ''].filter(Boolean).join(' · ')], '', false, acts));
+    });
+    rp.querySelectorAll('.cl .body').forEach(b => { if (!b.textContent) b.remove(); });
   }
-  $('#moreCodes').onclick = async () => { const r = await api('/api/admin/codes', 'POST', { count: 10 }); $('#codesMsg').textContent = r.ok ? 'Made ' + r.data.codes.length + ' new codes: ' + r.data.codes.join(', ') : (r.data.error || 'Couldn’t make codes.'); loadCodes(); load(); };
-  $('#copyCodes').onclick = async () => { const list = codes.filter(c => !c.redeemed_at).map(c => c.code).join('\n'); try { await navigator.clipboard.writeText(list); $('#codesMsg').textContent = 'Copied ' + list.split('\n').filter(Boolean).length + ' unused codes.'; } catch (e) { $('#codesMsg').textContent = list.replace(/\n/g, ', '); } };
+  $('#moreCodes').onclick = async () => { const r = await api('/api/admin/codes', 'POST', { count: 5, type: codeType }); $('#codesMsg').textContent = r.ok ? 'Made 5 new ' + codeTypes[codeType] + ' codes: ' + r.data.codes.join(', ') : (r.data.error || 'Couldn’t make codes.'); loadCodes(); };
+  $('#copyCodes').onclick = async () => { const list = codes.filter(c => c.feature === codeType && !c.redeemed_at).map(c => c.code).join('\n'); try { await navigator.clipboard.writeText(list); $('#codesMsg').textContent = 'Copied ' + list.split('\n').filter(Boolean).length + ' unused ' + codeTypes[codeType] + ' codes.'; } catch (e) { $('#codesMsg').textContent = list.replace(/\n/g, ', '); } };
+  /* ---------- moderate a student (Top tier and Basic admins) ---------- */
+  let modQ = '';
+  function drawModerate() {
+    if (!studyData) return; const top = ROLE !== 'basic', box = $('#modList'); box.replaceChildren();
+    $('#modHelp').textContent = top ? 'Pause or allow chatting, and put people into or take them out of study mode.' : 'You can pause chatting and put people into study mode. Only Beau or a Top tier admin can undo these.';
+    const list = studyData.people.filter(u => modQ && u.name.toLowerCase().includes(modQ)).slice(0, 30);
+    if (!modQ) box.appendChild(mk('p', 'muted small', 'Type a name to find a student.'));
+    else if (!list.length) box.appendChild(mk('p', 'muted small', 'No names match.'));
+    list.forEach(u => {
+      const acts = [];
+      if (!u.muted) acts.push(btn('Pause chatting', async () => { await api('/api/admin/chat/mute', 'POST', { id: u.id, muted: true }); await loadStudy(); drawModerate(); }, 'danger'));
+      else if (top) acts.push(btn('Let them chat again', async () => { await api('/api/admin/chat/mute', 'POST', { id: u.id, muted: false }); await loadStudy(); drawModerate(); }));
+      if (!u.study) acts.push(btn('Put in study mode', async () => { await api('/api/admin/study', 'POST', { id: u.id, on: true }); await loadStudy(); drawModerate(); }));
+      else if (top) acts.push(btn('Take out of study mode', async () => { await api('/api/admin/study', 'POST', { id: u.id, on: false }); await loadStudy(); drawModerate(); }));
+      box.appendChild(line([u.name, [u.muted ? '⏸ chatting paused' : '', u.study ? '📚 in study mode' : ''].filter(Boolean).join(' · ') || 'no limits'], '', false, acts));
+    });
+    box.querySelectorAll('.cl .body').forEach(b => { if (!b.textContent) b.remove(); });
+  }
+  $('#modSearch').oninput = e => { modQ = e.target.value.trim().toLowerCase(); drawModerate(); };
   $('#dlg').addEventListener('click', e => { if (e.target === $('#dlg')) $('#dlg').close(); });
   $('#search').oninput = e => { query = e.target.value.trim().toLowerCase(); drawTable(); };
   $('#refresh').onclick = load;

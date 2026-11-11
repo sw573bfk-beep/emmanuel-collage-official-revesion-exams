@@ -133,6 +133,7 @@
         { h: '⏱️ Study time', t: 'Today, the last 7 days and all time, a chart of the last 14 days, and your 🔥 streak (days in a row with at least 1 minute).', sel: '#timeStats' },
         { h: '🏆 Leaderboard', t: 'Your place and points this week and all time.', sel: '#lbCard' },
         { h: '👥 Friends', t: 'How many friends you have. Tap the button to find or add friends.', sel: '#frCard' },
+        { h: '🎟️ Codes', t: 'Got a code from Beau? Type it here (5 letters and numbers, any case). Codes can unlock the completed Science booklet, give an admin level or the 🧪 Official tester banner. Each code works once.', sel: '#codesCard' },
         { h: '🎯 Scores by topic', t: 'Every topic you’ve practised, weakest first. Tap <b>Practise this</b> to jump straight into practice on that topic.', sel: '#topics' },
         { h: '💬 Messages', t: 'Tap a chat to open it. A red number means new messages, and a green dot means your friend is online.', sel: '#tabMsg' },
         helpStep

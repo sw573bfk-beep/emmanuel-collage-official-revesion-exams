@@ -11,6 +11,7 @@
 <link rel="stylesheet" href="/site.css">
 <style>
 .wrap{max-width:860px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 .hero{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
 .hero .av{width:68px;height:68px;border-radius:50%;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;font-family:var(--f-display);font-weight:800;font-size:2rem;flex:none}
 .hero h1{margin:0;font-size:clamp(1.6rem,1.2rem + 2vw,2.3rem)}
@@ -44,6 +45,14 @@
 .conv .t{display:flex;flex-direction:column;min-width:0;flex:1}
 .conv .t span{font-size:.9375rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .conv .when{font-size:.8125rem;color:var(--muted);white-space:nowrap}
+.tester{display:flex;align-items:center;gap:12px;border-radius:14px;padding:12px 16px;color:#fff;font-weight:700;background:linear-gradient(110deg,#7b2ff7,#2453d6 55%,#00b3a4);box-shadow:0 6px 18px rgb(36 83 214 / .25)}
+.tester .big{font-size:1.6rem}.tester span{display:block;font-size:.875rem;font-weight:500;opacity:.92}
+.role{display:inline-flex;align-items:center;gap:6px;font-size:.875rem;font-weight:700;border-radius:999px;padding:3px 12px;border:1.5px solid var(--accent);color:var(--accent);background:var(--accent-soft)}
+.codebox{display:flex;gap:8px;flex-wrap:wrap}
+.codebox input{font:inherit;font-family:var(--f-mono);font-size:1.25rem;letter-spacing:.2em;text-transform:uppercase;width:min(100%,200px);border:2px solid var(--field);border-radius:12px;padding:8px 12px;background:var(--card);color:var(--ink)}
+.codebox input:focus{border-color:var(--accent);outline:none;box-shadow:0 0 0 3px var(--accent-soft)}
+.have{display:flex;flex-wrap:wrap;gap:8px}
+.have span{font-size:.9375rem;border:1.5px solid var(--rule);border-radius:999px;padding:4px 12px}
 .grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:16px}
 </style>
 <script src="/theme.js"></script>
@@ -54,6 +63,8 @@
   <p id="loading" class="muted">Loading your profile…</p>
   <div id="app" class="stack" hidden>
     <div class="hero"><span class="av" id="av" aria-hidden="true"></span><div><span class="mark">My profile</span><h1 id="name"></h1><p class="small muted" id="joined"></p></div></div>
+    <div class="tester" id="testerBanner" hidden><span class="big" aria-hidden="true">🧪</span><div>Official tester<span>Thanks for helping test EC Revisions!</span></div></div>
+    <div class="row" id="roleRow" hidden style="align-items:center"><span class="role" id="roleName"></span><a class="btn sm" href="/admin/">Open the admin dashboard →</a></div>
     <p class="small muted" style="margin:0">🔒 Only you can see your profile.</p>
     <div class="tabs2" role="tablist"><button type="button" role="tab" id="tabOv" class="on">📊 Overview</button><button type="button" role="tab" id="tabMsg">💬 Messages <span class="n" id="nMsg" hidden></span></button></div>
 
@@ -67,6 +78,13 @@
       <div class="grid2">
         <div class="card stack" id="lbCard"><h2 style="margin:0;font-size:1.3rem">🏆 Leaderboard</h2><div class="stats" id="lbStats"></div><a class="btn quiet sm" href="/leaderboard/" style="align-self:flex-start">Open the leaderboard →</a></div>
         <div class="card stack" id="frCard"><h2 style="margin:0;font-size:1.3rem">👥 Friends</h2><div class="stats"><div class="stat"><span class="v" id="frN">0</span><span class="l">friends</span></div></div><a class="btn quiet sm" href="/chat/?tab=mine" style="align-self:flex-start">Find or add friends →</a></div>
+      </div>
+      <div class="card stack" id="codesCard">
+        <h2 style="margin:0;font-size:1.3rem">🎟️ Codes</h2>
+        <p class="small muted" style="margin:0">Got a code from Beau? Type it here (5 letters and numbers, any case). Each code works once.</p>
+        <form class="codebox" id="codeForm" novalidate><label class="sr" for="codeIn">Code</label><input id="codeIn" maxlength="7" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="K7PQ2"><button class="btn" type="submit">Use code</button></form>
+        <div id="codeOut" role="status"></div>
+        <div class="have" id="have"></div>
       </div>
       <div class="card stack">
         <h2 style="margin:0;font-size:1.3rem">🎯 Scores by topic</h2>
@@ -101,6 +119,10 @@
     const d = await r.json();
     $('#loading').hidden = true; $('#app').hidden = false;
     $('#av').textContent = (d.name || '?').trim().charAt(0).toUpperCase(); $('#name').textContent = d.name;
+    $('#testerBanner').hidden = !d.tester;
+    $('#roleRow').hidden = !d.role || d.role === 'owner'; $('#roleName').textContent = d.role === 'top' ? '⭐ Top tier admin' : d.role === 'basic' ? '🛡️ Basic admin' : '';
+    const have = $('#have'); have.replaceChildren();
+    [[d.booklet, '📘 Completed Science booklet unlocked'], [d.role === 'top', '⭐ Top tier admin'], [d.role === 'basic', '🛡️ Basic admin'], [d.tester, '🧪 Official tester']].forEach(([on, t]) => { if (on) have.appendChild(el('span', '', t)); });
     $('#joined').textContent = 'Joined ' + new Date(d.joined * 1000).toLocaleDateString('en-AU', { day: 'numeric', month: 'long', year: 'numeric' });
     // study time + streak
     const T = d.time, ts = $('#timeStats'); ts.replaceChildren(stat(dur(T.today), 'today'), stat(dur(T.week), 'last 7 days'), stat(dur(T.all), 'all time'), stat('🔥 ' + T.streak, T.streak === 1 ? 'day in a row' : 'days in a row', T.streak >= 3 ? 'hot' : ''));
@@ -135,6 +157,13 @@
     }
     if (params.get('tab') === 'messages' && d.messages) show('msg');
   }
+  $('#codeForm').onsubmit = async e => {
+    e.preventDefault(); const out = $('#codeOut'), code = $('#codeIn').value.trim(); out.replaceChildren(); if (!code) return;
+    const b = $('#codeForm button'); b.disabled = true;
+    let ok = false, j = {}; try { const r = await fetch('/api/code', { method: 'POST', credentials: 'same-origin', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ code }) }); ok = r.ok; j = await r.json(); } catch (err) { j = { error: 'Can’t reach the server. Check your connection.' }; }
+    b.disabled = false; out.appendChild(el('div', 'msg ' + (ok ? 'good' : 'bad'), ok ? j.message : (j.error || 'That code didn’t work.')));
+    if (ok) { $('#codeIn').value = ''; load(); if (window.ecLive && window.ecProfileCheck) window.ecLive(true).then(() => window.ecProfileCheck()); }
+  };
   load();
   setInterval(() => { if (document.visibilityState === 'visible') load(); }, 60000);
 })();
