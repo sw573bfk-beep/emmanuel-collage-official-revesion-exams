@@ -28,15 +28,17 @@ function questionCard(Q, opts = {}) {
   if (typeof reportMistakeBtn === 'function') $('.qhead', el).appendChild(reportMistakeBtn(Q));
   if (Q.type === 'mcq') {
     const box = h('<div class="choices"></div>');
-    Q.choices.forEach((c, i) => { const b = h('<button type="button" class="choice"><span class="lt">' + 'ABCDE'[i] + '</span>' + c + '</button>'); b.onclick = () => { if (el.dataset.done) return; sel = i; $$('.choice', box).forEach((x, j) => x.classList.toggle('sel', j === i)); if (!exam) doCheck(); else opts.onChange && opts.onChange(); }; box.appendChild(b); });
+    Q.choices.forEach((c, i) => { const b = h('<button type="button" class="choice"><span class="lt">' + 'ABCDE'[i] + '</span>' + c + '</button>'); b.onclick = () => { if (el.dataset.done) return; sel = i; $$('.choice', box).forEach((x, j) => x.classList.toggle('sel', j === i)); if (!exam) { const cf = $('.confirm-btn', el); if (cf) cf.disabled = false; } else opts.onChange && opts.onChange(); }; box.appendChild(b); });
     ansEl.appendChild(box);
+    if (!exam) { const cf = h('<button type="button" class="btn confirm-btn" disabled>Confirm</button>'); cf.onclick = doCheck; ansEl.appendChild(h('<div class="confirm-row"></div>')).appendChild(cf); }
   } else {
     const id = 'in' + (++svgN);
     const row = h('<div class="row"><label class="sr" for="' + id + '">Your answer</label><input class="ans" type="text" id="' + id + '" autocomplete="off" spellcheck="false" placeholder="' + (PH[Q.type] || '') + '"></div>');
     input = $('input', row); ansEl.appendChild(row);
-    if (!exam) { const cb = h('<button type="button" class="btn">Check</button>'); cb.onclick = doCheck; row.appendChild(cb); input.addEventListener('keydown', e => { if (e.key === 'Enter') doCheck(); }); }
+    if (!exam) input.addEventListener('keydown', e => { if (e.key === 'Enter') doCheck(); });
     else input.addEventListener('input', () => opts.onChange && opts.onChange());
     ansEl.appendChild(keypad(input, Q.type));
+    if (!exam) { const cf = h('<button type="button" class="btn confirm-btn">Confirm</button>'); cf.onclick = doCheck; ansEl.appendChild(h('<div class="confirm-row"></div>')).appendChild(cf); }
   }
   if (!exam) {
     const tools = h('<div class="row"></div>');
@@ -54,7 +56,7 @@ function questionCard(Q, opts = {}) {
     fb.appendChild(h('<div class="fb bad tmp"><b>Not quite.</b> ' + (r.msg ? r.msg + ' ' : '') + 'Have another go, or tap “Show answer &amp; working”.</div>'));
   }
   function finalize(r) {
-    if (el.dataset.done) return r; el.dataset.done = '1'; $('.tmp', fb)?.remove();
+    if (el.dataset.done) return r; el.dataset.done = '1'; $('.tmp', fb)?.remove(); $('.confirm-row', el)?.remove();
     if (r.empty) r = { ok: false, msg: 'No answer given.' };
     if (Q.type === 'mcq') $$('.choice', el).forEach((b, i) => { b.disabled = true; if (i === Q.ans) b.classList.add('right'); else if (i === sel) b.classList.add('wrong'); });
     if (input) input.readOnly = true;
@@ -65,7 +67,7 @@ function questionCard(Q, opts = {}) {
     if (opts.onAnswer) opts.onAnswer(!!r.ok && (exam || tries <= 1), false, tries);
     return r;
   }
-  return { el, finalize: () => finalize(checkAnswer(Q, Q.type === 'mcq' ? sel : (input ? input.value : ''))), answered: () => Q.type === 'mcq' ? sel !== null : !!(input && input.value.trim()), value: () => Q.type === 'mcq' ? (sel === null ? '' : Q.choices[sel]) : (input ? input.value : ''), focus: () => input && input.focus() };
+  return { el, finalize: () => finalize(checkAnswer(Q, Q.type === 'mcq' ? sel : (input ? input.value : ''))), answered: () => Q.type === 'mcq' ? sel !== null : !!(input && input.value.trim()), value: () => Q.type === 'mcq' ? (sel === null ? '' : Q.choices[sel]) : (input ? input.value : ''), focus: () => input && input.focus({ preventScroll: true }) };
 }
 
 /* ================= router ================= */
@@ -125,7 +127,7 @@ RENDER.skill = () => {
     host.appendChild(questionCard(Q, { num: n, onAnswer: (ok, partial) => { if (partial) return; record(tid, ok); done++; if (ok) right++; upd(); } }).el);
     upd();
   };
-  $('[data-next]', qc).onclick = () => { next(); const inp = $('.skill-q input', qc); if (inp) inp.focus(); };
+  $('[data-next]', qc).onclick = () => { next(); const inp = $('.skill-q input', qc); if (inp) inp.focus({ preventScroll: true }); };
   next(); v.appendChild(qc);
   const cf = h('<div class="card stack"><h3>How sure are you now?</h3><p class="small muted">This updates the skills checklist on Home.</p><div class="cf-host"></div></div>');
   $('.cf-host', cf).appendChild(confButtons('k' + i, ckStore, 'check'));
@@ -280,7 +282,7 @@ function pickTopic(sel) {
 const sess = { n: 0, c: 0, streak: 0, best: store.get('best', 0) };
 RENDER.practice = () => {
   const v = $('#v-practice'); v.innerHTML = '';
-  v.appendChild(h('<div class="view-head"><h2>Practice</h2><p>Pick a topic, answer the question, press <b>Check</b>. You get two tries, and you can always see the working.</p></div>'));
+  v.appendChild(h('<div class="view-head"><h2>Practice</h2><p>Pick a topic, answer the question, press <b>Confirm</b>. Use <b>← Previous</b> and <b>Next →</b> to go back and forth. You get two tries, and you can always see the working.</p></div>'));
   const ctr = h('<div class="card row" style="justify-content:space-between"><label class="f" style="flex:1 1 260px">Topic' + topicSelect('pSel', state.practice) + '</label><div class="row" id="pStats" style="gap:18px"></div></div>');
   v.appendChild(ctr);
   v.appendChild(practiceFilters(() => next()));
@@ -289,24 +291,39 @@ RENDER.practice = () => {
   const statsEl = $('#pStats', ctr);
   const drawStats = () => { statsEl.innerHTML = '<div><div class="bignum" style="font-size:1.5rem">' + sess.c + '/' + sess.n + '</div><div class="small muted">this session</div></div><div><div class="bignum" style="font-size:1.5rem">' + sess.streak + '</div><div class="small muted">streak</div></div><div><div class="bignum" style="font-size:1.5rem">' + sess.best + '</div><div class="small muted">best streak</div></div>'; };
   drawStats();
+  // ← Previous / Next →: every question this visit is kept (answers and working too), so you can go back and forth.
+  const seen = []; let at = -1;
+  const navRow = h('<div class="row q-nav"><button type="button" class="btn quiet" data-prev>← Previous</button><span class="small muted" data-where></span><button type="button" class="btn" data-next>Next question →</button></div>');
+  const stage = h('<div class="stack"></div>'); host.appendChild(stage); host.appendChild(navRow);
+  const prevB = $('[data-prev]', navRow), nextB = $('[data-next]', navRow), whereEl = $('[data-where]', navRow);
+  function showAt(i) {
+    at = i; seen.forEach((x, j) => { x.hidden = j !== i; });
+    prevB.disabled = at <= 0; whereEl.textContent = 'Question ' + (at + 1) + (seen.length > 1 ? ' of ' + seen.length : '');
+    nextB.textContent = at < seen.length - 1 ? 'Next →' : 'Next question →';
+  }
+  prevB.onclick = () => { if (at > 0) showAt(at - 1); };
+  nextB.onclick = () => { if (at < seen.length - 1) showAt(at + 1); else next(); };
   function next() {
     const tid = pickTopic(sel.value);
     const got = pickPractice(tid, store.get('pDiff', 'any'), store.get('pType', 'any')); const Q = got.Q;
-    host.innerHTML = '';
-    if (!Q) { host.appendChild(h('<p class="muted">' + got.note + '</p>')); return; }
-    if (got.note) host.appendChild(h('<p class="small muted pf-note">' + got.note + '</p>'));
-    const lvl = Q.diff || diffOf(Q.gen); host.appendChild(h('<span class="pf-level pf-' + lvl + '">' + DIFF_NAME[lvl] + '</span>'));
-    const card = (Q.type === 'long' ? longCard : questionCard)(Q, { onAnswer: (ok, partial) => {
-      if (partial) return; record(tid, ok); sess.n++; if (ok) { sess.c++; sess.streak++; if (sess.streak > sess.best) { sess.best = sess.streak; store.set('best', sess.best); } if (sess.streak && sess.streak % 5 === 0) toast(sess.streak + ' in a row!'); } else sess.streak = 0; drawStats();
-      nb.focus();
-    } });
-    host.appendChild(card.el);
-    const foot = h('<div class="row" style="justify-content:space-between"><button type="button" class="btn quiet sm">Read the notes for ' + tid + '</button></div>');
-    const nb = h('<button type="button" class="btn">Next question →</button>'); nb.onclick = next; foot.appendChild(nb);
-    $('button', foot).onclick = () => openLearn(tid);
-    host.appendChild(foot); card.focus();
+    const page = h('<div class="stack q-page"></div>');
+    if (!Q) { page.appendChild(h('<p class="muted">' + got.note + '</p>')); }
+    else {
+      if (got.note) page.appendChild(h('<p class="small muted pf-note">' + got.note + '</p>'));
+      const lvl = Q.diff || diffOf(Q.gen); page.appendChild(h('<span class="pf-level pf-' + lvl + '">' + DIFF_NAME[lvl] + '</span>'));
+      const card = (Q.type === 'long' ? longCard : questionCard)(Q, { onAnswer: (ok, partial) => {
+        if (partial) return; record(tid, ok); sess.n++; if (ok) { sess.c++; sess.streak++; if (sess.streak > sess.best) { sess.best = sess.streak; store.set('best', sess.best); } if (sess.streak && sess.streak % 5 === 0) toast(sess.streak + ' in a row!'); } else sess.streak = 0; drawStats();
+        nextB.focus({ preventScroll: true }); // ready for Enter, without moving the page
+      } });
+      page.appendChild(card.el);
+      const notes = h('<div class="row"><button type="button" class="btn quiet sm">Read the notes for ' + tid + '</button></div>'); $('button', notes).onclick = () => openLearn(tid); page.appendChild(notes);
+      setTimeout(() => card.focus && card.focus(), 0);
+    }
+    stage.appendChild(page); seen.push(page);
+    if (seen.length > 40) { seen.shift().remove(); }
+    showAt(seen.length - 1);
   }
-  sel.onchange = () => { state.practice = sel.value; next(); };
+  sel.onchange = () => { state.practice = sel.value; seen.forEach(x => x.remove()); seen.length = 0; next(); };
   next();
   const acc2 = h('<div class="card stack"><h3>Your accuracy by topic</h3><div class="grid3" id="accGrid"></div></div>');
   TOPICS.forEach(t => { const a = acc(t.id), s = tstats[t.id]; const b = h('<button type="button" class="choice"><span class="tag">' + t.id + '</span> ' + t.name + '<div class="bar" style="margin-top:6px"><i style="width:' + (a === null ? 0 : a * 100) + '%"></i></div><span class="small muted">' + (s ? Math.round(a * 100) + '% of ' + s.a : 'not started') + '</span></button>'); b.onclick = () => { sel.value = t.id; state.practice = t.id; next(); window.scrollTo({ top: 0, behavior: 'smooth' }); }; $('#accGrid', acc2).appendChild(b); });

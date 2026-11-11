@@ -393,4 +393,12 @@ html.simple .view:not(#v-booklet) .steps .why::before{content:none}
 html.simple .view:not(#v-booklet) .steps .why{order:1;font-size:1.0625rem;color:var(--ink);font-weight:500;margin:0}
 html.simple .view:not(#v-booklet) .steps .st{order:2;font-size:1.1875rem;line-height:1.9;background:var(--card);border:1.5px solid var(--rule);border-radius:10px;padding:8px 14px;max-width:100%}
 
+
+/* Confirm button under every question; ← Previous / Next → in Practice */
+html,body{overflow-anchor:none} /* answering a question never slides the page */
+.confirm-row{display:flex;margin-top:4px}
+.confirm-btn{min-width:160px;font-size:1.0625rem}
+.confirm-btn:disabled{opacity:.5;cursor:not-allowed}
+.q-nav{justify-content:space-between;align-items:center;border-top:1px solid var(--rule);padding-top:12px;margin-top:4px}
+.q-nav .btn:disabled{opacity:.45;cursor:not-allowed}
 </style>
