@@ -24,7 +24,7 @@ async function vet(env, user, place, text) {
   if (!text) return err(400, 'Type a message first.');
   if (text.length > MAX_LEN) return err(400, 'Messages can be up to ' + MAX_LEN + ' characters.');
   const u = await env.DB.prepare('SELECT chat_muted FROM users WHERE id = ?').bind(user.id).first();
-  if (u && u.chat_muted) return err(403, 'Beau has paused chatting on your account. You can still use Message Beau.');
+  if (u && u.chat_muted) return err(403, 'Beau has paused chatting on your account. You can still message Beau in the ✉️ Beau tab.');
   const r = checkText(text);
   if (!r.ok) { await logBlocked(env, user.id, place, r.why, text); return err(422, r.message); }
   const t = now();
@@ -149,9 +149,9 @@ export async function handleCommunity(req, env, url, user) {
       : await env.DB.prepare('SELECT id, username FROM users WHERE username = ? COLLATE NOCASE').bind(String(b.name || '').trim()).first();
     if (!target) return err(404, 'There’s no student with that name.');
     if (target.id === me) return err(400, 'That’s you!');
-    if (isAdmin(target, env)) return err(400, 'To talk to Beau, use Message Beau.');
+    if (isAdmin(target, env)) return err(400, 'To talk to Beau, use the ✉️ Beau tab.');
     const mu = await env.DB.prepare('SELECT chat_muted FROM users WHERE id = ?').bind(me).first();
-    if (mu && mu.chat_muted) return err(403, 'Beau has paused chatting on your account. You can still use Message Beau.');
+    if (mu && mu.chat_muted) return err(403, 'Beau has paused chatting on your account. You can still message Beau in the ✉️ Beau tab.');
     if (await blockedEither(env, me, target.id)) return err(403, 'You can’t chat with this person.');
     const [a, bb] = pair(me, target.id), t = now();
     const ex = await env.DB.prepare('SELECT * FROM dm_threads WHERE a = ? AND b = ?').bind(a, bb).first();
@@ -198,7 +198,7 @@ export async function handleCommunity(req, env, url, user) {
         const g = await env.DB.prepare("SELECT g.code, g.mode, g.subject FROM games g JOIN game_players p ON p.game_id = g.id AND p.user_id = ? WHERE g.code = ? AND g.status != 'ended'").bind(me, String(b.invite)).first();
         if (!g) return err(404, 'That game has finished.');
         const mu = await env.DB.prepare('SELECT chat_muted FROM users WHERE id = ?').bind(me).first();
-        if (mu && mu.chat_muted) return err(403, 'Beau has paused chatting on your account. You can still use Message Beau.');
+        if (mu && mu.chat_muted) return err(403, 'Beau has paused chatting on your account. You can still message Beau in the ✉️ Beau tab.');
         const dup = await env.DB.prepare('SELECT id FROM dm_messages WHERE thread_id = ? AND user_id = ? AND body LIKE ?').bind(th.id, me, '[game:' + g.code + ':%').first();
         if (dup) return json({ ok: true, id: dup.id, already: true });
         text = '[game:' + g.code + ':' + g.mode + ':' + g.subject + ']';

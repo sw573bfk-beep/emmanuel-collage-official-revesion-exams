@@ -604,12 +604,12 @@ function lockedView(body, requested) {
   const ask = () => {};
   const waiting = () => {
     $('#askBtn', c).disabled = true; $('#askBtn', c).textContent = '🔔 Request sent';
-    $('#askOut', c).innerHTML = '<div class="fb info">Beau has been asked. You’ll see a red number on <b>Message Beau</b> when Beau answers, and this page unlocks by itself.</div>';
+    $('#askOut', c).innerHTML = '<div class="fb info">Beau has been asked. You’ll see a red number on <b>💬 Chat</b> when Beau answers, and this page unlocks by itself.</div>';
     clearInterval(unlockPoll);
     unlockPoll = setInterval(async () => {
       if (!c.isConnected) { clearInterval(unlockPoll); return; }
       if (document.visibilityState !== 'visible') return;
-      try { const s = await (await fetch('/api/unlock/theory', { credentials: 'same-origin' })).json(); if (s.unlocked) { clearInterval(unlockPoll); toast('Beau unlocked the booklet for you'); loadTheory(body); } else if (!s.requested) { clearInterval(unlockPoll); $('#askBtn', c).disabled = false; $('#askBtn', c).textContent = '🔔 Ask Beau to unlock it'; $('#askOut', c).innerHTML = '<div class="fb info">Beau said not yet. Check <b>Message Beau</b> for a reply.</div>'; } } catch (e) { /* try again */ }
+      try { const s = await (await fetch('/api/unlock/theory', { credentials: 'same-origin' })).json(); if (s.unlocked) { clearInterval(unlockPoll); toast('Beau unlocked the booklet for you'); loadTheory(body); } else if (!s.requested) { clearInterval(unlockPoll); $('#askBtn', c).disabled = false; $('#askBtn', c).textContent = '🔔 Ask Beau to unlock it'; $('#askOut', c).innerHTML = '<div class="fb info">Beau said not yet. Check <b>💬 Chat → ✉️ Beau</b> for a reply.</div>'; } } catch (e) { /* try again */ }
     }, 15000);
   };
   if (requested) waiting();

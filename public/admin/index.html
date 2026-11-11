@@ -86,6 +86,45 @@ table.mini td,table.mini th{border-bottom:1px solid var(--rule);padding:5px 6px;
 details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
 .bubble.askcard{background:var(--warn-soft);border:2px solid var(--warn);color:var(--ink);white-space:normal}
 .prev.ask{color:var(--warn);font-weight:700}
+/* menu + foldable sections */
+.amenu{position:sticky;top:0;z-index:30;display:flex;gap:6px;align-items:center;overflow-x:auto;scrollbar-width:thin;padding:8px 2px;margin:-4px 0;background:var(--paper)}
+.amenu button{font:inherit;font-size:.9375rem;font-weight:600;white-space:nowrap;display:flex;align-items:center;gap:6px;border:1.5px solid var(--rule);background:var(--card);color:var(--ink);border-radius:999px;padding:7px 14px;min-height:40px;cursor:pointer}
+.amenu button:hover{border-color:var(--accent)}
+.amenu button.off{color:var(--muted);border-style:dashed}
+.amenu .sp{flex:1}
+.amenu .all{color:var(--muted);font-weight:500}
+.badge{display:inline-grid;place-items:center;min-width:22px;height:22px;padding:0 6px;border-radius:999px;background:var(--pen);color:var(--card);font-size:.8125rem;font-weight:700;line-height:1}
+.badge[hidden]{display:none}
+.sec{gap:14px;scroll-margin-top:64px}
+.sec-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:space-between}
+.sec-tog{font:inherit;color:inherit;background:none;border:0;padding:4px 0;display:flex;align-items:center;gap:10px;cursor:pointer;text-align:left;min-height:44px}
+.sec-tog h2{font-size:1.35rem;margin:0}
+.sec-tog .chev{display:inline-grid;place-items:center;width:30px;height:30px;border-radius:8px;border:1.5px solid var(--rule);font-size:.9rem;color:var(--muted);transition:transform .15s}
+.sec-tog[aria-expanded="false"] .chev{transform:rotate(-90deg)}
+.sec-tog:hover .chev{border-color:var(--accent);color:var(--accent)}
+.sec-tog .hint{font-size:.875rem;color:var(--muted);font-weight:400}
+.sec-tools{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.sec.closed .sec-tools{display:none}
+.sec-body[hidden]{display:none}
+.tiles .tile{cursor:default}.tiles button.tile{font:inherit;color:inherit;text-align:left;cursor:pointer}.tiles button.tile:hover{border-color:var(--accent)}
+.tile.alert{border-color:var(--pen)}.tile.alert .v{color:var(--pen)}
+/* message everyone */
+.bc-live{border:2px solid var(--good);background:var(--good-soft);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:8px}
+.bc-live .t{white-space:pre-wrap;overflow-wrap:anywhere;font-size:1.0625rem}
+.bc-live .bar{height:6px;border-radius:99px;background:var(--card);overflow:hidden}.bc-live .bar i{display:block;height:100%;background:var(--good)}
+.bc-form textarea{width:100%;font:inherit;color:var(--ink);background:var(--card);border:2px solid var(--field);border-radius:12px;padding:10px 12px;min-height:76px;resize:vertical}
+.bc-form textarea:focus{border-color:var(--accent);outline:none;box-shadow:0 0 0 3px var(--accent-soft)}
+.bc-custom{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.bc-custom input{width:110px}.bc-custom select{width:auto}
+.bc-rec{display:flex;flex-direction:column;gap:6px;margin-top:10px}
+.bc-rec .cl .body{font-size:.95rem}
+.ctabs{display:flex;gap:6px;flex-wrap:wrap}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.conv .top,.cl .top{background:none;border:0}
+.bc-custom select{font:inherit;color:var(--ink);background:var(--card);border:2px solid var(--field);border-radius:10px;padding:8px 10px;min-height:44px}
+@media (min-width:900px){.amenu{flex-wrap:wrap;overflow:visible}}
+@media (max-width:600px){.sec-tog .hint{display:none}.tiles{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.tile{padding:10px 12px}.tile .v{font-size:1.6rem}.sec-tog h2{font-size:1.2rem}}
+.ctabs .chip{display:flex;align-items:center;gap:6px;min-height:38px;font-size:.9375rem}
 </style>
 <script src="/theme.js"></script>
 <link rel="stylesheet" href="/theme.css?v=1">
@@ -94,55 +133,81 @@ details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
 <main class="wrap">
   <div class="head">
     <div><span class="mark">admin</span><h1>EC Revisions dashboard</h1><p class="muted small" id="updated">Loading…</p></div>
-    <div class="row"><button class="btn quiet sm" type="button" id="refresh">Refresh</button><button class="btn quiet sm" type="button" id="csv">Download CSV</button><a class="btn quiet sm" href="/">Back to subjects</a></div>
+    <div class="row"><button class="btn quiet sm" type="button" id="refresh">↻ Refresh</button><a class="btn quiet sm" href="/">Back to subjects</a></div>
   </div>
   <div id="denied" class="card stack" hidden><h2>Admin only</h2><p class="muted">This page is only for the site admin. Log in with the admin account to see it.</p><a class="btn" href="/" style="align-self:flex-start">Go to EC Revisions</a></div>
+  <nav class="amenu" id="amenu" aria-label="Jump to a section" hidden></nav>
   <div id="dash" class="stack" style="gap:18px" hidden>
-    <section class="tiles" aria-label="Summary">
-      <div class="tile live"><span class="v" id="tOnline">0</span><span class="l"><span class="dot"></span>online right now</span></div>
-      <div class="tile"><span class="v" id="tUsers">0</span><span class="l" id="tUsersL">accounts</span></div>
-      <div class="tile"><span class="v" id="tToday">0</span><span class="l">studied today</span></div>
-      <div class="tile"><span class="v" id="tWeek">0</span><span class="l">studied in the last 7 days</span></div>
-      <div class="tile"><span class="v" id="tTimeToday">0</span><span class="l">study time today</span></div>
-      <div class="tile"><span class="v" id="tTimeWeek">0</span><span class="l">study time, last 7 days</span></div>
-      <div class="tile"><span class="v" id="tTimeAll">0</span><span class="l">study time, all time</span></div>
-      <div class="tile"><span class="v" id="tQs">0</span><span class="l">maths questions answered</span></div>
-      <div class="tile"><span class="v" id="tSciQs">0</span><span class="l">science questions answered</span></div>
-      <div class="tile"><span class="v" id="tMsg">0</span><span class="l">unread messages</span></div>
-      <div class="tile"><span class="v" id="tRep">0</span><span class="l">new chat reports</span></div>
-      <div class="tile"><span class="v" id="tFb">0</span><span class="l" id="tFbL">new feedback</span></div>
-      <div class="tile"><span class="v" id="tCodes">0</span><span class="l" id="tCodesL">unlock codes used</span></div>
+    <section class="card stack sec" id="overview" data-title="📊 Overview" data-hint="who’s on and today’s numbers">
+      <div class="tiles" aria-label="Summary">
+        <div class="tile live"><span class="v" id="tOnline">0</span><span class="l"><span class="dot"></span>online right now</span></div>
+        <div class="tile"><span class="v" id="tToday">0</span><span class="l">studied today</span></div>
+        <div class="tile"><span class="v" id="tTimeToday">0</span><span class="l">study time today</span></div>
+        <button type="button" class="tile" data-go="chats" data-tab="messages"><span class="v" id="tMsg">0</span><span class="l">unread messages</span></button>
+        <button type="button" class="tile" data-go="chats" data-tab="reports"><span class="v" id="tRep">0</span><span class="l">new chat reports</span></button>
+        <button type="button" class="tile" data-go="feedback"><span class="v" id="tFb">0</span><span class="l" id="tFbL">new feedback</span></button>
+      </div>
+      <div><span class="eyebrow">Online now</span><div class="online-list" id="onlineList" style="margin-top:8px"></div></div>
+      <details><summary>More numbers</summary>
+        <div class="tiles" style="margin-top:12px">
+          <div class="tile"><span class="v" id="tUsers">0</span><span class="l" id="tUsersL">accounts</span></div>
+          <div class="tile"><span class="v" id="tWeek">0</span><span class="l">studied in the last 7 days</span></div>
+          <div class="tile"><span class="v" id="tTimeWeek">0</span><span class="l">study time, last 7 days</span></div>
+          <div class="tile"><span class="v" id="tTimeAll">0</span><span class="l">study time, all time</span></div>
+          <div class="tile"><span class="v" id="tQs">0</span><span class="l">maths questions answered</span></div>
+          <div class="tile"><span class="v" id="tSciQs">0</span><span class="l">science questions answered</span></div>
+          <div class="tile"><span class="v" id="tCodes">0</span><span class="l" id="tCodesL">unlock codes used</span></div>
+        </div>
+      </details>
     </section>
-    <section class="card stack" id="onlineCard"><span class="eyebrow">Online now</span><div class="online-list" id="onlineList"></div></section>
-    <section class="charts">
-      <div class="card stack chart"><div><span class="eyebrow">Last 30 days</span><h3>Minutes studied per day</h3></div><div id="chMin"></div></div>
-      <div class="card stack chart"><div><span class="eyebrow">Last 30 days</span><h3>People who studied per day</h3></div><div id="chPeople"></div></div>
+
+    <section class="card stack sec" id="broadcast" data-title="📣 Message everyone" data-hint="a pop-up for everyone on right now">
+      <p class="small muted">Not a chat message: it pops up at the top of the screen for everyone who has EC Revisions open right now, stays for the time you pick, then disappears. Anyone can close it early with ✕. People who open the site later won’t see it. Sending a new one replaces the old one.</p>
+      <div id="bcLive" class="bc-live" hidden></div>
+      <form id="bcForm" class="bc-form stack" novalidate>
+        <label class="f">What should it say?<textarea id="bcText" maxlength="300" rows="2" placeholder="e.g. The Maths exam is tomorrow. Do one practice exam tonight. Good luck!"></textarea></label>
+        <span class="small muted" id="bcCount" style="margin-top:-8px">0 / 300</span>
+        <div class="stack" style="gap:8px"><span class="small"><b>Show it for</b></span>
+          <div class="row" id="bcTimes"><button type="button" class="chip" data-s="30">30 sec</button><button type="button" class="chip on" data-s="60">1 min</button><button type="button" class="chip" data-s="300">5 min</button><button type="button" class="chip" data-s="900">15 min</button><button type="button" class="chip" data-s="3600">1 hour</button><button type="button" class="chip" data-s="custom">Custom…</button></div>
+          <div class="bc-custom" id="bcCustom" hidden><label class="sr" for="bcNum">How long</label><input type="number" id="bcNum" min="1" max="1440" value="10" inputmode="numeric"><label class="sr" for="bcUnit">Unit</label><select id="bcUnit"><option value="1">seconds</option><option value="60" selected>minutes</option><option value="3600">hours</option></select></div>
+        </div>
+        <div class="row" style="align-items:center"><button class="btn" type="submit" id="bcSend">📣 Send to everyone on now</button><span class="small muted" id="bcOn"></span></div>
+        <div id="bcOut" role="status"></div>
+      </form>
+      <details id="bcRecentBox"><summary>Recent pop-ups</summary><div class="bc-rec" id="bcRecent"></div></details>
     </section>
-    <details class="card"><summary>Show the daily numbers as a table</summary><div class="tablewrap" style="margin-top:10px"><table class="mini" id="dayTable"></table></div></details>
-    <section class="card stack" id="messages">
-      <div class="toolbar"><h3>Messages</h3><span class="small muted">Private chats from “Message Beau”. Tap a person to read and reply.</span></div>
-      <div class="msgs"><div class="convs" id="convs"></div><div class="thread" id="thread"><p class="muted small">Pick a chat on the left.</p></div></div>
-    </section>
-    <section class="card stack" id="chatsCard">
-      <div class="toolbar"><h3>Student chats</h3><div class="row" id="chatTabs"><button type="button" class="chip on" data-c="reports">Reports</button><button type="button" class="chip" data-c="group">Group chat</button><button type="button" class="chip" data-c="dms">1-on-1 chats</button><button type="button" class="chip" data-c="blocked">Blocked by the filter</button></div></div>
-      <p class="small muted">Students are told chats are monitored. Delete hides a message from everyone. Pause chatting stops a student sending chat messages (they can still use Message Beau). You can post in the group chat as Beau from the <a href="/chat/">Chat page</a>.</p>
+
+    <section class="card stack sec" id="chats" data-title="💬 Chats &amp; messages" data-hint="messages to you, reports and student chats">
+      <div class="ctabs" id="chatTabs" role="tablist"><button type="button" class="chip on" data-c="messages">✉️ Messages to you <span class="badge" id="bMsg" hidden></span></button><button type="button" class="chip" data-c="reports">🚩 Reports <span class="badge" id="bRep" hidden></span></button><button type="button" class="chip" data-c="group">Group chat</button><button type="button" class="chip" data-c="dms">1-on-1 chats</button><button type="button" class="chip" data-c="blocked">Blocked by the filter</button></div>
+      <p class="small muted" id="chatHelp"></p>
       <div id="mutedList" class="row"></div>
-      <div id="chatBody" class="chatlog"></div>
+      <div class="msgs" id="msgsView"><div class="convs" id="convs"></div><div class="thread" id="thread"><p class="muted small">Pick a chat on the left.</p></div></div>
+      <div id="chatBody" class="chatlog" hidden></div>
     </section>
-    <section class="card stack" id="fbCard">
-      <div class="toolbar"><h3>Feedback</h3><div class="row" id="fbFilter"><button type="button" class="chip on" data-f="new">New</button><button type="button" class="chip" data-f="done">Done</button><button type="button" class="chip" data-f="all">All</button></div></div>
+
+    <section class="card stack sec" id="feedback" data-title="📝 Feedback" data-hint="from the Feedback button">
+      <div class="row" id="fbFilter"><button type="button" class="chip on" data-f="new">New</button><button type="button" class="chip" data-f="done">Done</button><button type="button" class="chip" data-f="all">All</button></div>
       <div class="stack" id="fbList" style="gap:10px"></div>
     </section>
-    <section class="card stack" id="codesCard">
-      <div class="toolbar"><h3>Unlock codes: completed theory booklet</h3><div class="row"><button class="btn quiet sm" type="button" id="copyCodes">Copy unused codes</button><button class="btn sm" type="button" id="moreCodes">Make 10 more codes</button></div></div>
-      <p class="small muted">Each 6-digit code works once. Whoever enters it can open the completed booklet on their account forever. Only you can see this list. You can also unlock or lock someone by tapping their name below.</p>
+
+    <section class="card stack sec" id="people" data-title="👥 Everyone" data-hint="every account">
+      <div class="toolbar"><input type="search" id="search" placeholder="Search names" aria-label="Search names"><button class="btn quiet sm" type="button" id="csv">Download CSV</button></div>
+      <p class="small muted">Tap a person for their visit history, to message them, reset their password, unlock the booklet, pause chatting or delete their account. Study time only counts while a subject is open and someone is active.</p>
+      <div class="tablewrap"><table class="users"><thead><tr id="thead"></tr></thead><tbody id="tbody"></tbody></table></div>
+    </section>
+
+    <section class="card stack sec" id="codes" data-title="🔑 Unlock codes" data-hint="for the completed Science booklet" data-closed>
+      <div class="toolbar"><p class="small muted" style="flex:1 1 300px">Each 6-digit code works once. Whoever enters it can open the completed booklet on their account forever. You can also unlock someone by tapping their name in Everyone.</p><div class="row"><button class="btn quiet sm" type="button" id="copyCodes">Copy unused codes</button><button class="btn sm" type="button" id="moreCodes">Make 10 more codes</button></div></div>
       <p class="small" id="codesMsg"></p>
       <div class="tablewrap" style="max-height:420px;overflow-y:auto"><table class="mini" id="codesTable"></table></div>
     </section>
-    <section class="card stack">
-      <div class="toolbar"><h3>Everyone</h3><input type="search" id="search" placeholder="Search names" aria-label="Search names"></div>
-      <p class="small muted">Study time counts only while someone has a subject open and is active (not when the tab is in the background or left idle). Tap a person for their visit history, to reset their password, or to delete their account.</p>
-      <div class="tablewrap"><table class="users"><thead><tr id="thead"></tr></thead><tbody id="tbody"></tbody></table></div>
+
+    <section class="card stack sec" id="stats" data-title="📈 Last 30 days" data-hint="charts" data-closed>
+      <div class="charts">
+        <div class="stack chart"><h3>Minutes studied per day</h3><div id="chMin"></div></div>
+        <div class="stack chart"><h3>People who studied per day</h3><div id="chPeople"></div></div>
+      </div>
+      <details><summary>Show the daily numbers as a table</summary><div class="tablewrap" style="margin-top:10px"><table class="mini" id="dayTable"></table></div></details>
     </section>
   </div>
 </main>
@@ -165,6 +230,43 @@ details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
     let j = {}; try { j = await r.json(); } catch (e) { /* empty */ }
     return { ok: r.ok, status: r.status, data: j };
   }
+  /* ---------- foldable sections + the menu at the top ---------- */
+  const HKEY = 'ec-admin-closed';
+  let closedSecs; try { closedSecs = JSON.parse(localStorage.getItem(HKEY)); } catch (e) { closedSecs = null; }
+  if (!Array.isArray(closedSecs)) closedSecs = $$('.sec[data-closed]').map(x => x.id);
+  const saveClosed = () => { try { localStorage.setItem(HKEY, JSON.stringify(closedSecs)); } catch (e) { /* fine */ } };
+  const menu = $('#amenu'), SEC = {}; let allBtn = null;
+  $$('.sec').forEach(sec => {
+    const id = sec.id, bodyEl = document.createElement('div'); bodyEl.className = 'sec-body stack'; bodyEl.id = id + '-body';
+    while (sec.firstChild) bodyEl.appendChild(sec.firstChild);
+    const head = document.createElement('div'); head.className = 'sec-head';
+    const tog = document.createElement('button'); tog.type = 'button'; tog.className = 'sec-tog'; tog.setAttribute('aria-controls', bodyEl.id);
+    tog.innerHTML = '<span class="chev" aria-hidden="true">▾</span><h2></h2><span class="badge" hidden></span><span class="hint"></span>';
+    tog.querySelector('h2').textContent = sec.dataset.title; tog.querySelector('.hint').textContent = sec.dataset.hint || '';
+    const tools = document.createElement('div'); tools.className = 'sec-tools';
+    head.append(tog, tools); sec.append(head, bodyEl);
+    const mb = document.createElement('button'); mb.type = 'button'; mb.innerHTML = '<span></span><span class="badge" hidden></span>'; mb.firstChild.textContent = sec.dataset.title;
+    mb.title = 'Go to ' + sec.dataset.title.replace(/^\S+\s/, '');
+    mb.onclick = () => openSec(id, true); menu.appendChild(mb);
+    SEC[id] = { sec, body: bodyEl, tog, mb, badges: [tog.querySelector('.badge'), mb.querySelector('.badge')] };
+    tog.onclick = () => setOpen(id, sec.classList.contains('closed'));
+    setOpen(id, !closedSecs.includes(id), true);
+  });
+  const sp = document.createElement('span'); sp.className = 'sp'; menu.appendChild(sp);
+  allBtn = document.createElement('button'); allBtn.type = 'button'; allBtn.className = 'all'; menu.appendChild(allBtn);
+  const allLabel = () => { allBtn.textContent = closedSecs.length ? 'Open all' : 'Fold all'; };
+  allBtn.onclick = () => { const open = !!closedSecs.length; Object.keys(SEC).forEach(id => setOpen(id, open)); };
+  function setOpen(id, open, quiet) {
+    const x = SEC[id]; x.body.hidden = !open; x.sec.classList.toggle('closed', !open); x.tog.setAttribute('aria-expanded', String(open));
+    x.tog.title = open ? 'Fold this section away' : 'Open this section'; x.mb.classList.toggle('off', !open);
+    closedSecs = closedSecs.filter(k => k !== id); if (!open) closedSecs.push(id);
+    if (!quiet) saveClosed(); if (allBtn) allLabel();
+    if (open && id === 'stats' && data) drawCharts();
+  }
+  function openSec(id, scroll) { setOpen(id, true); if (scroll) SEC[id].sec.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
+  function setBadge(id, n) { SEC[id].badges.forEach(b => { b.hidden = !n; b.textContent = n > 99 ? '99+' : n; }); }
+  allLabel();
+  $$('[data-go]').forEach(t => t.onclick = () => { if (t.dataset.tab) pickChatTab(t.dataset.tab); openSec(t.dataset.go, true); });
   const tip = $('#tip');
   function showTip(e, html) { tip.innerHTML = html; tip.hidden = false; const r = (e.target.getBoundingClientRect ? e.target.getBoundingClientRect() : { left: e.clientX, top: e.clientY, width: 0 }); const x = Math.min(window.innerWidth - tip.offsetWidth - 8, Math.max(8, r.left + r.width / 2 - tip.offsetWidth / 2)); tip.style.left = x + 'px'; tip.style.top = Math.max(8, r.top - tip.offsetHeight - 8) + 'px'; }
   const hideTip = () => { tip.hidden = true; };
@@ -220,18 +322,22 @@ details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
     if (r.status === 403) { $('#denied').hidden = false; $('#updated').textContent = ''; return; }
     if (!r.ok) { $('#updated').textContent = 'Couldn’t load. Retrying in 30 seconds.'; return; }
     data = r.data; const T = data.totals;
-    $('#dash').hidden = false;
+    $('#dash').hidden = false; $('#amenu').hidden = false;
     $('#tOnline').textContent = T.online; $('#tUsers').textContent = T.users; $('#tUsersL').textContent = 'accounts (' + T.signupsToday + ' new today, ' + T.signupsWeek + ' this week)' + (T.leftOut ? ' · ' + T.leftOut + ' left out of stats' : '');
     $('#tToday').textContent = T.activeToday; $('#tWeek').textContent = T.activeWeek; $('#tTimeToday').textContent = dur(T.secondsToday); $('#tTimeWeek').textContent = dur(T.secondsWeek); $('#tTimeAll').textContent = dur(T.secondsAll); $('#tQs').textContent = T.questions; $('#tSciQs').textContent = T.scienceQuestions; $('#tFb').textContent = T.feedbackNew; $('#tFbL').textContent = 'new feedback (' + T.feedback + ' total)'; $('#tCodes').textContent = T.codesUsed + '/' + T.codesTotal; $('#tCodesL').textContent = 'unlock codes used (' + T.unlocked + ' accounts unlocked)';
     const on = data.users.filter(u => u.online && u.inStats); const ol = $('#onlineList'); ol.replaceChildren();
     if (!on.length) { const p = document.createElement('p'); p.className = 'muted small'; p.textContent = 'Nobody is studying right now.'; ol.appendChild(p); }
     on.forEach(u => { const s = document.createElement('span'); s.textContent = u.name + ' · ' + (u.lastSubject || ''); ol.appendChild(s); });
-    barChart($('#chMin'), data.days, d => Math.round(d.seconds / 60), v => v + ' min', 'Minutes');
-    barChart($('#chPeople'), data.days, d => d.people, v => v + (v === 1 ? ' person' : ' people'), 'People');
+    if (!SEC.stats.body.hidden) drawCharts();
+    $('#tFb').closest('.tile').classList.toggle('alert', T.feedbackNew > 0); setBadge('feedback', T.feedbackNew);
     const dt = $('#dayTable'); dt.replaceChildren(); const hr = document.createElement('tr'); ['Day', 'People', 'Minutes', 'New accounts'].forEach(h => { const th = document.createElement('th'); th.textContent = h; hr.appendChild(th); }); dt.appendChild(hr);
     data.days.slice().reverse().forEach(d => { const tr = document.createElement('tr'); [dayLabel(d.day), d.people, Math.round(d.seconds / 60), d.signups].forEach(v => cell(tr, v)); dt.appendChild(tr); });
-    drawTable(); loadCodes(); loadFeedback(); loadConvs(); loadChats();
+    drawTable(); loadCodes(); loadFeedback(); loadConvs(); loadChats(); loadBroadcast();
     $('#updated').textContent = 'Updated ' + new Date().toLocaleTimeString('en-AU', { timeZone: TZ, hour: 'numeric', minute: '2-digit' }) + ' (Queensland time). Refreshes every 30 seconds.';
+  }
+  function drawCharts() {
+    barChart($('#chMin'), data.days, d => Math.round(d.seconds / 60), v => v + ' min', 'Minutes');
+    barChart($('#chPeople'), data.days, d => d.people, v => v + (v === 1 ? ' person' : ' people'), 'People');
   }
   async function openUser(u) {
     const dlg = $('#dlg'), b = $('#dlgBody'); b.innerHTML = '<p class="muted">Loading…</p>'; dlg.showModal();
@@ -259,7 +365,7 @@ details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
       pb.onclick = async () => { const rr = await api('/api/admin/chat/mute', 'POST', { id: u.id, muted: !u.chatMuted }); if (rr.ok) { u.chatMuted = !u.chatMuted; pShow(); load(); } };
       pShow(); b.appendChild(pb);
       const mb = document.createElement('button'); mb.type = 'button'; mb.className = 'btn'; mb.textContent = 'Message ' + u.name;
-      mb.onclick = () => { dlg.close(); openConv({ id: u.id, name: u.name }); $('#messages').scrollIntoView({ behavior: 'smooth', block: 'start' }); };
+      mb.onclick = () => { dlg.close(); pickChatTab('messages'); openSec('chats', true); openConv({ id: u.id, name: u.name }); };
       b.appendChild(mb);
       box.innerHTML = '<label class="f" style="flex:1 1 220px">New password for this person (8+ characters)<input type="text" id="rpw" autocomplete="off"></label><button class="btn quiet" type="button" id="rpwBtn">Reset password</button><button class="btn quiet" type="button" id="unlockBtn">' + (u.unlocked ? 'Lock completed booklet' : 'Unlock completed booklet') + '</button><button class="btn danger" type="button" id="delU">Delete account</button>';
       const msg = document.createElement('p'); msg.className = 'small'; b.append(box, msg);
@@ -273,13 +379,15 @@ details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
   const FB_KIND = { problem: 'Something’s wrong', idea: 'Idea', question: 'Question', compliment: 'Compliment', other: 'Other' };
   const FB_SUBJ = { maths: 'Maths', science: 'Science', site: 'Whole site' };
   /* ---------- messages ---------- */
-  let convOpen = null, convLast = 0, convTimer = null;
+  let convOpen = null, convLast = 0, convTimer = null, msgUnread = 0, repNew = 0;
+  function chatBadges() { $('#bMsg').hidden = !msgUnread; $('#bMsg').textContent = msgUnread; $('#bRep').hidden = !repNew; $('#bRep').textContent = repNew; setBadge('chats', msgUnread + repNew); }
   const fmtAt = s => new Date(s * 1000).toLocaleString('en-AU', { timeZone: TZ, weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' });
   async function loadConvs() {
     const r = await api('/api/admin/messages'); if (!r.ok) return;
     const list = r.data.conversations, box = $('#convs'); box.replaceChildren();
-    $('#tMsg').textContent = list.reduce((a, c) => a + c.unread, 0);
-    if (!list.length) { const p = document.createElement('p'); p.className = 'muted small'; p.textContent = 'No messages yet. When someone uses “Message Beau”, their chat appears here.'; box.appendChild(p); }
+    const unread = list.reduce((a, c) => a + c.unread, 0); $('#tMsg').textContent = unread; $('#tMsg').closest('.tile').classList.toggle('alert', unread > 0);
+    msgUnread = unread; chatBadges();
+    if (!list.length) { const p = document.createElement('p'); p.className = 'muted small'; p.textContent = 'No messages yet. When a student messages you in Chat → ✉️ Beau, it appears here.'; box.appendChild(p); }
     list.forEach(c => {
       const b = document.createElement('button'); b.type = 'button'; b.className = 'conv' + (convOpen && convOpen.id === c.id ? ' on' : '');
       const top = document.createElement('span'); top.className = 'top'; const nm = document.createElement('b'); nm.textContent = c.username; top.appendChild(nm);
@@ -351,9 +459,23 @@ details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
     convTimer = setInterval(() => { if (document.visibilityState === 'visible') pollConv(); }, 8000);
   }
   /* ---------- student chats (moderation) ---------- */
-  let chatTab = 'reports', chatData = null, chatThread = null;
-  document.querySelectorAll('#chatTabs [data-c]').forEach(b => b.onclick = () => { chatTab = b.dataset.c; chatThread = null; document.querySelectorAll('#chatTabs [data-c]').forEach(x => x.classList.toggle('on', x === b)); drawChats(); });
-  async function loadChats() { const r = await api('/api/admin/chat/overview'); if (!r.ok) return; chatData = r.data; $('#tRep').textContent = chatData.reports.filter(x => x.status === 'new').length; drawChats(); }
+  let chatTab = 'messages', chatData = null, chatThread = null;
+  const CHAT_HELP = {
+    messages: 'Private chats students send you from Chat → ✉️ Beau. Tap a person to read and reply. Booklet unlock requests show here with Allow / Not now.',
+    reports: 'Messages students reported. Delete hides a message from everyone.',
+    group: 'Everything in the group chat. You can post in it as Beau from the Chat page.',
+    dms: '1-on-1 chats between friends.',
+    blocked: 'Messages and names the filter stopped (rude words or personal details). Nobody saw these.'
+  };
+  function pickChatTab(c) {
+    chatTab = c; chatThread = null;
+    $$('#chatTabs [data-c]').forEach(x => { x.classList.toggle('on', x.dataset.c === c); x.setAttribute('aria-selected', String(x.dataset.c === c)); });
+    $('#chatHelp').textContent = CHAT_HELP[c] + (c !== 'messages' ? ' Pause chatting (tap a person in Everyone) stops someone sending chat messages; they can still message you.' : '');
+    $('#msgsView').hidden = c !== 'messages'; $('#chatBody').hidden = c === 'messages';
+    drawChats();
+  }
+  $$('#chatTabs [data-c]').forEach(b => b.onclick = () => pickChatTab(b.dataset.c));
+  async function loadChats() { const r = await api('/api/admin/chat/overview'); if (!r.ok) return; chatData = r.data; repNew = chatData.reports.filter(x => x.status === 'new').length; $('#tRep').textContent = repNew; $('#tRep').closest('.tile').classList.toggle('alert', repNew > 0); chatBadges(); drawChats(); }
   const mk = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
   const fmtC = s => new Date(s * 1000).toLocaleString('en-AU', { timeZone: TZ, weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' });
   function line(top, body, hidden, acts) {
@@ -376,6 +498,7 @@ details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
     if (!chatData) return;
     const ml = $('#mutedList'); ml.replaceChildren();
     if (chatData.muted.length) { ml.appendChild(mk('span', 'small muted', 'Chatting paused for:')); chatData.muted.forEach(u => ml.appendChild(btn(u.name + ' · Allow again', async () => { await api('/api/admin/chat/mute', 'POST', { id: u.id, muted: false }); load(); }))); }
+    if (chatTab === 'messages') return;
     if (chatThread) return openChatThread(chatThread);
     const box = $('#chatBody'); box.replaceChildren();
     const none = t => box.appendChild(mk('p', 'muted small', t));
@@ -420,6 +543,55 @@ details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
     });
   }
   $$('#fbFilter .chip').forEach(c => c.onclick = () => { fbFilter = c.dataset.f; $$('#fbFilter .chip').forEach(x => x.classList.toggle('on', x === c)); loadFeedback(); });
+  /* ---------- message everyone (pop-up) ---------- */
+  let bcSecs = 60, bcLive = null, bcSkew = 0, bcTick = null;
+  const bcLen = s => { s = Math.round(s); if (s < 60) return s + ' sec'; if (s < 3600) { const m = Math.floor(s / 60), r = s % 60; return m + ' min' + (r ? ' ' + r + ' sec' : ''); } const h = Math.floor(s / 3600), m = Math.round((s % 3600) / 60); return h + (h === 1 ? ' hour' : ' hours') + (m ? ' ' + m + ' min' : ''); };
+  const bcClock = s => { s = Math.max(0, Math.ceil(s)); const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), r = s % 60; return (h ? h + ':' + String(m).padStart(2, '0') : m) + ':' + String(r).padStart(2, '0'); };
+  const bcChosen = () => bcSecs === 'custom' ? Math.round((+$('#bcNum').value || 0) * +$('#bcUnit').value) : bcSecs;
+  function bcLabel() { const s = bcChosen(); $('#bcSend').textContent = '📣 Send to everyone on now' + (s >= 5 && s <= 86400 ? ' · ' + bcLen(s) : ''); }
+  $$('#bcTimes .chip').forEach(c => c.onclick = () => { bcSecs = c.dataset.s === 'custom' ? 'custom' : +c.dataset.s; $$('#bcTimes .chip').forEach(x => x.classList.toggle('on', x === c)); $('#bcCustom').hidden = bcSecs !== 'custom'; if (bcSecs === 'custom') $('#bcNum').focus(); bcLabel(); });
+  $('#bcNum').oninput = bcLabel; $('#bcUnit').onchange = bcLabel;
+  $('#bcText').oninput = () => { $('#bcCount').textContent = $('#bcText').value.length + ' / 300'; };
+  function drawLive() {
+    const box = $('#bcLive'); clearInterval(bcTick);
+    if (!bcLive) { box.hidden = true; setBadge('broadcast', 0); return; }
+    box.hidden = false; box.replaceChildren();
+    const h = mk('div', 'row'); h.style.justifyContent = 'space-between'; h.style.alignItems = 'center';
+    const lt = mk('b', '', '🟢 Showing now'); const left = mk('span', 'small'); const stop = btn('Stop it now', async () => { stop.disabled = true; await api('/api/admin/broadcast/stop', 'POST', {}); loadBroadcast(); if (window.ecNoticeCheck) window.ecNoticeCheck(); }, 'danger');
+    const l2 = mk('div', 'row'); l2.style.alignItems = 'center'; l2.append(left, stop); h.append(lt, l2);
+    const bar = mk('div', 'bar'), fill = mk('i'); bar.appendChild(fill);
+    box.append(h, mk('div', 't', bcLive.body), bar);
+    const total = Math.max(1, bcLive.ends - bcLive.at);
+    const step = () => { const r = bcLive.ends - (Date.now() / 1000 + bcSkew); if (r <= 0) { bcLive = null; drawLive(); loadBroadcast(); return; } left.textContent = bcClock(r) + ' left of ' + bcLen(total); fill.style.width = (r / total * 100) + '%'; };
+    step(); bcTick = setInterval(step, 1000); setBadge('broadcast', 0);
+  }
+  async function loadBroadcast() {
+    const r = await api('/api/admin/broadcast'); if (!r.ok) return;
+    bcSkew = r.data.now - Date.now() / 1000; bcLive = r.data.live; drawLive();
+    $('#bcOn').textContent = r.data.onNow ? 'About ' + r.data.onNow + (r.data.onNow === 1 ? ' person is' : ' people are') + ' on the site right now.' : 'Nobody else seems to be on right now.';
+    const rec = $('#bcRecent'); rec.replaceChildren(); $('#bcRecentBox').hidden = !r.data.recent.length;
+    r.data.recent.forEach(x => {
+      const ran = x.ends_at - x.created_at;
+      const st = x.ends_at > r.data.now ? 'showing now' : x.stopped_at ? 'stopped after ' + bcLen(Math.max(1, x.stopped_at - x.created_at)) : 'showed for ' + bcLen(ran);
+      rec.appendChild(line([fmtC(x.created_at), st], x.body, false, [btn('Use again', () => { $('#bcText').value = x.body; $('#bcText').oninput(); $('#bcText').focus(); })]));
+    });
+  }
+  $('#bcForm').onsubmit = async e => {
+    e.preventDefault(); const out = $('#bcOut'); out.replaceChildren();
+    const body = $('#bcText').value.trim(), seconds = bcChosen();
+    const bad = t => out.appendChild(mk('div', 'msg bad', t));
+    if (!body) return bad('Type what the pop-up should say first.');
+    if (!(seconds >= 5 && seconds <= 86400)) return bad('Pick a time between 5 seconds and 24 hours.');
+    if (bcLive && !confirm('A pop-up is showing right now. Replace it with this one?')) return;
+    $('#bcSend').disabled = true;
+    const r = await api('/api/admin/broadcast', 'POST', { body, seconds }); $('#bcSend').disabled = false;
+    if (!r.ok) return bad(r.data.error || 'Couldn’t send it.');
+    $('#bcText').value = ''; $('#bcText').oninput();
+    out.appendChild(mk('div', 'msg good', 'Sent! It’s popping up for everyone on now, for ' + bcLen(seconds) + '.'));
+    setTimeout(() => out.replaceChildren(), 6000);
+    loadBroadcast(); if (window.ecNoticeCheck) window.ecNoticeCheck();
+  };
+  bcLabel();
   let codes = [];
   async function loadCodes() {
     const r = await api('/api/admin/codes'); if (!r.ok) return; codes = r.data.codes;
@@ -438,7 +610,8 @@ details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
       .concat(data.users.map(u => [u.name, when(u.joined), when(u.lastSeen), u.logins, u.visits, Math.round(u.todaySeconds / 60), Math.round(u.weekSeconds / 60), Math.round(u.totalSeconds / 60), u.maths.answered, u.maths.correct, u.maths.bookletDone, u.maths.bookletRight, u.maths.exams, u.maths.examAvg ?? ''].map(q).join(',')));
     const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([lines.join('\n')], { type: 'text/csv' })); a.download = 'ec-revisions-users-' + data.today + '.csv'; a.click();
   };
-  load().then(() => { if (location.hash === '#messages') $('#messages').scrollIntoView({ block: 'start' }); }); setInterval(() => { if (document.visibilityState === 'visible') load(); }, 30000);
+  pickChatTab('messages');
+  load().then(() => { const h = location.hash.slice(1); if (h === 'messages' || h === 'chats') { pickChatTab('messages'); openSec('chats', true); } else if (SEC[h]) openSec(h, true); }); setInterval(() => { if (document.visibilityState === 'visible') load(); }, 30000);
 })();
 </script>
 </body>

@@ -4,7 +4,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 SRC=src/maths; OUT=public/maths; mkdir -p "$OUT"
 BUILD=$(date +%s)
-ACCOUNT='<span class="acct"><span class="acct-name" id="acctName"></span><span class="small muted" id="syncStatus" aria-live="polite"></span></span><a class="btn quiet sm" href="/feedback/?from=maths">Feedback</a><a class="btn quiet sm" href="/leaderboard/?from=maths">🏆 Leaderboard</a><a class="btn quiet sm" href="/chat/?from=maths" data-chat>💬 Chat</a><a class="btn quiet sm" href="/message/?from=maths" data-msg><span class="msg-label">Message Beau</span></a><a class="btn quiet sm" href="/">Subjects</a><button id="logoutBtn" class="btn quiet sm" type="button">Log out</button>'
+ACCOUNT='<span class="acct"><span class="acct-name" id="acctName"></span><span class="small muted" id="syncStatus" aria-live="polite"></span></span><a class="btn quiet sm" href="/feedback/?from=maths">Feedback</a><a class="btn quiet sm" href="/leaderboard/?from=maths">🏆 Leaderboard</a><a class="btn quiet sm" href="/chat/?from=maths" data-chat>💬 Chat</a><a class="btn quiet sm" href="/">Subjects</a><button id="logoutBtn" class="btn quiet sm" type="button">Log out</button>'
 {
   echo '<!DOCTYPE html>'
   echo "<html lang=\"en\" data-build=\"$BUILD\">"

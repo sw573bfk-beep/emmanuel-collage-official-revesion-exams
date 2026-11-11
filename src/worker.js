@@ -22,7 +22,7 @@ import acctJs from '../public/acct.js';
 import tabbarJs from '../public/tabbar.js';
 import themeCss from '../public/theme.css';
 import themeJs from '../public/theme.js';
-import messageHtml from '../public/message/index.html';
+import noticeJs from '../public/notice.js';
 import msgJs from '../public/msg.js';
 import chatHtml from '../public/chat/index.html';
 import boardHtml from '../public/leaderboard/index.html';
@@ -43,7 +43,7 @@ const PAGES = {
   '/theme.css': [themeCss, 'text/css; charset=utf-8'],
   '/theme.js': [themeJs, 'text/javascript; charset=utf-8'],
   '/msg.js': [msgJs, 'text/javascript; charset=utf-8'],
-  '/message/': [messageHtml, HTML], '/message/index.html': [messageHtml, HTML],
+  '/notice.js': [noticeJs, 'text/javascript; charset=utf-8'],
   '/chat/': [chatHtml, HTML], '/chat/index.html': [chatHtml, HTML],
   '/leaderboard/': [boardHtml, HTML], '/leaderboard/index.html': [boardHtml, HTML],
   '/play/': [playHtml, HTML], '/play/index.html': [playHtml, HTML], '/play/sci.js': [playSciJs, 'text/javascript; charset=utf-8'], '/play/maths.js': [playMathsJs, 'text/javascript; charset=utf-8'],
@@ -54,7 +54,9 @@ const PAGES = {
 };
 const SECURITY_HEADERS = { 'x-content-type-options': 'nosniff', 'referrer-policy': 'same-origin', 'x-frame-options': 'DENY' };
 function servePage(url) {
-  if (['/maths', '/science', '/admin', '/feedback', '/message', '/chat', '/leaderboard', '/play'].includes(url.pathname)) return Response.redirect(url.origin + url.pathname + '/' + url.search, 301);
+  // "Message Beau" is now the ✉️ Beau tab of the Chat page
+  if (url.pathname === '/message' || url.pathname.startsWith('/message/')) { const q = new URLSearchParams(url.search); q.set('tab', 'beau'); return Response.redirect(url.origin + '/chat/?' + q, 302); }
+  if (['/maths', '/science', '/admin', '/feedback', '/chat', '/leaderboard', '/play'].includes(url.pathname)) return Response.redirect(url.origin + url.pathname + '/' + url.search, 301);
   const page = PAGES[url.pathname];
   if (!page) return new Response(notFoundHtml, { status: 404, headers: { 'content-type': HTML, ...SECURITY_HEADERS } });
   const [body, type] = page;
@@ -62,11 +64,19 @@ function servePage(url) {
   return new Response(body, { headers: { 'content-type': type, 'cache-control': cache, ...SECURITY_HEADERS } });
 }
 
-// Booklet unlock requests live in the Message Beau chat as these special messages
+// Booklet unlock requests live in the Beau chat (Chat page, ✉️ Beau tab) as these special messages
 const REQ_ASK = '[unlock-request]', REQ_YES = '[unlock-allowed]', REQ_NO = '[unlock-declined]';
 async function lastUnlockNote(env, userId) {
   const r = await env.DB.prepare('SELECT body FROM messages WHERE user_id = ? AND ((body = ? AND from_admin = 0) OR (body IN (?, ?) AND from_admin = 1)) ORDER BY id DESC LIMIT 1').bind(userId, REQ_ASK, REQ_YES, REQ_NO).first();
   return r ? r.body : null;
+}
+// The live pop-up announcement, cached for a few seconds so every open page checking it stays cheap.
+let noticeCache = { at: 0, v: null };
+async function liveNotice(env, fresh) {
+  const t = now(); if (!fresh && Date.now() - noticeCache.at < 4000) return noticeCache.v && noticeCache.v.ends > t ? noticeCache.v : null;
+  const r = await env.DB.prepare('SELECT id, body, created_at, ends_at FROM broadcasts WHERE ends_at > ? ORDER BY id DESC LIMIT 1').bind(t).first();
+  noticeCache = { at: Date.now(), v: r ? { id: r.id, body: r.body, at: r.created_at, ends: r.ends_at } : null };
+  return noticeCache.v;
 }
 const SESSION_DAYS = 30;
 const PBKDF2_ITERATIONS = 100000; // the maximum Workers allows
@@ -174,6 +184,8 @@ async function handleApi(req, env, url) {
     return json({ username: user.username }, 200, { 'set-cookie': await startSession(env, user.id, url, slotOf(req)) });
   }
 
+  // "Message everyone": the pop-up announcement every open page checks for (no login needed).
+  if (path === '/api/broadcast' && method === 'GET') return json({ now: now(), notice: await liveNotice(env) });
   if (path === '/api/accounts' && method === 'GET') {
     // which accounts are logged in in this browser, and in which slot
     const out = [];
@@ -486,6 +498,30 @@ async function handleAdmin(req, env, path, method, me) {
     ]);
     if (!u.results.length) return err(404, 'No such user');
     return json({ user: u.results[0], visits: vis.results, days: days.results });
+  }
+  // "Message everyone" pop-up: send one (replaces any that's showing), stop it early, see recent ones
+  if (path === '/api/admin/broadcast' && method === 'GET') {
+    const [rec, on] = await env.DB.batch([
+      env.DB.prepare('SELECT id, body, created_at, ends_at, stopped_at FROM broadcasts ORDER BY id DESC LIMIT 8'),
+      env.DB.prepare('SELECT COUNT(*) AS n FROM users WHERE last_seen > ?').bind(t - 180)
+    ]);
+    return json({ now: t, live: await liveNotice(env, true), recent: rec.results, onNow: on.results[0].n });
+  }
+  if (path === '/api/admin/broadcast' && method === 'POST') {
+    let b; try { b = await readJson(req); } catch { return err(400, 'Bad request'); }
+    const text = String(b.body || '').replace(/\r\n?/g, '\n').trim(), secs = Math.round(+b.seconds || 0);
+    if (!text) return err(400, 'Type a message first.'); if (text.length > 300) return err(400, 'Keep it to 300 characters so it fits in the pop-up.');
+    if (!(secs >= 5 && secs <= 86400)) return err(400, 'Pick a time between 5 seconds and 24 hours.');
+    const fr = checkText(text); if (!fr.ok) { await logBlocked(env, me.id, 'message everyone', fr.why, text); return err(422, fr.message); }
+    await env.DB.batch([
+      env.DB.prepare('UPDATE broadcasts SET ends_at = ?, stopped_at = ? WHERE ends_at > ?').bind(t, t, t),
+      env.DB.prepare('INSERT INTO broadcasts (body, created_at, ends_at) VALUES (?, ?, ?)').bind(text, t, t + secs)
+    ]);
+    return json({ ok: true, live: await liveNotice(env, true) }, 201);
+  }
+  if (path === '/api/admin/broadcast/stop' && method === 'POST') {
+    await env.DB.prepare('UPDATE broadcasts SET ends_at = ?, stopped_at = ? WHERE ends_at > ?').bind(t, t, t).run();
+    await liveNotice(env, true); return json({ ok: true });
   }
   if (method !== 'POST') return err(404, 'Not found');
   let body; try { body = await readJson(req); } catch { return err(400, 'Bad request'); }

@@ -25,4 +25,6 @@
     else { b.classList.add('float'); document.body.appendChild(b); }
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', add); else add();
+  // pop-up messages from Beau ("Message everyone") on every page
+  const nj = document.createElement('script'); nj.src = '/notice.js'; nj.defer = true; document.head.appendChild(nj);
 })();
