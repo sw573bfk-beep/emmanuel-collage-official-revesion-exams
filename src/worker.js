@@ -31,7 +31,7 @@ import boardHtml from '../public/leaderboard/index.html';
 import playHtml from '../public/play/index.html';
 import playSciJs from '../public/play/sci.js';
 import playMathsJs from '../public/play/maths.js';
-import { checkText, checkName } from './filter.js';
+import { checkText, checkName, checkPieces } from './filter.js';
 import { handleCommunity, handleCommunityAdmin, addPoints, logBlocked, FAKE_NOTE } from './community.js';
 import { handleGames } from './games.js';
 
@@ -404,7 +404,9 @@ async function handleApi(req, env, url) {
     if (!text) return err(400, 'Type a message first.');
     if (text.length > 1000) return err(400, 'Messages can be up to 1000 characters.');
     if (FAKE_NOTE.test(text)) return err(400, 'That message can’t be sent. Type it a different way.');
-    const fm = checkText(text); if (!fm.ok) { await logBlocked(env, user.id, 'Message Beau', fm.why, text); return err(422, fm.message); }
+    let fm = checkText(text);
+    if (fm.ok) { const rec = await env.DB.prepare('SELECT body FROM messages WHERE user_id = ? AND from_admin = 0 AND created_at > ? ORDER BY id DESC LIMIT 8').bind(user.id, now() - 180).all(); fm = checkPieces(rec.results.map(x => x.body).reverse(), text); }
+    if (!fm.ok) { await logBlocked(env, user.id, 'Message Beau', fm.why, text); return err(422, fm.message); }
     const recent = await env.DB.prepare('SELECT COUNT(*) AS n FROM messages WHERE user_id = ? AND from_admin = 0 AND created_at > ?').bind(user.id, now() - 3600).first();
     if (recent.n >= 30) return err(429, 'That’s a lot of messages. Wait a little and try again.');
     const r = await env.DB.prepare('INSERT INTO messages (user_id, from_admin, body, created_at) VALUES (?, 0, ?, ?)').bind(user.id, text, now()).run();

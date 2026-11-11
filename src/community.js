@@ -1,6 +1,6 @@
 // Student chats (1-on-1 chats between friends that start with a friend request), the leaderboard,
 // and Beau's moderation tools. Every student message goes through the strict filter in filter.js.
-import { checkText } from './filter.js';
+import { checkText, checkPieces } from './filter.js';
 
 const MAX_LEN = 500;
 export const MAX_CORRECT_DAY = 400, MAX_BOOKLET_DAY = 250; // leaderboard points caps per person per day
@@ -29,7 +29,11 @@ async function vet(env, user, place, text) {
   if (FAKE_NOTE.test(text)) return err(400, 'That message can’t be sent. Type it a different way.');
   const u = await env.DB.prepare('SELECT chat_muted FROM users WHERE id = ?').bind(user.id).first();
   if (u && u.chat_muted) return err(403, 'Beau has paused chatting on your account. You can still message Beau in the ✉️ Beau tab.');
-  const r = checkText(text);
+  let r = checkText(text);
+  if (r.ok) { // words sent a letter or two at a time across several messages
+    const rec = await env.DB.prepare('SELECT body FROM dm_messages WHERE user_id = ? AND created_at > ? ORDER BY id DESC LIMIT 8').bind(user.id, now() - 180).all();
+    r = checkPieces(rec.results.map(x => x.body).reverse(), text);
+  }
   if (!r.ok) { await logBlocked(env, user.id, place, r.why, text); return err(422, r.message); }
   const t = now();
   const fast = await env.DB.prepare('SELECT (SELECT COUNT(*) FROM group_messages WHERE user_id = ?1 AND created_at > ?2) + (SELECT COUNT(*) FROM dm_messages WHERE user_id = ?1 AND created_at > ?2) AS n, (SELECT MAX(created_at) FROM (SELECT created_at FROM group_messages WHERE user_id = ?1 UNION ALL SELECT created_at FROM dm_messages WHERE user_id = ?1)) AS last').bind(user.id, t - 60).first();
