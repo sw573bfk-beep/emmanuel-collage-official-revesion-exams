@@ -50,7 +50,15 @@ const INSIDE = ['fuck', 'fuk', 'fck', 'fcuk', 'fukk', 'motherf', 'shit', 'cunt',
   'killyoself', 'retard', 'spastic', 'jizz', 'blowjob', 'handjob', 'masturbat', 'orgasm', 'erection', 'condom', 'cocaine', 'heroin', 'ecstasy', 'onlyfans', 'pornhub', 'xvideos', 'hentai', 'nazi', 'hitler',
   'tranny', 'shithead', 'dumbass', 'jackass', 'smartass', 'badass', 'bullshit', 'goddamn', 'stfu', 'gtfo', 'wtf',
   'fatass', 'seggs', 'secks', 'sexx', 'segs', 'gyat', 'milf', 'dilf', 'thicc', 'pedo', 'paedo', 'pedophil', 'paedophil', 'unalive', 'molest', 'incest', 'groomer', 'boner', 'penus', 'peenus', 'vagene', 'testicle',
-  'ballsack', 'nutsack', 'scrotum', 'clitoris', 'nipple', 'bdsm', 'fetish', 'kinky', 'stripper', 'hooker', 'prostitut', 'xanax', 'mdma', 'vodka', 'tequila', 'whiskey', 'worthless', 'braindead', 'beaner', 'wetback', 'kike'];
+  'ballsack', 'nutsack', 'scrotum', 'clitoris', 'nipple', 'bdsm', 'fetish', 'kinky', 'stripper', 'hooker', 'prostitut', 'xanax', 'mdma', 'vodka', 'tequila', 'whiskey', 'worthless', 'braindead', 'beaner', 'wetback', 'kike',
+  // racism and hate
+  'golliwog', 'jigaboo', 'jiggaboo', 'towelhead', 'raghead', 'dothead', 'terrorist', 'jihad', 'chingchong', 'currymuncher', 'junglebunny', 'porchmonkey', 'uncletom', 'whitetrash', 'redskin', 'muzzie', 'muzrat',
+  'gyppo', 'negroid', 'darkie', 'darky', 'blackie', 'halfcaste', 'chinaman', 'polack', 'monkey', 'gorilla', 'baboon', 'chimpanzee',
+  // Nazi and extremism
+  'swastika', 'fuhrer', 'fuehrer', 'auschwitz', 'holocaust', 'aryan', 'klansman', 'kukluxklan', 'whitepower', 'whitepride', 'masterrace', 'siegheil', 'genocide', 'ethniccleansing', 'neonazi',
+  // drugs, smoking and alcohol
+  'marijuana', 'marihuana', 'cannabis', 'ganja', 'nicotine', 'cigarette', 'ciggie', 'ciggy', 'ketamine', 'fentanyl', 'codeine', 'adderall', 'oxycodone', 'oxycontin', 'percocet', 'druggie', 'junkie', 'stoner', 'opium',
+  'cocaine', 'amphetamine', 'methamphetamine', 'shrooms', 'magicmushroom', 'smokeweed', 'gethigh', 'gettinghigh', 'gotstoned'];
 // Whole words only (a few endings allowed): short or common words that also hide inside innocent words.
 const WHOLE = ['ass', 'asses', 'arse', 'azz', 'dick', 'dik', 'dikk', 'cock', 'cok', 'cum', 'cumming', 'sex', 'sexy', 'sexual', 'rape', 'raping', 'raped', 'tit', 'tits', 'piss', 'pissed', 'crap', 'crappy', 'damn', 'dammit', 'damnit',
   'hell', 'bugger', 'bloody', 'omfg', 'fag', 'fags', 'tard', 'idiot', 'stupid', 'dumb', 'loser', 'moron', 'ugly', 'fatso', 'fatty', 'freak', 'pig', 'cow', 'skank', 'hoe', 'thot', 'simp', 'nude', 'naked',
@@ -58,7 +66,10 @@ const WHOLE = ['ass', 'asses', 'arse', 'azz', 'dick', 'dik', 'dikk', 'cock', 'co
   'douche', 'scum', 'trash', 'gay', 'lesbo', 'dyke', 'shag', 'bum', 'butt', 'butthole', 'fk', 'fkn', 'fkin', 'fking', 'fkd', 'fked', 'fuq', 'fux', 'fuc', 'mf', 'mfs', 'mofo', 'mfer', 'sht', 'shyt', 'shiet',
   'btch', 'bich', 'bish', 'cnt', 'kunt', 'puss', 'pusy', 'noods', 'noodz', 'nudez', 'spaz', 'spazz', 'coon', 'gook', 'chink', 'wog', 'abo', 'boong', 'paki', 'sybau', 'wth', 'effing', 'effin', 'fing', 'fooking', 'fookin', 'fook', 'feck', 'fecking', 'frickin', 'fcken', 'af', 'lmfao', 'ffs', 'jfc',
   'pp', 'peen', 'pecker', 'schlong', 'dong', 'willy', 'cooch', 'coochie', 'kms', 'nonce', 'bozo', 'fat', 'slag', 'cracker', 'spic', 'heil', 'balls', 'ballz', 'nutz', 'booty', 'bussy', 'weirdo', 'creep',
-  'pathetic', 'lsd', 'shrooms', 'smex', 'sexting', 'horni', 'hornee', 'erotic', 'naughty', 'lewd', 'hottie', 'thot', 'gooner', 'goon', 'gooning', 'edging', 'pimp', 'sugardaddy', 'dih', 'dihh', 'deez'];
+  'pathetic', 'lsd', 'shrooms', 'smex', 'sexting', 'horni', 'hornee', 'erotic', 'naughty', 'lewd', 'hottie', 'thot', 'gooner', 'goon', 'gooning', 'edging', 'pimp', 'sugardaddy', 'dih', 'dihh', 'deez',
+  'jew', 'jewish', 'jewy', 'ape', 'chimp', 'coon', 'sambo', 'jap', 'japs', 'yid', 'heeb', 'hymie', 'gypsy', 'gypsies', 'pikey', 'negro', 'nig', 'nigs', 'nog', 'honky', 'squaw', 'abbo', 'lebo', 'kraut', 'dago', 'eyetie',
+  'isis', 'kkk', 'klan', 'reich', 'sieg', 'hitlers', 'heil', 'nazis', 'natzi', 'nazy',
+  'weed', 'kush', 'thc', 'cbd', 'vapes', 'vaper', 'durry', 'durries', 'cig', 'cigs', 'coke', 'oxy', 'drug', 'drugs', 'beer', 'beers', 'wine', 'rum', 'alcoholic', 'xtc', 'pills', 'dealer', 'smoked', 'smoking', 'stoned', 'tipsy', 'hungover'];
 const ENDINGS = ['', 's', 'es', 'ed', 'd', 'ing', 'in', 'n', 'er', 'ers', 'y', 'ies', 'ie', 'z'];
 // real words that contain or look like a listed word
 const ALLOW = new Set(['retardant', 'retardants', 'retardation', 'therapist', 'therapists', 'scunthorpe', 'snigger', 'sniggers', 'sniggering', 'shiitake', 'shitake', 'cocktail', 'cocktails', 'peacock', 'hancock', 'cockatoo',
@@ -66,7 +77,7 @@ const ALLOW = new Set(['retardant', 'retardants', 'retardation', 'therapist', 't
   'hornet', 'gunpowder', 'assess', 'assist', 'class', 'bass', 'pass', 'mass', 'grass', 'glass', 'brass', 'passage', 'fuchsia', 'shift', 'hitch', 'pitch', 'hitchhike', 'arsenal', 'arsenic', 'parsec', 'title', 'titanic',
   'titan', 'titanium', 'constitution', 'petite', 'drape', 'grape', 'grapes', 'grapefruit', 'scrape', 'scraper', 'therapy', 'amsterdam', 'damsel', 'cocoa', 'sextant', 'essex', 'sussex', 'cucumber', 'circumference',
   'document', 'accumulate', 'spazio', 'cunning', 'potion', 'spot', 'pothole', 'hotpot', 'depot', 'ensure', 'scumble', 'cumulus', 'cumulative', 'homogeneous', 'homophone', 'homosapiens', 'homework', 'helium', 'shellfish',
-  'fukushima', 'shittu', 'cook', 'cooks', 'cooked', 'cooking', 'cooker', 'cookie', 'cookies', 'finger', 'fingers', 'spicy', 'spice', 'stripes', 'striped', 'torpedo', 'torpedoes', 'pedometer', 'fate', 'fated', 'fathom', 'dongle', 'goons', 'crackers', 'cox', 'heroine', 'heroines', 'swank', 'swanky', 'thorny', 'condominium', 'skys', 'huskys', 'fuel', 'fun', 'full', 'future', 'fusion', 'fuse', 'fudge', 'fur', 'fund', 'fuss', 'fax', 'fox', 'fix', 'fact', 'facts', 'focus', 'after', 'afternoon', 'half', 'safe', 'cafe', 'leaf', 'loaf', 'deaf']);
+  'fukushima', 'shittu', 'cook', 'cooks', 'cooked', 'cooking', 'cooker', 'cookie', 'cookies', 'jewel', 'jewels', 'jewelry', 'jewellery', 'maryann', 'maryanne', 'maryan', 'aryana', 'aryanna', 'apex', 'aper', 'drugstore', 'nigh', 'finger', 'fingers', 'spicy', 'spice', 'stripes', 'striped', 'torpedo', 'torpedoes', 'pedometer', 'fate', 'fated', 'fathom', 'dongle', 'goons', 'crackers', 'cox', 'heroine', 'heroines', 'swank', 'swanky', 'thorny', 'condominium', 'skys', 'huskys', 'fuel', 'fun', 'full', 'future', 'fusion', 'fuse', 'fudge', 'fur', 'fund', 'fuss', 'fax', 'fox', 'fix', 'fact', 'facts', 'focus', 'after', 'afternoon', 'half', 'safe', 'cafe', 'leaf', 'loaf', 'deaf']);
 const INSIDE_RE = INSIDE.map(w => new RegExp(w.split('').map(c => '(?:' + c + '|\\?)+').join('')));
 const INSIDE_SET = new Set(INSIDE), WHOLE_SET = new Set(WHOLE);
 
@@ -96,6 +107,9 @@ function badExact(w) {
 // Phrases (checked on the cleaned-up message with single spaces)
 const PHRASES = ['shut up', 'shutup', 'kill you', 'kill u', 'kill yourself', 'kill your self', 'kill ur self', 'kill urself', 'go die', 'hope you die', 'hope u die', 'i will kill', 'ill kill', 'hate you', 'hate u',
   'you suck', 'u suck', 'end yourself', 'neck yourself', 'no one likes you', 'nobody likes you', 'kill myself', 'hurt you', 'beat you up', 'bash you', 'son of a', 'go to hell', 'piece of', 'what the f', 'what the fk',
+  'black people', 'white people', 'brown people', 'asian people', 'chinese people', 'indian people', 'african people', 'aboriginal people', 'muslim people', 'jewish people', 'arab people', 'mexican people',
+  'black ppl', 'white ppl', 'asians are', 'blacks are', 'whites are', 'chinese are', 'indians are', 'muslims are', 'jews are', 'arabs are', 'africans are', 'mexicans are', 'aboriginals are', 'go back to your country',
+  'gas them', 'gas chamber', 'gas chambers', 'jungle bunny', 'uncle tom', 'master race', 'white trash', 'porch monkey', 'half caste', 'sand n', 'slanty eyes', 'slant eyes', 'ching chong', 'curry muncher', 'get high', 'smoke weed', 'smoke a', 'got high', 'crack cocaine', 'magic mushroom', 'heil hitler', 'sieg heil', 'white power', 'white pride',
   'the f word', 'f off', 'f you', 'f u', 'go f yourself', 'f yourself', 'neck urself', 'neck ur self', 'only fans', 'onlyfans', 'eff off', 'sod off', 'get lost loser', 'your mum', 'ur mum', 'yo mama', 'your mom', 'ur mom', 'suck my', 'suck it', 'blow me', 'up yours', 'screw you', 'screw u', 'drop dead'];
 
 // Personal details and ways to contact someone off the site
@@ -125,12 +139,19 @@ const SAFE_EMOJI_RE = new RegExp(SAFE_EMOJI.slice().sort((a, b) => b.length - a.
 const ALLOWED_CHARS = /^[A-Za-z0-9 \n.,?!'’‘+\-−–=\/()%×÷<>≤≥^:$°²³½¼¾π]*$/;
 export const FILTER_CHARS_MSG = 'You can only use letters, numbers, . , ? ! ’ and maths symbols (+ − × ÷ = / ( ) % < > : $ °), plus a few friendly emojis. Please take out any other symbols.';
 // numbers people use as rude codes, when they stand on their own
-const RUDE_NUMBERS = /(?:^|[^0-9.])(?:69|420|1488|8008|80085|58008|5318008|8==+d)(?:$|[^0-9.])/i;
+const RUDE_NUMBERS = /(?:^|[^0-9.])(?:69|420|1488|88|8008|80085|58008|5318008|8==+d)(?:$|[^0-9.])/i;
+const ALWAYS_RUDE = /(?:^|[^0-9.])(?:6969|696969|8008|80085|58008|5318008|8==+d)(?:$|[^0-9.])/i;
+const OP = '[=+\\-−–×÷/^<>≤≥%*]';
+const MATHS_NEAR = new RegExp([
+  OP + '\\s*\\$?\\(?\\s*(?:69|420|1488|88)\\b', '\\b(?:69|420|1488|88)\\s*\\)?\\s*' + OP,                       // = 69, 69 + 1, 2 × (69)
+  '\\b(?:69|420|1488|88)\\s*(?:%|°|cm|mm|km|m|kg|g|ml|l|s|sec|seconds|min|minutes|hours|h|degrees|dollars|cents|points|marks|students|people)\\b', '\\$\\s*(?:69|420|1488|88)\\b', '\\b(?:69|420|1488|88)\\s*%',
+  '\\b(?:q|question|questions|qn|no|number|page|p|part|ex|exercise|answer|answers|ans|is it|equals|got|get|score|scored|score is|mark|marks|total|sum|out of|=)\\.?\\s*(?:is\\s*|was\\s*)?(?:69|420|1488|88)\\b', '\\b(?:69|420|1488|88)\\s*(?:is the answer|is right|is wrong|is correct|right|wrong|correct|or|out of)\\b'
+].join('|'), 'i');
 
 export function checkText(text) {
   const raw = String(text || '');
   if (!ALLOWED_CHARS.test(raw.replace(SAFE_EMOJI_RE, ''))) return { ok: false, why: 'words', message: FILTER_CHARS_MSG };
-  if (RUDE_NUMBERS.test(raw)) return { ok: false, why: 'words', message: FILTER_WORDS_MSG };
+  if (ALWAYS_RUDE.test(raw) || (RUDE_NUMBERS.test(raw) && !MATHS_NEAR.test(raw))) return { ok: false, why: 'words', message: FILTER_WORDS_MSG };
   const plain = raw.normalize('NFKC').replace(/[​-‏⁠-⁤﻿­]/g, '');
   if (CONTACT.some(re => re.test(plain))) return { ok: false, why: 'personal', message: FILTER_CONTACT_MSG };
   if ((plain.match(NUMBER_WORDS) || []).length >= 6) return { ok: false, why: 'personal', message: FILTER_CONTACT_MSG };
