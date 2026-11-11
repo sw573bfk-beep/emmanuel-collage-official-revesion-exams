@@ -24,6 +24,7 @@ import themeCss from '../public/theme.css';
 import themeJs from '../public/theme.js';
 import noticeJs from '../public/notice.js';
 import privacyHtml from '../public/privacy/index.html';
+import meHtml from '../public/me/index.html';
 import studyJs from '../public/study.js';
 import msgJs from '../public/msg.js';
 import chatHtml from '../public/chat/index.html';
@@ -32,7 +33,9 @@ import playHtml from '../public/play/index.html';
 import playSciJs from '../public/play/sci.js';
 import playMathsJs from '../public/play/maths.js';
 import { checkText, checkName, checkPieces } from './filter.js';
-import { handleCommunity, handleCommunityAdmin, addPoints, logBlocked, FAKE_NOTE } from './community.js';
+import { handleCommunity, handleCommunityAdmin, addPoints, logBlocked, FAKE_NOTE, leaderboard } from './community.js';
+import { TOPICS as MATHS_TOPICS } from './gen/maths-game.js';
+import { TOPICS as SCI_TOPICS } from './gen/sci-game.js';
 import { handleGames } from './games.js';
 
 const HTML = 'text/html; charset=utf-8';
@@ -47,6 +50,7 @@ const PAGES = {
   '/msg.js': [msgJs, 'text/javascript; charset=utf-8'],
   '/notice.js': [noticeJs, 'text/javascript; charset=utf-8'],
   '/privacy/': [privacyHtml, HTML], '/privacy/index.html': [privacyHtml, HTML],
+  '/me/': [meHtml, HTML], '/me/index.html': [meHtml, HTML],
   '/study.js': [studyJs, 'text/javascript; charset=utf-8'],
   '/chat/': [chatHtml, HTML], '/chat/index.html': [chatHtml, HTML],
   '/leaderboard/': [boardHtml, HTML], '/leaderboard/index.html': [boardHtml, HTML],
@@ -66,7 +70,7 @@ const SECURITY_HEADERS = { 'x-content-type-options': 'nosniff', 'referrer-policy
 function servePage(url) {
   // "Message Beau" is now the ✉️ Beau tab of the Chat page
   if (url.pathname === '/message' || url.pathname.startsWith('/message/')) { const q = new URLSearchParams(url.search); q.set('tab', 'beau'); return Response.redirect(url.origin + '/chat/?' + q, 302); }
-  if (['/maths', '/science', '/admin', '/feedback', '/chat', '/privacy', '/leaderboard', '/play'].includes(url.pathname)) return Response.redirect(url.origin + url.pathname + '/' + url.search, 301);
+  if (['/maths', '/science', '/admin', '/feedback', '/chat', '/privacy', '/me', '/leaderboard', '/play'].includes(url.pathname)) return Response.redirect(url.origin + url.pathname + '/' + url.search, 301);
   const page = PAGES[url.pathname];
   if (!page) return new Response(notFoundHtml, { status: 404, headers: { 'content-type': HTML, ...SECURITY_HEADERS } });
   const [body, type] = page;
@@ -313,8 +317,9 @@ async function handleApi(req, env, url) {
   // One background check for every open page, once a minute: the pop-up from Beau, study mode and the red numbers
   // on the Chat button. (It replaces three separate checks, so the site uses far fewer requests.)
   if (path === '/api/live' && method === 'GET') {
-    const out = { now: now(), notice: await liveNotice(env), study: null, chat: null };
+    const out = { now: now(), notice: await liveNotice(env), study: null, chat: null, me: null };
     if (user) {
+      out.me = { name: user.username, admin: isAdmin(user, env) };
       out.study = await studyPayload(env, user);
       if (!out.study.study) out.chat = await liveChat(env, user);
     }
@@ -339,6 +344,38 @@ async function handleApi(req, env, url) {
   const cm = await handleCommunity(req, env, url, user); if (cm) return cm;
   const gm = await handleGames(req, env, url, user); if (gm) return gm;
 
+  // Your profile (only ever your own): study time and streak, leaderboard place, scores by topic, friends (a number) and messages
+  if (path === '/api/profile' && method === 'GET') {
+    const t = now(), me = user.id, today = dayKey(t), study = (await studyState(env, user)).study;
+    const [u, days, all, prog, fr, thr, beau, beauN] = await env.DB.batch([
+      env.DB.prepare('SELECT username, created_at FROM users WHERE id = ?').bind(me),
+      env.DB.prepare('SELECT day, SUM(seconds) AS s FROM daily WHERE user_id = ? GROUP BY day ORDER BY day DESC LIMIT 400').bind(me),
+      env.DB.prepare('SELECT SUM(seconds) AS s FROM daily WHERE user_id = ?').bind(me),
+      env.DB.prepare('SELECT subject, data FROM progress WHERE user_id = ?').bind(me),
+      env.DB.prepare("SELECT COUNT(*) AS n FROM dm_threads WHERE status = 'active' AND (a = ?1 OR b = ?1)").bind(me),
+      env.DB.prepare(`SELECT t.id, u.username AS name, u.last_seen AS seen,
+        (SELECT CASE WHEN body LIKE '[game:%' THEN '🎮 Game invite' ELSE body END FROM dm_messages WHERE thread_id = t.id AND hidden = 0 ORDER BY id DESC LIMIT 1) AS last,
+        (SELECT MAX(created_at) FROM dm_messages WHERE thread_id = t.id AND hidden = 0) AS at,
+        (SELECT COUNT(*) FROM dm_messages m WHERE m.thread_id = t.id AND m.user_id != ?1 AND m.hidden = 0 AND m.id > (CASE WHEN t.a = ?1 THEN t.a_read ELSE t.b_read END)) AS unread
+        FROM dm_threads t JOIN users u ON u.id = (CASE WHEN t.a = ?1 THEN t.b ELSE t.a END) WHERE (t.a = ?1 OR t.b = ?1) AND t.status = 'active'`).bind(me),
+      env.DB.prepare('SELECT body, from_admin, created_at FROM messages WHERE user_id = ? ORDER BY id DESC LIMIT 1').bind(me),
+      env.DB.prepare('SELECT COUNT(*) AS n FROM messages WHERE user_id = ? AND from_admin = 1 AND read_at IS NULL').bind(me)
+    ]);
+    const D = Object.fromEntries(days.results.map(r => [r.day, r.s || 0])), back = n => dayKey(t - n * 86400);
+    const last14 = Array.from({ length: 14 }, (_, i) => ({ day: back(13 - i), s: D[back(13 - i)] || 0 }));
+    let streak = 0; for (let i = D[today] >= 60 ? 0 : 1; i < 400 && (D[back(i)] || 0) >= 60; i++) streak++;
+    const NAMES = { maths: Object.fromEntries(MATHS_TOPICS.map(x => [x.id, x.name])), science: Object.fromEntries(SCI_TOPICS.map(x => [x.id, x.name])) };
+    const topics = [];
+    prog.results.forEach(r => { let d = {}; try { d = JSON.parse(r.data); } catch { d = {}; } Object.entries(d.tstats || {}).forEach(([id, x]) => { if (x && x.a > 0 && NAMES[r.subject] && NAMES[r.subject][id]) topics.push({ subject: r.subject, id, name: NAMES[r.subject][id], a: x.a, c: Math.min(x.c || 0, x.a) }); }); });
+    const lb = study ? null : { week: (await leaderboard(env, me, 'week', isAdmin(user, env))).me, all: (await leaderboard(env, me, 'all', isAdmin(user, env))).me };
+    const NOTE = { '[unlock-request]': '🔔 You asked to unlock the booklet', '[unlock-allowed]': '✅ Beau unlocked the booklet', '[unlock-declined]': 'Beau said not yet', '[chat-request]': '🙋 You asked to use Chat', '[chat-allowed]': '✅ Beau let you into Chat', '[chat-declined]': 'Beau said not yet', '[chat-removed]': 'Chat turned off', '[study-request]': '📚 You asked to leave study mode', '[study-allowed]': '✅ Study mode off', '[study-declined]': 'Beau said not yet' };
+    const b0 = beau.results[0];
+    return json({ now: t, name: u.results[0].username, joined: u.results[0].created_at, study,
+      time: { today: D[today] || 0, week: Array.from({ length: 7 }, (_, i) => D[back(i)] || 0).reduce((a, x) => a + x, 0), all: all.results[0].s || 0, last14, streak },
+      leaderboard: lb, topics, friends: fr.results[0].n,
+      messages: study ? null : { beau: { last: b0 ? (NOTE[b0.body] || b0.body) : null, mine: b0 ? !b0.from_admin : false, at: b0 ? b0.created_at : null, unread: beauN.results[0].n },
+        chats: thr.results.map(r => ({ id: r.id, name: r.name, last: r.last, at: r.at || 0, unread: r.unread, online: t - (r.seen || 0) < 180 })).sort((a, b) => (b.unread - a.unread) || (b.at - a.at)) } });
+  }
   if (path === '/api/ping' && method === 'POST') {
     let body; try { body = await readJson(req); } catch { return err(400, 'Bad request'); }
     const subject = String(body.subject || ''), visit = String(body.visit || '');

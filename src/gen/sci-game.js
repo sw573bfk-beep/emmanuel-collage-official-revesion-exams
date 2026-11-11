@@ -1594,4 +1594,4 @@ function practiceFilters(onChange) {
   return bar;
 }
 
-export { pickPractice, asMCQ, makeQ, TOPIC_GENS, pick };
+export { pickPractice, asMCQ, makeQ, TOPIC_GENS, pick, TOPICS };

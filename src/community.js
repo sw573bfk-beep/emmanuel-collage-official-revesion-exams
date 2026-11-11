@@ -46,37 +46,39 @@ const pair = (x, y) => (x < y ? [x, y] : [y, x]);
 const ONLINE_SECS = 180; // friends count as online if seen in the last 3 minutes
 const GAME_MSG = /^\[game:(\d{6}):(speed|treasure|parkour):(science|maths)\]$/; // a game invite sent from Play with friends
 
+// The leaderboard for this week (from Monday, Queensland time) or all time, and your place in it
+export async function leaderboard(env, me, range, admin) {
+  const t = now(); const dow = new Date((t + QLD) * 1000).getUTCDay();
+  const from = range === 'all' ? '0000-00-00' : dayKey(t - ((dow + 6) % 7) * 86400); // Monday (Queensland time)
+  const [people, mins, pts] = await env.DB.batch([
+    env.DB.prepare('SELECT id, username, in_stats FROM users'),
+    env.DB.prepare('SELECT user_id, SUM(seconds) AS s FROM daily WHERE day >= ? GROUP BY user_id').bind(from),
+    env.DB.prepare('SELECT user_id, SUM(correct) AS c, SUM(booklet) AS b FROM points_daily WHERE day >= ? GROUP BY user_id').bind(from)
+  ]);
+  const M = Object.fromEntries(mins.results.map(r => [r.user_id, r.s || 0])), P = Object.fromEntries(pts.results.map(r => [r.user_id, r]));
+  const adminName = String(env.ADMIN_USERNAME || '').toLowerCase();
+  const rows = people.results.filter(u => u.in_stats && u.username.toLowerCase() !== adminName).map(u => {
+    const minutes = Math.floor((M[u.id] || 0) / 60), correct = (P[u.id] || {}).c || 0, booklet = (P[u.id] || {}).b || 0;
+    return { id: u.id, name: u.username, minutes, correct, booklet, points: minutes + 2 * correct + booklet };
+  }).filter(r => r.points > 0).sort((a, b) => b.points - a.points || b.minutes - a.minutes || a.name.localeCompare(b.name));
+  let rank = 0, prev = null;
+  rows.forEach((r, i) => { if (r.points !== prev) { rank = i + 1; prev = r.points; } r.rank = rank; });
+  const mine = rows.find(r => r.id === me);
+  const meUser = people.results.find(u => u.id === me);
+  return {
+    range, from, total: rows.length,
+    top: rows.slice(0, 50).map(r => ({ rank: r.rank, id: r.id, name: r.name, points: r.points, minutes: r.minutes, correct: r.correct, booklet: r.booklet, me: r.id === me })),
+    me: mine ? { rank: mine.rank, points: mine.points, minutes: mine.minutes, correct: mine.correct, booklet: mine.booklet } : null,
+    leftOut: !meUser || !meUser.in_stats || admin, admin
+  };
+}
+
 export async function handleCommunity(req, env, url, user) {
   const path = url.pathname, method = req.method;
   const me = user.id, admin = isAdmin(user, env);
 
   /* ---------- leaderboard ---------- */
-  if (path === '/api/leaderboard' && method === 'GET') {
-    const range = url.searchParams.get('range') === 'all' ? 'all' : 'week';
-    const t = now(); const dow = new Date((t + QLD) * 1000).getUTCDay();
-    const from = range === 'all' ? '0000-00-00' : dayKey(t - ((dow + 6) % 7) * 86400); // Monday (Queensland time)
-    const [people, mins, pts] = await env.DB.batch([
-      env.DB.prepare('SELECT id, username, in_stats FROM users'),
-      env.DB.prepare('SELECT user_id, SUM(seconds) AS s FROM daily WHERE day >= ? GROUP BY user_id').bind(from),
-      env.DB.prepare('SELECT user_id, SUM(correct) AS c, SUM(booklet) AS b FROM points_daily WHERE day >= ? GROUP BY user_id').bind(from)
-    ]);
-    const M = Object.fromEntries(mins.results.map(r => [r.user_id, r.s || 0])), P = Object.fromEntries(pts.results.map(r => [r.user_id, r]));
-    const adminName = String(env.ADMIN_USERNAME || '').toLowerCase();
-    const rows = people.results.filter(u => u.in_stats && u.username.toLowerCase() !== adminName).map(u => {
-      const minutes = Math.floor((M[u.id] || 0) / 60), correct = (P[u.id] || {}).c || 0, booklet = (P[u.id] || {}).b || 0;
-      return { id: u.id, name: u.username, minutes, correct, booklet, points: minutes + 2 * correct + booklet };
-    }).filter(r => r.points > 0).sort((a, b) => b.points - a.points || b.minutes - a.minutes || a.name.localeCompare(b.name));
-    let rank = 0, prev = null;
-    rows.forEach((r, i) => { if (r.points !== prev) { rank = i + 1; prev = r.points; } r.rank = rank; });
-    const mine = rows.find(r => r.id === me);
-    const meUser = people.results.find(u => u.id === me);
-    return json({
-      range, from, total: rows.length,
-      top: rows.slice(0, 50).map(r => ({ rank: r.rank, id: r.id, name: r.name, points: r.points, minutes: r.minutes, correct: r.correct, booklet: r.booklet, me: r.id === me })),
-      me: mine ? { rank: mine.rank, points: mine.points, minutes: mine.minutes, correct: mine.correct, booklet: mine.booklet } : null,
-      leftOut: !meUser || !meUser.in_stats || admin, admin
-    });
-  }
+  if (path === '/api/leaderboard' && method === 'GET') return json(await leaderboard(env, me, url.searchParams.get('range') === 'all' ? 'all' : 'week', admin));
 
   if (!path.startsWith('/api/chat/')) return null;
 

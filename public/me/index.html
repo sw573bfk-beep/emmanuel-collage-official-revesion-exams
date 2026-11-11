@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<script src="/acct.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>EC Revisions Profile</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Lexend:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="/site.css">
+<style>
+.wrap{max-width:860px}
+.hero{display:flex;align-items:center;gap:16px;flex-wrap:wrap}
+.hero .av{width:68px;height:68px;border-radius:50%;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;font-family:var(--f-display);font-weight:800;font-size:2rem;flex:none}
+.hero h1{margin:0;font-size:clamp(1.6rem,1.2rem + 2vw,2.3rem)}
+.hero p{margin:2px 0 0}
+.tabs2{display:flex;gap:6px;border-bottom:1.5px solid var(--rule)}
+.tabs2 button{font:inherit;font-size:1.0625rem;font-weight:600;background:none;border:0;border-bottom:3px solid transparent;padding:10px 14px;color:var(--muted);cursor:pointer;display:flex;align-items:center;gap:6px}
+.tabs2 button.on{color:var(--accent);border-bottom-color:var(--accent);border-bottom-width:4px}
+.n{display:inline-grid;place-items:center;min-width:22px;height:22px;padding:0 6px;border-radius:999px;background:var(--pen);color:var(--card);font-size:.875rem;font-weight:700}
+.n[hidden]{display:none}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,150px),1fr));gap:12px}
+.stat{border:1.5px solid var(--rule);border-radius:14px;padding:12px 14px;background:var(--card);display:flex;flex-direction:column;gap:2px}
+.stat .v{font-family:var(--f-display);font-weight:800;font-size:1.8rem;line-height:1.1}
+.stat .l{font-size:.9rem;color:var(--muted)}
+.stat.hot{border-color:var(--warn);background:var(--warn-soft)}
+.bars{display:grid;grid-template-columns:repeat(14,1fr);gap:6px;align-items:end;height:130px;padding-top:6px}
+.bars .b{display:flex;flex-direction:column;align-items:center;gap:4px;height:100%;justify-content:flex-end}
+.bars .b i{display:block;width:100%;max-width:26px;border-radius:6px 6px 2px 2px;background:var(--accent);min-height:3px}
+.bars .b.today i{background:var(--good)}
+.bars .b span{font-size:.7rem;color:var(--muted);font-family:var(--f-mono)}
+.topic{display:grid;grid-template-columns:1fr auto;gap:6px 12px;align-items:center;border:1.5px solid var(--rule);border-radius:12px;padding:10px 14px}
+.topic .nm{font-weight:600}
+.topic .sub{font-size:.875rem;color:var(--muted)}
+.topic .bar{grid-column:1 / -1;height:8px;border-radius:99px;background:var(--card-2);overflow:hidden;border:1px solid var(--rule)}
+.topic .bar i{display:block;height:100%}
+.list{display:flex;flex-direction:column;gap:8px}
+.conv{display:flex;align-items:center;gap:12px;border:1.5px solid var(--rule);border-radius:14px;padding:12px 14px;background:var(--card);color:var(--ink);text-decoration:none}
+.conv:hover{border-color:var(--accent);background:var(--accent-soft)}
+.conv .av{flex:none;position:relative;width:42px;height:42px;border-radius:50%;background:var(--accent-soft);color:var(--accent);display:grid;place-items:center;font-weight:800;font-family:var(--f-display)}
+.conv .av.beau{background:var(--warn-soft);color:var(--ink)}
+.conv .av .dot{position:absolute;right:-1px;bottom:-1px;width:12px;height:12px;border-radius:50%;border:2.5px solid var(--card);background:var(--good)}
+.conv .t{display:flex;flex-direction:column;min-width:0;flex:1}
+.conv .t span{font-size:.9375rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.conv .when{font-size:.8125rem;color:var(--muted);white-space:nowrap}
+.grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:16px}
+</style>
+<script src="/theme.js"></script>
+<link rel="stylesheet" href="/theme.css?v=1">
+</head>
+<body>
+<main class="wrap stack">
+  <p id="loading" class="muted">Loading your profile…</p>
+  <div id="app" class="stack" hidden>
+    <div class="hero"><span class="av" id="av" aria-hidden="true"></span><div><span class="mark">My profile</span><h1 id="name"></h1><p class="small muted" id="joined"></p></div></div>
+    <p class="small muted" style="margin:0">🔒 Only you can see your profile.</p>
+    <div class="tabs2" role="tablist"><button type="button" role="tab" id="tabOv" class="on">📊 Overview</button><button type="button" role="tab" id="tabMsg">💬 Messages <span class="n" id="nMsg" hidden></span></button></div>
+
+    <section id="viewOv" class="stack">
+      <div class="card stack">
+        <h2 style="margin:0;font-size:1.3rem">⏱️ Study time</h2>
+        <div class="stats" id="timeStats"></div>
+        <div><span class="small muted">The last 14 days (minutes)</span><div class="bars" id="bars" aria-label="Minutes studied in the last 14 days"></div></div>
+        <p class="small muted" style="margin:0">Study time counts while Maths or Science is open and you’re active. Your streak counts days in a row with at least 1 minute.</p>
+      </div>
+      <div class="grid2">
+        <div class="card stack" id="lbCard"><h2 style="margin:0;font-size:1.3rem">🏆 Leaderboard</h2><div class="stats" id="lbStats"></div><a class="btn quiet sm" href="/leaderboard/" style="align-self:flex-start">Open the leaderboard →</a></div>
+        <div class="card stack" id="frCard"><h2 style="margin:0;font-size:1.3rem">👥 Friends</h2><div class="stats"><div class="stat"><span class="v" id="frN">0</span><span class="l">friends</span></div></div><a class="btn quiet sm" href="/chat/?tab=mine" style="align-self:flex-start">Find or add friends →</a></div>
+      </div>
+      <div class="card stack">
+        <h2 style="margin:0;font-size:1.3rem">🎯 Scores by topic</h2>
+        <p class="small muted" style="margin:0">Your practice scores, weakest first. Tap <b>Practise</b> to work on a topic.</p>
+        <div class="list" id="topics"></div>
+      </div>
+    </section>
+
+    <section id="viewMsg" class="stack" hidden>
+      <p class="small muted" style="margin:0">All your messages in one place. <b>👀 Beau can read every chat.</b></p>
+      <div class="list" id="convs"></div>
+      <a class="btn quiet sm" href="/chat/?tab=mine" style="align-self:flex-start">👥 Find or add friends →</a>
+    </section>
+  </div>
+  <div class="row"><a class="btn quiet" href="/" id="back">Back to subjects</a></div>
+</main>
+<script>
+(function () {
+  const $ = s => document.querySelector(s);
+  const el = (t, c, x) => { const e = document.createElement(t); if (c) e.className = c; if (x != null) e.textContent = x; return e; };
+  const params = new URLSearchParams(location.search), from = params.get('from');
+  if (from === 'maths' || from === 'science') { $('#back').href = '/' + from + '/'; $('#back').textContent = 'Back to ' + (from === 'maths' ? 'Maths' : 'Science'); }
+  const dur = s => { s = Math.round(s || 0); const m = Math.round(s / 60); if (m < 60) return m + ' min'; const h = Math.floor(m / 60); return h + ' h' + (m % 60 ? ' ' + (m % 60) + ' min' : ''); };
+  const ago = (t, now) => { if (!t) return ''; const d = now - t; if (d < 60) return 'now'; if (d < 3600) return Math.round(d / 60) + ' min'; if (d < 86400) return Math.round(d / 3600) + ' h'; const n = Math.round(d / 86400); return n + (n === 1 ? ' day' : ' days'); };
+  const stat = (v, l, cls) => { const d = el('div', 'stat' + (cls ? ' ' + cls : '')); d.append(el('span', 'v', v), el('span', 'l', l)); return d; };
+  const show = v => { $('#viewOv').hidden = v !== 'ov'; $('#viewMsg').hidden = v !== 'msg'; $('#tabOv').classList.toggle('on', v === 'ov'); $('#tabMsg').classList.toggle('on', v === 'msg'); try { history.replaceState(null, '', v === 'msg' ? '?tab=messages' : location.pathname); } catch (e) { /* fine */ } };
+  $('#tabOv').onclick = () => show('ov'); $('#tabMsg').onclick = () => show('msg');
+  async function load() {
+    const r = await fetch('/api/profile', { credentials: 'same-origin', cache: 'no-store' });
+    if (r.status === 401) { location.replace('/?next=me'); return; }
+    if (!r.ok) { $('#loading').textContent = 'Couldn’t load your profile. Check your connection and reload.'; return; }
+    const d = await r.json();
+    $('#loading').hidden = true; $('#app').hidden = false;
+    $('#av').textContent = (d.name || '?').trim().charAt(0).toUpperCase(); $('#name').textContent = d.name;
+    $('#joined').textContent = 'Joined ' + new Date(d.joined * 1000).toLocaleDateString('en-AU', { day: 'numeric', month: 'long', year: 'numeric' });
+    // study time + streak
+    const T = d.time, ts = $('#timeStats'); ts.replaceChildren(stat(dur(T.today), 'today'), stat(dur(T.week), 'last 7 days'), stat(dur(T.all), 'all time'), stat('🔥 ' + T.streak, T.streak === 1 ? 'day in a row' : 'days in a row', T.streak >= 3 ? 'hot' : ''));
+    const max = Math.max(1, ...T.last14.map(x => x.s)), bars = $('#bars'); bars.replaceChildren();
+    T.last14.forEach((x, i) => { const b = el('div', 'b' + (i === 13 ? ' today' : '')); const bar = el('i'); bar.style.height = Math.max(2, x.s / max * 100) + '%'; bar.title = new Date(x.day + 'T00:00:00').toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' }) + ': ' + dur(x.s); b.append(bar, el('span', '', i === 13 ? 'today' : x.day.slice(8))); bars.appendChild(b); });
+    // leaderboard
+    if (d.leaderboard) {
+      const L = d.leaderboard, lb = $('#lbStats'); lb.replaceChildren(
+        stat(L.week ? '#' + L.week.rank : '—', L.week ? L.week.points + ' points this week' : 'no points this week yet'),
+        stat(L.all ? '#' + L.all.rank : '—', L.all ? L.all.points + ' points all time' : 'no points yet'));
+    } else $('#lbCard').hidden = true;
+    $('#frN').textContent = d.friends; $('#frN').nextElementSibling.textContent = d.friends === 1 ? 'friend' : 'friends'; $('#frCard').hidden = !!d.study;
+    // topics, weakest first
+    const tl = $('#topics'); tl.replaceChildren();
+    if (!d.topics.length) tl.appendChild(el('p', 'small muted', 'No practice yet. Answer some practice questions in Maths or Science and your scores show up here.'));
+    d.topics.map(x => ({ ...x, p: x.c / x.a })).sort((a, b) => a.p - b.p || b.a - a.a).forEach(x => {
+      const row = el('div', 'topic'); const t = el('div'); t.append(el('div', 'nm', (x.subject === 'maths' ? '📐 ' : '🧪 ') + x.name), el('div', 'sub', Math.round(x.p * 100) + '% right · ' + x.c + ' of ' + x.a + ' questions'));
+      const go = el('a', 'btn sm' + (x.p >= 0.8 ? ' quiet' : ''), x.p >= 0.8 ? 'Practise' : 'Practise this'); go.href = '/' + x.subject + '/#practice-' + x.id;
+      const bar = el('div', 'bar'), fill = el('i'); fill.style.width = Math.round(x.p * 100) + '%'; fill.style.background = x.p >= 0.8 ? 'var(--good)' : x.p >= 0.5 ? 'var(--warn)' : 'var(--pen)'; bar.appendChild(fill);
+      row.append(t, go, bar); tl.appendChild(row);
+    });
+    // messages
+    const cv = $('#convs'); cv.replaceChildren();
+    if (!d.messages) { cv.appendChild(el('p', 'muted', '📚 Study mode is on, so messages are turned off for now.')); $('#tabMsg').hidden = true; }
+    else {
+      const M = d.messages; let unread = M.beau.unread;
+      const conv = (href, name, sub, at, n, cls, online) => { const a = el('a', 'conv'); a.href = href; const av = el('span', 'av' + (cls ? ' ' + cls : ''), cls === 'beau' ? '✉️' : name.charAt(0).toUpperCase()); if (online) av.appendChild(el('span', 'dot')); const t = el('span', 't'); t.append(el('b', '', name), el('span', '', sub)); a.append(av, t); if (at) a.appendChild(el('span', 'when', ago(at, d.now))); if (n) a.appendChild(el('span', 'n', String(n))); return a; };
+      cv.appendChild(conv('/chat/?tab=beau', 'Beau', M.beau.last ? (M.beau.mine ? 'You: ' : '') + M.beau.last : 'Ask Beau anything about the site or your revision.', M.beau.at, M.beau.unread, 'beau'));
+      M.chats.forEach(c => { unread += c.unread; cv.appendChild(conv('/chat/?thread=' + c.id, c.name, c.last || 'Say hi!', c.at, c.unread, '', c.online)); });
+      if (!M.chats.length) cv.appendChild(el('p', 'small muted', 'No friend chats yet. Add a friend; once you both agree and Beau approves, your chat shows up here.'));
+      $('#nMsg').hidden = !unread; $('#nMsg').textContent = unread;
+    }
+    if (params.get('tab') === 'messages' && d.messages) show('msg');
+  }
+  load();
+  setInterval(() => { if (document.visibilityState === 'visible') load(); }, 60000);
+})();
+</script>
+<script src="/help.js" defer></script>
+</body>
+</html>

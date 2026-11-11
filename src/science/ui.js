@@ -840,5 +840,6 @@ RENDER.booklet = () => {
 };
 
 /* ================= theme + boot ================= */
-const boot = () => show(location.hash.slice(1) || 'home');
+// /maths/#practice-7I (from the profile) opens Practice on that topic
+const boot = () => { const pm = /^practice-([A-Za-z0-9]+)$/.exec(location.hash.slice(1)); if (pm && typeof openPractice === 'function') { openPractice(pm[1]); return; } show(location.hash.slice(1) || 'home'); };
 if (window.claude && window.claude.hot && window.claude.hot.ready) window.claude.hot.ready(boot); else boot();

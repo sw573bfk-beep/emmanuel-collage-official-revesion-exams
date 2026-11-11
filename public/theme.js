@@ -34,6 +34,30 @@
     liveP = fetch('/api/live', { credentials: 'same-origin', cache: 'no-store' }).then(r => r.ok ? r.json() : null).catch(() => null);
     return liveP;
   };
+  // 👤 Profile button, top right of every page once you're logged in (with a red number for new messages)
+  const profile = async () => {
+    const path = location.pathname; if (path.startsWith('/admin') || path.startsWith('/me')) return;
+    const j = await window.ecLive(); if (!j || !j.me) return;
+    if (!document.getElementById('ecProfile')) {
+      const st = document.createElement('style');
+      st.textContent = '.ec-prof{display:inline-flex;align-items:center;gap:8px;font:inherit;font-weight:600;font-size:.9375rem;color:var(--ink,#111);background:var(--card,#fff);border:1.5px solid var(--rule,#ccc);border-radius:999px;padding:4px 12px 4px 4px;min-height:40px;text-decoration:none;white-space:nowrap}'
+        + '.ec-prof:hover{border-color:var(--accent,#2453d6)}.ec-prof .av{width:30px;height:30px;border-radius:50%;background:var(--accent,#2453d6);color:var(--accent-ink,#fff);display:grid;place-items:center;font-weight:800}'
+        + '.ec-prof .nb{display:inline-grid;place-items:center;min-width:20px;height:20px;padding:0 5px;border-radius:999px;background:var(--pen,#b3261e);color:var(--card,#fff);font-size:.8125rem;font-weight:700}.ec-prof .nb[hidden]{display:none}'
+        + '.ec-prof.float{position:absolute;top:calc(12px + env(safe-area-inset-top,0px));right:14px;z-index:20}@media (max-width:560px){.ec-prof .nm{display:none}.ec-prof{padding-right:8px}}';
+      document.head.appendChild(st);
+      const a = document.createElement('a'); a.id = 'ecProfile'; a.className = 'ec-prof';
+      const sub = path.startsWith('/maths') ? '?from=maths' : path.startsWith('/science') ? '?from=science' : '';
+      a.href = j.me.admin ? '/admin/' : '/me/' + sub; a.title = j.me.admin ? 'Admin dashboard' : 'My profile: stats, friends and messages';
+      a.innerHTML = '<span class="av" aria-hidden="true"></span><span class="nm"></span><span class="nb" hidden></span>';
+      a.querySelector('.av').textContent = j.me.name.trim().charAt(0).toUpperCase(); a.querySelector('.nm').textContent = j.me.admin ? 'Dashboard' : 'Profile';
+      a.classList.add('float'); document.body.appendChild(a); // always the top right corner of the page
+    }
+    const a = document.getElementById('ecProfile'), c = j.chat, n = c ? (c.admin ? c.beau : c.requests + c.unreadDm + c.beau) : 0, nb = a.querySelector('.nb');
+    nb.hidden = !n; nb.textContent = n > 99 ? '99+' : n; a.setAttribute('aria-label', (j.me.admin ? 'Admin dashboard' : 'My profile') + (n ? ', ' + n + ' new' : ''));
+  };
+  window.ecProfileCheck = profile;
+  const startProfile = () => { profile(); setInterval(() => { if (document.visibilityState === 'visible') profile(); }, 60000); };
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', startProfile); else startProfile();
   // "not an official school site" + privacy link at the bottom of every page
   const foot = () => {
     if (document.querySelector('.ec-foot') || location.pathname.startsWith('/admin')) return;

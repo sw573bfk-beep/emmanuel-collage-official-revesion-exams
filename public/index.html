@@ -195,7 +195,7 @@ details.acct[open] summary{margin-bottom:12px}
     if (su) { $('#password').value = ''; $('#confirm').value = ''; } else fillSaved();
   }
   function picked(me) {
-    if (['maths', 'science', 'feedback', 'message', 'chat', 'leaderboard', 'play'].includes(next)) { location.replace('/' + next + '/'); return; }
+    if (['maths', 'science', 'feedback', 'message', 'chat', 'leaderboard', 'play', 'me'].includes(next)) { location.replace('/' + next + '/'); return; }
     if (next === 'admin' && me.admin) { location.replace('/admin/'); return; }
     $('#adminCard').hidden = !me.admin;
     $('#who').textContent = me.username; $('#who2').textContent = me.username;
@@ -203,7 +203,7 @@ details.acct[open] summary{margin-bottom:12px}
     $('#mathsLast').textContent = t ? 'Last saved ' + new Date(t * 1000).toLocaleString('en-AU', { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }) : 'Not started yet';
     const ts = me.subjects && me.subjects.science;
     $('#sciLast').textContent = ts ? 'Last saved ' + new Date(ts * 1000).toLocaleString('en-AU', { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }) : 'Not started yet';
-    show('pick'); if (window.ecMsgCheck) window.ecMsgCheck(); if (window.ecStudyCheck) window.ecStudyCheck();
+    show('pick'); if (window.ecMsgCheck) window.ecMsgCheck(); if (window.ecStudyCheck) window.ecStudyCheck(); if (window.ecLive && window.ecProfileCheck) window.ecLive(true).then(() => window.ecProfileCheck());
   }
   $('#switchBtn').onclick = () => { const c = $('#acctsCard'); c.hidden = !c.hidden; $('#switchBtn').setAttribute('aria-expanded', !c.hidden); if (!c.hidden) { refreshAccounts(); c.scrollIntoView({ block: 'nearest' }); } };
   $('#addAcct').onclick = addAccount;
