@@ -67,17 +67,28 @@ const CSP = ["default-src 'self'", "script-src 'self' 'unsafe-inline'", "style-s
 const SECURITY_HEADERS = { 'x-content-type-options': 'nosniff', 'referrer-policy': 'same-origin', 'x-frame-options': 'DENY', 'content-security-policy': CSP,
   'strict-transport-security': 'max-age=31536000; includeSubDomains', 'permissions-policy': 'camera=(), microphone=(), geolocation=(), payment=(), usb=()',
   'cross-origin-opener-policy': 'same-origin', 'cross-origin-resource-policy': 'same-origin' };
+// Every shared script and style gets a fingerprint of its contents in its URL (theme.js?v=3f2a…), added to each
+// page as it's served. Browsers keep these files (so moving between pages costs almost no requests), and the
+// moment a file changes its URL changes too, so nobody is ever stuck with an old copy.
+const fp = t => { let h = 2166136261; for (let i = 0; i < t.length; i++) h = Math.imul(h ^ t.charCodeAt(i), 16777619); return (h >>> 0).toString(36); };
+const SHARED = ['/acct.js', '/theme.js', '/msg.js', '/help.js', '/tabbar.js', '/notice.js', '/study.js', '/site.css', '/theme.css'];
+const VER = Object.fromEntries(SHARED.map(f => [f, fp(PAGES[f][0])]));
+const SHARED_RE = /(["'])\/(acct|theme|msg|help|tabbar|notice|study)\.js(?:\?v=[^"']*)?\1|(["'])\/(site|theme)\.css(?:\?v=[^"']*)?\3/g;
+const versioned = html => html.replace(SHARED_RE, (m, q1, js, q2, css) => js ? q1 + '/' + js + '.js?v=' + VER['/' + js + '.js'] + q1 : q2 + '/' + css + '.css?v=' + VER['/' + css + '.css'] + q2);
+const BODY = {};
+for (const [k, [body, type]] of Object.entries(PAGES)) BODY[k] = type === HTML ? versioned(body) : body;
+// theme.js loads notice.js and study.js itself: give it their fingerprints too
+BODY['/theme.js'] = BODY['/theme.js'].replace("src + '?v=' + (document.documentElement.dataset.build || '1')", "src + '?v=' + ({ '/notice.js': '" + VER['/notice.js'] + "', '/study.js': '" + VER['/study.js'] + "' })[src]");
 function servePage(url) {
   // "Message Beau" is now the ✉️ Beau tab of the Chat page
   if (url.pathname === '/message' || url.pathname.startsWith('/message/')) { const q = new URLSearchParams(url.search); q.set('tab', 'beau'); return Response.redirect(url.origin + '/chat/?' + q, 302); }
   if (['/maths', '/science', '/admin', '/feedback', '/chat', '/privacy', '/me', '/leaderboard', '/play'].includes(url.pathname)) return Response.redirect(url.origin + url.pathname + '/' + url.search, 301);
   const page = PAGES[url.pathname];
   if (!page) return new Response(notFoundHtml, { status: 404, headers: { 'content-type': HTML, ...SECURITY_HEADERS } });
-  const [body, type] = page;
-  // Pages are checked every time; scripts and styles are kept by the browser for an hour (their URLs change
-  // when they change: app.js?v=…, theme.css?v=…), so moving between pages costs almost no requests.
-  const cache = type === HTML ? 'no-cache' : 'public, max-age=3600';
-  return new Response(body, { headers: { 'content-type': type, 'cache-control': cache, ...SECURITY_HEADERS } });
+  const type = page[1];
+  // Pages are checked every time. Fingerprinted files (?v=…) are kept for a week; anything else for 5 minutes.
+  const cache = type === HTML ? 'no-cache' : url.searchParams.has('v') ? 'public, max-age=604800' : 'public, max-age=300';
+  return new Response(BODY[url.pathname], { headers: { 'content-type': type, 'cache-control': cache, ...SECURITY_HEADERS } });
 }
 
 // Booklet unlock requests live in the Beau chat (Chat page, ✉️ Beau tab) as these special messages
