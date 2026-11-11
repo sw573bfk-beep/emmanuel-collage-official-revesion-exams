@@ -313,4 +313,12 @@ html.simple .view:not(#v-booklet) .steps li::before{content:"Step " counter(st);
 html.simple .view:not(#v-booklet) .steps .why::before{content:none}
 html.simple .view:not(#v-booklet) .steps .why{order:1;font-size:1.0625rem;color:var(--ink);font-weight:500;margin:0}
 html.simple .view:not(#v-booklet) .steps .st{order:2;font-size:1.1875rem;line-height:1.9;background:var(--card);border:1.5px solid var(--rule);border-radius:10px;padding:8px 14px;max-width:100%}
+
+/* 🚩 Report a mistake */
+.rep-btn{font:inherit;font-size:.8125rem;color:var(--muted);background:none;border:0;padding:4px 2px;cursor:pointer;text-decoration:underline;text-underline-offset:3px;margin-left:auto}
+.rep-btn:hover{color:var(--pen)}.rep-btn:disabled{text-decoration:none;cursor:default}
+.rep-box{display:flex;flex-direction:column;gap:8px;border:1.5px solid var(--rule);border-left:4px solid var(--pen);border-radius:12px;padding:12px 14px;margin-top:10px;background:var(--card-2)}
+.rep-opts{display:flex;flex-direction:column;gap:4px}.rep-opts label{display:flex;gap:8px;align-items:center;cursor:pointer}
+.rep-note{display:flex;flex-direction:column;gap:4px;font-size:.9375rem}.rep-note textarea{font:inherit;border:1.5px solid var(--field);border-radius:10px;padding:8px 10px;background:var(--card);color:var(--ink);resize:vertical}
+.rep-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.rep-out{font-size:.875rem;color:var(--pen)}
 </style>

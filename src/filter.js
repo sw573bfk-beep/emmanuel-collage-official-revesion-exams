@@ -148,9 +148,11 @@ const MATHS_NEAR = new RegExp([
   '\\b(?:q|question|questions|qn|no|number|page|p|part|ex|exercise|answer|answers|ans|is it|equals|got|get|score|scored|score is|mark|marks|total|sum|out of|=)\\.?\\s*(?:is\\s*|was\\s*)?(?:69|420|1488|88)\\b', '\\b(?:69|420|1488|88)\\s*(?:is the answer|is right|is wrong|is correct|right|wrong|correct|or|out of)\\b'
 ].join('|'), 'i');
 
-export function checkText(text) {
+// The same word and personal-detail checks, without the allowed-characters rule (for the site's own question text)
+export function checkWords(text) { return checkText(text, true); }
+export function checkText(text, anyChars) {
   const raw = String(text || '');
-  if (!ALLOWED_CHARS.test(raw.replace(SAFE_EMOJI_RE, ''))) return { ok: false, why: 'words', message: FILTER_CHARS_MSG };
+  if (!anyChars && !ALLOWED_CHARS.test(raw.replace(SAFE_EMOJI_RE, ''))) return { ok: false, why: 'words', message: FILTER_CHARS_MSG };
   if (ALWAYS_RUDE.test(raw) || (RUDE_NUMBERS.test(raw) && !MATHS_NEAR.test(raw))) return { ok: false, why: 'words', message: FILTER_WORDS_MSG };
   const plain = raw.normalize('NFKC').replace(/[​-‏⁠-⁤﻿­]/g, '');
   if (CONTACT.some(re => re.test(plain))) return { ok: false, why: 'personal', message: FILTER_CONTACT_MSG };

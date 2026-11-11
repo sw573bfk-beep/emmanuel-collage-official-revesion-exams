@@ -25,6 +25,7 @@ function questionCard(Q, opts = {}) {
     '<div class="qtext">' + Q.q + '</div>' + (Q.fig ? '<div class="qfig">' + Q.fig + '</div>' : '') + '<div class="qans stack"></div><div class="qfb stack" aria-live="polite"></div>';
   const ansEl = $('.qans', el), fb = $('.qfb', el); let sel = null, input = null, tries = 0;
   const exam = opts.mode === 'exam';
+  if (typeof reportMistakeBtn === 'function') $('.qhead', el).appendChild(reportMistakeBtn(Q));
   if (Q.type === 'mcq') {
     const box = h('<div class="choices"></div>');
     Q.choices.forEach((c, i) => { const b = h('<button type="button" class="choice"><span class="lt">' + 'ABCDE'[i] + '</span>' + c + '</button>'); b.onclick = () => { if (el.dataset.done) return; sel = i; $$('.choice', box).forEach((x, j) => x.classList.toggle('sel', j === i)); if (!exam) doCheck(); else opts.onChange && opts.onChange(); }; box.appendChild(b); });
@@ -436,7 +437,7 @@ RENDER.exam = () => {
       if (done) return; done = true; clearInterval(examTimer);
       const res = cards.map((c, i) => { const r = c.finalize(); record(Qs[i].topic, !!r.ok); return !!r.ok; });
       const s = res.filter(Boolean).length, p = Math.round(s / n * 100); const used = Math.round((Date.now() - start) / 1000);
-      const hist = store.get('exams', []); hist.push({ d: new Date().toLocaleDateString('en-AU'), s, n, p, t: Math.floor(used / 60) + 'm ' + used % 60 + 's' }); store.set('exams', hist);
+      const hist = store.get('exams', []); hist.push({ d: new Date().toLocaleDateString('en-AU'), s, n, p, t: Math.floor(used / 60) + 'm ' + used % 60 + 's', lim: mins || 0 }); store.set('exams', hist);
       bar.remove(); bottom.remove();
       const by = {}; Qs.forEach((Q, i) => { const b = by[Q.topic] || (by[Q.topic] = [0, 0]); b[1]++; if (res[i]) b[0]++; });
       const weak = Object.entries(by).filter(([, [a, b]]) => a / b < 0.7).map(([t]) => t);

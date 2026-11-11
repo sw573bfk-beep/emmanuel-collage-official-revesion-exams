@@ -24,6 +24,10 @@ fallthrough = false
 
 # Created with:  npx wrangler d1 create ec-revisions-db --location oc (Oceania, close to Queensland)
 
+# Every night at 3:30 am Queensland time (17:30 UTC): delete 1-on-1 chat messages older than 21 days
+[triggers]
+crons = ["30 17 * * *"]
+
 [[d1_databases]]
 binding = "DB"
 database_name = "ec-revisions-db"

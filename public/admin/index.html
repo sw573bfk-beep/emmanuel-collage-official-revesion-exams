@@ -656,6 +656,7 @@ details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
       meta.append(k, who);
       if (f.rating) { const st = document.createElement('span'); st.className = 'fb-stars'; st.textContent = '★'.repeat(f.rating) + '☆'.repeat(5 - f.rating); st.setAttribute('aria-label', f.rating + ' out of 5'); meta.appendChild(st); }
       const msg = document.createElement('div'); msg.className = 'fb-msg'; msg.textContent = f.message;
+      if (f.context) { let c = {}; try { c = JSON.parse(f.context); } catch (e) { c = {}; } const q = document.createElement('div'); q.className = 'fb-msg'; q.style.cssText = 'border:1px solid var(--rule);border-radius:8px;padding:8px 10px;background:var(--card-2);font-size:.9rem'; q.textContent = '📄 ' + (c.topic ? c.topic + ' · ' : '') + (c.name || '') + (c.gen ? ' [' + c.gen + ']' : '') + '\n' + c.q + '\nThe site’s answer: ' + c.ans; msg.appendChild(q); }
       const acts = document.createElement('div'); acts.className = 'row';
       const done = document.createElement('button'); done.type = 'button'; done.className = 'btn quiet sm'; done.textContent = f.status === 'done' ? 'Mark as new' : 'Mark done';
       done.onclick = async () => { await api('/api/admin/feedback-status', 'POST', { id: f.id, status: f.status === 'done' ? 'new' : 'done' }); load(); };

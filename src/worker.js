@@ -32,7 +32,7 @@ import boardHtml from '../public/leaderboard/index.html';
 import playHtml from '../public/play/index.html';
 import playSciJs from '../public/play/sci.js';
 import playMathsJs from '../public/play/maths.js';
-import { checkText, checkName, checkPieces } from './filter.js';
+import { checkText, checkName, checkPieces, checkWords } from './filter.js';
 import { handleCommunity, handleCommunityAdmin, addPoints, logBlocked, FAKE_NOTE, leaderboard } from './community.js';
 import { TOPICS as MATHS_TOPICS } from './gen/maths-game.js';
 import { TOPICS as SCI_TOPICS } from './gen/sci-game.js';
@@ -351,6 +351,21 @@ async function handleApi(req, env, url) {
     await env.DB.batch([env.DB.prepare('UPDATE users SET study_req = ? WHERE id = ?').bind(t, user.id), env.DB.prepare("INSERT INTO messages (user_id, from_admin, body, created_at) VALUES (?, 0, '[study-request]', ?)").bind(user.id, t)]);
     return json({ ok: true, pending: true }, 201);
   }
+  // 🚩 Report a mistake on a question (works in study mode too): goes to Beau's Feedback with the question attached
+  if (path === '/api/report-question' && method === 'POST') {
+    let b; try { b = await readJson(req); } catch { return err(400, 'Bad request'); }
+    const WHY = { answer: 'The answer is wrong', working: 'The working is wrong', question: 'The question doesn’t make sense', typo: 'There’s a typo', other: 'Something else' };
+    const subject = b.subject === 'science' ? 'science' : 'maths', why = WHY[b.why] ? b.why : 'other';
+    const note = String(b.note || '').replace(/\r\n?/g, '\n').trim().slice(0, 400);
+    if (note) { const f = checkText(note); if (!f.ok) { await logBlocked(env, user.id, 'report a mistake', f.why, note); return err(422, f.message); } }
+    const ctx = { gen: String(b.gen || '').slice(0, 40), topic: String(b.topic || '').slice(0, 20), name: String(b.gname || '').slice(0, 80), q: String(b.q || '').slice(0, 600), ans: String(b.ans || '').slice(0, 200) };
+    if (!checkWords(ctx.q + ' ' + ctx.ans + ' ' + ctx.name).ok) return err(422, 'That couldn’t be sent.');
+    const recent = await env.DB.prepare('SELECT COUNT(*) AS n FROM feedback WHERE user_id = ? AND created_at > ?').bind(user.id, now() - 86400).first();
+    if (recent.n >= 30) return err(429, 'You’ve sent a lot of reports today. Thanks! Try again tomorrow.');
+    await env.DB.prepare('INSERT INTO feedback (user_id, name, kind, subject, rating, message, created_at, context) VALUES (?, ?, ?, ?, 0, ?, ?, ?)')
+      .bind(user.id, user.username, 'problem', subject, '🚩 ' + WHY[why] + (note ? ': ' + note : ''), now(), JSON.stringify(ctx)).run();
+    return json({ ok: true }, 201);
+  }
   if (STUDY_BLOCKED(path) && !isAdmin(user, env) && (await studyState(env, user)).study) {
     if (path === '/api/messages/unread') return json({ unread: 0, admin: false, study: true });
     return json({ error: 'Study mode is on, so this is turned off. You can use Maths, Science and Play with friends.', study: true }, 403);
@@ -381,12 +396,38 @@ async function handleApi(req, env, url) {
     const NAMES = { maths: Object.fromEntries(MATHS_TOPICS.map(x => [x.id, x.name])), science: Object.fromEntries(SCI_TOPICS.map(x => [x.id, x.name])) };
     const topics = [];
     prog.results.forEach(r => { let d = {}; try { d = JSON.parse(r.data); } catch { d = {}; } Object.entries(d.tstats || {}).forEach(([id, x]) => { if (x && x.a > 0 && NAMES[r.subject] && NAMES[r.subject][id]) topics.push({ subject: r.subject, id, name: NAMES[r.subject][id], a: x.a, c: Math.min(x.c || 0, x.a) }); }); });
+    // 🏅 badges, worked out from saved progress, study time and friends
+    const stats = { answered: 0, correct: 0, bookletDone: 0, exams: [], tried: { maths: new Set(), science: new Set() } };
+    prog.results.forEach(r => { let d0 = {}; try { d0 = JSON.parse(r.data); } catch { d0 = {}; } const m = mathsStats(d0); stats.answered += m.answered; stats.correct += m.correct; stats.bookletDone += m.bookletDone;
+      (Array.isArray(d0.exams) ? d0.exams : []).forEach(e => stats.exams.push(e)); Object.entries(d0.tstats || {}).forEach(([id, x]) => { if (x && x.a > 0 && stats.tried[r.subject]) stats.tried[r.subject].add(id); }); });
+    const hours = (all.results[0].s || 0) / 3600;
+    const allTopics = s => s === 'maths' ? MATHS_TOPICS.length : SCI_TOPICS.length;
+    const B = (icon, name, desc, have, need) => ({ icon, name, desc, earned: have >= need, have: Math.min(have, need), need });
+    const badges = [
+      B('🌱', 'First steps', 'Answer your first question', stats.answered, 1),
+      B('🎯', 'Sharp shooter', 'Get 50 answers right', stats.correct, 50),
+      B('💯', 'Century', 'Answer 100 questions', stats.answered, 100),
+      B('🧠', 'Brainiac', 'Answer 500 questions', stats.answered, 500),
+      B('🔥', 'On a roll', 'Study 3 days in a row', streak, 3),
+      B('⚡', 'Week warrior', 'Study 7 days in a row', streak, 7),
+      B('🏔️', 'Unstoppable', 'Study 14 days in a row', streak, 14),
+      B('⏱️', 'First hour', 'Study for 1 hour in total', Math.floor(hours * 10) / 10, 1),
+      B('📚', 'Bookworm', 'Study for 5 hours in total', Math.floor(hours * 10) / 10, 5),
+      B('🏅', 'Dedicated', 'Study for 10 hours in total', Math.floor(hours * 10) / 10, 10),
+      B('📝', 'Test taker', 'Finish a timed test', stats.exams.length, 1),
+      B('🏁', 'Speedrunner', 'Finish a speedrun (5 minutes or less)', stats.exams.filter(e => e.lim > 0 && e.lim <= 5).length, 1),
+      B('🌟', 'Top marks', 'Score 90% or more on a test of 10+ questions', stats.exams.filter(e => (e.n || 0) >= 10 && (e.p || 0) >= 90).length, 1),
+      B('🗺️', 'Explorer', 'Practise every topic in Maths or Science', Math.max(stats.tried.maths.size / allTopics('maths'), stats.tried.science.size / allTopics('science')) >= 1 ? 1 : 0, 1),
+      B('📘', 'Booklet boss', 'Mark 50 booklet questions', stats.bookletDone, 50),
+      B('🤝', 'Friendly', 'Make a friend', fr.results[0].n, 1)
+    ];
+    if (user.tester) badges.push(B('🧪', 'Official tester', 'Helped test EC Revisions', 1, 1));
     const lb = study ? null : { week: (await leaderboard(env, me, 'week', isAdmin(user, env))).me, all: (await leaderboard(env, me, 'all', isAdmin(user, env))).me };
     const NOTE = { '[unlock-request]': '🔔 You asked to unlock the booklet', '[unlock-allowed]': '✅ Beau unlocked the booklet', '[unlock-declined]': 'Beau said not yet', '[chat-request]': '🙋 You asked to use Chat', '[chat-allowed]': '✅ Beau let you into Chat', '[chat-declined]': 'Beau said not yet', '[chat-removed]': 'Chat turned off', '[study-request]': '📚 You asked to leave study mode', '[study-allowed]': '✅ Study mode off', '[study-declined]': 'Beau said not yet' };
     const b0 = beau.results[0];
     return json({ now: t, name: u.results[0].username, joined: u.results[0].created_at, study, role: staffRole(user, env), roleName: ROLE_NAME[staffRole(user, env)] || null, tester: user.tester, booklet: await hasUnlock(env, user, 'theory'),
       time: { today: D[today] || 0, week: Array.from({ length: 7 }, (_, i) => D[back(i)] || 0).reduce((a, x) => a + x, 0), all: all.results[0].s || 0, last14, streak },
-      leaderboard: lb, topics, friends: fr.results[0].n,
+      leaderboard: lb, topics, friends: fr.results[0].n, badges: badges.concat(lb && lb.week && lb.week.rank <= 3 ? [B('🏆', 'Podium', 'Top 3 on this week’s leaderboard', 1, 1)] : []),
       messages: study ? null : { beau: { last: b0 ? (NOTE[b0.body] || b0.body) : null, mine: b0 ? !b0.from_admin : false, at: b0 ? b0.created_at : null, unread: beauN.results[0].n },
         chats: thr.results.map(r => ({ id: r.id, name: r.name, last: r.last, at: r.at || 0, unread: r.unread, online: t - (r.seen || 0) < 180 })).sort((a, b) => (b.unread - a.unread) || (b.at - a.at)) } });
   }
@@ -683,7 +724,7 @@ async function handleAdmin(req, env, path, method, me, role = 'owner') {
     });
   }
   if (path === '/api/admin/feedback' && method === 'GET') {
-    const rows = await env.DB.prepare('SELECT id, name, kind, subject, rating, message, status, created_at FROM feedback ORDER BY created_at DESC LIMIT 500').all();
+    const rows = await env.DB.prepare('SELECT id, name, kind, subject, rating, message, status, created_at, context FROM feedback ORDER BY created_at DESC LIMIT 500').all();
     return json({ feedback: rows.results });
   }
   if (path === '/api/admin/codes' && method === 'GET') {
@@ -877,7 +918,19 @@ async function handleAdmin(req, env, path, method, me, role = 'owner') {
   return err(404, 'Not found');
 }
 
+// Every night: 1-on-1 chat messages older than 21 days are deleted (students are told this in Chat and on the
+// privacy page), with any reports about them, and old rate-limit records are tidied away.
+const CHAT_KEEP_DAYS = 21;
+async function nightly(env) {
+  const cut = now() - CHAT_KEEP_DAYS * 86400;
+  await env.DB.batch([
+    env.DB.prepare("DELETE FROM chat_reports WHERE kind = 'dm' AND message_id IN (SELECT id FROM dm_messages WHERE created_at < ?)").bind(cut),
+    env.DB.prepare('DELETE FROM dm_messages WHERE created_at < ?').bind(cut),
+    env.DB.prepare('DELETE FROM rate_hits WHERE at < ?').bind(now() - 2 * 86400)
+  ]);
+}
 export default {
+  async scheduled(event, env, ctx) { ctx.waitUntil(nightly(env)); },
   async fetch(req, env) {
     const url = new URL(req.url);
     if (url.pathname.startsWith('/api/')) {

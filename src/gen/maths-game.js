@@ -2390,4 +2390,29 @@ function practiceFilters(onChange) {
   return bar;
 }
 
+/* ---------- 🚩 Report a mistake: on every question card ---------- */
+function reportMistakeBtn(Q) {
+  const b = document.createElement('button'); b.type = 'button'; b.className = 'rep-btn'; b.textContent = '🚩 Report a mistake'; b.title = 'Tell Beau if something about this question is wrong';
+  b.onclick = () => {
+    const card = b.closest('.qcard'); if (!card || card.querySelector('.rep-box')) return;
+    const plain = x => { const d = document.createElement('div'); d.innerHTML = String(x || ''); d.querySelectorAll('svg').forEach(v => v.remove()); return d.textContent.replace(/\s+/g, ' ').trim(); };
+    const box = document.createElement('form'); box.className = 'rep-box'; box.noValidate = true;
+    box.innerHTML = '<b>What’s wrong with this question?</b><div class="rep-opts">' + [['answer', 'The answer is wrong'], ['working', 'The working is wrong'], ['question', 'The question doesn’t make sense'], ['typo', 'There’s a typo'], ['other', 'Something else']]
+      .map(([v, t], i) => '<label><input type="radio" name="why" value="' + v + '"' + (i === 0 ? ' checked' : '') + '> ' + t + '</label>').join('') + '</div>'
+      + '<label class="rep-note">Tell Beau more (optional)<textarea maxlength="400" rows="2" placeholder="e.g. I think the answer should be 12"></textarea></label>'
+      + '<div class="rep-row"><button type="submit" class="btn sm">Send to Beau</button><button type="button" class="btn quiet sm rep-x">Cancel</button><span class="rep-out" role="status"></span></div>';
+    box.querySelector('.rep-x').onclick = () => box.remove();
+    box.onsubmit = async e => {
+      e.preventDefault(); const out = box.querySelector('.rep-out'), send = box.querySelector('button[type=submit]'); send.disabled = true; out.textContent = '';
+      const body = { subject: location.pathname.startsWith('/science') ? 'science' : 'maths', gen: Q.gen || '', topic: Q.topic || '', gname: Q.gname || '', q: plain(Q.q), ans: plain(Q.ansText), why: box.querySelector('input[name=why]:checked').value, note: box.querySelector('textarea').value };
+      let ok = false, j = {}; try { const r = await fetch('/api/report-question', { method: 'POST', credentials: 'same-origin', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }); ok = r.ok; j = await r.json(); } catch (err) { j = { error: 'Can’t reach the server.' }; }
+      if (!ok) { send.disabled = false; out.textContent = j.error || 'Couldn’t send it.'; return; }
+      box.innerHTML = '<b>✅ Thanks! Beau has the question and will check it.</b>'; b.disabled = true; b.textContent = '🚩 Reported';
+      setTimeout(() => box.remove(), 4000);
+    };
+    card.appendChild(box); box.querySelector('textarea').focus({ preventScroll: true });
+  };
+  return b;
+}
+
 export { pickPractice, asMCQ, makeQ, TOPIC_GENS, pick, TOPICS };

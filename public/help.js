@@ -110,7 +110,7 @@
       title: 'How to use Chat',
       intro: 'Chat 1-on-1 with friends, and privately with Beau. Beau can read every chat to keep everyone safe.',
       steps: [
-        { h: 'The rules', t: 'Be kind and never share personal details. Rude or unsafe messages are blocked automatically.', sel: '.rules' },
+        { h: 'The rules', t: 'Be kind and never share personal details. Rude or unsafe messages are blocked automatically. Beau can read every chat, and messages are deleted after 21 days.', sel: '.rules' },
         { h: '👥 Friends', t: 'Your friends, friend requests and friend search are all in this tab.', sel: '#tabMine' },
         { h: 'Find people', t: 'Type a name and tap <b>Add friend</b>. They get a request to accept.', sel: '#find' },
         { h: 'Friend requests', t: 'When someone adds you, tap <b>Accept</b> or <b>Decline</b>. You can also <b>Block</b> them.', sel: '#reqCard' },
@@ -133,6 +133,7 @@
         { h: '⏱️ Study time', t: 'Today, the last 7 days and all time, a chart of the last 14 days, and your 🔥 streak (days in a row with at least 1 minute).', sel: '#timeStats' },
         { h: '🏆 Leaderboard', t: 'Your place and points this week and all time.', sel: '#lbCard' },
         { h: '👥 Friends', t: 'How many friends you have. Tap the button to find or add friends.', sel: '#frCard' },
+        { h: '🏅 Badges', t: 'Earn badges for studying: streaks, study time, questions answered, speedruns, top marks and more. Grey ones are still to earn, with a bar showing how close you are.', sel: '#badgesCard' },
         { h: '🎟️ Codes', t: 'Got a code from Beau? Type it here (5 letters and numbers, any case). Codes can unlock the completed Science booklet, give an admin level or the 🧪 Official tester banner. Each code works once.', sel: '#codesCard' },
         { h: '🎯 Scores by topic', t: 'Every topic you’ve practised, weakest first. Tap <b>Practise this</b> to jump straight into practice on that topic.', sel: '#topics' },
         { h: '💬 Messages', t: 'Tap a chat to open it. A red number means new messages, and a green dot means your friend is online.', sel: '#tabMsg' },
