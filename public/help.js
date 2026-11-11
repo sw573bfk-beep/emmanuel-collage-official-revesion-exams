@@ -66,6 +66,7 @@
       ],
       extra: [
         { h: 'Answering questions', t: 'Type your answer or tap a choice, then press <b>Check</b>. Stuck? Tap <b>Hint</b>, or <b>Show answer &amp; working</b> to see how it’s done.' },
+        { h: '🧒 Super simple', t: 'Every <b>Working</b> box has a <b>🧒 Super simple</b> switch. Turn it on for the idea in plain words and tiny steps. It stays on until you turn it off (in Maths too).' },
         { h: '⚡ Timed tests and speedruns', t: 'In <b>Practice → Timed test</b>, pick how many questions and the time: <b>1, 2 or 5 minute speedruns</b>, 10–60 minutes, no timer, or <b>Choose my own</b> (any time from ½ a minute to 3 hours). It’s marked when you finish or when time runs out.' },
         { h: 'Word equations', t: 'Type them like <b>magnesium + oxygen → magnesium oxide</b>. You can type <b>-&gt;</b> for the arrow.' },
         ...everywhere

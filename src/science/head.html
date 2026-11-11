@@ -374,4 +374,23 @@ footer.foot{max-width:1180px;margin:0 auto;padding-block:0 40px;padding-left:max
 .rep-opts{display:flex;flex-direction:column;gap:4px}.rep-opts label{display:flex;gap:8px;align-items:center;cursor:pointer}
 .rep-note{display:flex;flex-direction:column;gap:4px;font-size:.9375rem}.rep-note textarea{font:inherit;border:1.5px solid var(--field);border-radius:10px;padding:8px 10px;background:var(--card);color:var(--ink);resize:vertical}
 .rep-row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.rep-out{font-size:.875rem;color:var(--pen)}
+/* Super simple explain mode */
+.sol-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.simple-btn{font:inherit;font-size:.9375rem;font-weight:600;display:inline-flex;align-items:center;gap:8px;border:1.5px solid var(--rule);background:var(--card);color:var(--ink);border-radius:999px;padding:6px 14px 6px 8px;min-height:40px;cursor:pointer}
+.simple-btn .sw{position:relative;width:34px;height:20px;border-radius:999px;background:var(--field,#9aa3b5);flex:none;transition:background .15s}
+.simple-btn .sw::after{content:"";position:absolute;top:3px;left:3px;width:14px;height:14px;border-radius:50%;background:#fff;transition:left .15s}
+.simple-btn[aria-pressed="true"]{border-color:var(--accent);background:var(--accent-soft)}
+.simple-btn[aria-pressed="true"] .sw{background:var(--accent)}.simple-btn[aria-pressed="true"] .sw::after{left:17px}
+.simple-box,.why-s{display:none}
+html.simple .simple-box{display:flex;flex-direction:column;gap:8px;border:2px solid var(--good,#1b7f4b);background:var(--good-soft,#e3f4ea);color:var(--ink);border-radius:14px;padding:14px 16px;font-size:1.0625rem;line-height:1.6}
+html.simple .simple-box b{font-family:var(--f-display);font-size:1.0625rem;color:var(--good,#1b7f4b)}
+html.simple .simple-box p{margin:0}
+html.simple .simple-box ol{margin:0;padding-left:1.4em;display:flex;flex-direction:column;gap:6px}
+html.simple .why-s{display:block}html.simple .why-n{display:none}
+html.simple .view:not(#v-booklet) .steps li{display:flex;flex-direction:column;align-items:flex-start;gap:6px;padding:16px 0}
+html.simple .view:not(#v-booklet) .steps li::before{content:"Step " counter(st);display:inline-block;white-space:nowrap;width:auto;height:auto;line-height:1.6;border-radius:999px;padding:2px 12px;font-family:var(--f-body)}
+html.simple .view:not(#v-booklet) .steps .why::before{content:none}
+html.simple .view:not(#v-booklet) .steps .why{order:1;font-size:1.0625rem;color:var(--ink);font-weight:500;margin:0}
+html.simple .view:not(#v-booklet) .steps .st{order:2;font-size:1.1875rem;line-height:1.9;background:var(--card);border:1.5px solid var(--rule);border-radius:10px;padding:8px 14px;max-width:100%}
+
 </style>

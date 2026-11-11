@@ -30,7 +30,7 @@ const acc = tid => { const s = tstats[tid]; return s && s.a ? s.c / s.a : null; 
 const canStore = store.get('can', {});
 const ckStore = store.get('check', {});
 const bkMarks = store.get('bk', {});
-function solHTML(Q) { return '<div class="sol"><div class="sol-title">Working</div>' + stepsHTML(Q.sol || []) + '</div>'; }
+function solHTML(Q) { return '<div class="sol"><div class="sol-head"><div class="sol-title">Working</div>' + simpleToggleHTML() + '</div>' + simpleBox(Q.gen) + stepsHTML(Q.sol || []) + '</div>'; }
 const KEYS = { eq: ['→', '+'], set: [','], ineq: ['<', '>', '≤', '≥', '−'], num: ['−', '/', '.', '$', '%'], coord: ['(', ')', ',', '−'], rule: ['=', 'x', '−', '/', '(', ')'], frac: ['/', '−'], nums: [',', '−', '.'], text: ['∠', '△'] };
 function keypad(input, type) {
   const k = h('<div class="keys" aria-label="Symbol keys"></div>');
