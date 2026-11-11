@@ -1,15 +1,27 @@
 /* EC Revisions: "Don't know how to use the site?" help panel and guided tour.
-   Shared by the login page, Maths, Science and Feedback. */
+   Every page has its own guide: home, Maths, Science, Feedback, Chat, Profile, Play with friends, Leaderboard. */
 (() => {
   const path = location.pathname;
-  const PAGE = path.startsWith('/science') ? 'science' : path.startsWith('/maths') ? 'maths' : path.startsWith('/feedback') ? 'feedback' : 'start';
+  const PAGE = path.startsWith('/science') ? 'science' : path.startsWith('/maths') ? 'maths' : path.startsWith('/feedback') ? 'feedback' : path.startsWith('/chat') ? 'chat'
+    : path.startsWith('/me') ? 'me' : path.startsWith('/play') ? 'play' : path.startsWith('/leaderboard') ? 'leaderboard' : 'start';
   const label = el => el && (el.closest('label') || el);
 
+  // the 👤 Profile button, top right of every page
+  const profileStep = { h: '👤 Your profile', t: 'Tap your initial in the top right corner for your profile: study time, streak, leaderboard place, scores by topic (weakest first, with <b>Practise this</b>) and all your <b>messages</b>. A red number means something new. Only you can see your profile.', sel: '#ecProfile' };
+  // things that work the same on every page
+  const everywhere = [
+    { h: '💤 Sleep mode', t: 'If you don’t touch the page for 10 minutes, a Sleep mode screen appears and your study time stops counting (so nobody can leave a tab open overnight for points). Tap <b>I’m back, keep studying</b> to carry on.' },
+    { h: '📣 Messages from Beau', t: 'Sometimes a message from Beau pops up at the top of the screen for a short time. Tap ✕ to close it.' },
+    { h: '📚 Study mode', t: 'Beau can turn on study mode. Then only Maths, Science and Play with friends work, and chat, the leaderboard and feedback are turned off. You can ask Beau to turn it off.' },
+    { h: '🌙 Light or dark', t: 'Tap the 🌙 / ☀️ button to switch between light and dark mode.' },
+    { h: '🔒 Privacy and safety', t: 'EC Revisions is made by a student, not the school. Tap <b>Privacy and safety</b> at the bottom of any page to see what’s saved and who can see it.' }
+  ];
   // shared steps for the top bar of Maths and Science
   const topBar = [
+    profileStep,
     { h: 'Feedback', t: 'Found a mistake, got an idea or something confusing? Tap <b>Feedback</b> to tell Beau. Every message is read.', sel: '.top-tools a[href^="/feedback"]' },
     { h: 'Leaderboard', t: 'Earn points by studying: 1 per minute, 2 per correct answer, 1 per booklet question marked right. See the top 50 and your own place, this week and all time.', sel: '.top-tools a[href^="/leaderboard"]' },
-    { h: 'Chat', t: 'All your chats in one place. First, tap <b>Ask Beau for chat access</b>: once Beau says yes you can add friends. In <b>Friends</b>, search for someone and tap <b>Add friend</b>: once they accept you can chat any time and invite them to games. <b>✉️ Beau</b> is a private chat with Beau. A red number means something new. Chats are monitored and rude or unsafe messages are blocked.', sel: '.top-tools a[data-chat]' },
+    { h: 'Chat', t: 'Chat 1-on-1 with friends and privately with Beau. In <b>Friends</b>, search for someone and tap <b>Add friend</b>. When you <b>both</b> agree and Beau approves it, you can chat any time and invite them to games. <b>✉️ Beau</b> is a private chat with Beau. Beau can read every chat, and rude or unsafe messages are blocked.', sel: '.top-tools a[data-chat]' },
     { h: 'Switch subject', t: '<b>Subjects</b> takes you back to pick Maths or Science. Your progress in each one is kept.', sel: '.top-tools a[href="/"]' },
     { h: 'Your progress is saved', t: 'Everything you do is saved to your account, so it follows you to any phone or computer. Your name shows which account this tab is using, and under it it says when it last saved. To use another account, go to <b>Subjects</b> and tap <b>Switch account</b>.', sel: '.top-tools .acct' }
   ];
@@ -24,13 +36,16 @@
         { h: 'Pick a subject', t: 'Once you’re logged in, pick <b>Maths</b> or <b>Science</b> to start studying.', sel: ['#pickView .card:has(a[href="/maths/"])', '#pickView a[href="/maths/"]'] },
         { h: 'More than one account', t: 'Tap <b>Switch account</b> to add another account or swap between them. Each tab can use a different account, so you can be logged into two at once.', sel: '#switchBtn' },
         { h: 'Send feedback', t: 'Found a mistake or have an idea? Tell Beau here.', sel: ['#pickView a.card[href="/feedback/"]', '#whoBox a[href="/feedback/"]'] },
-        { h: 'Leaderboard and Chat', t: 'See the top 50 studiers and your place. <b>💬 Chat</b> has 1-on-1 chats with your friends, and <b>✉️ Beau</b>, a private chat with Beau. Chats are monitored and strictly filtered.', sel: ['#whoBox a[data-chat]', '#pickView a[href="/leaderboard/"]'] },
+        profileStep,
+        { h: 'Leaderboard and Chat', t: 'See the top 50 studiers and your place. <b>💬 Chat</b> has 1-on-1 chats with your friends, and <b>✉️ Beau</b>, a private chat with Beau. Beau can read every chat, and messages are strictly filtered.', sel: ['#whoBox a[data-chat]', '#pickView a[href="/leaderboard/"]'] },
+        { h: '👥 Friends', t: 'Search for a friend by name and tap <b>Add friend</b>. When you <b>both</b> agree and Beau approves it, a <b>💬 Chat</b> button appears next to them.', sel: '#friendsCard' },
         { h: 'Play with friends', t: 'Make a live quiz game and share the 6-digit code. Pick <b>Speed Quiz</b> (fast right answers score more), <b>Treasure Chests</b> (open a chest after each right answer) or <b>Parkour Run</b> (right answers give energy to run the course).', sel: '#pickView a[href="/play/"]' },
         { h: 'Account settings', t: 'Change your password or delete your account here.', sel: '#pickView details.acct' },
         helpStep
       ],
       extra: [
-        { h: 'Forgot your password?', t: 'Ask Beau. Beau can reset it for you.' }
+        { h: 'Forgot your password?', t: 'Ask Beau. Beau can reset it for you.' },
+        ...everywhere
       ]
     },
     science: {
@@ -51,7 +66,9 @@
       ],
       extra: [
         { h: 'Answering questions', t: 'Type your answer or tap a choice, then press <b>Check</b>. Stuck? Tap <b>Hint</b>, or <b>Show answer &amp; working</b> to see how it’s done.' },
-        { h: 'Word equations', t: 'Type them like <b>magnesium + oxygen → magnesium oxide</b>. You can type <b>-&gt;</b> for the arrow.' }
+        { h: '⚡ Timed tests and speedruns', t: 'In <b>Practice → Timed test</b>, pick how many questions and the time: <b>1, 2 or 5 minute speedruns</b>, 10–60 minutes, no timer, or <b>Choose my own</b> (any time from ½ a minute to 3 hours). It’s marked when you finish or when time runs out.' },
+        { h: 'Word equations', t: 'Type them like <b>magnesium + oxygen → magnesium oxide</b>. You can type <b>-&gt;</b> for the arrow.' },
+        ...everywhere
       ]
     },
     maths: {
@@ -64,14 +81,16 @@
         { h: 'Exam countdown', t: 'Put in your exam date and it counts down the days.', sel: '#examDate', get: label },
         { h: 'Skills checklist', t: 'Tap any skill (the underlined writing) for a simple explanation and practice questions, one at a time. Tap how sure you feel about each skill. The blue links jump to the matching booklet question.', sel: ['table.check .skill-link', 'table.check'] },
         { h: 'Practise', t: 'Questions without end. Pick the <b>difficulty</b> and <b>question type</b> (multiple choice, short answer or long response). Long responses are self-marked with a checklist. <b>🎮 Play with friends</b> starts a live game.', sel: '#tabs a[data-v="practice"]' },
-        { h: 'Test yourself', t: 'A timed practice exam. Nothing is marked until you finish.', sel: '#tabs a[data-v="exam"]' },
+        { h: 'Test yourself', t: 'A timed practice exam. Pick how many questions and the time: <b>⚡ 1, 2 or 5 minute speedruns</b>, 10–60 minutes, no timer, or <b>Choose my own</b>. Nothing is marked until you finish (or time runs out).', sel: '#tabs a[data-v="exam"]' },
         { h: 'Tools', t: 'Change the numbers and the answer and working update straight away.', sel: '#tabs a[data-v="tools"]' },
-        { h: 'Ask', t: 'Type any maths question and get the answer with every step.', sel: '#tabs a[data-v="ask"]' },
+        { h: 'Ask', t: 'Type any maths question and get the answer with every step. Turn on <b>🧒 Super simple</b> for the easiest explanation.', sel: '#tabs a[data-v="ask"]' },
         { h: 'Flashcards and Maths words', t: 'Flip cards to test yourself, and look up what every maths word means.', sel: '#tabs a[data-v="cards"]' },
         ...topBar, helpStep
       ],
       extra: [
-        { h: 'Answering questions', t: 'Type your answer and press <b>Check</b>. Stuck? Use the hint or show the answer to see every step.' }
+        { h: 'Answering questions', t: 'Type your answer and press <b>Check</b>. Stuck? Use the hint or show the answer to see every step.' },
+        { h: '🧒 Super simple', t: 'Every <b>Working</b> box (and every Ask answer) has a <b>🧒 Super simple</b> switch. Turn it on for the idea in plain words, tiny steps, and each step explained in everyday language. It stays on until you turn it off.' },
+        ...everywhere
       ]
     },
     feedback: {
@@ -85,7 +104,63 @@
         { h: 'Send it', t: 'Press <b>Send feedback</b>. Your name is sent with it so Beau can follow it up.', sel: '#send' },
         helpStep
       ],
-      extra: []
+      extra: [{ h: 'What you can type', t: 'Letters, numbers, . , ? ! ’, maths symbols (+ − × ÷ = / ( ) % &lt; &gt; : $ °) and a few friendly emojis. Rude words, personal details and other symbols are blocked.' }]
+    },
+    chat: {
+      title: 'How to use Chat',
+      intro: 'Chat 1-on-1 with friends, and privately with Beau. Beau can read every chat to keep everyone safe.',
+      steps: [
+        { h: 'The rules', t: 'Be kind and never share personal details. Rude or unsafe messages are blocked automatically.', sel: '.rules' },
+        { h: '👥 Friends', t: 'Your friends, friend requests and friend search are all in this tab.', sel: '#tabMine' },
+        { h: 'Find people', t: 'Type a name and tap <b>Add friend</b>. They get a request to accept.', sel: '#find' },
+        { h: 'Friend requests', t: 'When someone adds you, tap <b>Accept</b> or <b>Decline</b>. You can also <b>Block</b> them.', sel: '#reqCard' },
+        { h: '⏳ Waiting for Beau', t: 'When you both agree, Beau checks the chat. Once Beau approves it, you can chat any time.', sel: '#waitCard' },
+        { h: 'Your friends', t: 'Tap a friend to chat. A green dot means they’re online, and a red number means new messages.', sel: '#threads' },
+        { h: '✉️ Beau', t: 'A private chat with Beau, who runs EC Revisions. Ask anything about the site or your revision.', sel: '#tabBeau' },
+        profileStep, helpStep
+      ],
+      extra: [
+        { h: 'In a chat', t: 'Press Enter to send (Shift + Enter for a new line). <b>🎮 Invite to a game</b> sends your friend a game code. <b>Report</b> any message that worries you, or <b>Block</b> someone.' },
+        { h: 'What you can type', t: 'Letters, numbers, . , ? ! ’, maths symbols (+ − × ÷ = / ( ) % &lt; &gt; : $ °) and a few friendly emojis like 😀 👍 🎉. Rude words, personal details (phone numbers, addresses, social media) and other symbols are blocked.' },
+        ...everywhere
+      ]
+    },
+    me: {
+      title: 'Your profile',
+      intro: 'Your stats and your messages in one place. Only you can see your profile.',
+      steps: [
+        { h: 'Overview and Messages', t: '<b>📊 Overview</b> has your stats. <b>💬 Messages</b> is your inbox: Beau and all your friend chats, newest first.', sel: '.tabs2' },
+        { h: '⏱️ Study time', t: 'Today, the last 7 days and all time, a chart of the last 14 days, and your 🔥 streak (days in a row with at least 1 minute).', sel: '#timeStats' },
+        { h: '🏆 Leaderboard', t: 'Your place and points this week and all time.', sel: '#lbCard' },
+        { h: '👥 Friends', t: 'How many friends you have. Tap the button to find or add friends.', sel: '#frCard' },
+        { h: '🎯 Scores by topic', t: 'Every topic you’ve practised, weakest first. Tap <b>Practise this</b> to jump straight into practice on that topic.', sel: '#topics' },
+        { h: '💬 Messages', t: 'Tap a chat to open it. A red number means new messages, and a green dot means your friend is online.', sel: '#tabMsg' },
+        helpStep
+      ],
+      extra: [...everywhere]
+    },
+    play: {
+      title: 'How to play with friends',
+      intro: 'A live quiz game. One person makes a game and shares the 6-digit code; everyone else joins with it.',
+      steps: [
+        { h: 'Pick a game mode', t: '<b>⚡ Speed Quiz</b>: fast right answers score more. <b>💰 Treasure Chests</b>: open a chest after each right answer (gold, jackpots, steals, swaps…). <b>🏃 Parkour Run</b>: right answers give energy to run the course.', sel: '#modes' },
+        { h: 'Subject, topic and level', t: 'Choose Maths or Science, a topic (or all of them), the difficulty and how long the game lasts.', sel: ['#subjects', '#topic'] },
+        { h: 'Make the game', t: 'Tap <b>Create game</b> to get a 6-digit code. Share it, or invite your friends straight from the lobby.', sel: '#create' },
+        { h: 'Join a game', t: 'Got a code from a friend? Type it here and tap <b>Join</b>.', sel: ['#code', '#join'] },
+        profileStep, helpStep
+      ],
+      extra: [{ h: 'Fair play', t: 'The server makes and marks every question, so nobody can cheat. Answering super fast without reading just gets things wrong.' }, ...everywhere]
+    },
+    leaderboard: {
+      title: 'How the leaderboard works',
+      intro: 'Earn points by studying: <b>1 per minute</b> of study, <b>2 per correct answer</b>, and <b>1 per booklet question</b> marked right.',
+      steps: [
+        { h: 'This week or all time', t: 'Switch between this week (from Monday) and all time.', sel: ['#tWeek', '#tAll'] },
+        { h: 'Your place', t: 'Your rank and points, even if you’re not in the top 50.', sel: '#mine' },
+        { h: 'The top 50', t: 'The 50 students with the most points.', sel: '#boardCard' },
+        profileStep, helpStep
+      ],
+      extra: [{ h: 'Fair points', t: 'Points have daily limits, study time only counts while you’re active (see Sleep mode), and a minute can’t be counted twice in two tabs.' }, ...everywhere]
     }
   };
   const G = GUIDE[PAGE];
