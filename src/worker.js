@@ -23,6 +23,7 @@ import tabbarJs from '../public/tabbar.js';
 import themeCss from '../public/theme.css';
 import themeJs from '../public/theme.js';
 import noticeJs from '../public/notice.js';
+import studyJs from '../public/study.js';
 import msgJs from '../public/msg.js';
 import chatHtml from '../public/chat/index.html';
 import boardHtml from '../public/leaderboard/index.html';
@@ -44,6 +45,7 @@ const PAGES = {
   '/theme.js': [themeJs, 'text/javascript; charset=utf-8'],
   '/msg.js': [msgJs, 'text/javascript; charset=utf-8'],
   '/notice.js': [noticeJs, 'text/javascript; charset=utf-8'],
+  '/study.js': [studyJs, 'text/javascript; charset=utf-8'],
   '/chat/': [chatHtml, HTML], '/chat/index.html': [chatHtml, HTML],
   '/leaderboard/': [boardHtml, HTML], '/leaderboard/index.html': [boardHtml, HTML],
   '/play/': [playHtml, HTML], '/play/index.html': [playHtml, HTML], '/play/sci.js': [playSciJs, 'text/javascript; charset=utf-8'], '/play/maths.js': [playMathsJs, 'text/javascript; charset=utf-8'],
@@ -78,6 +80,20 @@ async function liveNotice(env, fresh) {
   noticeCache = { at: Date.now(), v: r ? { id: r.id, body: r.body, at: r.created_at, ends: r.ends_at } : null };
   return noticeCache.v;
 }
+// Study mode. The site-wide switch is cached for a few seconds (every request checks it).
+let studyAllCache = { at: 0, on: false };
+async function studyAll(env, fresh) {
+  if (!fresh && Date.now() - studyAllCache.at < 5000) return studyAllCache.on;
+  const r = await env.DB.prepare("SELECT value FROM settings WHERE key = 'study_all'").first();
+  studyAllCache = { at: Date.now(), on: !!r && r.value === '1' }; return studyAllCache.on;
+}
+async function studyState(env, user) {
+  if (isAdmin(user, env)) return { study: false, requested: false, site: await studyAll(env) };
+  const [u, site] = await Promise.all([env.DB.prepare('SELECT study_mode, study_free, study_req FROM users WHERE id = ?').bind(user.id).first(), studyAll(env)]);
+  const study = !!u && (!!u.study_mode || (site && !u.study_free));
+  return { study, requested: study && !!(u && u.study_req), site, why: !u ? null : u.study_mode ? 'you' : site ? 'everyone' : null };
+}
+const STUDY_BLOCKED = p => p.startsWith('/api/chat/') || p.startsWith('/api/messages') || p === '/api/leaderboard' || p === '/api/feedback';
 const SESSION_DAYS = 30;
 const PBKDF2_ITERATIONS = 100000; // the maximum Workers allows
 const SUBJECTS = new Set(['maths', 'science']);
@@ -207,6 +223,26 @@ async function handleApi(req, env, url) {
     return json({ ok: true }, 200, { 'set-cookie': sessionCookie('', url, 0, slotOf(req)) });
   }
   if (!user) return err(401, 'Not logged in');
+  // Study mode: only Maths, Science and Play with friends. Students can ask Beau to turn it off.
+  if (path === '/api/study' && method === 'GET') {
+    const st = await studyState(env, user);
+    let declined = false;
+    if (st.study && !st.requested) { const n = await env.DB.prepare("SELECT created_at FROM messages WHERE user_id = ? AND from_admin = 1 AND body = '[study-declined]' ORDER BY id DESC LIMIT 1").bind(user.id).first(); declined = !!n && now() - n.created_at < 86400; }
+    return json({ ...st, declined });
+  }
+  if (path === '/api/study/request' && method === 'POST') {
+    const st = await studyState(env, user); if (!st.study) return json({ ok: true, study: false });
+    if (st.requested) return json({ ok: true, pending: true });
+    const n = await env.DB.prepare("SELECT created_at FROM messages WHERE user_id = ? AND from_admin = 1 AND body = '[study-declined]' ORDER BY id DESC LIMIT 1").bind(user.id).first();
+    if (n && now() - n.created_at < 86400) return err(429, 'Beau said not yet. You can ask again tomorrow.');
+    const t = now();
+    await env.DB.batch([env.DB.prepare('UPDATE users SET study_req = ? WHERE id = ?').bind(t, user.id), env.DB.prepare("INSERT INTO messages (user_id, from_admin, body, created_at) VALUES (?, 0, '[study-request]', ?)").bind(user.id, t)]);
+    return json({ ok: true, pending: true }, 201);
+  }
+  if (STUDY_BLOCKED(path) && !isAdmin(user, env) && (await studyState(env, user)).study) {
+    if (path === '/api/messages/unread') return json({ unread: 0, admin: false, study: true });
+    return json({ error: 'Study mode is on, so this is turned off. You can use Maths, Science and Play with friends.', study: true }, 403);
+  }
   const cm = await handleCommunity(req, env, url, user); if (cm) return cm;
   const gm = await handleGames(req, env, url, user); if (gm) return gm;
 
@@ -486,8 +522,8 @@ async function handleAdmin(req, env, path, method, me) {
     const rows = await env.DB.prepare('SELECT id, from_admin, body, created_at, read_at FROM messages WHERE user_id = ? AND id > ? ORDER BY id LIMIT 500').bind(uid, after).all();
     await env.DB.prepare('UPDATE messages SET read_at = ? WHERE user_id = ? AND from_admin = 0 AND read_at IS NULL').bind(t, uid).run();
     const ul = await env.DB.prepare("SELECT 1 FROM unlocks WHERE user_id = ? AND feature = 'theory'").bind(uid).first();
-    const ca = await env.DB.prepare('SELECT chat_access, chat_req FROM users WHERE id = ?').bind(uid).first();
-    return json({ user: who, unlocked: !!ul, chatAccess: !!ca.chat_access, chatReq: !!ca.chat_req, messages: rows.results.map(r => ({ id: r.id, mine: !!r.from_admin, body: r.body, at: r.created_at, read: !!r.read_at })) });
+    const ca = await env.DB.prepare('SELECT chat_access, chat_req, study_req FROM users WHERE id = ?').bind(uid).first();
+    return json({ user: who, unlocked: !!ul, chatAccess: !!ca.chat_access, chatReq: !!ca.chat_req, studyReq: !!ca.study_req, messages: rows.results.map(r => ({ id: r.id, mine: !!r.from_admin, body: r.body, at: r.created_at, read: !!r.read_at })) });
   }
   const um = path.match(/^\/api\/admin\/user\/(\d+)$/);
   if (um && method === 'GET') {
@@ -499,6 +535,29 @@ async function handleAdmin(req, env, path, method, me) {
     ]);
     if (!u.results.length) return err(404, 'No such user');
     return json({ user: u.results[0], visits: vis.results, days: days.results });
+  }
+  // Study mode: the site-wide switch, one person on/off (answers their request if they asked)
+  if (path === '/api/admin/study' && method === 'GET') {
+    const rows = await env.DB.prepare('SELECT id, username AS name, study_mode, study_free, study_req, last_seen FROM users WHERE username != ? COLLATE NOCASE ORDER BY study_req IS NULL, study_req, username COLLATE NOCASE').bind(String(env.ADMIN_USERNAME || '')).all();
+    const site = await studyAll(env, true);
+    return json({ now: t, site, people: rows.results.map(u => ({ id: u.id, name: u.name, study: !!u.study_mode || (site && !u.study_free), own: !!u.study_mode, req: u.study_req, seen: u.last_seen })) });
+  }
+  if (path === '/api/admin/study-all' && method === 'POST') {
+    let b; try { b = await readJson(req); } catch { return err(400, 'Bad request'); }
+    const on = !!b.on;
+    const stmts = [env.DB.prepare("INSERT INTO settings (key, value) VALUES ('study_all', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value").bind(on ? '1' : '0')];
+    if (on) stmts.push(env.DB.prepare('UPDATE users SET study_free = 0'));
+    await env.DB.batch(stmts); await studyAll(env, true);
+    return json({ ok: true, site: on });
+  }
+  if (path === '/api/admin/study' && method === 'POST') {
+    let b; try { b = await readJson(req); } catch { return err(400, 'Bad request'); }
+    const id = +b.id || 0, u = await env.DB.prepare('SELECT study_req FROM users WHERE id = ?').bind(id).first(); if (!u) return err(404, 'No such user');
+    const on = !!b.on, stmts = [on ? env.DB.prepare('UPDATE users SET study_mode = 1, study_free = 0, study_req = NULL WHERE id = ?').bind(id) : env.DB.prepare('UPDATE users SET study_mode = 0, study_free = 1, study_req = NULL WHERE id = ?').bind(id)];
+    if (u.study_req) stmts.push(env.DB.prepare('INSERT INTO messages (user_id, from_admin, body, created_at) VALUES (?, 1, ?, ?)').bind(id, on ? '[study-declined]' : '[study-allowed]', t),
+      env.DB.prepare("UPDATE messages SET read_at = ? WHERE user_id = ? AND from_admin = 0 AND read_at IS NULL AND body = '[study-request]'").bind(t, id));
+    await env.DB.batch(stmts);
+    return json({ ok: true, study: on });
   }
   // "Message everyone" pop-up: send one (replaces any that's showing), stop it early, see recent ones
   if (path === '/api/admin/broadcast' && method === 'GET') {

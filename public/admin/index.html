@@ -119,6 +119,14 @@ details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
 .bc-rec{display:flex;flex-direction:column;gap:6px;margin-top:10px}
 .bc-rec .cl .body{font-size:.95rem}
 .ctabs{display:flex;gap:6px;flex-wrap:wrap}
+.study-all{display:flex;align-items:center;gap:14px;flex-wrap:wrap;border:2px solid var(--rule);border-radius:14px;padding:14px 16px}
+.study-all.on{border-color:var(--accent);background:var(--accent-soft)}
+.study-all .st{flex:1 1 240px;display:flex;flex-direction:column;gap:2px}
+.study-all .st b{font-size:1.125rem}
+.switch{position:relative;width:64px;height:36px;border-radius:999px;border:0;background:var(--field);cursor:pointer;flex:none;transition:background .15s}
+.switch::after{content:"";position:absolute;top:4px;left:4px;width:28px;height:28px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgb(0 0 0 / .3);transition:left .15s}
+.switch[aria-checked="true"]{background:var(--accent)}.switch[aria-checked="true"]::after{left:32px}
+.switch:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 .conv .top,.cl .top{background:none;border:0}
 .bc-custom select{font:inherit;color:var(--ink);background:var(--card);border:2px solid var(--field);border-radius:10px;padding:8px 10px;min-height:44px}
@@ -175,6 +183,13 @@ details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
         <div id="bcOut" role="status"></div>
       </form>
       <details id="bcRecentBox"><summary>Recent pop-ups</summary><div class="bc-rec" id="bcRecent"></div></details>
+    </section>
+
+    <section class="card stack sec" id="study" data-title="📚 Study mode" data-hint="Maths, Science and Play only">
+      <p class="small muted">In study mode a student can only use <b>Maths</b>, <b>Science</b> and <b>Play with friends</b>. Chat (including messaging you), the leaderboard and feedback are turned off, and they get a button to ask you to turn it off.</p>
+      <div class="study-all" id="studyAll"></div>
+      <div class="toolbar"><input type="search" id="studySearch" placeholder="Search names" aria-label="Search names in study mode lists"></div>
+      <div id="studyBody" class="chatlog" style="max-height:none"></div>
     </section>
 
     <section class="card stack sec" id="chats" data-title="💬 Chats &amp; messages" data-hint="messages to you, reports and student chats">
@@ -332,7 +347,7 @@ details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
     $('#tFb').closest('.tile').classList.toggle('alert', T.feedbackNew > 0); setBadge('feedback', T.feedbackNew);
     const dt = $('#dayTable'); dt.replaceChildren(); const hr = document.createElement('tr'); ['Day', 'People', 'Minutes', 'New accounts'].forEach(h => { const th = document.createElement('th'); th.textContent = h; hr.appendChild(th); }); dt.appendChild(hr);
     data.days.slice().reverse().forEach(d => { const tr = document.createElement('tr'); [dayLabel(d.day), d.people, Math.round(d.seconds / 60), d.signups].forEach(v => cell(tr, v)); dt.appendChild(tr); });
-    drawTable(); loadCodes(); loadFeedback(); loadConvs(); loadChats(); loadBroadcast();
+    drawTable(); loadCodes(); loadFeedback(); loadConvs(); loadChats(); loadBroadcast(); loadStudy();
     $('#updated').textContent = 'Updated ' + new Date().toLocaleTimeString('en-AU', { timeZone: TZ, hour: 'numeric', minute: '2-digit' }) + ' (Queensland time). Refreshes every 30 seconds.';
   }
   function drawCharts() {
@@ -368,6 +383,11 @@ details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
       const cShow = () => { cb.textContent = u.chatAccess ? '🔒 Take Chat access away' : '✅ Let them use Chat'; };
       cb.onclick = async () => { const rr = await api('/api/admin/chat/access', 'POST', { id: u.id, allow: !u.chatAccess }); if (rr.ok) { u.chatAccess = !u.chatAccess; u.chatReq = false; cShow(); load(); } };
       cShow(); b.appendChild(cb);
+      const sbn = document.createElement('button'); sbn.type = 'button'; sbn.className = 'btn quiet';
+      const inStudy = () => studyData && (studyData.people.find(p => p.id === u.id) || {}).study;
+      const sbShow = () => { sbn.textContent = inStudy() ? '📚 Turn off study mode' : '📚 Put in study mode'; };
+      sbn.onclick = async () => { await api('/api/admin/study', 'POST', { id: u.id, on: !inStudy() }); await loadStudy(); sbShow(); };
+      sbShow(); b.appendChild(sbn);
       const mb = document.createElement('button'); mb.type = 'button'; mb.className = 'btn'; mb.textContent = 'Message ' + u.name;
       mb.onclick = () => { dlg.close(); pickChatTab('messages'); openSec('chats', true); openConv({ id: u.id, name: u.name }); };
       b.appendChild(mb);
@@ -403,13 +423,23 @@ details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
       b.append(top, pv, w); b.onclick = () => openConv({ id: c.id, name: c.username }); box.appendChild(b);
     });
   }
-  const UNLOCK_TXT = { '[unlock-request]': '🔔 Asked you to unlock the completed booklet', '[unlock-allowed]': '✅ You unlocked the completed booklet', '[unlock-declined]': 'You said not yet to the booklet', '[chat-request]': '🙋 Asked to use Chat', '[chat-allowed]': '✅ You let them use Chat', '[chat-declined]': 'You said not yet to Chat', '[chat-removed]': 'You took away their Chat access' };
-  const ASKS = ['[unlock-request]', '[chat-request]'];
+  const UNLOCK_TXT = { '[unlock-request]': '🔔 Asked you to unlock the completed booklet', '[unlock-allowed]': '✅ You unlocked the completed booklet', '[unlock-declined]': 'You said not yet to the booklet', '[chat-request]': '🙋 Asked to use Chat', '[chat-allowed]': '✅ You let them use Chat', '[chat-declined]': 'You said not yet to Chat', '[chat-removed]': 'You took away their Chat access', '[study-request]': '📚 Asked to leave study mode', '[study-allowed]': '✅ You turned off their study mode', '[study-declined]': 'You said not yet to leaving study mode' };
+  const ASKS = ['[unlock-request]', '[chat-request]', '[study-request]'];
   const unlockTxt = (body, fromBeau) => (fromBeau ? !ASKS.includes(body) : ASKS.includes(body)) ? UNLOCK_TXT[body] || null : null;
-  let convUnlocked = false, convLastAsk = 0, convChatReq = false, convLastChatAsk = 0;
+  let convUnlocked = false, convLastAsk = 0, convChatReq = false, convLastChatAsk = 0, convStudyReq = false, convLastStudyAsk = 0;
   function addBubble(chat, m, name) {
     const side = m.mine ? 'me' : 'them';
     const b = document.createElement('div'); b.className = 'bubble ' + side; b.textContent = unlockTxt(m.body, m.mine) || m.body;
+    if (!m.mine && m.body === '[study-request]') {
+      b.classList.add('askcard'); b.textContent = '';
+      b.appendChild(mk('b', '', '📚 ' + name + ' asked you to turn off study mode'));
+      if (convStudyReq && m.id === convLastStudyAsk) {
+        const row = mk('div', 'row'); row.style.marginTop = '8px';
+        const yes = btn('✅ Turn off study mode', null, 'go'), no = btn('Not now', null);
+        const go = async off => { yes.disabled = no.disabled = true; const r = await api('/api/admin/study', 'POST', { id: convOpen.id, on: !off }); if (!r.ok) { yes.disabled = no.disabled = false; return; } convSig = ''; pollConv(); loadConvs(); loadStudy(); };
+        yes.onclick = () => go(true); no.onclick = () => go(false); row.append(yes, no); b.appendChild(row);
+      } else b.appendChild(mk('div', 'small', 'Answered'));
+    }
     if (!m.mine && m.body === '[chat-request]') {
       b.classList.add('askcard'); b.textContent = '';
       b.appendChild(mk('b', '', '🙋 ' + name + ' asked to use Chat (group chat and friends)'));
@@ -444,9 +474,10 @@ details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
     const r = await api('/api/admin/messages/' + convOpen.id); if (!r.ok) return;
     convUnlocked = !!r.data.unlocked; convChatReq = !!r.data.chatReq && !r.data.chatAccess;
     const asks = r.data.messages.filter(m => !m.mine && m.body === '[chat-request]'); convLastChatAsk = asks.length ? asks[asks.length - 1].id : 0;
+    convStudyReq = !!r.data.studyReq; const sAsks = r.data.messages.filter(m => !m.mine && m.body === '[study-request]'); convLastStudyAsk = sAsks.length ? sAsks[sAsks.length - 1].id : 0;
     const notes = r.data.messages.filter(m => (!m.mine && m.body === '[unlock-request]') || (m.mine && (m.body === '[unlock-allowed]' || m.body === '[unlock-declined]')));
     const lastNote = notes[notes.length - 1]; convLastAsk = lastNote && !lastNote.mine ? lastNote.id : 0;
-    const sig = (convUnlocked ? 'U' : '') + (convChatReq ? 'C' : '') + r.data.messages.map(m => m.id + (m.read ? 'r' : '')).join(',');
+    const sig = (convUnlocked ? 'U' : '') + (convChatReq ? 'C' : '') + (convStudyReq ? 'S' : '') + r.data.messages.map(m => m.id + (m.read ? 'r' : '')).join(',');
     if (sig === convSig) return; convSig = sig;
     const near = chat.scrollHeight - chat.scrollTop - chat.clientHeight < 80, top = chat.scrollTop;
     if (r.data.messages.length) chat.replaceChildren();
@@ -573,6 +604,29 @@ details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
     });
   }
   $$('#fbFilter .chip').forEach(c => c.onclick = () => { fbFilter = c.dataset.f; $$('#fbFilter .chip').forEach(x => x.classList.toggle('on', x === c)); loadFeedback(); });
+  /* ---------- study mode ---------- */
+  let studyData = null, studyQ = '';
+  async function loadStudy() { const r = await api('/api/admin/study'); if (!r.ok) return; studyData = r.data; drawStudy(); }
+  async function setStudy(u, on) { await api('/api/admin/study', 'POST', { id: u.id, on }); await loadStudy(); loadConvs(); }
+  function drawStudy() {
+    const d = studyData, all = $('#studyAll'); all.replaceChildren(); all.classList.toggle('on', d.site);
+    const sw = mk('button', 'switch'); sw.type = 'button'; sw.setAttribute('role', 'switch'); sw.setAttribute('aria-checked', String(d.site)); sw.setAttribute('aria-label', 'Study mode for everyone');
+    const st = mk('div', 'st'); st.append(mk('b', '', d.site ? '📚 Study mode is ON for everyone' : 'Study mode for everyone is off'), mk('span', 'small muted', d.site ? 'Every student (and every new account) is in study mode, except anyone you let out below.' : 'Only the people you put in study mode below are in it. Turn this on to put every student in study mode at once.'));
+    sw.onclick = async () => { if (!d.site && !confirm('Turn on study mode for EVERY student? They’ll only be able to use Maths, Science and Play with friends.')) return; sw.disabled = true; await api('/api/admin/study-all', 'POST', { on: !d.site }); loadStudy(); };
+    all.append(sw, st);
+    const box = $('#studyBody'); box.replaceChildren();
+    const match = u => !studyQ || u.name.toLowerCase().includes(studyQ);
+    const pend = d.people.filter(u => u.study && u.req), inS = d.people.filter(u => u.study && match(u)), out = d.people.filter(u => !u.study && match(u));
+    setBadge('study', pend.length);
+    box.appendChild(mk('h3', '', '🙋 Asking to leave study mode (' + pend.length + ')'));
+    if (!pend.length) box.appendChild(mk('p', 'muted small', 'Nobody is asking right now.'));
+    pend.forEach(u => box.appendChild(line([mk('span', 'pill warn', 'asked'), u.name, 'asked ' + fmtC(u.req)], '', false, [btn('✅ Turn off study mode', () => setStudy(u, false), 'go'), btn('Not now', () => setStudy(u, true))])));
+    const group = (title, list, mkBtn, open) => { const dd = mk('details'); dd.open = open; dd.appendChild(mk('summary', '', title + ' (' + list.length + ')')); const w = mk('div', 'chatlog'); w.style.marginTop = '8px'; list.forEach(u => w.appendChild(line([u.name, 'last on ' + (u.seen ? ago(u.seen) : 'never')], '', false, [mkBtn(u)]))); if (!list.length) w.appendChild(mk('p', 'muted small', studyQ ? 'No names match.' : 'Nobody.')); dd.appendChild(w); box.appendChild(dd); };
+    group('📚 In study mode', inS, u => btn('Turn off for ' + u.name.split(' ')[0], () => setStudy(u, false)), !!studyQ || inS.length <= 15);
+    group('Not in study mode', out, u => btn('Put in study mode', () => setStudy(u, true)), !!studyQ);
+    box.querySelectorAll('.cl .body').forEach(b => { if (!b.textContent) b.remove(); });
+  }
+  $('#studySearch').oninput = e => { studyQ = e.target.value.trim().toLowerCase(); if (studyData) drawStudy(); };
   /* ---------- message everyone (pop-up) ---------- */
   let bcSecs = 60, bcLive = null, bcSkew = 0, bcTick = null;
   const bcLen = s => { s = Math.round(s); if (s < 60) return s + ' sec'; if (s < 3600) { const m = Math.floor(s / 60), r = s % 60; return m + ' min' + (r ? ' ' + r + ' sec' : ''); } const h = Math.floor(s / 3600), m = Math.round((s % 3600) / 60); return h + (h === 1 ? ' hour' : ' hours') + (m ? ' ' + m + ' min' : ''); };

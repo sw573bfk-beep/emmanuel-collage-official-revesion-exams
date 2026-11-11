@@ -193,7 +193,7 @@ details.acct[open] summary{margin-bottom:12px}
     $('#mathsLast').textContent = t ? 'Last saved ' + new Date(t * 1000).toLocaleString('en-AU', { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }) : 'Not started yet';
     const ts = me.subjects && me.subjects.science;
     $('#sciLast').textContent = ts ? 'Last saved ' + new Date(ts * 1000).toLocaleString('en-AU', { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }) : 'Not started yet';
-    show('pick'); if (window.ecMsgCheck) window.ecMsgCheck();
+    show('pick'); if (window.ecMsgCheck) window.ecMsgCheck(); if (window.ecStudyCheck) window.ecStudyCheck();
   }
   $('#switchBtn').onclick = () => { const c = $('#acctsCard'); c.hidden = !c.hidden; $('#switchBtn').setAttribute('aria-expanded', !c.hidden); if (!c.hidden) { refreshAccounts(); c.scrollIntoView({ block: 'nearest' }); } };
   $('#addAcct').onclick = addAccount;

@@ -26,5 +26,5 @@
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', add); else add();
   // pop-up messages from Beau ("Message everyone") on every page
-  const nj = document.createElement('script'); nj.src = '/notice.js'; nj.defer = true; document.head.appendChild(nj);
+  ['/notice.js', '/study.js'].forEach(src => { const nj = document.createElement('script'); nj.src = src; nj.defer = true; document.head.appendChild(nj); });
 })();

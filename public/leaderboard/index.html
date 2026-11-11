@@ -63,6 +63,7 @@ tr.me td{background:var(--accent-soft);font-weight:600}
     let r; try { r = await fetch('/api/leaderboard?range=' + range, { credentials: 'same-origin' }); } catch (e) { $('#loading').textContent = 'Can’t reach the server. Check your connection and reload.'; return; }
     if (r.status === 401) { location.replace('/?next=leaderboard'); return; }
     const d = await r.json();
+    if (!r.ok) { $('#loading').textContent = d.error || 'Couldn’t load the leaderboard.'; return; }
     $('#loading').hidden = true; $('#boardCard').hidden = false;
     const when = range === 'week' ? 'this week' : 'of all time';
     $('#boardTitle').textContent = 'Top 50 ' + when;
