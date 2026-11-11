@@ -1,6 +1,6 @@
 /* EC Revisions: "Message everyone" pop-ups from Beau. Loaded on every page by theme.js.
    A pop-up only shows for people who already had the site open when Beau sent it, stays until its
-   time runs out (or Beau stops it), and can be closed with ✕. Checks every 45 seconds. */
+   time runs out (or Beau stops it), and can be closed with ✕. Checks once a minute (shared with the other background checks). */
 (() => {
   if (window.ecNotice) return; window.ecNotice = true;
   const ss = (k, v) => { try { if (v === undefined) return sessionStorage.getItem(k); sessionStorage.setItem(k, v); } catch (e) { return null; } };
@@ -50,15 +50,15 @@
     };
     step(); tick = setInterval(step, 1000);
   }
-  async function check() {
-    let j; try { const r = await fetch('/api/broadcast', { credentials: 'same-origin', cache: 'no-store' }); if (!r.ok) return; j = await r.json(); } catch (e) { return; }
+  async function check(force) {
+    const j = window.ecLive ? await window.ecLive(force) : null; if (!j) return;
     skew = j.now - Date.now() / 1000;
     if (!onSince) { onSince = j.now; ss('ec-on-since', String(onSince)); }
     const n = j.notice;
     if (!n || n.at < onSince - 2 || closed().includes(String(n.id))) { if (shown) hide(); return; }
     show(n);
   }
-  const go = () => { check(); setInterval(() => { if (document.visibilityState === 'visible') check(); }, 45000); document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') check(); }); };
+  const go = () => { check(); setInterval(() => { if (document.visibilityState === 'visible') check(); }, 60000); document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') check(); }); };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', go); else go();
-  window.ecNoticeCheck = check;
+  window.ecNoticeCheck = () => check(true);
 })();

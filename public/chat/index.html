@@ -242,7 +242,16 @@ button.person:hover{border-color:var(--accent);background:var(--accent-soft)}
     if (!beauLast && !box.querySelector('.empty')) box.appendChild(el('p', 'empty', 'No messages yet. Say hi, or ask Beau a question. You’ll see a red number on ✉️ Beau when Beau replies.'));
     if (r.data.messages.length && near) box.scrollTop = box.scrollHeight;
   }
+  // red numbers: the first time from the server directly (it also checks you're logged in), then from the
+  // shared once-a-minute background check, so the open Chat page doesn't keep asking for them
+  let countedOnce = false;
   async function counts() {
+    if (countedOnce && window.ecLive) {
+      const L = await window.ecLive(), c = L && L.chat; if (!c) return;
+      const mine = c.requests + c.unreadDm; $('#nMine').hidden = !mine; $('#nMine').textContent = mine; $('#mutedNote').hidden = !c.muted;
+      const n = view === 'beau' ? 0 : c.beau; $('#nBeau').hidden = !n; $('#nBeau').textContent = n; return;
+    }
+    countedOnce = true;
     const r = await api('/api/chat/summary'); if (!r.ok) return;
     const mine = r.data.requests + r.data.unreadDm;
     $('#nMine').hidden = !mine; $('#nMine').textContent = mine;
@@ -274,7 +283,7 @@ button.person:hover{border-color:var(--accent);background:var(--accent-soft)}
     try { const q = new URLSearchParams(location.search); q.set('tab', v === 'thread' ? 'mine' : v); q.delete('with'); q.delete('name'); history.replaceState(null, '', '?' + q); } catch (e) { /* fine */ }
     const tick = async () => { if (document.visibilityState !== 'visible') return; if (lock) return counts(); if (view === 'mine') await loadMine(); else if (view === 'beau') await pollBeau(); else await pollThread(); counts(); };
     tick().then(() => { const b = { thread: '#dmChat', beau: '#beauChat' }[v]; if (b) $(b).scrollTop = $(b).scrollHeight; if (v === 'beau' && !$('#beauText').closest('[hidden]') && matchMedia('(min-width: 700px)').matches) $('#beauText').focus(); });
-    timer = setInterval(tick, lock || v === 'mine' ? 10000 : v === 'beau' ? 8000 : 5000);
+    timer = setInterval(tick, lock || v === 'mine' ? 30000 : v === 'beau' ? 10000 : 6000); // an open chat checks for new messages every 6 s
   }
   $('#tabMine').onclick = () => show('mine');
   $('#tabBeau').onclick = () => show('beau');

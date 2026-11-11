@@ -21,7 +21,7 @@ html.ec-study-wait main{visibility:hidden}
   document.head.appendChild(css);
   if (BLOCKED) root.classList.add('ec-study-wait');
   let state = null;
-  const get = async () => { try { const r = await fetch('/api/study', { credentials: 'same-origin', cache: 'no-store' }); return r.ok ? await r.json() : null; } catch (e) { return null; } };
+  const get = async force => { const j = window.ecLive ? await window.ecLive(force) : null; return j && j.study ? j.study : null; };
 
   function card(big) {
     const c = document.createElement('section'); c.className = 'ec-study-card'; c.id = 'ecStudyCard';
@@ -65,15 +65,15 @@ html.ec-study-wait main{visibility:hidden}
       if (tools) { const pill = document.createElement('span'); pill.className = 'ec-study-pill'; pill.textContent = '📚 Study mode'; pill.title = 'Beau has turned on study mode: Maths, Science and Play with friends only.'; tools.insertBefore(pill, tools.firstChild); }
     }
   }
-  async function check(first) {
-    const s = await get();
+  async function check(first, force) {
+    const s = await get(force);
     if (!s) { if (first) root.classList.remove('ec-study-wait'); return; }
     // study mode switched while the page is open: reload so every page starts clean
     if (state && state.study !== s.study) { location.reload(); return; }
     const changed = !state || state.requested !== s.requested || state.declined !== s.declined;
     state = s; if (changed) apply();
   }
-  window.ecStudyCheck = () => check();
+  window.ecStudyCheck = () => check(false, true);
   const go = () => { check(true); setInterval(() => { if (document.visibilityState === 'visible') check(); }, 60000); document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') check(); }); };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', go); else go();
 })();

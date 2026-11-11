@@ -25,6 +25,15 @@
     else { b.classList.add('float'); document.body.appendChild(b); }
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', add); else add();
+  // One shared background check (pop-ups, study mode, Chat red numbers): every script on the page asks
+  // window.ecLive() and they all share one request, at most once every 50 seconds.
+  let liveP = null, liveAt = 0;
+  window.ecLive = force => {
+    if (!force && liveP && Date.now() - liveAt < 50000) return liveP;
+    liveAt = Date.now();
+    liveP = fetch('/api/live', { credentials: 'same-origin', cache: 'no-store' }).then(r => r.ok ? r.json() : null).catch(() => null);
+    return liveP;
+  };
   // "not an official school site" + privacy link at the bottom of every page
   const foot = () => {
     if (document.querySelector('.ec-foot') || location.pathname.startsWith('/admin')) return;
@@ -37,5 +46,5 @@
   };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', foot); else foot();
   // pop-up messages from Beau ("Message everyone") on every page
-  ['/notice.js', '/study.js'].forEach(src => { const nj = document.createElement('script'); nj.src = src; nj.defer = true; document.head.appendChild(nj); });
+  ['/notice.js', '/study.js'].forEach(src => { const nj = document.createElement('script'); nj.src = src + '?v=' + (document.documentElement.dataset.build || '1'); nj.defer = true; document.head.appendChild(nj); });
 })();

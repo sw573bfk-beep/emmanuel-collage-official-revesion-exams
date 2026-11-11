@@ -134,7 +134,7 @@ export const FILTER_CONTACT_MSG = 'For your safety, don’t share phone numbers,
 // Letters, numbers, spaces and new lines, . , ? ! ' and maths symbols, plus a short list of friendly emojis.
 // Everything else (other alphabets, fancy letters, symbols, other emojis like 🍆 🖕) is refused outright.
 const SAFE_EMOJI = ['😀', '😃', '😄', '😁', '😆', '😂', '🤣', '😊', '🙂', '😉', '😍', '🥰', '😎', '🤩', '🤔', '😮', '😲', '😢', '😭', '😅', '🙃', '😴', '🥳', '😬', '🤗',
-  '👍', '👎', '👏', '🙌', '💪', '👋', '🤝', '🙏', '❤️', '❤', '💙', '💚', '💛', '💜', '🧡', '🎉', '✅', '❌', '🔥', '⭐', '🌟', '✨', '💯', '📚', '✏️', '✏', '🧪', '📐', '📏', '🧠', '🏆', '🥇', '🎮', '⚽', '🏀', '🏈', '🐶', '🐱', '🌈', '☀️', '☀', '🍕', '🎂', '😇'];
+  '👍', '👎', '👏', '🙌', '💪', '👋', '🤝', '🙏', '❤️', '❤', '💙', '💚', '💛', '💜', '🧡', '🎉', '✅', '❌', '🔥', '⭐', '🌟', '✨', '💯', '📚', '✏️', '✏', '🧪', '📐', '📏', '🧠', '🏆', '🥇', '🎮', '⚽', '🏀', '🏈', '🐶', '🐱', '🌈', '☀️', '☀', '🍕', '🎂', '😇', '🍀', '🤞', '💡', '📝', '⏰', '🎯', '🙂'];
 const SAFE_EMOJI_RE = new RegExp(SAFE_EMOJI.slice().sort((a, b) => b.length - a.length).map(e => e.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|'), 'gu');
 const ALLOWED_CHARS = /^[A-Za-z0-9 \n.,?!'’‘+\-−–=\/()%×÷<>≤≥^:$°²³½¼¾π]*$/;
 export const FILTER_CHARS_MSG = 'You can only use letters, numbers, . , ? ! ’ and maths symbols (+ − × ÷ = / ( ) % < > : $ °), plus a few friendly emojis. Please take out any other symbols.';

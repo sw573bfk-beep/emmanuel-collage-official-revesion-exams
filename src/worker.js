@@ -70,7 +70,9 @@ function servePage(url) {
   const page = PAGES[url.pathname];
   if (!page) return new Response(notFoundHtml, { status: 404, headers: { 'content-type': HTML, ...SECURITY_HEADERS } });
   const [body, type] = page;
-  const cache = type === HTML ? 'no-cache' : 'public, max-age=300';
+  // Pages are checked every time; scripts and styles are kept by the browser for an hour (their URLs change
+  // when they change: app.js?v=…, theme.css?v=…), so moving between pages costs almost no requests.
+  const cache = type === HTML ? 'no-cache' : 'public, max-age=3600';
   return new Response(body, { headers: { 'content-type': type, 'cache-control': cache, ...SECURITY_HEADERS } });
 }
 
@@ -100,6 +102,24 @@ async function studyState(env, user) {
   const [u, site] = await Promise.all([env.DB.prepare('SELECT study_mode, study_free, study_req FROM users WHERE id = ?').bind(user.id).first(), studyAll(env)]);
   const study = !!u && (!!u.study_mode || (site && !u.study_free));
   return { study, requested: study && !!(u && u.study_req), site, why: !u ? null : u.study_mode ? 'you' : site ? 'everyone' : null };
+}
+async function studyPayload(env, user) {
+  const st = await studyState(env, user);
+  let declined = false;
+  if (st.study && !st.requested) { const n = await env.DB.prepare("SELECT created_at FROM messages WHERE user_id = ? AND from_admin = 1 AND body = '[study-declined]' ORDER BY id DESC LIMIT 1").bind(user.id).first(); declined = !!n && now() - n.created_at < 86400; }
+  return { ...st, declined };
+}
+// the red numbers on the Chat button, in one go (friend requests, unread chats, unread messages from/to Beau)
+async function liveChat(env, user) {
+  const me = user.id, admin = isAdmin(user, env);
+  const [req_, dm, beau, mu] = await env.DB.batch([
+    env.DB.prepare("SELECT COUNT(*) AS n FROM dm_threads WHERE status = 'pending' AND requested_by != ?1 AND (a = ?1 OR b = ?1)").bind(me),
+    env.DB.prepare("SELECT COUNT(*) AS n FROM dm_messages m JOIN dm_threads t ON t.id = m.thread_id WHERE t.status = 'active' AND (t.a = ?1 OR t.b = ?1) AND m.user_id != ?1 AND m.hidden = 0 AND m.id > (CASE WHEN t.a = ?1 THEN t.a_read ELSE t.b_read END)").bind(me),
+    admin ? env.DB.prepare('SELECT COUNT(*) AS n FROM messages WHERE from_admin = 0 AND read_at IS NULL') : env.DB.prepare('SELECT COUNT(*) AS n FROM messages WHERE user_id = ? AND from_admin = 1 AND read_at IS NULL').bind(me),
+    env.DB.prepare('SELECT chat_muted FROM users WHERE id = ?').bind(me)
+  ]);
+  await env.DB.prepare('UPDATE users SET last_seen = ?1 WHERE id = ?2 AND (last_seen IS NULL OR last_seen < ?1 - 60)').bind(now(), me).run();
+  return { requests: req_.results[0].n, unreadDm: dm.results[0].n, beau: beau.results[0].n, admin, muted: !!(mu.results[0] || {}).chat_muted };
 }
 const STUDY_BLOCKED = p => p.startsWith('/api/chat/') || p.startsWith('/api/messages') || p === '/api/leaderboard' || p === '/api/feedback';
 // ---------- limits per device (IP address, only ever stored as a short hash) ----------
@@ -290,14 +310,19 @@ async function handleApi(req, env, url) {
     if (user) await env.DB.prepare('DELETE FROM sessions WHERE token_hash = ?').bind(user.tokenHash).run();
     return json({ ok: true }, 200, { 'set-cookie': sessionCookie('', url, 0, slotOf(req)) });
   }
+  // One background check for every open page, once a minute: the pop-up from Beau, study mode and the red numbers
+  // on the Chat button. (It replaces three separate checks, so the site uses far fewer requests.)
+  if (path === '/api/live' && method === 'GET') {
+    const out = { now: now(), notice: await liveNotice(env), study: null, chat: null };
+    if (user) {
+      out.study = await studyPayload(env, user);
+      if (!out.study.study) out.chat = await liveChat(env, user);
+    }
+    return json(out);
+  }
   if (!user) return err(401, 'Not logged in');
   // Study mode: only Maths, Science and Play with friends. Students can ask Beau to turn it off.
-  if (path === '/api/study' && method === 'GET') {
-    const st = await studyState(env, user);
-    let declined = false;
-    if (st.study && !st.requested) { const n = await env.DB.prepare("SELECT created_at FROM messages WHERE user_id = ? AND from_admin = 1 AND body = '[study-declined]' ORDER BY id DESC LIMIT 1").bind(user.id).first(); declined = !!n && now() - n.created_at < 86400; }
-    return json({ ...st, declined });
-  }
+  if (path === '/api/study' && method === 'GET') return json(await studyPayload(env, user));
   if (path === '/api/study/request' && method === 'POST') {
     const st = await studyState(env, user); if (!st.study) return json({ ok: true, study: false });
     if (st.requested) return json({ ok: true, pending: true });
