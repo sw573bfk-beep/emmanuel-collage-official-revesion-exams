@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-build="1794374251">
+<html lang="en" data-build="1794378254">
 <head>
 <meta charset="utf-8">
 <script src="/acct.js"></script>
@@ -280,18 +280,14 @@ select{font:inherit;color:var(--ink);background:var(--card);border:2px solid var
 
   // questions: multiple choice from the chosen topic and level
   let Q = null, shownAt = 0, busy = false;
-  function makeGameQ() {
-    const topics = Object.keys(TOPIC_GENS);
-    for (let i = 0; i < 12; i++) {
-      const tid = st.topic === 'all' || !TOPIC_GENS[st.topic] ? topics[Math.floor(Math.random() * topics.length)] : st.topic;
-      const r = pickPractice(tid, st.diff, 'mcq'); if (r.Q && r.Q.type === 'mcq') return r.Q;
-    }
-    return asMCQ(makeQ(pick(TOPIC_GENS[topics[0]]))) || makeQ(TOPIC_GENS[topics[0]][0]);
-  }
-  function nextQuestion() {
+  // questions come from the server, which keeps the right answer (so nobody can cheat)
+  async function nextQuestion() {
     if (!st || st.status !== 'live') return;
     if (st.mode === 'treasure' && me && me.chest) return showChests();
-    Q = makeGameQ(); shownAt = Date.now(); busy = false;
+    busy = true;
+    const r = await api('/api/game/' + code + '/question', 'POST', {});
+    if (!r.ok) { if (r.status === 409) { await poll(); if (me && me.chest) return showChests(); } busy = false; if (st && st.status === 'live') setTimeout(nextQuestion, 1500); return; }
+    Q = r.data; shownAt = Date.now(); busy = false;
     const box = $('#qbox'); box.innerHTML = '';
     box.appendChild(el('div', 'qtext', Q.q)); if (Q.fig) box.appendChild(el('div', 'qfig', Q.fig));
     const opts = el('div', 'opts');
@@ -300,18 +296,20 @@ select{font:inherit;color:var(--ink);background:var(--card);border:2px solid var
   }
   async function answer(i, btn) {
     if (busy) return; busy = true;
-    const ok = i === Q.ans, took = Date.now() - shownAt;
-    $$('.opt').forEach((b, j) => { b.disabled = true; if (j === Q.ans) b.classList.add('right'); else if (j === i) b.classList.add('wrong'); });
-    const r = await api('/api/game/' + code + '/answer', 'POST', { correct: ok, ms: took });
+    const took = Date.now() - shownAt;
+    $$('.opt').forEach(b => { b.disabled = true; });
+    const r = await api('/api/game/' + code + '/answer', 'POST', { pick: i });
     const box = $('#qbox');
-    if (!r.ok) { if (r.status === 409) { poll(); setTimeout(nextQuestion, 600); return; } setTimeout(() => { busy = false; nextQuestion(); }, 900); return; }
-    const d = r.data; me.streak = d.streak; me.score = d.score; $('#hudStreak').textContent = d.streak;
+    if (!r.ok) { if (r.status === 409) { poll(); setTimeout(nextQuestion, 600); return; } if (r.status === 429) { $$('.opt').forEach(b => { b.disabled = false; }); busy = false; return; } setTimeout(() => { busy = false; nextQuestion(); }, 900); return; }
+    const d = r.data, ok = d.correct;
+    $$('.opt').forEach((b, j) => { if (j === d.right) b.classList.add('right'); else if (j === i) b.classList.add('wrong'); });
+    me.streak = d.streak; me.score = d.score; $('#hudStreak').textContent = d.streak;
     let msg = ok ? 'Correct!' : 'Not quite.';
     if (st.mode === 'speed' && ok) { msg = '+' + d.add + ' points' + (took < 6000 ? ' ⚡ fast!' : ''); $('#hudScore').textContent = d.score; }
     if (st.mode === 'parkour' && ok) { msg = '+' + (d.energy - me.energy) + ' energy ⚡'; me.energy = d.energy; run.serverEnergy = d.energy; }
     if (st.mode === 'treasure' && ok) msg = 'Correct! Pick a chest…';
     const f = text('div', 'flash ' + (ok ? 'good' : 'bad'), msg); box.appendChild(f);
-    if (!ok && Q.sol && Q.sol.length) box.appendChild(el('div', 'small muted2', 'Answer: <b>' + Q.ansText + '</b>'));
+    if (!ok && Q.sol && d.ansText) box.appendChild(el('div', 'small muted2', 'Answer: <b>' + d.ansText + '</b>'));
     if (st.mode === 'treasure' && ok) { me.chest = true; setTimeout(showChests, 700); }
     else setTimeout(nextQuestion, ok ? 900 : 1800);
   }

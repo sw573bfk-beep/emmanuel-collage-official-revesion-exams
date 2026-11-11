@@ -3,7 +3,10 @@
 //   speed    – right answers score 500–1000 points (faster = more) plus a streak bonus
 //   treasure – each right answer lets you open one of three chests (gold, double, steal, swap, oops…)
 //   parkour  – right answers give energy; energy lets your runner move along a parkour course
-// Questions are made in the browser; the server keeps the scores, so outcomes (chests) are decided here.
+// The server makes every question and keeps the right answer, so a player's browser can't claim a
+// right answer or a fast time: it only sends which option was tapped. Scores and chests are decided here too.
+import * as MathsQ from './gen/maths-game.js';
+import * as SciQ from './gen/sci-game.js';
 
 const now = () => Math.floor(Date.now() / 1000);
 const json = (data, status = 200) => new Response(JSON.stringify(data), { status, headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' } });
@@ -23,6 +26,16 @@ async function endIfDue(env, g) {
   return g;
 }
 const event = (env, g, text) => env.DB.prepare('INSERT INTO game_events (game_id, at, text) VALUES (?, ?, ?)').bind(g.id, now(), text);
+
+// One multiple-choice question for this game's subject, topic and level (same rules the page used to use)
+function makeGameQ(g) {
+  const X = g.subject === 'maths' ? MathsQ : SciQ, topics = Object.keys(X.TOPIC_GENS);
+  for (let i = 0; i < 12; i++) {
+    const tid = g.topic === 'all' || !X.TOPIC_GENS[g.topic] ? topics[Math.floor(Math.random() * topics.length)] : g.topic;
+    const r = X.pickPractice(tid, g.diff, 'mcq'); if (r.Q && r.Q.type === 'mcq' && Array.isArray(r.Q.choices)) return r.Q;
+  }
+  const Q = X.asMCQ(X.makeQ(X.pick(X.TOPIC_GENS[topics[0]]))); return Q && Q.type === 'mcq' ? Q : null;
+}
 
 export async function handleGames(req, env, url, user) {
   const path = url.pathname, method = req.method;
@@ -65,7 +78,7 @@ export async function handleGames(req, env, url, user) {
     return json({ ok: true, code });
   }
 
-  const m = path.match(/^\/api\/game\/(\d{6})(?:\/(start|end|answer|chest|run))?$/);
+  const m = path.match(/^\/api\/game\/(\d{6})(?:\/(start|end|question|answer|chest|run))?$/);
   if (!m) return err(404, 'Not found');
   const g = await loadGame(env, m[1]); if (!g) return err(404, 'There’s no game with that code.');
   await endIfDue(env, g);
@@ -102,19 +115,35 @@ export async function handleGames(req, env, url, user) {
   let b; try { b = await body(req); } catch { return err(400, 'Bad request'); }
   const ms = Date.now();
 
+  // the next question: made and remembered here; the page only gets the question and the options
+  if (action === 'question') {
+    if (p.chest) return err(409, 'Open your chest first!');
+    let cur = null; try { cur = p.q ? JSON.parse(p.q) : null; } catch { cur = null; }
+    if (!cur) {
+      const Q = makeGameQ(g); if (!Q) return err(500, 'Couldn’t make a question. Try again.');
+      cur = { ans: Q.ans, ansText: String(Q.ansText || ''), at: ms, view: { q: Q.q, fig: Q.fig || '', choices: Q.choices, sol: !!(Q.sol && Q.sol.length) } };
+      await env.DB.prepare('UPDATE game_players SET q = ? WHERE game_id = ? AND user_id = ?').bind(JSON.stringify(cur), g.id, me).run();
+    }
+    return json({ ok: true, ...cur.view });
+  }
   if (action === 'answer') {
     if (ms - p.last_ms < 900) return err(429, 'Too fast!');
     if (p.chest) return err(409, 'Open your chest first!');
-    const ok = !!b.correct, took = Math.max(0, Math.min(60000, +b.ms || 60000));
+    let cur = null; try { cur = p.q ? JSON.parse(p.q) : null; } catch { cur = null; }
+    if (!cur) return err(409, 'Get a question first.');
+    const pickI = Number.isInteger(b.pick) ? b.pick : -1;
+    const ok = pickI === cur.ans, took = Math.max(0, Math.min(60000, ms - cur.at)); // timed by the server, not the browser
     const streak = ok ? p.streak + 1 : 0;
     let add = 0, energy = p.energy, chest = 0;
     if (g.mode === 'speed' && ok) add = 500 + Math.round(500 * Math.max(0, 1 - took / 20000)) + Math.min(streak - 1, 5) * 50;
     if (g.mode === 'treasure' && ok) chest = 1;
     if (g.mode === 'parkour' && ok) energy = Math.min(60, energy + 3 + Math.min(streak - 1, 3));
-    await env.DB.prepare('UPDATE game_players SET score = score + ?, energy = ?, streak = ?, correct = correct + ?, answered = answered + 1, chest = ?, last_ms = ? WHERE game_id = ? AND user_id = ?')
-      .bind(add, energy, streak, ok ? 1 : 0, chest, ms, g.id, me).run();
+    // "AND q = ?" makes a double-tap (two answers to one question) count only once
+    const upd = await env.DB.prepare('UPDATE game_players SET score = score + ?, energy = ?, streak = ?, correct = correct + ?, answered = answered + 1, chest = ?, last_ms = ?, q = NULL WHERE game_id = ? AND user_id = ? AND q = ?')
+      .bind(add, energy, streak, ok ? 1 : 0, chest, ms, g.id, me, p.q).run();
+    if (!upd.meta.changes) return err(409, 'Get a question first.');
     if (ok && streak > 0 && streak % 5 === 0) await event(env, g, p.name + ' is on a ' + streak + '-answer streak! 🔥').run();
-    return json({ ok: true, add, score: p.score + add, streak, energy, chest: !!chest });
+    return json({ ok: true, correct: ok, right: cur.ans, ansText: cur.ansText, add, score: p.score + add, streak, energy, chest: !!chest });
   }
 
   if (action === 'chest' && g.mode === 'treasure') {

@@ -3,6 +3,9 @@
 import { checkText } from './filter.js';
 
 const MAX_LEN = 500;
+export const MAX_CORRECT_DAY = 400, MAX_BOOKLET_DAY = 250; // leaderboard points caps per person per day
+// Messages that look like the site's own notes ("[game:…]", "[chat-allowed]"…) can't be typed by people
+export const FAKE_NOTE = /^\s*\[[a-z-]+(:[^\]]*)?\]\s*$/i;
 const now = () => Math.floor(Date.now() / 1000);
 const QLD = 10 * 3600;
 const dayKey = t => new Date((t + QLD) * 1000).toISOString().slice(0, 10);
@@ -23,6 +26,7 @@ export async function logBlocked(env, userId, place, why, text) {
 async function vet(env, user, place, text) {
   if (!text) return err(400, 'Type a message first.');
   if (text.length > MAX_LEN) return err(400, 'Messages can be up to ' + MAX_LEN + ' characters.');
+  if (FAKE_NOTE.test(text)) return err(400, 'That message can’t be sent. Type it a different way.');
   const u = await env.DB.prepare('SELECT chat_muted FROM users WHERE id = ?').bind(user.id).first();
   if (u && u.chat_muted) return err(403, 'Beau has paused chatting on your account. You can still message Beau in the ✉️ Beau tab.');
   const r = checkText(text);
@@ -298,6 +302,7 @@ export async function handleCommunityAdmin(req, env, url) {
 export async function addPoints(env, userId, before, after, bookletGain) {
   const dc = Math.max(0, Math.min(100, after.correct - before.correct)), db = Math.max(0, Math.min(100, bookletGain ?? (after.bookletRight - before.bookletRight)));
   if (!dc && !db) return;
-  await env.DB.prepare('INSERT INTO points_daily (user_id, day, correct, booklet) VALUES (?, ?, ?, ?) ON CONFLICT(user_id, day) DO UPDATE SET correct = correct + excluded.correct, booklet = booklet + excluded.booklet')
-    .bind(userId, dayKey(now()), dc, db).run();
+  // daily caps, so faked progress can't farm the leaderboard (far more than anyone really does in a day)
+  await env.DB.prepare('INSERT INTO points_daily (user_id, day, correct, booklet) VALUES (?, ?, MIN(?, ?), MIN(?, ?)) ON CONFLICT(user_id, day) DO UPDATE SET correct = MIN(?, correct + excluded.correct), booklet = MIN(?, booklet + excluded.booklet)')
+    .bind(userId, dayKey(now()), dc, MAX_CORRECT_DAY, db, MAX_BOOKLET_DAY, MAX_CORRECT_DAY, MAX_BOOKLET_DAY).run();
 }

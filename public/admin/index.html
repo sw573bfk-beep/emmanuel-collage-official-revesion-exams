@@ -217,6 +217,12 @@ details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
       <div class="tablewrap" style="max-height:420px;overflow-y:auto"><table class="mini" id="codesTable"></table></div>
     </section>
 
+    <section class="card stack sec" id="security" data-title="🔐 Security" data-hint="sign-ins to your account">
+      <p class="small muted">Every sign-in to your account, and every wrong password typed for it. A device only gets 5 wrong tries an hour on your account. If you see wrong tries you don’t recognise, someone is guessing: use a long password only you know.</p>
+      <div class="row" style="align-items:center"><span id="secSessions" class="small"></span><button type="button" class="btn quiet sm" id="secOut">Log out everywhere else</button></div>
+      <div id="secLog" class="chatlog"></div>
+    </section>
+
     <section class="card stack sec" id="stats" data-title="📈 Last 30 days" data-hint="charts" data-closed>
       <div class="charts">
         <div class="stack chart"><h3>Minutes studied per day</h3><div id="chMin"></div></div>
@@ -347,7 +353,7 @@ details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
     $('#tFb').closest('.tile').classList.toggle('alert', T.feedbackNew > 0); setBadge('feedback', T.feedbackNew);
     const dt = $('#dayTable'); dt.replaceChildren(); const hr = document.createElement('tr'); ['Day', 'People', 'Minutes', 'New accounts'].forEach(h => { const th = document.createElement('th'); th.textContent = h; hr.appendChild(th); }); dt.appendChild(hr);
     data.days.slice().reverse().forEach(d => { const tr = document.createElement('tr'); [dayLabel(d.day), d.people, Math.round(d.seconds / 60), d.signups].forEach(v => cell(tr, v)); dt.appendChild(tr); });
-    drawTable(); loadCodes(); loadFeedback(); loadConvs(); loadChats(); loadBroadcast(); loadStudy();
+    drawTable(); loadCodes(); loadFeedback(); loadConvs(); loadChats(); loadBroadcast(); loadStudy(); loadSecurity();
     $('#updated').textContent = 'Updated ' + new Date().toLocaleTimeString('en-AU', { timeZone: TZ, hour: 'numeric', minute: '2-digit' }) + ' (Queensland time). Refreshes every 30 seconds.';
   }
   function drawCharts() {
@@ -600,6 +606,17 @@ details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
     });
   }
   $$('#fbFilter .chip').forEach(c => c.onclick = () => { fbFilter = c.dataset.f; $$('#fbFilter .chip').forEach(x => x.classList.toggle('on', x === c)); loadFeedback(); });
+  /* ---------- security ---------- */
+  async function loadSecurity() {
+    const r = await api('/api/admin/security'); if (!r.ok) return;
+    const d = r.data, box = $('#secLog'); box.replaceChildren();
+    $('#secSessions').textContent = 'You’re signed in on ' + d.sessions + (d.sessions === 1 ? ' device or browser.' : ' devices or browsers.');
+    const bad = d.log.filter(x => !x.ok && d.now - x.at < 86400).length; setBadge('security', bad);
+    if (!d.log.length) box.appendChild(mk('p', 'muted small', 'No sign-ins recorded yet.'));
+    d.log.forEach(x => box.appendChild(line([mk('span', 'pill ' + (x.ok ? 'on' : 'warn'), x.ok ? '✅ signed in' : '❌ wrong password'), fmtC(x.at), [x.device, x.place].filter(Boolean).join(' · ') + (x.ip_hash === d.here ? ' · this network' : ' · network ' + x.ip_hash)], '', false, [])));
+    box.querySelectorAll('.cl .body').forEach(b => { if (!b.textContent) b.remove(); });
+  }
+  $('#secOut').onclick = async () => { if (!confirm('Log your account out on every other device and browser?')) return; const r = await api('/api/admin/logout-others', 'POST', {}); if (r.ok) { alert('Done. ' + r.data.ended + ' other sign-in' + (r.data.ended === 1 ? '' : 's') + ' ended.'); loadSecurity(); } };
   /* ---------- study mode ---------- */
   let studyData = null, studyQ = '';
   async function loadStudy() { const r = await api('/api/admin/study'); if (!r.ok) return; studyData = r.data; drawStudy(); }

@@ -31,7 +31,7 @@ import playHtml from '../public/play/index.html';
 import playSciJs from '../public/play/sci.js';
 import playMathsJs from '../public/play/maths.js';
 import { checkText, checkName } from './filter.js';
-import { handleCommunity, handleCommunityAdmin, addPoints, logBlocked } from './community.js';
+import { handleCommunity, handleCommunityAdmin, addPoints, logBlocked, FAKE_NOTE } from './community.js';
 import { handleGames } from './games.js';
 
 const HTML = 'text/html; charset=utf-8';
@@ -54,7 +54,13 @@ const PAGES = {
   '/admin/': [adminHtml, HTML], '/admin/index.html': [adminHtml, HTML],
   '/feedback/': [feedbackHtml, HTML], '/feedback/index.html': [feedbackHtml, HTML]
 };
-const SECURITY_HEADERS = { 'x-content-type-options': 'nosniff', 'referrer-policy': 'same-origin', 'x-frame-options': 'DENY' };
+// Browser protections on every page: no framing (clickjacking), no scripts or connections to other sites,
+// HTTPS only, no camera/mic/location. Pages only ever talk to this site.
+const CSP = ["default-src 'self'", "script-src 'self' 'unsafe-inline'", "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com", "font-src 'self' https://fonts.gstatic.com",
+  "img-src 'self' data: blob:", "connect-src 'self'", "object-src 'none'", "base-uri 'none'", "form-action 'self'", "frame-ancestors 'none'", "worker-src 'none'", "manifest-src 'self'"].join('; ');
+const SECURITY_HEADERS = { 'x-content-type-options': 'nosniff', 'referrer-policy': 'same-origin', 'x-frame-options': 'DENY', 'content-security-policy': CSP,
+  'strict-transport-security': 'max-age=31536000; includeSubDomains', 'permissions-policy': 'camera=(), microphone=(), geolocation=(), payment=(), usb=()',
+  'cross-origin-opener-policy': 'same-origin', 'cross-origin-resource-policy': 'same-origin' };
 function servePage(url) {
   // "Message Beau" is now the ✉️ Beau tab of the Chat page
   if (url.pathname === '/message' || url.pathname.startsWith('/message/')) { const q = new URLSearchParams(url.search); q.set('tab', 'beau'); return Response.redirect(url.origin + '/chat/?' + q, 302); }
@@ -94,7 +100,31 @@ async function studyState(env, user) {
   return { study, requested: study && !!(u && u.study_req), site, why: !u ? null : u.study_mode ? 'you' : site ? 'everyone' : null };
 }
 const STUDY_BLOCKED = p => p.startsWith('/api/chat/') || p.startsWith('/api/messages') || p === '/api/leaderboard' || p === '/api/feedback';
-const SESSION_DAYS = 30;
+// ---------- limits per device (IP address, only ever stored as a short hash) ----------
+const ipOf = req => req.headers.get('cf-connecting-ip') || 'local';
+const ipKey = async req => (await sha256('ec-ip:' + ipOf(req))).slice(0, 20);
+// Returns true when this device has hit `max` in the last `secs` seconds. `count` = false only checks.
+async function overLimit(env, key, max, secs, count = true) {
+  const t = now();
+  const r = await env.DB.prepare('SELECT COUNT(*) AS n FROM rate_hits WHERE k = ? AND at > ?').bind(key, t - secs).first();
+  if (r.n >= max) return true;
+  if (count) await env.DB.prepare('INSERT INTO rate_hits (k, at) VALUES (?, ?)').bind(key, t).run();
+  if (Math.random() < 0.02) await env.DB.prepare('DELETE FROM rate_hits WHERE at < ?').bind(t - 2 * 86400).run();
+  return false;
+}
+const hit = (env, key) => env.DB.prepare('INSERT INTO rate_hits (k, at) VALUES (?, ?)').bind(key, now()).run();
+async function adminLog(env, req, ok) {
+  await env.DB.prepare('INSERT INTO admin_log (at, ok, ip_hash, place, device) VALUES (?, ?, ?, ?, ?)')
+    .bind(now(), ok ? 1 : 0, (await ipKey(req)).slice(0, 8), [req.cf && req.cf.city, req.cf && req.cf.country].filter(Boolean).join(', ') || null, deviceOf(req)).run();
+}
+// A quick flood guard per server instance: one device can't hammer the API with thousands of requests.
+const flood = new Map();
+function flooding(req) {
+  const ip = ipOf(req), t = Date.now(), w = flood.get(ip);
+  if (!w || t - w.start > 60000) { flood.set(ip, { start: t, n: 1 }); if (flood.size > 5000) flood.clear(); return false; }
+  return ++w.n > 1500; // a whole class on one school network stays far below this
+}
+const SESSION_DAYS = 30, ADMIN_SESSION_DAYS = 7;
 const PBKDF2_ITERATIONS = 100000; // the maximum Workers allows
 const SUBJECTS = new Set(['maths', 'science']);
 const MAX_PROGRESS_BYTES = 256 * 1024;
@@ -112,7 +142,7 @@ const fromHex = hex => new Uint8Array(hex.match(/.{2}/g).map(h => parseInt(h, 16
 const now = () => Math.floor(Date.now() / 1000);
 
 function json(data, status = 200, headers = {}) {
-  return new Response(JSON.stringify(data), { status, headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', ...headers } });
+  return new Response(JSON.stringify(data), { status, headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store', 'x-content-type-options': 'nosniff', 'cross-origin-resource-policy': 'same-origin', ...headers } });
 }
 const err = (status, message) => json({ error: message }, status);
 
@@ -144,12 +174,12 @@ function sessionCookie(token, url, maxAge, slot = 0) {
   return `${sidName(slot)}=${token}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${maxAge}${secure}`;
 }
 
-async function startSession(env, userId, url, slot = 0) {
+async function startSession(env, userId, url, slot = 0, days = SESSION_DAYS) {
   const token = randomHex(32);
-  await env.DB.prepare('INSERT INTO sessions (token_hash, user_id, expires_at) VALUES (?, ?, ?)').bind(await sha256(token), userId, now() + SESSION_DAYS * 86400).run();
+  await env.DB.prepare('INSERT INTO sessions (token_hash, user_id, expires_at) VALUES (?, ?, ?)').bind(await sha256(token), userId, now() + days * 86400).run();
   // Tidy up: drop this user's expired sessions.
   await env.DB.prepare('DELETE FROM sessions WHERE user_id = ? AND expires_at < ?').bind(userId, now()).run();
-  return sessionCookie(token, url, SESSION_DAYS * 86400, slot);
+  return sessionCookie(token, url, days * 86400, slot);
 }
 async function currentUser(req, env, slot = slotOf(req)) {
   const token = getCookie(req, sidName(slot)); if (!token || !/^[0-9a-f]{64}$/.test(token)) return null;
@@ -165,11 +195,15 @@ async function readJson(req) {
 
 async function handleApi(req, env, url) {
   const path = url.pathname, method = req.method;
+  if (flooding(req)) return err(429, 'Too many requests. Slow down a little.');
   // Block cross-site writes: browsers always send Origin on POST/PUT.
   if (method !== 'GET') { const origin = req.headers.get('origin'); if (origin && origin !== url.origin) return err(403, 'Cross-site request blocked'); }
 
   if (path === '/api/signup' && method === 'POST') {
     let body; try { body = await readJson(req); } catch { return err(400, 'Bad request'); }
+    // new accounts per device: plenty for a class signing up on one school network, but stops mass sign-ups
+    const ik = await ipKey(req);
+    if (await overLimit(env, 'signup:' + ik, 40, 3600, false) || await overLimit(env, 'signupday:' + ik, 120, 86400, false)) return err(429, 'Lots of accounts have been made from here recently. Try again later.');
     const username = cleanName(body.username), password = String(body.password || '');
     if (!USERNAME_RE.test(username)) return err(400, 'Names are 2–30 characters: letters, numbers, spaces, apostrophes, dots, dashes or underscores.');
     const nameOk = checkName(username, env.ADMIN_USERNAME);
@@ -180,6 +214,7 @@ async function handleApi(req, env, url) {
     if (exists) return err(409, 'That name is already taken. If two people share a name, add a last initial or a number (e.g. Sam Smith 2).');
     const salt = randomHex(16); const hash = await hashPassword(password, salt);
     const res = await env.DB.prepare('INSERT INTO users (username, pass_hash, salt, created_at, last_login, login_count, last_seen) VALUES (?, ?, ?, ?, ?, 1, ?)').bind(username, hash, salt, now(), now(), now()).run();
+    await env.DB.batch([env.DB.prepare('INSERT INTO rate_hits (k, at) VALUES (?, ?)').bind('signup:' + ik, now()), env.DB.prepare('INSERT INTO rate_hits (k, at) VALUES (?, ?)').bind('signupday:' + ik, now())]);
     const cookie = await startSession(env, res.meta.last_row_id, url, slotOf(req));
     return json({ username }, 201, { 'set-cookie': cookie });
   }
@@ -187,17 +222,26 @@ async function handleApi(req, env, url) {
   if (path === '/api/login' && method === 'POST') {
     let body; try { body = await readJson(req); } catch { return err(400, 'Bad request'); }
     const username = cleanName(body.username), password = String(body.password || '');
+    const ik = await ipKey(req);
+    // wrong passwords per device: a whole class can make typos, but nobody can keep guessing
+    if (await overLimit(env, 'loginfail:' + ik, 60, 900, false)) return err(429, 'Too many wrong tries from here. Wait 15 minutes and try again.');
     const user = await env.DB.prepare('SELECT * FROM users WHERE username = ?').bind(username).first();
-    if (!user) { await hashPassword(password, randomHex(16)); return err(401, 'Wrong username or password.'); }
-    if (user.locked_until > now()) return err(429, 'Too many wrong tries. Wait a few minutes and try again.');
+    if (!user) { await hashPassword(password, randomHex(16)); await hit(env, 'loginfail:' + ik); return err(401, 'Wrong username or password.'); }
+    const adminTry = isAdmin(user, env);
+    // Beau's account: a device gets only 5 wrong tries an hour. (There's no account-wide lock, so nobody can lock Beau out.)
+    if (adminTry && await overLimit(env, 'adminfail:' + ik, 5, 3600, false)) { await adminLog(env, req, false); return err(429, 'Too many wrong tries. Wait an hour and try again.'); }
+    if (!adminTry && user.locked_until > now()) return err(429, 'Too many wrong tries. Wait a few minutes and try again.');
     const hash = await hashPassword(password, user.salt);
     if (!safeEqual(hash, user.pass_hash)) {
+      await hit(env, 'loginfail:' + ik);
+      if (adminTry) { await hit(env, 'adminfail:' + ik); await adminLog(env, req, false); return err(401, 'Wrong username or password.'); }
       const fails = user.failed_logins + 1;
       await env.DB.prepare('UPDATE users SET failed_logins = ?, locked_until = ? WHERE id = ?').bind(fails >= 8 ? 0 : fails, fails >= 8 ? now() + 300 : 0, user.id).run();
       return err(401, 'Wrong username or password.');
     }
     await env.DB.prepare('UPDATE users SET failed_logins = 0, locked_until = 0, last_login = ?, login_count = login_count + 1, last_seen = ? WHERE id = ?').bind(now(), now(), user.id).run();
-    return json({ username: user.username }, 200, { 'set-cookie': await startSession(env, user.id, url, slotOf(req)) });
+    if (adminTry) await adminLog(env, req, true);
+    return json({ username: user.username }, 200, { 'set-cookie': await startSession(env, user.id, url, slotOf(req), adminTry ? ADMIN_SESSION_DAYS : SESSION_DAYS) });
   }
 
   // "Message everyone": the pop-up announcement every open page checks for (no login needed).
@@ -254,15 +298,20 @@ async function handleApi(req, env, url) {
     const row = await env.DB.prepare('SELECT last_seen FROM visits WHERE id = ?').bind(id).first();
     let add = 0;
     if (!row) {
+      const open = await env.DB.prepare('SELECT COUNT(*) AS n FROM visits WHERE user_id = ? AND started_at > ?').bind(user.id, t - 3600).first();
+      if (open.n >= 30) return json({ ok: true, counted: 0 }); // no flood of made-up visits
       await env.DB.prepare('INSERT INTO visits (id, user_id, subject, started_at, last_seen, seconds, device) VALUES (?, ?, ?, ?, ?, 0, ?)').bind(id, user.id, subject, t, t, deviceOf(req)).run();
     } else {
       const gap = t - row.last_seen;
       if (gap < 10) return json({ ok: true });
       // Pings come every minute while someone is active; a longer gap means they were away, so it isn't counted.
       add = gap <= 150 ? Math.min(gap, 75) : 0;
+      // One clock per person: two tabs (or made-up pings) can't count the same minute twice
+      const clk = await env.DB.prepare('SELECT study_clock FROM users WHERE id = ?').bind(user.id).first();
+      add = Math.max(0, Math.min(add, t - ((clk && clk.study_clock) || 0)));
       await env.DB.prepare('UPDATE visits SET last_seen = ?, seconds = seconds + ? WHERE id = ?').bind(t, add, id).run();
     }
-    const stmts = [env.DB.prepare('UPDATE users SET last_seen = ?, last_subject = ? WHERE id = ?').bind(t, subject, user.id)];
+    const stmts = [env.DB.prepare('UPDATE users SET last_seen = ?, last_subject = ?' + (add > 0 ? ', study_clock = ?' : '') + ' WHERE id = ?').bind(...(add > 0 ? [t, subject, t, user.id] : [t, subject, user.id]))];
     if (add > 0) stmts.push(env.DB.prepare('INSERT INTO daily (user_id, day, subject, seconds) VALUES (?, ?, ?, ?) ON CONFLICT(user_id, day, subject) DO UPDATE SET seconds = seconds + excluded.seconds').bind(user.id, dayKey(t), subject, add));
     await env.DB.batch(stmts);
     return json({ ok: true, counted: add });
@@ -288,8 +337,10 @@ async function handleApi(req, env, url) {
     const t = now();
     const fails = await env.DB.prepare('SELECT COUNT(*) AS n FROM unlock_attempts WHERE user_id = ? AND at > ?').bind(user.id, t - 3600).first();
     if (fails.n >= 5) return err(429, 'Too many wrong codes. Wait an hour and try again.');
+    const ik = await ipKey(req); // and per device, so making lots of accounts doesn't give more guesses
+    if (await overLimit(env, 'codefail:' + ik, 15, 3600, false)) return err(429, 'Too many wrong codes from here. Wait an hour and try again.');
     const code = String(body.code || '').replace(/\D/g, '');
-    const fail = async msg => { await env.DB.prepare('INSERT INTO unlock_attempts (user_id, at) VALUES (?, ?)').bind(user.id, t).run(); return err(400, msg + ' (' + (4 - fails.n) + ' tries left this hour)'); };
+    const fail = async msg => { await env.DB.batch([env.DB.prepare('INSERT INTO unlock_attempts (user_id, at) VALUES (?, ?)').bind(user.id, t), env.DB.prepare('INSERT INTO rate_hits (k, at) VALUES (?, ?)').bind('codefail:' + ik, t)]); return err(400, msg + ' (' + (4 - fails.n) + ' tries left this hour)'); };
     if (!/^\d{6}$/.test(code)) return fail('Codes are 6 digits.');
     const row = await env.DB.prepare("SELECT code, redeemed_by FROM codes WHERE code = ? AND feature = 'theory'").bind(code).first();
     if (!row) return fail('That code isn’t right.');
@@ -350,6 +401,7 @@ async function handleApi(req, env, url) {
     const text = String(body.body || '').replace(/\r\n?/g, '\n').trim();
     if (!text) return err(400, 'Type a message first.');
     if (text.length > 1000) return err(400, 'Messages can be up to 1000 characters.');
+    if (FAKE_NOTE.test(text)) return err(400, 'That message can’t be sent. Type it a different way.');
     const fm = checkText(text); if (!fm.ok) { await logBlocked(env, user.id, 'Message Beau', fm.why, text); return err(422, fm.message); }
     const recent = await env.DB.prepare('SELECT COUNT(*) AS n FROM messages WHERE user_id = ? AND from_admin = 0 AND created_at > ?').bind(user.id, now() - 3600).first();
     if (recent.n >= 30) return err(429, 'That’s a lot of messages. Wait a little and try again.');
@@ -535,6 +587,18 @@ async function handleAdmin(req, env, path, method, me) {
     ]);
     if (!u.results.length) return err(404, 'No such user');
     return json({ user: u.results[0], visits: vis.results, days: days.results });
+  }
+  // Security: recent admin sign-ins (and wrong tries), and "log out everywhere else"
+  if (path === '/api/admin/security' && method === 'GET') {
+    const [log, sess] = await env.DB.batch([
+      env.DB.prepare('SELECT at, ok, ip_hash, place, device FROM admin_log ORDER BY id DESC LIMIT 30'),
+      env.DB.prepare('SELECT COUNT(*) AS n FROM sessions WHERE user_id = ? AND expires_at > ?').bind(me.id, t)
+    ]);
+    return json({ now: t, log: log.results, sessions: sess.results[0].n, here: (await ipKey(req)).slice(0, 8) });
+  }
+  if (path === '/api/admin/logout-others' && method === 'POST') {
+    const r = await env.DB.prepare('DELETE FROM sessions WHERE user_id = ? AND token_hash != ?').bind(me.id, me.tokenHash).run();
+    return json({ ok: true, ended: r.meta.changes || 0 });
   }
   // Study mode: the site-wide switch, one person on/off (answers their request if they asked)
   if (path === '/api/admin/study' && method === 'GET') {
