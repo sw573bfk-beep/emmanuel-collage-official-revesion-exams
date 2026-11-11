@@ -338,7 +338,7 @@ button.person:hover{border-color:var(--accent);background:var(--accent-soft)}
   // from the leaderboard: "Chat" next to a name
   function request(p, into) { $('#find').value = p.name; found({ id: p.id, name: p.name, state: 'none' }, into); runSearch(); }
   (async () => {
-    try { const L = window.ecLive ? await window.ecLive() : null; if (L && L.study && L.study.study) { me.study = true; $('#studyNote').hidden = false; $('#tabMine').hidden = true; } } catch (e) { /* fine */ }
+    try { const L = window.ecLive ? await window.ecLive() : null; if (L && L.study && L.study.study) { me.study = true; $('#studyNote').hidden = false; if (L.study.until) { const b = $('#studyNote b'); const o = { timeZone: 'Australia/Brisbane' }, d = new Date(L.study.until * 1000); const same = d.toLocaleDateString('en-AU', o) === new Date().toLocaleDateString('en-AU', o); b.textContent = 'Study mode is on until ' + (same ? '' : d.toLocaleDateString('en-AU', { ...o, weekday: 'short' }) + ' ') + d.toLocaleTimeString('en-AU', { ...o, hour: 'numeric', minute: '2-digit' }); } $('#tabMine').hidden = true; } } catch (e) { /* fine */ }
     try { await counts(); } catch (e) { $('#loading').textContent = 'Can’t reach the server. Check your connection and reload.'; return; }
     $('#loading').hidden = true; $('#app').hidden = false;
     const withId = +params.get('with') || 0, withName = params.get('name');

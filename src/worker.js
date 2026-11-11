@@ -142,7 +142,10 @@ async function studyState(env, user) {
   const [u, S] = await Promise.all([env.DB.prepare('SELECT study_mode, study_free, study_free_at, study_req FROM users WHERE id = ?').bind(user.id).first(), siteStudy(env)]);
   const site = S.on, letOut = u && u.study_free && u.study_free_at >= S.since; // let out by Beau since study mode last turned on
   const study = !!u && (!!u.study_mode || (site && !letOut));
-  return { study, requested: study && !!(u && u.study_req), site, why: !u ? null : u.study_mode ? 'you' : site ? 'everyone' : null };
+  const why = !u ? null : u.study_mode ? 'you' : site ? 'everyone' : null;
+  // when it turns off by itself (the next automatic off time), so students can see "until 3:10 pm"
+  const off = why === 'everyone' ? schedTimes(S.sched, now()).find(x => !x.on && x.at > now()) : null;
+  return { study, requested: study && !!(u && u.study_req), site, why, until: study && off ? off.at : null };
 }
 async function studyPayload(env, user) {
   const st = await studyState(env, user);

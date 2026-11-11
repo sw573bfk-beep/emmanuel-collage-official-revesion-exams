@@ -22,11 +22,20 @@ html.ec-study-wait main{visibility:hidden}
   document.head.appendChild(css);
   if (BLOCKED) root.classList.add('ec-study-wait');
   let state = null;
+  // "until 3:10 pm" (or "until Mon 3:10 pm" if it's not today), Queensland time
+  const until = () => {
+    if (!state || !state.until) return '';
+    const o = { timeZone: 'Australia/Brisbane' }, d = new Date(state.until * 1000);
+    const t = d.toLocaleTimeString('en-AU', { ...o, hour: 'numeric', minute: '2-digit' }).replace(/\s/g, ' ');
+    const same = d.toLocaleDateString('en-AU', o) === new Date().toLocaleDateString('en-AU', o);
+    return ' until ' + (same ? '' : d.toLocaleDateString('en-AU', { ...o, weekday: 'short' }) + ' ') + t;
+  };
+  window.ecStudyUntil = until;
   const get = async force => { const j = window.ecLive ? await window.ecLive(force) : null; return j && j.study ? j.study : null; };
 
   function card(big) {
     const c = document.createElement('section'); c.className = 'ec-study-card'; c.id = 'ecStudyCard';
-    const h = document.createElement(big ? 'h2' : 'h3'); h.textContent = '📚 Study mode is on';
+    const h = document.createElement(big ? 'h2' : 'h3'); h.textContent = '📚 Study mode is on' + until();
     const p = document.createElement('p'); p.textContent = (state.why === 'everyone' ? 'Study mode is on for everyone right now (it turns on by itself in school hours). ' : 'Beau has turned on study mode for your account. ') + 'You can use Maths, Science, Play with friends, the leaderboard and your profile, and you can still message Beau. Chatting with friends and the feedback form are turned off.';
     const row = document.createElement('div'); row.className = 'ec-s-row';
     const ask = document.createElement('button'); ask.type = 'button'; ask.className = 'btn' + (big ? '' : ' sm');
@@ -63,7 +72,7 @@ html.ec-study-wait main{visibility:hidden}
       const spot = document.querySelector('#pickView') || main; if (spot) spot.insertBefore(card(false), spot.firstChild);
     } else {
       const tools = document.querySelector('.top-tools');
-      if (tools) { const pill = document.createElement('span'); pill.className = 'ec-study-pill'; pill.textContent = '📚 Study mode'; pill.title = 'Study mode is on: chatting with friends and feedback are off for now.'; tools.insertBefore(pill, tools.firstChild); }
+      if (tools) { const pill = document.createElement('span'); pill.className = 'ec-study-pill'; pill.textContent = '📚 Study mode' + until(); pill.title = 'Study mode is on: chatting with friends and feedback are off for now.'; tools.insertBefore(pill, tools.firstChild); }
     }
   }
   async function check(first, force) {
