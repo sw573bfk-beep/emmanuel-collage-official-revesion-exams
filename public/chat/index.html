@@ -72,7 +72,7 @@ button.person:hover{border-color:var(--accent);background:var(--accent-soft)}
 <body>
 <main class="wrap">
   <div class="brand"><span class="mark">EC Revisions</span><h1>Chat</h1><p>Chat 1-on-1 with your friends, and privately with Beau.</p></div>
-  <p class="rules"><b>Chats are monitored by Beau.</b> Be kind. Never share personal details (phone number, address, school timetable, social media). Rude or unsafe messages are blocked, and you can report anything that worries you.</p>
+  <p class="rules"><b>👀 Beau can read every chat.</b> A chat only starts when you <b>both</b> agree to be friends <b>and</b> Beau approves it. Be kind. Never share personal details (phone number, address, school timetable, social media). Rude or unsafe messages are blocked, and you can report anything that worries you.</p>
   <p id="loading" class="muted">Loading…</p>
   <p id="mutedNote" class="msg bad" hidden>Beau has paused chatting on your account. You can still read chats and message Beau in the <b>✉️ Beau</b> tab.</p>
   <section id="app" class="stack" hidden>
@@ -95,6 +95,7 @@ button.person:hover{border-color:var(--accent);background:var(--accent-soft)}
         <div id="findOut" role="status"></div>
       </div>
       <div class="card stack" id="reqCard" hidden><h3>Friend requests</h3><div class="list" id="reqs"></div></div>
+      <div class="card stack" id="waitCard" hidden><h3>⏳ Waiting for Beau to approve</h3><p class="small muted">You both agreed. Beau checks every new chat before it opens.</p><div class="list" id="waits"></div></div>
       <div class="card stack"><h3 id="friendsTitle">Your friends</h3><div class="list" id="threads"></div></div>
       <div class="card stack" id="sentCard" hidden><h3>Requests you’ve sent</h3><div class="list" id="sent"></div></div>
       <details class="card" id="blockedCard" hidden><summary>People you’ve blocked</summary><div class="list" id="blockedList" style="margin-top:10px"></div></details>
@@ -172,13 +173,14 @@ button.person:hover{border-color:var(--accent);background:var(--accent-soft)}
     const r = await api('/api/chat/threads'); if (!r.ok) return;
     const now = r.data.now;
     const inc = r.data.threads.filter(t => t.status === 'pending' && !t.byMe), sent = r.data.threads.filter(t => t.status === 'pending' && t.byMe);
+    const wt = r.data.threads.filter(t => t.status === 'approval'); $('#waitCard').hidden = !wt.length; $('#waits').replaceChildren(...wt.map(t => person(t.name, 'Beau will check this chat soon')));
     const fr = r.data.threads.filter(t => t.status === 'active').sort((x, y) => (y.online - x.online) || (y.unread - x.unread) || (y.at - x.at));
     const rl = $('#reqs'); rl.innerHTML = ''; $('#reqCard').hidden = !inc.length;
     inc.forEach(t => {
       const it = person(t.name, 'Wants to be your friend');
       const acts = el('div', 'acts'); const ok = el('button', 'btn sm', 'Accept'), no = el('button', 'btn quiet sm', 'Decline'), bl = el('button', 'btn danger sm', 'Block');
       [ok, no, bl].forEach(b => b.type = 'button');
-      ok.onclick = async () => { await api('/api/chat/respond', 'POST', { id: t.id, accept: true }); openThread(t.id); };
+      ok.onclick = async () => { await api('/api/chat/respond', 'POST', { id: t.id, accept: true }); loadMine(); };
       no.onclick = async () => { await api('/api/chat/respond', 'POST', { id: t.id, accept: false }); loadMine(); };
       bl.onclick = () => block(t.other, t.name);
       acts.append(ok, no, bl); it.appendChild(acts); rl.appendChild(it);
@@ -216,7 +218,7 @@ button.person:hover{border-color:var(--accent);background:var(--accent-soft)}
       thread.seenAt = Date.now();
       api('/api/chat/threads').then(x => { const f = x.ok && x.data.threads.find(y => y.id === t.id); const s = $('#threadSeen'); if (!f) { s.textContent = ''; return; } s.textContent = f.online ? '● Online now' : ago(f.seen, x.data.now); s.className = f.online ? 'on' : ''; });
     }
-    if (t.status !== 'active' && !box.querySelector('.empty')) box.appendChild(el('p', 'empty', t.status === 'pending' ? (t.byMe ? 'Waiting for ' + t.name + ' to accept your friend request.' : t.name + ' wants to be your friend. Accept the request in Friends.') : 'This chat is closed.'));
+    if (t.status !== 'active' && !box.querySelector('.empty')) box.appendChild(el('p', 'empty', t.status === 'approval' ? 'You both agreed. Beau needs to approve this chat before you can talk.' : t.status === 'pending' ? (t.byMe ? 'Waiting for ' + t.name + ' to accept your friend request.' : t.name + ' wants to be your friend. Accept the request in Friends.') : 'This chat is closed.'));
     r.data.messages.forEach(m => { bubble(box, m, 'dm', t.name); dmLast = Math.max(dmLast, m.id); });
     if (t.status === 'active' && !dmLast && !box.querySelector('.empty')) box.appendChild(el('p', 'empty', 'You and ' + t.name + ' are friends. Say hi!'));
     if (r.data.messages.length && near) box.scrollTop = box.scrollHeight;
@@ -308,15 +310,16 @@ button.person:hover{border-color:var(--accent);background:var(--accent-soft)}
     const it = person(p.name, p.subject ? 'Studies ' + p.subject : 'Student'); const acts = el('div', 'acts');
     const btn = (txt, cls, fn) => { const b = el('button', 'btn sm ' + (cls || ''), txt); b.type = 'button'; b.onclick = fn; acts.appendChild(b); return b; };
     if (p.state === 'friend') { acts.appendChild(el('span', 'state ok', '✓ Friends')); btn('Chat', '', () => openThread(p.thread)); }
+    else if (p.state === 'waiting') acts.appendChild(el('span', 'state', '⏳ Waiting for Beau'));
     else if (p.state === 'sent') { acts.appendChild(el('span', 'state', 'Request sent')); btn('Cancel', 'quiet', async () => { await api('/api/chat/unfriend', 'POST', { id: p.thread }); runSearch(); loadMine(); }); }
-    else if (p.state === 'incoming') btn('Accept friend request', '', async () => { await api('/api/chat/respond', 'POST', { id: p.thread, accept: true }); openThread(p.thread); });
+    else if (p.state === 'incoming') btn('Accept friend request', '', async () => { await api('/api/chat/respond', 'POST', { id: p.thread, accept: true }); say('#findOut', 'Accepted! Beau will check the chat, then you can talk.', true); runSearch(); loadMine(); });
     else {
       const b = btn('➕ Add friend', '', async () => {
         b.disabled = true;
         const r = await api('/api/chat/request', 'POST', { id: p.id });
         if (!r.ok) { b.disabled = false; return say('#findOut', r.data.error || 'Couldn’t send it.'); }
         if (r.data.status === 'active') return openThread(r.data.id);
-        say('#findOut', 'Friend request sent to ' + p.name + '. You can chat once they accept.', true); runSearch(); loadMine();
+        say('#findOut', r.data.status === 'approval' ? 'You both asked! Beau will check the chat, then you can talk.' : 'Friend request sent to ' + p.name + '. Once they accept and Beau approves, you can chat.', true); runSearch(); loadMine();
       });
     }
     it.appendChild(acts); into.appendChild(it);
@@ -327,7 +330,9 @@ button.person:hover{border-color:var(--accent);background:var(--accent-soft)}
     try { await counts(); } catch (e) { $('#loading').textContent = 'Can’t reach the server. Check your connection and reload.'; return; }
     $('#loading').hidden = true; $('#app').hidden = false;
     const withId = +params.get('with') || 0, withName = params.get('name');
-    if (withId && withName) { show('mine'); request({ id: withId, name: withName }, $('#found')); } else show(me.admin || params.get('tab') === 'beau' ? 'beau' : 'mine');
+    const thId = +params.get('thread') || 0;
+    if (thId && !me.admin) openThread(thId);
+    else if (withId && withName) { show('mine'); request({ id: withId, name: withName }, $('#found')); } else show(me.admin || params.get('tab') === 'beau' ? 'beau' : 'mine');
     document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') show(view === 'thread' && thread ? 'thread' : view); });
   })();
 })();

@@ -59,6 +59,7 @@ details.acct[open] summary{margin-bottom:12px}
         <p class="small notice" id="notice" hidden><b>Heads up:</b> Beau, who runs EC Revisions, can see your name, when you use the site, how long you study for, and your scores. This helps improve the site.</p>
         <div id="authMsg" class="msg bad" role="alert" hidden></div>
         <button class="btn" type="submit" id="authBtn">Log in</button>
+        <p class="small muted" style="margin:0">Made by a student, not an official school site. See <a href="/privacy/">what’s saved and who can see it</a>.</p>
       </form>
     </div>
     </div>
@@ -105,6 +106,15 @@ details.acct[open] summary{margin-bottom:12px}
       <a class="card row" href="/play/" style="flex:1 1 260px;justify-content:space-between;text-decoration:none;color:var(--ink)"><span><b>🎮 Play with friends</b> <span class="muted small">A live quiz game with a code. Three game modes.</span></span><span class="btn quiet sm">Play →</span></a>
       <a class="card row" href="/chat/" data-chat style="flex:1 1 260px;justify-content:space-between;text-decoration:none;color:var(--ink)"><span><b>💬 Chat</b> <span class="muted small">1-on-1 chats with friends, and a private chat with Beau.</span></span><span class="btn quiet sm">Open →</span></a>
     </div>
+    <section class="card stack ec-hide-study" id="friendsCard" hidden>
+      <div class="row" style="justify-content:space-between;align-items:center"><h3 style="margin:0">👥 Friends</h3><a class="btn quiet sm" href="/chat/">Open Chat →</a></div>
+      <p class="small muted" style="margin:0">Search for a friend and send a request. When you <b>both</b> agree and Beau approves it, you can chat. <b>Beau can read every chat.</b></p>
+      <label class="sr" for="frFind">Search for a friend by name</label>
+      <input id="frFind" type="search" autocomplete="off" placeholder="🔍 Search for a friend by name…">
+      <div id="frFound" class="fr-list" aria-live="polite"></div>
+      <div id="frOut" role="status"></div>
+      <div id="frList" class="fr-list"></div>
+    </section>
     <details class="card acct">
       <summary>Account settings</summary>
       <div class="acct-grid">
@@ -257,6 +267,57 @@ details.acct[open] summary{margin-bottom:12px}
     try { const me = await api('/api/me'); refreshAccounts(); if (me.ok) return picked(me.data); } catch (e) { /* offline: show the form */ }
     setMode('login'); show('auth');
   })();
+})();
+</script>
+<style>
+#friendsCard .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.fr-list{display:flex;flex-direction:column;gap:8px}
+.fr-row{display:flex;align-items:center;justify-content:space-between;gap:10px;border:1.5px solid var(--rule);border-radius:12px;padding:10px 14px;flex-wrap:wrap}
+.fr-row .fr-t{display:flex;flex-direction:column;min-width:0}
+.fr-row .fr-a{display:flex;gap:6px;flex-wrap:wrap}
+</style>
+<script>
+/* 👥 Friends on the home page: search, requests and friends, with the same rules as Chat */
+(function () {
+  const card = document.getElementById('friendsCard'), pick = document.getElementById('pickView'); if (!card || !pick) return;
+  const q = s => card.querySelector(s);
+  const el = (t, c, x) => { const e = document.createElement(t); if (c) e.className = c; if (x != null) e.textContent = x; return e; };
+  const api = async (p, m = 'GET', b) => { const r = await fetch(p, { method: m, credentials: 'same-origin', headers: b ? { 'content-type': 'application/json' } : {}, body: b ? JSON.stringify(b) : undefined }); let j = {}; try { j = await r.json(); } catch (e) { /* empty */ } return { ok: r.ok, status: r.status, data: j }; };
+  const btn = (txt, cls, fn) => { const b = el('button', 'btn sm ' + (cls || ''), txt); b.type = 'button'; b.onclick = fn; return b; };
+  const link = (txt, href) => { const a = el('a', 'btn sm', txt); a.href = href; return a; };
+  const row = (name, sub, acts) => { const d = el('div', 'fr-row'), t = el('span', 'fr-t'); t.append(el('b', '', name)); if (sub) t.append(el('span', 'small muted', sub)); const a = el('span', 'fr-a'); acts.forEach(x => a.append(x)); d.append(t, a); return d; };
+  const say = (t, good) => { const o = q('#frOut'); o.replaceChildren(); if (t) o.append(el('div', 'msg ' + (good ? 'good' : 'bad'), t)); };
+  async function list() {
+    const s = await api('/api/chat/summary'); if (!s.ok || s.data.admin) { card.hidden = true; return; }
+    const r = await api('/api/chat/threads'); if (!r.ok) { card.hidden = true; return; }
+    card.hidden = false; const box = q('#frList'); box.replaceChildren();
+    const T = r.data.threads;
+    T.filter(t => t.status === 'pending' && !t.byMe).forEach(t => box.append(row(t.name, 'wants to be your friend', [
+      btn('Accept', '', async () => { await api('/api/chat/respond', 'POST', { id: t.id, accept: true }); say('Accepted! Beau will check the chat, then you can talk.', true); list(); }),
+      btn('Decline', 'quiet', async () => { await api('/api/chat/respond', 'POST', { id: t.id, accept: false }); list(); })])));
+    T.filter(t => t.status === 'active').forEach(t => box.append(row(t.name, t.online ? '● online now' : 'friend', [link('💬 Chat', '/chat/?thread=' + t.id)])));
+    T.filter(t => t.status === 'approval').forEach(t => box.append(row(t.name, '⏳ waiting for Beau to approve', [])));
+    T.filter(t => t.status === 'pending' && t.byMe).forEach(t => box.append(row(t.name, 'request sent', [])));
+    if (!T.length) box.append(el('p', 'small muted', 'No friends yet. Search for someone above.'));
+  }
+  let tm = null, seq = 0;
+  async function search() {
+    const term = q('#frFind').value.trim(), f = q('#frFound'), my = ++seq; if (!term) { f.replaceChildren(); return; }
+    const r = await api('/api/chat/people?q=' + encodeURIComponent(term)); if (!r.ok || my !== seq) return;
+    f.replaceChildren(); if (!r.data.people.length) f.append(el('p', 'small muted', 'No students found with “' + term + '”.'));
+    r.data.people.forEach(p => {
+      const acts = [];
+      if (p.state === 'friend') acts.push(link('💬 Chat', '/chat/?thread=' + p.thread));
+      else if (p.state === 'waiting') acts.push(el('span', 'small muted', '⏳ waiting for Beau'));
+      else if (p.state === 'sent') acts.push(el('span', 'small muted', 'request sent'));
+      else if (p.state === 'incoming') acts.push(btn('Accept', '', async () => { await api('/api/chat/respond', 'POST', { id: p.thread, accept: true }); say('Accepted! Beau will check the chat, then you can talk.', true); search(); list(); }));
+      else acts.push(btn('➕ Add friend', '', async () => { const x = await api('/api/chat/request', 'POST', { id: p.id }); if (!x.ok) return say(x.data.error || 'Couldn’t send it.'); say(x.data.status === 'approval' ? 'You both asked! Beau will check the chat, then you can talk.' : 'Request sent to ' + p.name + '. Once they accept and Beau approves, you can chat.', true); search(); list(); }));
+      f.append(row(p.name, p.subject ? 'Studies ' + p.subject : 'Student', acts));
+    });
+  }
+  q('#frFind').oninput = () => { clearTimeout(tm); say(''); tm = setTimeout(search, 250); };
+  const go = () => { if (!pick.hidden) list(); };
+  new MutationObserver(go).observe(pick, { attributes: true, attributeFilter: ['hidden'] }); go();
 })();
 </script>
 <script src="/msg.js" defer></script>

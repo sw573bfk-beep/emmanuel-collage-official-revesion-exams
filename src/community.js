@@ -77,8 +77,9 @@ export async function handleCommunity(req, env, url, user) {
   if (!path.startsWith('/api/chat/')) return null;
 
   /* ---------- chat access: students ask Beau first ---------- */
-  const acc = await env.DB.prepare('SELECT chat_access, chat_req FROM users WHERE id = ?').bind(me).first() || {};
-  const access = admin || !!acc.chat_access;
+  // Every chat between two students needs both of them to agree AND Beau to approve that pair (see 'approval' below),
+  // so the old per-account "chat access" gate is no longer needed.
+  const acc = { chat_req: null }, access = true;
   if (path === '/api/chat/access-request' && method === 'POST') {
     if (access) return json({ ok: true, access: true });
     if (acc.chat_req) return json({ ok: true, pending: true });
@@ -117,7 +118,7 @@ export async function handleCommunity(req, env, url, user) {
         (SELECT CASE WHEN body LIKE '[game:%' THEN '🎮 Game invite' ELSE body END FROM dm_messages WHERE thread_id = t.id AND hidden = 0 ORDER BY id DESC LIMIT 1) AS last,
         (SELECT COUNT(*) FROM dm_messages m WHERE m.thread_id = t.id AND m.user_id != ?1 AND m.hidden = 0 AND m.id > (CASE WHEN t.a = ?1 THEN t.a_read ELSE t.b_read END)) AS unread
         FROM dm_threads t JOIN users u ON u.id = (CASE WHEN t.a = ?1 THEN t.b ELSE t.a END)
-        WHERE (t.a = ?1 OR t.b = ?1) AND t.status IN ('pending', 'active') ORDER BY t.updated_at DESC`).bind(me),
+        WHERE (t.a = ?1 OR t.b = ?1) AND t.status IN ('pending', 'approval', 'active') ORDER BY t.updated_at DESC`).bind(me),
       env.DB.prepare('SELECT b.blocked_id AS id, u.username AS name FROM blocks b JOIN users u ON u.id = b.blocked_id WHERE b.user_id = ? ORDER BY u.username').bind(me)
     ]);
     const t0 = now();
@@ -135,14 +136,14 @@ export async function handleCommunity(req, env, url, user) {
         AND u.id NOT IN (SELECT blocked_id FROM blocks WHERE user_id = ?2) AND u.id NOT IN (SELECT user_id FROM blocks WHERE blocked_id = ?2)
       ORDER BY (u.username LIKE ?4 ESCAPE '\\') DESC, u.username COLLATE NOCASE LIMIT 12`)
       .bind('%' + esc + '%', me, adminName, esc + '%').all();
-    const state = r => r.status === 'active' ? 'friend' : r.status === 'pending' ? (r.requested_by === me ? 'sent' : 'incoming') : 'none';
+    const state = r => r.status === 'active' ? 'friend' : r.status === 'approval' ? 'waiting' : r.status === 'pending' ? (r.requested_by === me ? 'sent' : 'incoming') : 'none';
     return json({ people: rows.results.map(r => ({ id: r.id, name: r.username, subject: r.last_subject === 'maths' ? 'Maths' : r.last_subject === 'science' ? 'Science' : null, state: state(r), thread: r.tid || null })) });
   }
   // remove a friend, or cancel a request you sent (the messages stay for Beau to check)
   if (path === '/api/chat/unfriend' && method === 'POST') {
     let b; try { b = await body(req); } catch { return err(400, 'Bad request'); }
     const th = await env.DB.prepare('SELECT * FROM dm_threads WHERE id = ?').bind(+b.id || 0).first();
-    if (!th || (th.a !== me && th.b !== me) || !(th.status === 'active' || (th.status === 'pending' && th.requested_by === me))) return err(404, 'That friend isn’t there any more.');
+    if (!th || (th.a !== me && th.b !== me) || !(th.status === 'active' || th.status === 'approval' || (th.status === 'pending' && th.requested_by === me))) return err(404, 'That friend isn’t there any more.');
     await env.DB.prepare("UPDATE dm_threads SET status = 'ended', requested_by = ?, updated_at = ? WHERE id = ?").bind(me, now(), th.id).run();
     return json({ ok: true });
   }
@@ -160,11 +161,12 @@ export async function handleCommunity(req, env, url, user) {
     const [a, bb] = pair(me, target.id), t = now();
     const ex = await env.DB.prepare('SELECT * FROM dm_threads WHERE a = ? AND b = ?').bind(a, bb).first();
     if (ex) {
-      if (ex.status === 'active') return json({ ok: true, id: ex.id, status: 'active' });
-      if (ex.status === 'pending' && ex.requested_by !== me) {
-        await env.DB.prepare("UPDATE dm_threads SET status = 'active', updated_at = ? WHERE id = ?").bind(t, ex.id).run();
-        return json({ ok: true, id: ex.id, status: 'active' });
+      if (ex.status === 'active' || ex.status === 'approval') return json({ ok: true, id: ex.id, status: ex.status });
+      if (ex.status === 'pending' && ex.requested_by !== me) { // they asked you too: both agree, now Beau checks it
+        await env.DB.prepare("UPDATE dm_threads SET status = 'approval', updated_at = ? WHERE id = ?").bind(t, ex.id).run();
+        return json({ ok: true, id: ex.id, status: 'approval' });
       }
+      if (ex.status === 'refused' && t - ex.updated_at < 7 * 86400) return err(429, 'Beau didn’t approve a chat between you two. You can ask again in a week.');
       if (ex.status === 'pending') return json({ ok: true, id: ex.id, status: 'pending' });
       if (ex.status === 'declined' && ex.requested_by === me && t - ex.updated_at < 7 * 86400) return err(429, target.username + ' said no for now. You can send another friend request in a week.');
     }
@@ -179,8 +181,9 @@ export async function handleCommunity(req, env, url, user) {
     let b; try { b = await body(req); } catch { return err(400, 'Bad request'); }
     const th = await env.DB.prepare('SELECT * FROM dm_threads WHERE id = ?').bind(+b.id || 0).first();
     if (!th || (th.a !== me && th.b !== me) || th.status !== 'pending' || th.requested_by === me) return err(404, 'That request isn’t there any more.');
-    await env.DB.prepare('UPDATE dm_threads SET status = ?, updated_at = ? WHERE id = ?').bind(b.accept ? 'active' : 'declined', now(), th.id).run();
-    return json({ ok: true, status: b.accept ? 'active' : 'declined' });
+    // both agree → Beau has to approve the pair before they can chat
+    await env.DB.prepare('UPDATE dm_threads SET status = ?, updated_at = ? WHERE id = ?').bind(b.accept ? 'approval' : 'declined', now(), th.id).run();
+    return json({ ok: true, status: b.accept ? 'approval' : 'declined' });
   }
   const dm = path.match(/^\/api\/chat\/dm\/(\d+)$/);
   if (dm) {
@@ -194,7 +197,7 @@ export async function handleCommunity(req, env, url, user) {
       return json({ thread: { id: th.id, other, name: th.name, status: th.status, byMe: th.requested_by === me }, messages: rows.map(r => ({ id: r.id, mine: r.user_id === me, body: r.body, at: r.created_at })) });
     }
     if (method === 'POST') {
-      if (th.status !== 'active') return err(403, th.status === 'pending' ? 'Wait for ' + th.name + ' to accept your friend request.' : 'This chat is closed.');
+      if (th.status !== 'active') return err(403, th.status === 'pending' ? 'Wait for ' + th.name + ' to accept your friend request.' : th.status === 'approval' ? 'Beau needs to approve this chat first.' : 'This chat is closed.');
       if (await blockedEither(env, me, other)) return err(403, 'This chat is closed.');
       let b; try { b = await body(req); } catch { return err(400, 'Bad request'); }
       let text = String(b.body || '').replace(/\r\n?/g, '\n').trim();
@@ -286,6 +289,13 @@ export async function handleCommunityAdmin(req, env, url) {
       env.DB.prepare("UPDATE messages SET read_at = ? WHERE user_id = ? AND from_admin = 0 AND read_at IS NULL AND body = '[chat-request]'").bind(t, id)
     ]);
     return json({ ok: true, access: allow });
+  }
+  // a chat between two students: approve it, say not now, or end it
+  if (path === '/api/admin/chat/pair') {
+    const th = await env.DB.prepare('SELECT id, status FROM dm_threads WHERE id = ?').bind(+b.id || 0).first(); if (!th) return err(404, 'That chat isn’t there.');
+    const to = b.action === 'allow' ? 'active' : b.action === 'end' ? 'ended' : 'refused';
+    await env.DB.prepare('UPDATE dm_threads SET status = ?, updated_at = ? WHERE id = ?').bind(to, now(), th.id).run();
+    return json({ ok: true, status: to });
   }
   if (path === '/api/admin/chat/mute') {
     await env.DB.prepare('UPDATE users SET chat_muted = ? WHERE id = ?').bind(b.muted ? 1 : 0, +b.id || 0).run();

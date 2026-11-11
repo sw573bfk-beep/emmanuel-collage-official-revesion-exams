@@ -23,6 +23,7 @@ import tabbarJs from '../public/tabbar.js';
 import themeCss from '../public/theme.css';
 import themeJs from '../public/theme.js';
 import noticeJs from '../public/notice.js';
+import privacyHtml from '../public/privacy/index.html';
 import studyJs from '../public/study.js';
 import msgJs from '../public/msg.js';
 import chatHtml from '../public/chat/index.html';
@@ -45,6 +46,7 @@ const PAGES = {
   '/theme.js': [themeJs, 'text/javascript; charset=utf-8'],
   '/msg.js': [msgJs, 'text/javascript; charset=utf-8'],
   '/notice.js': [noticeJs, 'text/javascript; charset=utf-8'],
+  '/privacy/': [privacyHtml, HTML], '/privacy/index.html': [privacyHtml, HTML],
   '/study.js': [studyJs, 'text/javascript; charset=utf-8'],
   '/chat/': [chatHtml, HTML], '/chat/index.html': [chatHtml, HTML],
   '/leaderboard/': [boardHtml, HTML], '/leaderboard/index.html': [boardHtml, HTML],
@@ -64,7 +66,7 @@ const SECURITY_HEADERS = { 'x-content-type-options': 'nosniff', 'referrer-policy
 function servePage(url) {
   // "Message Beau" is now the ✉️ Beau tab of the Chat page
   if (url.pathname === '/message' || url.pathname.startsWith('/message/')) { const q = new URLSearchParams(url.search); q.set('tab', 'beau'); return Response.redirect(url.origin + '/chat/?' + q, 302); }
-  if (['/maths', '/science', '/admin', '/feedback', '/chat', '/leaderboard', '/play'].includes(url.pathname)) return Response.redirect(url.origin + url.pathname + '/' + url.search, 301);
+  if (['/maths', '/science', '/admin', '/feedback', '/chat', '/privacy', '/leaderboard', '/play'].includes(url.pathname)) return Response.redirect(url.origin + url.pathname + '/' + url.search, 301);
   const page = PAGES[url.pathname];
   if (!page) return new Response(notFoundHtml, { status: 404, headers: { 'content-type': HTML, ...SECURITY_HEADERS } });
   const [body, type] = page;

@@ -25,6 +25,17 @@
     else { b.classList.add('float'); document.body.appendChild(b); }
   }
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', add); else add();
+  // "not an official school site" + privacy link at the bottom of every page
+  const foot = () => {
+    if (document.querySelector('.ec-foot') || location.pathname.startsWith('/admin')) return;
+    const st = document.createElement('style');
+    st.textContent = '.ec-foot{max-width:900px;margin:28px auto 0;padding:14px 16px calc(80px + env(safe-area-inset-bottom,0px));text-align:center;font-size:.875rem;line-height:1.6;color:var(--muted,#555);border-top:1px solid var(--rule,#ddd)}.ec-foot a{color:inherit;font-weight:600}';
+    document.head.appendChild(st);
+    const f = document.createElement('footer'); f.className = 'ec-foot';
+    f.innerHTML = 'EC Revisions is made by a student. It is <b>not an official Emmanuel College website</b>. <a href="/privacy/">Privacy and safety</a>';
+    document.body.appendChild(f);
+  };
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', foot); else foot();
   // pop-up messages from Beau ("Message everyone") on every page
   ['/notice.js', '/study.js'].forEach(src => { const nj = document.createElement('script'); nj.src = src; nj.defer = true; document.head.appendChild(nj); });
 })();

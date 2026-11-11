@@ -193,7 +193,7 @@ details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
     </section>
 
     <section class="card stack sec" id="chats" data-title="💬 Chats &amp; messages" data-hint="messages to you, chat access, reports and 1-on-1 chats">
-      <div class="ctabs" id="chatTabs" role="tablist"><button type="button" class="chip on" data-c="messages">✉️ Messages to you <span class="badge" id="bMsg" hidden></span></button><button type="button" class="chip" data-c="access">🙋 Chat access <span class="badge" id="bAcc" hidden></span></button><button type="button" class="chip" data-c="reports">🚩 Reports <span class="badge" id="bRep" hidden></span></button><button type="button" class="chip" data-c="dms">1-on-1 chats</button><button type="button" class="chip" data-c="blocked">Blocked by the filter</button></div>
+      <div class="ctabs" id="chatTabs" role="tablist"><button type="button" class="chip on" data-c="messages">✉️ Messages to you <span class="badge" id="bMsg" hidden></span></button><button type="button" class="chip" data-c="access">🙋 Chats to approve <span class="badge" id="bAcc" hidden></span></button><button type="button" class="chip" data-c="reports">🚩 Reports <span class="badge" id="bRep" hidden></span></button><button type="button" class="chip" data-c="dms">1-on-1 chats</button><button type="button" class="chip" data-c="blocked">Blocked by the filter</button></div>
       <p class="small muted" id="chatHelp"></p>
       <div id="mutedList" class="row"></div>
       <div class="msgs" id="msgsView"><div class="convs" id="convs"></div><div class="thread" id="thread"><p class="muted small">Pick a chat on the left.</p></div></div>
@@ -388,7 +388,7 @@ details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
       const cb = document.createElement('button'); cb.type = 'button'; cb.className = 'btn quiet';
       const cShow = () => { cb.textContent = u.chatAccess ? '🔒 Take Chat access away' : '✅ Let them use Chat'; };
       cb.onclick = async () => { const rr = await api('/api/admin/chat/access', 'POST', { id: u.id, allow: !u.chatAccess }); if (rr.ok) { u.chatAccess = !u.chatAccess; u.chatReq = false; cShow(); load(); } };
-      cShow(); b.appendChild(cb);
+      cShow(); /* chat access is now approved per chat pair in Chats & messages */
       const sbn = document.createElement('button'); sbn.type = 'button'; sbn.className = 'btn quiet';
       const inStudy = () => studyData && (studyData.people.find(p => p.id === u.id) || {}).study;
       const sbShow = () => { sbn.textContent = inStudy() ? '📚 Turn off study mode' : '📚 Put in study mode'; };
@@ -516,7 +516,7 @@ details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
   let chatTab = 'messages', chatData = null, chatThread = null;
   const CHAT_HELP = {
     messages: 'Private chats students send you from Chat → ✉️ Beau. Tap a person to read and reply. Booklet unlock requests show here with Allow / Not now.',
-    access: 'Students have to ask before they can add friends and chat 1-on-1. Allow or say not now here. They can always message you, even without access.',
+    access: 'Two students can only chat after they both agree to be friends AND you approve the pair. Approve or say not now here, and end any chat at any time. Students are told you can read every chat.',
     reports: 'Messages students reported. Delete hides a message from everyone.',
     dms: '1-on-1 chats between friends.',
     blocked: 'Messages and names the filter stopped (rude words or personal details). Nobody saw these.'
@@ -529,7 +529,7 @@ details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
     drawChats();
   }
   $$('#chatTabs [data-c]').forEach(b => b.onclick = () => pickChatTab(b.dataset.c));
-  async function loadChats() { const r = await api('/api/admin/chat/overview'); if (!r.ok) return; chatData = r.data; repNew = chatData.reports.filter(x => x.status === 'new').length; accReq = chatData.people.filter(x => x.req && !x.access).length; $('#tRep').textContent = repNew; $('#tRep').closest('.tile').classList.toggle('alert', repNew > 0); chatBadges(); drawChats(); }
+  async function loadChats() { const r = await api('/api/admin/chat/overview'); if (!r.ok) return; chatData = r.data; repNew = chatData.reports.filter(x => x.status === 'new').length; accReq = chatData.threads.filter(x => x.status === 'approval').length; $('#tRep').textContent = repNew; $('#tRep').closest('.tile').classList.toggle('alert', repNew > 0); chatBadges(); drawChats(); }
   const mk = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
   const fmtC = s => new Date(s * 1000).toLocaleString('en-AU', { timeZone: TZ, weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' });
   function line(top, body, hidden, acts) {
@@ -557,6 +557,18 @@ details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
     const box = $('#chatBody'); box.replaceChildren();
     const none = t => box.appendChild(mk('p', 'muted small', t));
     if (chatTab === 'access') {
+      const pair = (t, action) => async () => { if (action === 'end' && !confirm('End the chat between ' + t.a_name + ' and ' + t.b_name + '?')) return; await api('/api/admin/chat/pair', 'POST', { id: t.id, action }); await loadChats(); };
+      const waitP = chatData.threads.filter(x => x.status === 'approval'), liveP = chatData.threads.filter(x => x.status === 'active');
+      box.appendChild(mk('h3', '', '🙋 Waiting for you (' + waitP.length + ')'));
+      if (!waitP.length) none('No chats waiting. When two students both agree to be friends, the pair shows up here.');
+      waitP.forEach(t => box.appendChild(line([mk('span', 'pill warn', 'both agreed'), t.a_name + ' and ' + t.b_name, fmtC(t.updated_at)], '', false, [btn('✅ Approve chat', pair(t, 'allow'), 'go'), btn('Not now', pair(t, 'refuse'))])));
+      const dd = mk('details'); dd.open = true; dd.appendChild(mk('summary', '', '💬 Chats you approved (' + liveP.length + ')')); const w = mk('div', 'chatlog'); w.style.marginTop = '8px';
+      liveP.forEach(t => w.appendChild(line([t.a_name + ' and ' + t.b_name, t.n + ' messages', fmtC(t.updated_at)], '', false, [btn('Read', () => { pickChatTab('dms'); openChatThread(t); }), btn('End chat', pair(t, 'end'), 'danger')])));
+      if (!liveP.length) w.appendChild(mk('p', 'muted small', 'None yet.')); dd.appendChild(w); box.appendChild(dd);
+      box.querySelectorAll('.cl .body').forEach(b => { if (!b.textContent) b.remove(); });
+      return;
+    }
+    if (chatTab === 'access-old') {
       const answer = (u, allow) => async () => { await api('/api/admin/chat/access', 'POST', { id: u.id, allow }); await loadChats(); loadConvs(); };
       const pend = chatData.people.filter(x => x.req && !x.access), yes = chatData.people.filter(x => x.access), no = chatData.people.filter(x => !x.access && !x.req);
       box.appendChild(mk('h3', '', '🙋 Waiting for you (' + pend.length + ')'));
