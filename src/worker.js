@@ -25,6 +25,7 @@ import themeJs from '../public/theme.js';
 import noticeJs from '../public/notice.js';
 import privacyHtml from '../public/privacy/index.html';
 import meHtml from '../public/me/index.html';
+import teacherHtml from '../public/teacher/index.html';
 import studyJs from '../public/study.js';
 import msgJs from '../public/msg.js';
 import chatHtml from '../public/chat/index.html';
@@ -51,6 +52,7 @@ const PAGES = {
   '/notice.js': [noticeJs, 'text/javascript; charset=utf-8'],
   '/privacy/': [privacyHtml, HTML], '/privacy/index.html': [privacyHtml, HTML],
   '/me/': [meHtml, HTML], '/me/index.html': [meHtml, HTML],
+  '/teacher/': [teacherHtml, HTML], '/teacher/index.html': [teacherHtml, HTML],
   '/study.js': [studyJs, 'text/javascript; charset=utf-8'],
   '/chat/': [chatHtml, HTML], '/chat/index.html': [chatHtml, HTML],
   '/leaderboard/': [boardHtml, HTML], '/leaderboard/index.html': [boardHtml, HTML],
@@ -82,7 +84,7 @@ BODY['/theme.js'] = BODY['/theme.js'].replace("src + '?v=' + (document.documentE
 function servePage(url) {
   // "Message Beau" is now the ✉️ Beau tab of the Chat page
   if (url.pathname === '/message' || url.pathname.startsWith('/message/')) { const q = new URLSearchParams(url.search); q.set('tab', 'beau'); return Response.redirect(url.origin + '/chat/?' + q, 302); }
-  if (['/maths', '/science', '/admin', '/feedback', '/chat', '/privacy', '/me', '/leaderboard', '/play'].includes(url.pathname)) return Response.redirect(url.origin + url.pathname + '/' + url.search, 301);
+  if (['/maths', '/science', '/admin', '/feedback', '/chat', '/privacy', '/me', '/teacher', '/leaderboard', '/play'].includes(url.pathname)) return Response.redirect(url.origin + url.pathname + '/' + url.search, 301);
   const page = PAGES[url.pathname];
   if (!page) return new Response(notFoundHtml, { status: 404, headers: { 'content-type': HTML, ...SECURITY_HEADERS } });
   const type = page[1];
@@ -245,9 +247,9 @@ async function startSession(env, userId, url, slot = 0, days = SESSION_DAYS) {
 }
 async function currentUser(req, env, slot = slotOf(req)) {
   const token = getCookie(req, sidName(slot)); if (!token || !/^[0-9a-f]{64}$/.test(token)) return null;
-  const row = await env.DB.prepare('SELECT u.id, u.username, u.role, u.tester, s.expires_at FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token_hash = ?').bind(await sha256(token)).first();
+  const row = await env.DB.prepare('SELECT u.id, u.username, u.role, u.tester, u.teacher, s.expires_at FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token_hash = ?').bind(await sha256(token)).first();
   if (!row || row.expires_at < now()) return null;
-  return { id: row.id, username: row.username, role: row.role || null, tester: !!row.tester, tokenHash: await sha256(token) };
+  return { id: row.id, username: row.username, role: row.role || null, tester: !!row.tester, teacher: !!row.teacher, tokenHash: await sha256(token) };
 }
 async function readJson(req) {
   if (!(req.headers.get('content-type') || '').includes('application/json')) throw new Error('Expected JSON');
@@ -322,7 +324,7 @@ async function handleApi(req, env, url) {
   if (path === '/api/me' && method === 'GET') {
     if (!user) return err(401, 'Not logged in');
     const rows = await env.DB.prepare('SELECT subject, updated_at FROM progress WHERE user_id = ?').bind(user.id).all();
-    return json({ username: user.username, admin: isAdmin(user, env), role: staffRole(user, env), tester: user.tester, subjects: Object.fromEntries(rows.results.map(r => [r.subject, r.updated_at])) });
+    return json({ username: user.username, admin: isAdmin(user, env), role: staffRole(user, env), tester: user.tester, teacher: user.teacher, subjects: Object.fromEntries(rows.results.map(r => [r.subject, r.updated_at])) });
   }
   if (path === '/api/logout' && method === 'POST') {
     if (user) await env.DB.prepare('DELETE FROM sessions WHERE token_hash = ?').bind(user.tokenHash).run();
@@ -350,6 +352,11 @@ async function handleApi(req, env, url) {
     const t = now();
     await env.DB.batch([env.DB.prepare('UPDATE users SET study_req = ? WHERE id = ?').bind(t, user.id), env.DB.prepare("INSERT INTO messages (user_id, from_admin, body, created_at) VALUES (?, 0, '[study-request]', ?)").bind(user.id, t)]);
     return json({ ok: true, pending: true }, 201);
+  }
+  // 👩‍🏫 Teachers: their class (students they added) with each student's study time and scores. Never messages.
+  if (path.startsWith('/api/teacher/')) {
+    if (!user.teacher && !isAdmin(user, env)) return err(403, 'Only teachers can see this. Ask Beau for a Teacher code.');
+    return handleTeacher(req, env, url, user);
   }
   // 🚩 Report a mistake on a question (works in study mode too): goes to Beau's Feedback with the question attached
   if (path === '/api/report-question' && method === 'POST') {
@@ -425,7 +432,8 @@ async function handleApi(req, env, url) {
     const lb = study ? null : { week: (await leaderboard(env, me, 'week', isAdmin(user, env))).me, all: (await leaderboard(env, me, 'all', isAdmin(user, env))).me };
     const NOTE = { '[unlock-request]': '🔔 You asked to unlock the booklet', '[unlock-allowed]': '✅ Beau unlocked the booklet', '[unlock-declined]': 'Beau said not yet', '[chat-request]': '🙋 You asked to use Chat', '[chat-allowed]': '✅ Beau let you into Chat', '[chat-declined]': 'Beau said not yet', '[chat-removed]': 'Chat turned off', '[study-request]': '📚 You asked to leave study mode', '[study-allowed]': '✅ Study mode off', '[study-declined]': 'Beau said not yet' };
     const b0 = beau.results[0];
-    return json({ now: t, name: u.results[0].username, joined: u.results[0].created_at, study, role: staffRole(user, env), roleName: ROLE_NAME[staffRole(user, env)] || null, tester: user.tester, booklet: await hasUnlock(env, user, 'theory'),
+    const tch = await env.DB.prepare('SELECT u.username AS name FROM teacher_students ts JOIN users u ON u.id = ts.teacher_id WHERE ts.student_id = ? ORDER BY u.username').bind(me).all();
+    return json({ now: t, name: u.results[0].username, joined: u.results[0].created_at, study, teacher: user.teacher, teachers: tch.results.map(x => x.name), role: staffRole(user, env), roleName: ROLE_NAME[staffRole(user, env)] || null, tester: user.tester, booklet: await hasUnlock(env, user, 'theory'),
       time: { today: D[today] || 0, week: Array.from({ length: 7 }, (_, i) => D[back(i)] || 0).reduce((a, x) => a + x, 0), all: all.results[0].s || 0, last14, streak },
       leaderboard: lb, topics, friends: fr.results[0].n, badges: badges.concat(lb && lb.week && lb.week.rank <= 3 ? [B('🏆', 'Podium', 'Top 3 on this week’s leaderboard', 1, 1)] : []),
       messages: study ? null : { beau: { last: b0 ? (NOTE[b0.body] || b0.body) : null, mine: b0 ? !b0.from_admin : false, at: b0 ? b0.created_at : null, unread: beauN.results[0].n },
@@ -645,7 +653,7 @@ async function hasUnlock(env, user, feature) {
 // 5-character codes from letters and numbers that can't be mixed up (no 0/O, 1/I/L), typed in any case
 const CODE_CHARS = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 function newCode() { const b = crypto.getRandomValues(new Uint8Array(5)); return Array.from(b, x => CODE_CHARS[x % CODE_CHARS.length]).join(''); }
-const CODE_TYPES = { theory: '📘 Science booklet', top: '⭐ Top tier admin', basic: '🛡️ Basic admin', tester: '🧪 Official tester' };
+const CODE_TYPES = { theory: '📘 Science booklet', top: '⭐ Top tier admin', basic: '🛡️ Basic admin', tester: '🧪 Official tester', teacher: '👩‍🏫 Teacher' };
 // What a code does. Codes are only used up if they actually give you something new.
 async function useCode(env, user, row, t) {
   const f = row.feature, owner = isAdmin(user, env);
@@ -654,12 +662,14 @@ async function useCode(env, user, row, t) {
   if (f === 'top' && user.role === 'top') return { error: 'You’re already a Top tier admin, so this code wasn’t used.' };
   if (f === 'basic' && (user.role === 'top' || user.role === 'basic')) return { error: 'You already have ' + (user.role === 'top' ? 'Top tier' : 'Basic') + ' admin, so this code wasn’t used.' };
   if (f === 'tester' && user.tester) return { error: 'You’re already an Official tester, so this code wasn’t used.' };
+  if (f === 'teacher' && user.teacher) return { error: 'You’re already a teacher, so this code wasn’t used.' };
   const claim = await env.DB.prepare('UPDATE codes SET redeemed_by = ?, redeemed_at = ? WHERE code = ? AND redeemed_by IS NULL').bind(user.id, t, row.code).run();
   if (!claim.meta.changes) return { error: 'That code has already been used.' };
   if (f === 'theory') await env.DB.prepare("INSERT OR IGNORE INTO unlocks (user_id, feature, unlocked_at, code) VALUES (?, 'theory', ?, ?)").bind(user.id, t, row.code).run();
   if (f === 'top' || f === 'basic') await env.DB.prepare('UPDATE users SET role = ? WHERE id = ?').bind(f, user.id).run();
   if (f === 'tester') await env.DB.prepare('UPDATE users SET tester = 1 WHERE id = ?').bind(user.id).run();
-  return { message: { theory: '📘 The completed Science booklet is unlocked! Open Science → Booklet.', top: '⭐ You’re now a Top tier admin. Open the dashboard from your profile.', basic: '🛡️ You’re now a Basic admin. Open the dashboard from your profile.', tester: '🧪 You’re now an Official tester! Check out your profile banner.' }[f] };
+  if (f === 'teacher') await env.DB.prepare('UPDATE users SET teacher = 1, in_stats = 0 WHERE id = ?').bind(user.id).run(); // teachers aren't on the leaderboard
+  return { message: { theory: '📘 The completed Science booklet is unlocked! Open Science → Booklet.', top: '⭐ You’re now a Top tier admin. Open the dashboard from your profile.', basic: '🛡️ You’re now a Basic admin. Open the dashboard from your profile.', tester: '🧪 You’re now an Official tester! Check out your profile banner.', teacher: '👩‍🏫 You’re now a teacher. Open “My class” from your profile to add your students.' }[f] };
 }
 
 // Summarise one student's saved maths progress for the dashboard.
@@ -672,6 +682,68 @@ function mathsStats(data) {
   out.exams = ex.length; if (ex.length) out.examAvg = Math.round(ex.reduce((a, e) => a + (e.p || 0), 0) / ex.length);
   out.gotIt = Object.values(data.check || {}).filter(v => v === 2).length;
   return out;
+}
+
+// ---------- teachers ----------
+// one student's study time and scores, worked out the same way as the profile
+function studentSummary(u, dayRows, progRows, t) {
+  const D = {}; dayRows.forEach(r => { D[r.day] = (D[r.day] || 0) + (r.s || 0); });
+  const back = n => dayKey(t - n * 86400), today = dayKey(t);
+  let streak = 0; for (let i = (D[today] || 0) >= 60 ? 0 : 1; i < 400 && (D[back(i)] || 0) >= 60; i++) streak++;
+  const NAMES = { maths: Object.fromEntries(MATHS_TOPICS.map(x => [x.id, x.name])), science: Object.fromEntries(SCI_TOPICS.map(x => [x.id, x.name])) };
+  const subj = {}, topics = [];
+  progRows.forEach(r => { let d = {}; try { d = JSON.parse(r.data); } catch { d = {}; } const m = mathsStats(d); subj[r.subject] = { answered: m.answered, correct: m.correct, exams: m.exams, examAvg: m.examAvg, bookletDone: m.bookletDone };
+    Object.entries(d.tstats || {}).forEach(([id, x]) => { if (x && x.a > 0 && NAMES[r.subject] && NAMES[r.subject][id]) topics.push({ subject: r.subject, id, name: NAMES[r.subject][id], a: x.a, c: Math.min(x.c || 0, x.a), p: Math.min(x.c || 0, x.a) / x.a }); }); });
+  topics.sort((a, b) => a.p - b.p || b.a - a.a);
+  return { id: u.id, name: u.username, lastSeen: u.last_seen, joined: u.created_at,
+    week: Array.from({ length: 7 }, (_, i) => D[back(i)] || 0).reduce((a, x) => a + x, 0), all: Object.values(D).reduce((a, x) => a + x, 0), streak,
+    maths: subj.maths || null, science: subj.science || null, weakest: topics.filter(x => x.a >= 3 && x.p < 0.8).slice(0, 3), topics, // under 80% only
+    last14: Array.from({ length: 14 }, (_, i) => ({ day: back(13 - i), s: D[back(13 - i)] || 0 })) };
+}
+async function handleTeacher(req, env, url, user) {
+  const path = url.pathname, method = req.method, t = now(), me = user.id;
+  if (path === '/api/teacher/class' && method === 'GET') {
+    const st = (await env.DB.prepare('SELECT u.id, u.username, u.last_seen, u.created_at FROM teacher_students ts JOIN users u ON u.id = ts.student_id WHERE ts.teacher_id = ? ORDER BY u.username COLLATE NOCASE').bind(me).all()).results;
+    if (!st.length) return json({ now: t, students: [] });
+    const ids = st.map(x => x.id), ph = ids.map(() => '?').join(',');
+    const [days, prog] = await env.DB.batch([
+      env.DB.prepare('SELECT user_id, day, SUM(seconds) AS s FROM daily WHERE user_id IN (' + ph + ') GROUP BY user_id, day').bind(...ids),
+      env.DB.prepare('SELECT user_id, subject, data FROM progress WHERE user_id IN (' + ph + ')').bind(...ids)
+    ]);
+    const students = st.map(u => { const s = studentSummary(u, days.results.filter(r => r.user_id === u.id), prog.results.filter(r => r.user_id === u.id), t); delete s.last14; delete s.topics; return s; });
+    return json({ now: t, students });
+  }
+  const sm = path.match(/^\/api\/teacher\/student\/(\d+)$/);
+  if (sm && method === 'GET') {
+    const id = +sm[1];
+    if (!await env.DB.prepare('SELECT 1 FROM teacher_students WHERE teacher_id = ? AND student_id = ?').bind(me, id).first()) return err(404, 'That student isn’t in your class.');
+    const [u, days, prog] = await env.DB.batch([
+      env.DB.prepare('SELECT id, username, last_seen, created_at FROM users WHERE id = ?').bind(id),
+      env.DB.prepare('SELECT user_id, day, SUM(seconds) AS s FROM daily WHERE user_id = ? GROUP BY day').bind(id),
+      env.DB.prepare('SELECT user_id, subject, data FROM progress WHERE user_id = ?').bind(id)
+    ]);
+    if (!u.results.length) return err(404, 'That student isn’t there any more.');
+    return json({ now: t, student: studentSummary(u.results[0], days.results, prog.results, t) });
+  }
+  if (path === '/api/teacher/search' && method === 'GET') {
+    const q = String(url.searchParams.get('q') || '').trim().slice(0, 30); if (!q) return json({ people: [] });
+    const esc = q.replace(/[\\%_]/g, c => '\\' + c);
+    const rows = await env.DB.prepare(`SELECT u.id, u.username, u.last_subject, (SELECT 1 FROM teacher_students WHERE teacher_id = ?2 AND student_id = u.id) AS inClass FROM users u
+      WHERE u.username LIKE ?1 ESCAPE '\\' AND u.id != ?2 AND u.teacher = 0 AND u.username != ?3 COLLATE NOCASE ORDER BY u.username COLLATE NOCASE LIMIT 15`).bind('%' + esc + '%', me, String(env.ADMIN_USERNAME || '')).all();
+    return json({ people: rows.results.map(r => ({ id: r.id, name: r.username, subject: r.last_subject, inClass: !!r.inClass })) });
+  }
+  if ((path === '/api/teacher/add' || path === '/api/teacher/remove') && method === 'POST') {
+    let b; try { b = await readJson(req); } catch { return err(400, 'Bad request'); }
+    const id = +b.id || 0;
+    if (path === '/api/teacher/remove') { await env.DB.prepare('DELETE FROM teacher_students WHERE teacher_id = ? AND student_id = ?').bind(me, id).run(); return json({ ok: true }); }
+    const s = await env.DB.prepare('SELECT id, teacher, username FROM users WHERE id = ?').bind(id).first();
+    if (!s || s.teacher || isAdmin(s, env)) return err(404, 'There’s no student with that name.');
+    const n = await env.DB.prepare('SELECT COUNT(*) AS n FROM teacher_students WHERE teacher_id = ?').bind(me).first();
+    if (n.n >= 200) return err(400, 'A class can have up to 200 students.');
+    await env.DB.prepare('INSERT OR IGNORE INTO teacher_students (teacher_id, student_id, added_at) VALUES (?, ?, ?)').bind(me, id, t).run();
+    return json({ ok: true }, 201);
+  }
+  return err(404, 'Not found');
 }
 
 async function handleAdmin(req, env, path, method, me, role = 'owner') {
@@ -730,7 +802,7 @@ async function handleAdmin(req, env, path, method, me, role = 'owner') {
   if (path === '/api/admin/codes' && method === 'GET') {
     const [rows, staff] = await env.DB.batch([
       env.DB.prepare("SELECT c.code, c.feature, c.created_at, c.redeemed_at, u.username AS redeemed_name FROM codes c LEFT JOIN users u ON u.id = c.redeemed_by ORDER BY c.feature, c.redeemed_at IS NOT NULL, c.redeemed_at DESC, c.created_at, c.code"),
-      env.DB.prepare("SELECT id, username AS name, role, tester FROM users WHERE role IS NOT NULL OR tester = 1 ORDER BY username COLLATE NOCASE")
+      env.DB.prepare("SELECT id, username AS name, role, tester, teacher FROM users WHERE role IS NOT NULL OR tester = 1 OR teacher = 1 ORDER BY username COLLATE NOCASE")
     ]);
     return json({ codes: rows.results, types: CODE_TYPES, people: staff.results });
   }
@@ -739,6 +811,7 @@ async function handleAdmin(req, env, path, method, me, role = 'owner') {
     const id = +b.id || 0, set = [];
     if ('role' in b) set.push(env.DB.prepare('UPDATE users SET role = ? WHERE id = ?').bind(b.role === 'top' || b.role === 'basic' ? b.role : null, id));
     if ('tester' in b) set.push(env.DB.prepare('UPDATE users SET tester = ? WHERE id = ?').bind(b.tester ? 1 : 0, id));
+    if ('teacher' in b) { set.push(env.DB.prepare('UPDATE users SET teacher = ? WHERE id = ?').bind(b.teacher ? 1 : 0, id)); if (!b.teacher) set.push(env.DB.prepare('DELETE FROM teacher_students WHERE teacher_id = ?').bind(id)); }
     if (set.length) await env.DB.batch(set);
     return json({ ok: true });
   }

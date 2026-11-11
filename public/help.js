@@ -3,7 +3,7 @@
 (() => {
   const path = location.pathname;
   const PAGE = path.startsWith('/science') ? 'science' : path.startsWith('/maths') ? 'maths' : path.startsWith('/feedback') ? 'feedback' : path.startsWith('/chat') ? 'chat'
-    : path.startsWith('/me') ? 'me' : path.startsWith('/play') ? 'play' : path.startsWith('/leaderboard') ? 'leaderboard' : 'start';
+    : path.startsWith('/me') ? 'me' : path.startsWith('/play') ? 'play' : path.startsWith('/leaderboard') ? 'leaderboard' : path.startsWith('/teacher') ? 'teacher' : 'start';
   const label = el => el && (el.closest('label') || el);
 
   // the 👤 Profile button, top right of every page
@@ -153,6 +153,18 @@
         profileStep, helpStep
       ],
       extra: [{ h: 'Fair play', t: 'The server makes and marks every question, so nobody can cheat. Answering super fast without reading just gets things wrong.' }, ...everywhere]
+    },
+    teacher: {
+      title: 'Your class',
+      intro: 'Add your students, then see how they’re going. You never see their messages, and students can see which teachers have added them.',
+      steps: [
+        { h: 'Class at a glance', t: 'How many students, how many studied in the last 7 days, total study time and who’s online now.', sel: '#sum' },
+        { h: '➕ Add students', t: 'Search for a student by name and tap <b>Add to class</b>.', sel: '#find' },
+        { h: 'Your class', t: 'Each student’s last time on, study time (7 days and all time), streak, Maths and Science questions and scores, exam average and weakest topics. Tap a student for their full topic scores, a 14-day chart, or to remove them.', sel: '.tablewrap' },
+        { h: '🎯 Hardest topics', t: 'The topics most of your class finds hardest, so you know what to revise together.', sel: '#weakCard' },
+        profileStep, helpStep
+      ],
+      extra: [...everywhere]
     },
     leaderboard: {
       title: 'How the leaderboard works',

@@ -225,12 +225,12 @@ details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
     </section>
 
     <section class="card stack sec" id="codes" data-title="🎟️ Codes" data-hint="booklet, admin levels and tester">
-      <p class="small muted">Students type a code into <b>🎟️ Codes</b> on their profile (5 letters/numbers, any case). Each code works once. <b>📘 Science booklet</b> unlocks the completed booklet. <b>⭐ Top tier admin</b> and <b>🛡️ Basic admin</b> open a smaller dashboard (see below). <b>🧪 Official tester</b> adds a banner to their profile (looks only).</p>
+      <p class="small muted">Students type a code into <b>🎟️ Codes</b> on their profile (5 letters/numbers, any case). Each code works once. <b>📘 Science booklet</b> unlocks the completed booklet. <b>⭐ Top tier admin</b> and <b>🛡️ Basic admin</b> open a smaller dashboard (see below). <b>🧪 Official tester</b> adds a banner to their profile (looks only). <b>👩‍🏫 Teacher</b> gives a <b>My class</b> page: they add students and see their study time, scores, exams and weakest topics (never messages); teachers aren’t on the leaderboard.</p>
       <div class="row" id="codeTypes"></div>
       <div class="toolbar"><span class="small" id="codesCount"></span><div class="row"><button class="btn quiet sm" type="button" id="copyCodes">Copy unused codes</button><button class="btn sm" type="button" id="moreCodes">Make 5 more</button></div></div>
       <p class="small" id="codesMsg"></p>
       <div class="tablewrap" style="max-height:420px;overflow-y:auto"><table class="mini" id="codesTable"></table></div>
-      <details open><summary>Who has an admin level or the tester banner</summary><div id="rolePeople" class="chatlog" style="margin-top:8px"></div></details>
+      <details open><summary>Who has an admin level, a teacher account or the tester banner</summary><div id="rolePeople" class="chatlog" style="margin-top:8px"></div></details>
       <details><summary>What each admin level can do</summary><div class="small" style="margin-top:8px;line-height:1.6">
         <p><b>🛡️ Basic admin</b> can only <b>restrict</b>: read reported messages, 1-on-1 chats and what the filter blocked; delete messages; say <b>Not now</b> to chats or <b>end</b> them; <b>pause chatting</b>; put people <b>into study mode</b> (or everyone); read feedback and mark it done.</p>
         <p><b>⭐ Top tier admin</b> can do all of that, <b>plus</b> approve chats, let people chat again, take people out of study mode and restore deleted messages.</p>
@@ -806,7 +806,8 @@ details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
     r.data.people.forEach(u => {
       const acts = []; if (u.role) acts.push(btn('Remove ' + (u.role === 'top' ? 'Top tier' : 'Basic') + ' admin', async () => { if (!confirm('Take away ' + u.name + '’s admin level?')) return; await api('/api/admin/role', 'POST', { id: u.id, role: null }); loadCodes(); }, 'danger'));
       if (u.tester) acts.push(btn('Remove tester banner', async () => { await api('/api/admin/role', 'POST', { id: u.id, tester: false }); loadCodes(); }));
-      rp.appendChild(line([u.name, [u.role === 'top' ? '⭐ Top tier admin' : u.role === 'basic' ? '🛡️ Basic admin' : '', u.tester ? '🧪 Official tester' : ''].filter(Boolean).join(' · ')], '', false, acts));
+      if (u.teacher) acts.push(btn('Remove teacher', async () => { if (!confirm('Take away ' + u.name + '’s teacher account? Their class list is deleted.')) return; await api('/api/admin/role', 'POST', { id: u.id, teacher: false }); loadCodes(); }, 'danger'));
+      rp.appendChild(line([u.name, [u.role === 'top' ? '⭐ Top tier admin' : u.role === 'basic' ? '🛡️ Basic admin' : '', u.tester ? '🧪 Official tester' : '', u.teacher ? '👩‍🏫 Teacher' : ''].filter(Boolean).join(' · ')], '', false, acts));
     });
     rp.querySelectorAll('.cl .body').forEach(b => { if (!b.textContent) b.remove(); });
   }

@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<script src="/acct.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>EC Revisions My class</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Lexend:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="/site.css">
+<style>
+.wrap{max-width:1100px}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,170px),1fr));gap:12px}
+.stat{border:1.5px solid var(--rule);border-radius:14px;padding:12px 14px;background:var(--card);display:flex;flex-direction:column;gap:2px}
+.stat .v{font-family:var(--f-display);font-weight:800;font-size:1.7rem;line-height:1.15}
+.stat .l{font-size:.9rem;color:var(--muted)}
+.tablewrap{overflow-x:auto}
+table.cls{border-collapse:collapse;width:100%;font-size:.95rem;font-variant-numeric:tabular-nums}
+table.cls th,table.cls td{border-bottom:1px solid var(--rule);padding:9px 8px;text-align:left;white-space:nowrap;vertical-align:top}
+table.cls th{font-size:.8125rem;letter-spacing:.05em;text-transform:uppercase;color:var(--muted)}
+table.cls tbody tr{cursor:pointer}table.cls tbody tr:hover{background:var(--accent-soft)}
+table.cls td.num{text-align:right}
+.weak{white-space:normal!important;min-width:180px;font-size:.875rem}
+.pill{display:inline-block;font-size:.8125rem;font-weight:600;border-radius:999px;padding:1px 8px}
+.pill.on{background:var(--good-soft);color:var(--good)}.pill.warn{background:var(--pen-soft,#fde8e8);color:var(--pen)}
+.list{display:flex;flex-direction:column;gap:8px}
+.row2{display:flex;align-items:center;justify-content:space-between;gap:10px;border:1.5px solid var(--rule);border-radius:12px;padding:10px 14px;flex-wrap:wrap}
+.search-wrap input{min-height:46px;font-size:1.0625rem;border:2px solid var(--field);border-radius:12px;padding:8px 12px;width:100%}
+dialog{border:1px solid var(--rule);border-radius:14px;background:var(--card);color:var(--ink);padding:0;width:min(760px,calc(100vw - 32px));max-height:calc(100vh - 40px)}
+dialog::backdrop{background:rgb(0 0 0 / .45)}
+.dlg{padding:20px;display:flex;flex-direction:column;gap:14px}
+.bars{display:grid;grid-template-columns:repeat(14,1fr);gap:5px;align-items:end;height:110px}
+.bars .b{display:flex;flex-direction:column;align-items:center;gap:3px;height:100%;justify-content:flex-end}
+.bars .b i{display:block;width:100%;max-width:22px;border-radius:5px 5px 2px 2px;background:var(--accent);min-height:3px}
+.bars .b span{font-size:.65rem;color:var(--muted);font-family:var(--f-mono)}
+.topic{display:grid;grid-template-columns:1fr auto;gap:4px 12px;align-items:center;border:1px solid var(--rule);border-radius:10px;padding:8px 12px}
+.topic .bar{grid-column:1 / -1;height:7px;border-radius:99px;background:var(--card-2);overflow:hidden}.topic .bar i{display:block;height:100%}
+</style>
+<script src="/theme.js"></script>
+<link rel="stylesheet" href="/theme.css?v=1">
+</head>
+<body>
+<main class="wrap stack">
+  <div class="brand"><span class="mark">EC Revisions · teacher</span><h1>👩‍🏫 My class</h1><p>Add your students, then see how they’re going: study time, practice scores, exams and their weakest topics. You never see their messages.</p></div>
+  <p id="loading" class="muted">Loading your class…</p>
+  <div id="denied" class="card stack" hidden><h2>Teachers only</h2><p>This page is for teachers. If you’re a teacher, ask Beau for a Teacher code and type it into <b>🎟️ Codes</b> on your profile.</p><a class="btn" href="/me/" style="align-self:flex-start">Go to my profile</a></div>
+  <div id="app" class="stack" hidden>
+    <section class="stats" id="sum"></section>
+    <section class="card stack">
+      <h2 style="margin:0;font-size:1.3rem">➕ Add students</h2>
+      <div class="search-wrap"><label class="sr" for="find">Search for a student by name</label><input id="find" type="search" autocomplete="off" placeholder="🔍 Search for a student by name…"></div>
+      <div class="list" id="found" aria-live="polite"></div>
+    </section>
+    <section class="card stack">
+      <div class="row" style="justify-content:space-between;align-items:center"><h2 style="margin:0;font-size:1.3rem" id="clsTitle">Your class</h2><span class="small muted">Tap a student for their full topic scores and a 14-day chart.</span></div>
+      <div class="tablewrap"><table class="cls"><thead><tr><th>Student</th><th>Last on</th><th class="num">7 days</th><th class="num">All time</th><th class="num">Streak</th><th class="num">Maths Qs</th><th class="num">Maths %</th><th class="num">Science Qs</th><th class="num">Science %</th><th class="num">Exam avg</th><th>Weakest topics</th></tr></thead><tbody id="rows"></tbody></table></div>
+    </section>
+    <section class="card stack" id="weakCard" hidden><h2 style="margin:0;font-size:1.3rem">🎯 Topics your class finds hardest</h2><p class="small muted" style="margin:0">Average practice score per topic, for students who’ve tried it at least 3 times.</p><div class="list" id="classWeak"></div></section>
+  </div>
+  <div class="row"><a class="btn quiet" href="/me/">← My profile</a><a class="btn quiet" href="/">Back to subjects</a></div>
+</main>
+<dialog id="dlg"><div class="dlg" id="dlgBody"></div></dialog>
+<script>
+(function () {
+  const $ = s => document.querySelector(s);
+  const el = (t, c, x) => { const e = document.createElement(t); if (c) e.className = c; if (x != null) e.textContent = x; return e; };
+  const api = async (p, m = 'GET', b) => { const r = await fetch(p, { method: m, credentials: 'same-origin', headers: b ? { 'content-type': 'application/json' } : {}, body: b ? JSON.stringify(b) : undefined }); let j = {}; try { j = await r.json(); } catch (e) { /* empty */ } return { ok: r.ok, status: r.status, data: j }; };
+  const dur = s => { s = Math.round(s || 0); const m = Math.round(s / 60); if (m < 60) return m + ' min'; const h = Math.floor(m / 60); return h + ' h ' + (m % 60) + ' min'; };
+  const pct = x => x && x.answered ? Math.round(x.correct / x.answered * 100) + '%' : '—';
+  let NOW = 0;
+  const ago = t => { if (!t) return 'never'; const d = NOW - t; if (d < 180) return 'online now'; if (d < 3600) return Math.round(d / 60) + ' min ago'; if (d < 86400) return Math.round(d / 3600) + ' h ago'; const n = Math.round(d / 86400); return n + (n === 1 ? ' day ago' : ' days ago'); };
+  const stat = (v, l) => { const d = el('div', 'stat'); d.append(el('span', 'v', v), el('span', 'l', l)); return d; };
+  let cls = [];
+  async function load() {
+    const r = await api('/api/teacher/class');
+    if (r.status === 401) { location.replace('/?next=teacher'); return; }
+    $('#loading').hidden = true;
+    if (r.status === 403) { $('#denied').hidden = false; return; }
+    if (!r.ok) { $('#loading').hidden = false; $('#loading').textContent = 'Couldn’t load your class. Check your connection and reload.'; return; }
+    NOW = r.data.now; cls = r.data.students; $('#app').hidden = false;
+    const active = cls.filter(s => s.week >= 60).length;
+    $('#sum').replaceChildren(stat(String(cls.length), cls.length === 1 ? 'student' : 'students'), stat(active + ' / ' + cls.length, 'studied in the last 7 days'),
+      stat(dur(cls.reduce((a, s) => a + s.week, 0)), 'class study time, 7 days'), stat(cls.filter(s => NOW - (s.lastSeen || 0) < 180).length + '', 'online now'));
+    $('#clsTitle').textContent = 'Your class (' + cls.length + ')';
+    const tb = $('#rows'); tb.replaceChildren();
+    if (!cls.length) { const tr = el('tr'); const td = el('td', '', 'No students yet. Search for your students above and tap Add to class.'); td.colSpan = 11; tr.appendChild(td); tb.appendChild(tr); }
+    cls.slice().sort((a, b) => b.week - a.week).forEach(s => {
+      const tr = el('tr'); tr.tabIndex = 0;
+      const nm = el('td'); nm.appendChild(el('b', '', s.name)); if (s.week < 60) { nm.append(' '); nm.appendChild(el('span', 'pill warn', 'not studying')); }
+      const lo = el('td', '', ago(s.lastSeen)); if (NOW - (s.lastSeen || 0) < 180) { lo.textContent = ''; lo.appendChild(el('span', 'pill on', 'online now')); }
+      tr.append(nm, lo, el('td', 'num', dur(s.week)), el('td', 'num', dur(s.all)), el('td', 'num', s.streak ? '🔥 ' + s.streak : '0'),
+        el('td', 'num', s.maths ? String(s.maths.answered) : '0'), el('td', 'num', pct(s.maths)), el('td', 'num', s.science ? String(s.science.answered) : '0'), el('td', 'num', pct(s.science)),
+        el('td', 'num', [s.maths, s.science].filter(x => x && x.examAvg != null).map(x => x.examAvg + '%').join(' / ') || '—'),
+        el('td', 'weak', s.weakest.map(w => w.name + ' ' + Math.round(w.p * 100) + '%').join(', ') || '—'));
+      tr.onclick = () => openStudent(s); tr.onkeydown = e => { if (e.key === 'Enter') openStudent(s); };
+      tb.appendChild(tr);
+    });
+    // the class's hardest topics
+    // the class's hardest topics, from each student's weakest topics (the ones they've tried 3+ times)
+    const tops = {};
+    cls.forEach(s => s.weakest.forEach(w => { const k = w.subject + ':' + w.id; const t = tops[k] || (tops[k] = { name: w.name, subject: w.subject, sum: 0, n: 0 }); t.sum += w.p; t.n++; }));
+    const list = Object.values(tops).filter(x => x.n >= 1).map(x => ({ ...x, avg: x.sum / x.n })).sort((a, b) => b.n - a.n || a.avg - b.avg).slice(0, 6);
+    $('#weakCard').hidden = !list.length; const cw = $('#classWeak'); cw.replaceChildren();
+    list.forEach(x => cw.appendChild(row((x.subject === 'maths' ? '📐 ' : '🧪 ') + x.name, x.n + (x.n === 1 ? ' student finds' : ' students find') + ' this one of their hardest · average ' + Math.round(x.avg * 100) + '%', [])));
+  }
+  function row(name, sub, acts) { const d = el('div', 'row2'), t = el('div'); t.append(el('b', '', name)); if (sub) { t.append(el('br')); t.append(el('span', 'small muted', sub)); } const a = el('div', 'row'); acts.forEach(x => a.append(x)); d.append(t, a); return d; }
+  const btn = (txt, cls2, fn) => { const b = el('button', 'btn sm ' + (cls2 || ''), txt); b.type = 'button'; b.onclick = fn; return b; };
+  async function openStudent(s0) {
+    const dlg = $('#dlg'), b = $('#dlgBody'); b.replaceChildren(el('p', 'muted', 'Loading…')); dlg.showModal();
+    const r = await api('/api/teacher/student/' + s0.id); if (!r.ok) { b.replaceChildren(el('p', '', r.data.error || 'Couldn’t load.')); return; }
+    const s = r.data.student; b.replaceChildren();
+    const h = el('div', 'row'); h.style.justifyContent = 'space-between'; h.append(el('h2', '', s.name), btn('Close', 'quiet', () => dlg.close())); b.appendChild(h);
+    const st = el('div', 'stats'); st.append(stat(dur(s.week), 'last 7 days'), stat(dur(s.all), 'all time'), stat('🔥 ' + s.streak, 'day streak'), stat(ago(s.lastSeen), 'last on')); b.appendChild(st);
+    const max = Math.max(1, ...s.last14.map(x => x.s)), bars = el('div', 'bars');
+    s.last14.forEach((x, i) => { const c = el('div', 'b'), bar = el('i'); bar.style.height = Math.max(2, x.s / max * 100) + '%'; bar.title = x.day + ': ' + dur(x.s); c.append(bar, el('span', '', i === 13 ? 'today' : x.day.slice(8))); bars.appendChild(c); });
+    b.append(el('b', '', 'Minutes studied, last 14 days'), bars, el('b', '', 'Scores by topic (weakest first)'));
+    if (!s.topics.length) b.appendChild(el('p', 'muted small', 'No practice yet.'));
+    s.topics.forEach(x => { const t = el('div', 'topic'), l = el('div'); l.append(el('b', '', (x.subject === 'maths' ? '📐 ' : '🧪 ') + x.name), el('div', 'small muted', Math.round(x.p * 100) + '% · ' + x.c + ' of ' + x.a)); const bar = el('div', 'bar'), f = el('i'); f.style.width = Math.round(x.p * 100) + '%'; f.style.background = x.p >= 0.8 ? 'var(--good)' : x.p >= 0.5 ? 'var(--warn)' : 'var(--pen)'; bar.appendChild(f); t.append(l, el('span', ''), bar); b.appendChild(t); });
+    b.appendChild(btn('Remove ' + s.name + ' from my class', 'danger', async () => { if (!confirm('Remove ' + s.name + ' from your class?')) return; await api('/api/teacher/remove', 'POST', { id: s.id }); dlg.close(); load(); }));
+  }
+  $('#dlg').addEventListener('click', e => { if (e.target === $('#dlg')) $('#dlg').close(); });
+  let tm = null, seq = 0;
+  async function search() {
+    const q = $('#find').value.trim(), f = $('#found'), my = ++seq; if (!q) { f.replaceChildren(); return; }
+    const r = await api('/api/teacher/search?q=' + encodeURIComponent(q)); if (!r.ok || my !== seq) return;
+    f.replaceChildren(); if (!r.data.people.length) f.appendChild(el('p', 'small muted', 'No students found with “' + q + '”.'));
+    r.data.people.forEach(p => f.appendChild(row(p.name, p.subject ? 'Last studied ' + (p.subject === 'maths' ? 'Maths' : 'Science') : 'Student', [p.inClass ? el('span', 'pill on', '✓ In your class') : btn('➕ Add to class', '', async () => { const x = await api('/api/teacher/add', 'POST', { id: p.id }); if (x.ok) { search(); load(); } else alert(x.data.error || 'Couldn’t add them.'); })])));
+  }
+  $('#find').oninput = () => { clearTimeout(tm); tm = setTimeout(search, 250); };
+  load(); setInterval(() => { if (document.visibilityState === 'visible' && !$('#dlg').open) load(); }, 60000);
+})();
+</script>
+<script src="/help.js" defer></script>
+</body>
+</html>

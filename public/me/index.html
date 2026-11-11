@@ -71,6 +71,8 @@
     <div class="hero"><span class="av" id="av" aria-hidden="true"></span><div><span class="mark">My profile</span><h1 id="name"></h1><p class="small muted" id="joined"></p></div></div>
     <div class="tester" id="testerBanner" hidden><span class="big" aria-hidden="true">🧪</span><div>Official tester<span>Thanks for helping test EC Revisions!</span></div></div>
     <div class="row" id="roleRow" hidden style="align-items:center"><span class="role" id="roleName"></span><a class="btn sm" href="/admin/">Open the admin dashboard →</a></div>
+    <div class="row" id="teacherRow" hidden style="align-items:center"><span class="role">👩‍🏫 Teacher</span><a class="btn sm" href="/teacher/">Open my class →</a></div>
+    <p class="small muted" id="teachersNote" hidden style="margin:0"></p>
     <p class="small muted" style="margin:0">🔒 Only you can see your profile.</p>
     <div class="tabs2" role="tablist"><button type="button" role="tab" id="tabOv" class="on">📊 Overview</button><button type="button" role="tab" id="tabMsg">💬 Messages <span class="n" id="nMsg" hidden></span></button></div>
 
@@ -130,12 +132,14 @@
     $('#loading').hidden = true; $('#app').hidden = false;
     $('#av').textContent = (d.name || '?').trim().charAt(0).toUpperCase(); $('#name').textContent = d.name;
     $('#testerBanner').hidden = !d.tester;
+    $('#teacherRow').hidden = !d.teacher;
+    $('#teachersNote').hidden = !d.teachers.length; $('#teachersNote').textContent = '👩‍🏫 ' + d.teachers.join(', ') + (d.teachers.length === 1 ? ' has' : ' have') + ' added you to their class, so they can see your study time and scores (never your messages).';
     $('#roleRow').hidden = !d.role || d.role === 'owner'; $('#roleName').textContent = d.role === 'top' ? '⭐ Top tier admin' : d.role === 'basic' ? '🛡️ Basic admin' : '';
     const bg = $('#badges'); bg.replaceChildren(); const got = d.badges.filter(x => x.earned).length; $('#badgeCount').textContent = got + ' of ' + d.badges.length;
     d.badges.slice().sort((a, b) => b.earned - a.earned).forEach(x => { const c = el('div', 'badge ' + (x.earned ? 'on' : 'off')); c.title = x.desc; c.append(el('span', 'i', x.icon), el('b', '', x.name), el('span', '', x.desc));
       if (!x.earned && x.need > 1) { const pb = el('div', 'pb'), f = el('i'); f.style.width = Math.round(x.have / x.need * 100) + '%'; pb.appendChild(f); c.append(pb, el('span', '', x.have + ' / ' + x.need)); } bg.appendChild(c); });
     const have = $('#have'); have.replaceChildren();
-    [[d.booklet, '📘 Completed Science booklet unlocked'], [d.role === 'top', '⭐ Top tier admin'], [d.role === 'basic', '🛡️ Basic admin'], [d.tester, '🧪 Official tester']].forEach(([on, t]) => { if (on) have.appendChild(el('span', '', t)); });
+    [[d.booklet, '📘 Completed Science booklet unlocked'], [d.role === 'top', '⭐ Top tier admin'], [d.role === 'basic', '🛡️ Basic admin'], [d.tester, '🧪 Official tester'], [d.teacher, '👩‍🏫 Teacher']].forEach(([on, t]) => { if (on) have.appendChild(el('span', '', t)); });
     $('#joined').textContent = 'Joined ' + new Date(d.joined * 1000).toLocaleDateString('en-AU', { day: 'numeric', month: 'long', year: 'numeric' });
     // study time + streak
     const T = d.time, ts = $('#timeStats'); ts.replaceChildren(stat(dur(T.today), 'today'), stat(dur(T.week), 'last 7 days'), stat(dur(T.all), 'all time'), stat('🔥 ' + T.streak, T.streak === 1 ? 'day in a row' : 'days in a row', T.streak >= 3 ? 'hot' : ''));
