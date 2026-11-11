@@ -2,7 +2,7 @@
 // and Beau's moderation tools. Every student message goes through the strict filter in filter.js.
 import { checkText, checkPieces } from './filter.js';
 
-const MAX_LEN = 500;
+const MAX_LEN = 2000;
 export const MAX_CORRECT_DAY = 400, MAX_BOOKLET_DAY = 250; // leaderboard points caps per person per day
 // Messages that look like the site's own notes ("[game:…]", "[chat-allowed]"…) can't be typed by people
 export const FAKE_NOTE = /^\s*\[[a-z-]+(:[^\]]*)?\]\s*$/i;
@@ -37,7 +37,7 @@ async function vet(env, user, place, text) {
   if (!r.ok) { await logBlocked(env, user.id, place, r.why, text); return err(422, r.message); }
   const t = now();
   const fast = await env.DB.prepare('SELECT (SELECT COUNT(*) FROM group_messages WHERE user_id = ?1 AND created_at > ?2) + (SELECT COUNT(*) FROM dm_messages WHERE user_id = ?1 AND created_at > ?2) AS n, (SELECT MAX(created_at) FROM (SELECT created_at FROM group_messages WHERE user_id = ?1 UNION ALL SELECT created_at FROM dm_messages WHERE user_id = ?1)) AS last').bind(user.id, t - 60).first();
-  if (fast.n >= 12 || (fast.last && t - fast.last < 2)) return err(429, 'Slow down a little, then send it again.');
+  if (fast.n >= 60) return err(429, 'Slow down a little, then send it again.'); // only stops spam bots: 60 messages in one minute
   return null;
 }
 

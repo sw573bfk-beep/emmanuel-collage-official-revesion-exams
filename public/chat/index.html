@@ -113,7 +113,7 @@ button.person:hover{border-color:var(--accent);background:var(--accent-soft)}
     <div id="viewThread" class="card stack" hidden>
       <div class="thead"><button type="button" class="btn quiet sm" id="backToMine">← Friends</button><div class="who2"><b id="threadName"></b><span id="threadSeen"></span></div><div class="friend-tools"><a class="btn sm" id="inviteBtn" href="/play/">🎮 Invite to a game</a><button type="button" class="btn quiet sm" id="unfriendBtn">Remove friend</button><button type="button" class="btn danger sm" id="blockBtn">Block</button></div></div>
       <div class="chat" id="dmChat" aria-live="polite" aria-label="Chat messages"></div>
-      <form class="compose" id="dmForm" novalidate><label class="sr" for="dmText">Your message</label><textarea id="dmText" rows="1" maxlength="500" placeholder="Type a message…"></textarea><button class="btn" type="submit">Send</button></form>
+      <form class="compose" id="dmForm" novalidate><label class="sr" for="dmText">Your message</label><textarea id="dmText" rows="1" maxlength="2000" placeholder="Type a message…"></textarea><button class="btn" type="submit">Send</button></form>
       <div id="dmOut" role="status"></div>
     </div>
   </section>

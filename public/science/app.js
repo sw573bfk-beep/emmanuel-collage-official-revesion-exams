@@ -2013,8 +2013,13 @@ let examTimer = null;
 const examInto = (v) => {
   v.innerHTML = ''; clearInterval(examTimer);
   v.appendChild(h('<div class="view-head"><h2>Test yourself</h2><p>A timed practice exam. Nothing is marked until you press <b>Submit</b>. Then you see your score and the working for every question.</p></div>'));
-  const setup = h('<div class="card stack"><h3>Set up your exam</h3><div class="row"><label class="f">Questions<select id="exN"><option>10</option><option selected>20</option><option>30</option><option>40</option></select></label><label class="f">Time limit<select id="exT"><option value="0">No timer</option><option value="10">10 min</option><option value="20">20 min</option><option value="30" selected>30 min</option><option value="45">45 min</option><option value="60">60 min</option></select></label></div><div class="stack" id="exTopics"></div><div class="row"><button type="button" class="btn quiet sm" id="exAll">Select all</button><button type="button" class="btn quiet sm" id="exNone">Clear</button><button type="button" class="btn quiet sm" id="exWeak">My weakest 5</button></div><div><button type="button" class="btn" id="exGo">Start exam</button> <span class="small muted" id="exMsg"></span></div></div>');
+  const setup = h('<div class="card stack"><h3>Set up your exam</h3><div class="row"><label class="f">Questions<select id="exN"><option>5</option><option>10</option><option>15</option><option selected>20</option><option>30</option><option>40</option></select></label><label class="f">Time limit<select id="exT"><option value="0">No timer</option><option value="1">⚡ 1 min (speedrun)</option><option value="2">⚡ 2 min (speedrun)</option><option value="5">⚡ 5 min (speedrun)</option><option value="10">10 min</option><option value="20">20 min</option><option value="30" selected>30 min</option><option value="45">45 min</option><option value="60">60 min</option><option value="custom">Choose my own…</option></select></label><label class="f" id="exTCwrap" hidden>Minutes<input id="exTC" type="number" inputmode="decimal" min="0.5" max="180" step="0.5" value="3" style="width:110px"></label></div><div class="stack" id="exTopics"></div><div class="row"><button type="button" class="btn quiet sm" id="exAll">Select all</button><button type="button" class="btn quiet sm" id="exNone">Clear</button><button type="button" class="btn quiet sm" id="exWeak">My weakest 5</button></div><div><button type="button" class="btn" id="exGo">Start exam</button> <span class="small muted" id="exMsg"></span></div></div>');
   const tbox = $('#exTopics', setup);
+  // ⚡ speedruns: pick 1, 2 or 5 minutes, or type your own time (½ minute to 3 hours)
+  const lastT = store.get('examTime', null);
+  if (lastT != null) { const o = [...$('#exT', setup).options].find(x => x.value === String(lastT)); if (o) $('#exT', setup).value = o.value; else { $('#exT', setup).value = 'custom'; $('#exTC', setup).value = lastT; } }
+  const showCustom = () => { $('#exTCwrap', setup).hidden = $('#exT', setup).value !== 'custom'; };
+  $('#exT', setup).onchange = () => { showCustom(); if ($('#exT', setup).value === 'custom') $('#exTC', setup).focus(); }; showCustom();
   UNITS.forEach(u => { const g = h('<div><div class="eyebrow" style="margin-bottom:4px">' + u.name + '</div><div class="row" style="gap:6px"></div></div>'); TOPICS.filter(t => t.unit === u.id).forEach(t => { const c = h('<button type="button" class="chip on" data-t="' + t.id + '" aria-pressed="true">' + t.id + ' ' + t.name + '</button>'); c.onclick = () => { c.classList.toggle('on'); c.setAttribute('aria-pressed', c.classList.contains('on')); }; g.lastChild.appendChild(c); }); tbox.appendChild(g); });
   $('#exAll', setup).onclick = () => $$('.chip', tbox).forEach(c => c.classList.add('on'));
   $('#exNone', setup).onclick = () => $$('.chip', tbox).forEach(c => c.classList.remove('on'));
@@ -2024,13 +2029,16 @@ const examInto = (v) => {
   if (hist.length) v.appendChild(h('<div class="card stack"><h3>Past exams</h3><div class="scroll-x"><table class="res"><tr><th>Date</th><th>Score</th><th>%</th><th>Time used</th></tr>' + hist.slice(-8).reverse().map(e => '<tr><td>' + e.d + '</td><td>' + e.s + '/' + e.n + '</td><td>' + e.p + '%</td><td>' + e.t + '</td></tr>').join('') + '</table></div></div>'));
   $('#exGo', setup).onclick = () => {
     const tops = $$('.chip.on', tbox).map(c => c.dataset.t); if (!tops.length) { $('#exMsg', setup).textContent = 'Pick at least one topic.'; return; }
-    runExam(tops, +$('#exN', setup).value, +$('#exT', setup).value);
+    let mins = $('#exT', setup).value === 'custom' ? Math.round((+$('#exTC', setup).value || 0) * 2) / 2 : +$('#exT', setup).value;
+    if ($('#exT', setup).value === 'custom' && !(mins >= 0.5 && mins <= 180)) { $('#exMsg', setup).textContent = 'Choose a time between 0.5 and 180 minutes.'; return; }
+    store.set('examTime', $('#exT', setup).value === 'custom' ? mins : +$('#exT', setup).value);
+    runExam(tops, +$('#exN', setup).value, mins);
   };
   function runExam(tops, n, mins) {
     v.innerHTML = '';
     const order = []; for (let i = 0; i < n; i++) order.push(tops[i % tops.length]);
     const Qs = shuffle(order).map(t => makeQ(pick(TOPIC_GENS[t])));
-    const bar = h('<div class="exam-bar"><div><span class="timer" id="exClock">' + (mins ? mins + ':00' : '∞') + '</span> <span class="small muted" id="exProg">0/' + n + ' answered</span></div><div class="row"><button type="button" class="btn quiet sm" id="exQuit">Quit</button><button type="button" class="btn" id="exSub">Submit exam</button></div></div>');
+    const bar = h('<div class="exam-bar"><div><span class="timer" id="exClock">' + (mins ? Math.floor(mins * 60 / 60) + ':' + String(Math.round(mins * 60) % 60).padStart(2, '0') : '∞') + '</span> <span class="small muted" id="exProg">0/' + n + ' answered</span></div><div class="row"><button type="button" class="btn quiet sm" id="exQuit">Quit</button><button type="button" class="btn" id="exSub">Submit exam</button></div></div>');
     v.appendChild(bar);
     const cards = []; const list = h('<div class="stack"></div>'); v.appendChild(list);
     const prog = () => { $('#exProg', bar).textContent = cards.filter(c => c.answered()).length + '/' + n + ' answered'; };
@@ -2038,7 +2046,7 @@ const examInto = (v) => {
     const bottom = h('<div class="row"><button type="button" class="btn">Submit exam</button></div>'); list.appendChild(bottom);
     const start = Date.now(); let left = mins * 60;
     const deadline = start + mins * 60000; // use the clock, so the timer stays right even if the tab is in the background
-    if (mins) examTimer = setInterval(() => { left = Math.max(0, Math.round((deadline - Date.now()) / 1000)); const c = $('#exClock', bar); if (!c) { clearInterval(examTimer); return; } c.textContent = Math.floor(left / 60) + ':' + String(left % 60).padStart(2, '0'); c.classList.toggle('low', left <= 60); if (left <= 0) { clearInterval(examTimer); toast('Time is up'); submit(); } }, 1000);
+    if (mins) examTimer = setInterval(() => { left = Math.max(0, Math.round((deadline - Date.now()) / 1000)); const c = $('#exClock', bar); if (!c) { clearInterval(examTimer); return; } c.textContent = Math.floor(left / 60) + ':' + String(left % 60).padStart(2, '0'); c.classList.toggle('low', left <= Math.min(60, mins * 15)); if (left <= 0) { clearInterval(examTimer); toast('Time is up'); submit(); } }, 1000);
     let armed = false;
     const trySubmit = btn => { const un = n - cards.filter(c => c.answered()).length; if (!armed && un > 0) { armed = true; btn.textContent = un + ' unanswered: tap again to submit'; setTimeout(() => { armed = false; btn.textContent = 'Submit exam'; }, 4000); return; } submit(); };
     $('#exSub', bar).onclick = e => trySubmit(e.target); $('button', bottom).onclick = e => trySubmit(e.target);
