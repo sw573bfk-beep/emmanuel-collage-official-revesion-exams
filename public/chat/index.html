@@ -63,6 +63,7 @@ button.person:hover{border-color:var(--accent);background:var(--accent-soft)}
 .m.me .bub.note{background:var(--card-2);color:var(--ink);border-color:var(--rule)}
 .beau-head{display:flex;align-items:center;gap:12px}
 .beau-head .av{flex:none;width:44px;height:44px;border-radius:50%;background:var(--warn-soft);color:var(--ink);display:grid;place-items:center;font-size:1.3rem;border:1.5px solid var(--warn)}
+.lockcard{border:2px solid var(--accent);background:var(--accent-soft)}
 @media (max-width:560px){.tabs2 button{padding:10px 9px;font-size:1rem}.person{flex-wrap:wrap}.person .acts{width:100%;justify-content:flex-start}}
 </style>
 <script src="/theme.js"></script>
@@ -76,6 +77,14 @@ button.person:hover{border-color:var(--accent);background:var(--accent-soft)}
   <p id="mutedNote" class="msg bad" hidden>Beau has paused chatting on your account. You can still read chats and message Beau in the <b>✉️ Beau</b> tab.</p>
   <section id="app" class="stack" hidden>
     <div class="tabs2" role="tablist"><button type="button" role="tab" id="tabGroup" class="on">Group chat <span class="n" id="nGroup" hidden></span></button><button type="button" role="tab" id="tabMine">👥 Friends <span class="n" id="nMine" hidden></span></button><button type="button" role="tab" id="tabBeau">✉️ Beau <span class="n" id="nBeau" hidden></span></button></div>
+
+    <div id="viewLocked" class="card stack lockcard" hidden>
+      <h3>🔒 Ask Beau to use Chat</h3>
+      <p>To see the group chat and chat with friends, Beau has to let you in first. Tap the button and Beau will get your request.</p>
+      <p class="small muted">You can still message Beau any time in the <b>✉️ Beau</b> tab.</p>
+      <button class="btn" type="button" id="askChat" style="align-self:flex-start">🙋 Ask Beau for chat access</button>
+      <div id="askChatOut" role="status"></div>
+    </div>
 
     <div id="viewGroup" class="card stack">
       <div class="chat" id="groupChat" aria-live="polite" aria-label="Group chat messages"></div>
@@ -132,7 +141,7 @@ button.person:hover{border-color:var(--accent);background:var(--accent-soft)}
   const say = (box, text, good) => { const o = $(box); o.innerHTML = ''; if (text) { const d = el('div', 'msg ' + (good ? 'good' : 'bad'), text); o.appendChild(d); } };
   const grow = t => { t.style.height = 'auto'; t.style.height = Math.min(150, t.scrollHeight + 2) + 'px'; };
   const enterSends = (t, f) => { t.addEventListener('input', () => grow(t)); t.addEventListener('keydown', e => { if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) { e.preventDefault(); f.requestSubmit(); } }); };
-  let view = 'group', groupLast = 0, thread = null, dmLast = 0, timer = null, me = { admin: false };
+  let view = 'group', groupLast = 0, thread = null, dmLast = 0, timer = null, me = { admin: false, access: null, requested: false };
   const MODE = { speed: '⚡ Speed Quiz', treasure: '💰 Treasure Chests', parkour: '🏃 Parkour Run' };
   const GAME = /^\[game:(\d{6}):(speed|treasure|parkour):(science|maths)\]$/;
   const ago = (s, now) => { const d = Math.max(0, (now || Date.now() / 1000) - s); if (!s) return 'Not seen yet'; if (d < 180) return 'Online now'; if (d < 3600) return 'Last seen ' + Math.round(d / 60) + ' min ago'; if (d < 86400) return 'Last seen ' + Math.round(d / 3600) + ' h ago'; const n = Math.round(d / 86400); return 'Last seen ' + n + (n === 1 ? ' day' : ' days') + ' ago'; };
@@ -229,7 +238,7 @@ button.person:hover{border-color:var(--accent);background:var(--accent-soft)}
   }
   // ✉️ Beau: the private chat with Beau (was the Message Beau page)
   let beauLast = 0;
-  const BEAU_NOTE = { me: { '[unlock-request]': '🔔 You asked Beau to unlock the completed Science booklet.' }, them: { '[unlock-allowed]': '✅ Beau unlocked the completed Science booklet for you!', '[unlock-declined]': 'Beau said not yet for the completed booklet. Send Beau a message if you have a question.' } };
+  const BEAU_NOTE = { me: { '[unlock-request]': '🔔 You asked Beau to unlock the completed Science booklet.', '[chat-request]': '🙋 You asked Beau to let you use Chat.' }, them: { '[unlock-allowed]': '✅ Beau unlocked the completed Science booklet for you!', '[unlock-declined]': 'Beau said not yet for the completed booklet. Send Beau a message if you have a question.', '[chat-allowed]': '✅ Beau let you into Chat! You can use the group chat and add friends now.', '[chat-declined]': 'Beau said not yet for Chat. Send Beau a message if you have a question.', '[chat-removed]': 'Beau turned off Chat for your account. Send Beau a message if you have a question.' } };
   function beauBubble(box, m) {
     const empty = box.querySelector('.empty'); if (empty) empty.remove();
     const w = el('div', 'm' + (m.mine ? ' me' : ' beau'));
@@ -252,17 +261,32 @@ button.person:hover{border-color:var(--accent);background:var(--accent-soft)}
     $('#nGroup').hidden = !g || view === 'group'; $('#nGroup').textContent = g; $('#nMine').hidden = !mine; $('#nMine').textContent = mine;
     $('#mutedNote').hidden = !r.data.muted; me.admin = r.data.admin;
     if (r.data.admin) $('#tabMine').hidden = true;
+    const had = me.access; me.access = !!r.data.access; me.requested = !!r.data.requested;
+    $('#tabGroup').firstChild.textContent = (me.access ? '' : '🔒 ') + 'Group chat '; $('#tabMine').firstChild.textContent = (me.access ? '' : '🔒 ') + '👥 Friends ';
+    drawLock(); if (had === false && me.access && view !== 'beau') show(view);
     const u = await api('/api/messages/unread'); if (u.ok) { const n = view === 'beau' ? 0 : u.data.unread; $('#nBeau').hidden = !n; $('#nBeau').textContent = n; }
   }
+  function drawLock() {
+    const b = $('#askChat'); b.disabled = me.requested; b.textContent = me.requested ? '🙋 Request sent' : '🙋 Ask Beau for chat access';
+    if (me.requested) say('#askChatOut', 'Beau has your request. This page opens by itself when Beau says yes, and you’ll get a note in ✉️ Beau.', true);
+  }
+  $('#askChat').onclick = async () => {
+    $('#askChat').disabled = true; const r = await api('/api/chat/access-request', 'POST', {});
+    if (!r.ok) { $('#askChat').disabled = false; return say('#askChatOut', r.data.error || 'Couldn’t send it.'); }
+    if (r.data.access) { me.access = true; return show(view); }
+    me.requested = true; drawLock();
+  };
   function show(v) {
     view = v; clearInterval(timer);
-    $('#viewGroup').hidden = v !== 'group'; $('#viewMine').hidden = v !== 'mine'; $('#viewThread').hidden = v !== 'thread'; $('#viewBeau').hidden = v !== 'beau';
+    const lock = !me.access && v !== 'beau';
+    $('#viewLocked').hidden = !lock;
+    $('#viewGroup').hidden = lock || v !== 'group'; $('#viewMine').hidden = lock || v !== 'mine'; $('#viewThread').hidden = lock || v !== 'thread'; $('#viewBeau').hidden = v !== 'beau';
     $('#tabGroup').classList.toggle('on', v === 'group'); $('#tabMine').classList.toggle('on', v === 'mine' || v === 'thread'); $('#tabBeau').classList.toggle('on', v === 'beau');
     [['#tabGroup', 'group'], ['#tabMine', 'mine'], ['#tabBeau', 'beau']].forEach(([t, k]) => $(t).setAttribute('aria-selected', String(k === v || (k === 'mine' && v === 'thread'))));
     try { const q = new URLSearchParams(location.search); q.set('tab', v === 'thread' ? 'mine' : v); q.delete('with'); q.delete('name'); history.replaceState(null, '', '?' + q); } catch (e) { /* fine */ }
-    const tick = async () => { if (document.visibilityState !== 'visible') return; if (view === 'group') await pollGroup(); else if (view === 'mine') await loadMine(); else if (view === 'beau') await pollBeau(); else await pollThread(); counts(); };
+    const tick = async () => { if (document.visibilityState !== 'visible') return; if (lock) return counts(); if (view === 'group') await pollGroup(); else if (view === 'mine') await loadMine(); else if (view === 'beau') await pollBeau(); else await pollThread(); counts(); };
     tick().then(() => { const b = { group: '#groupChat', thread: '#dmChat', beau: '#beauChat' }[v]; if (b) $(b).scrollTop = $(b).scrollHeight; if (v === 'beau' && !$('#beauText').closest('[hidden]') && matchMedia('(min-width: 700px)').matches) $('#beauText').focus(); });
-    timer = setInterval(tick, v === 'mine' ? 10000 : v === 'beau' ? 8000 : 5000);
+    timer = setInterval(tick, lock || v === 'mine' ? 10000 : v === 'beau' ? 8000 : 5000);
   }
   $('#tabGroup').onclick = () => show('group');
   $('#tabMine').onclick = () => show('mine');

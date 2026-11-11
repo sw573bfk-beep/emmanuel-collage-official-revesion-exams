@@ -178,7 +178,7 @@ details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
     </section>
 
     <section class="card stack sec" id="chats" data-title="💬 Chats &amp; messages" data-hint="messages to you, reports and student chats">
-      <div class="ctabs" id="chatTabs" role="tablist"><button type="button" class="chip on" data-c="messages">✉️ Messages to you <span class="badge" id="bMsg" hidden></span></button><button type="button" class="chip" data-c="reports">🚩 Reports <span class="badge" id="bRep" hidden></span></button><button type="button" class="chip" data-c="group">Group chat</button><button type="button" class="chip" data-c="dms">1-on-1 chats</button><button type="button" class="chip" data-c="blocked">Blocked by the filter</button></div>
+      <div class="ctabs" id="chatTabs" role="tablist"><button type="button" class="chip on" data-c="messages">✉️ Messages to you <span class="badge" id="bMsg" hidden></span></button><button type="button" class="chip" data-c="access">🙋 Chat access <span class="badge" id="bAcc" hidden></span></button><button type="button" class="chip" data-c="reports">🚩 Reports <span class="badge" id="bRep" hidden></span></button><button type="button" class="chip" data-c="group">Group chat</button><button type="button" class="chip" data-c="dms">1-on-1 chats</button><button type="button" class="chip" data-c="blocked">Blocked by the filter</button></div>
       <p class="small muted" id="chatHelp"></p>
       <div id="mutedList" class="row"></div>
       <div class="msgs" id="msgsView"><div class="convs" id="convs"></div><div class="thread" id="thread"><p class="muted small">Pick a chat on the left.</p></div></div>
@@ -364,6 +364,10 @@ details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
       const pShow = () => { pb.textContent = u.chatMuted ? 'Allow chatting again' : 'Pause chatting'; };
       pb.onclick = async () => { const rr = await api('/api/admin/chat/mute', 'POST', { id: u.id, muted: !u.chatMuted }); if (rr.ok) { u.chatMuted = !u.chatMuted; pShow(); load(); } };
       pShow(); b.appendChild(pb);
+      const cb = document.createElement('button'); cb.type = 'button'; cb.className = 'btn quiet';
+      const cShow = () => { cb.textContent = u.chatAccess ? '🔒 Take Chat access away' : '✅ Let them use Chat'; };
+      cb.onclick = async () => { const rr = await api('/api/admin/chat/access', 'POST', { id: u.id, allow: !u.chatAccess }); if (rr.ok) { u.chatAccess = !u.chatAccess; u.chatReq = false; cShow(); load(); } };
+      cShow(); b.appendChild(cb);
       const mb = document.createElement('button'); mb.type = 'button'; mb.className = 'btn'; mb.textContent = 'Message ' + u.name;
       mb.onclick = () => { dlg.close(); pickChatTab('messages'); openSec('chats', true); openConv({ id: u.id, name: u.name }); };
       b.appendChild(mb);
@@ -380,7 +384,8 @@ details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
   const FB_SUBJ = { maths: 'Maths', science: 'Science', site: 'Whole site' };
   /* ---------- messages ---------- */
   let convOpen = null, convLast = 0, convTimer = null, msgUnread = 0, repNew = 0;
-  function chatBadges() { $('#bMsg').hidden = !msgUnread; $('#bMsg').textContent = msgUnread; $('#bRep').hidden = !repNew; $('#bRep').textContent = repNew; setBadge('chats', msgUnread + repNew); }
+  let accReq = 0;
+  function chatBadges() { $('#bMsg').hidden = !msgUnread; $('#bMsg').textContent = msgUnread; $('#bRep').hidden = !repNew; $('#bRep').textContent = repNew; $('#bAcc').hidden = !accReq; $('#bAcc').textContent = accReq; setBadge('chats', msgUnread + repNew + accReq); }
   const fmtAt = s => new Date(s * 1000).toLocaleString('en-AU', { timeZone: TZ, weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' });
   async function loadConvs() {
     const r = await api('/api/admin/messages'); if (!r.ok) return;
@@ -393,17 +398,28 @@ details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
       const top = document.createElement('span'); top.className = 'top'; const nm = document.createElement('b'); nm.textContent = c.username; top.appendChild(nm);
       if (c.unread) { const n = document.createElement('span'); n.className = 'n'; n.textContent = c.unread; top.appendChild(n); }
       const pv = document.createElement('span'); pv.className = 'prev'; pv.textContent = (c.lastFromAdmin ? 'You: ' : '') + (unlockTxt(c.last, !!c.lastFromAdmin) || c.last);
-      if (c.last === '[unlock-request]' && !c.lastFromAdmin) pv.classList.add('ask');
+      if (ASKS.includes(c.last) && !c.lastFromAdmin) pv.classList.add('ask');
       const w = document.createElement('span'); w.className = 'small muted'; w.textContent = ago(c.at);
       b.append(top, pv, w); b.onclick = () => openConv({ id: c.id, name: c.username }); box.appendChild(b);
     });
   }
-  const UNLOCK_TXT = { '[unlock-request]': '🔔 Asked you to unlock the completed booklet', '[unlock-allowed]': '✅ You unlocked the completed booklet', '[unlock-declined]': 'You said not yet to the booklet' };
-  const unlockTxt = (body, fromBeau) => (fromBeau ? body !== '[unlock-request]' : body === '[unlock-request]') ? UNLOCK_TXT[body] : null;
-  let convUnlocked = false, convLastAsk = 0;
+  const UNLOCK_TXT = { '[unlock-request]': '🔔 Asked you to unlock the completed booklet', '[unlock-allowed]': '✅ You unlocked the completed booklet', '[unlock-declined]': 'You said not yet to the booklet', '[chat-request]': '🙋 Asked to use Chat', '[chat-allowed]': '✅ You let them use Chat', '[chat-declined]': 'You said not yet to Chat', '[chat-removed]': 'You took away their Chat access' };
+  const ASKS = ['[unlock-request]', '[chat-request]'];
+  const unlockTxt = (body, fromBeau) => (fromBeau ? !ASKS.includes(body) : ASKS.includes(body)) ? UNLOCK_TXT[body] || null : null;
+  let convUnlocked = false, convLastAsk = 0, convChatReq = false, convLastChatAsk = 0;
   function addBubble(chat, m, name) {
     const side = m.mine ? 'me' : 'them';
     const b = document.createElement('div'); b.className = 'bubble ' + side; b.textContent = unlockTxt(m.body, m.mine) || m.body;
+    if (!m.mine && m.body === '[chat-request]') {
+      b.classList.add('askcard'); b.textContent = '';
+      b.appendChild(mk('b', '', '🙋 ' + name + ' asked to use Chat (group chat and friends)'));
+      if (convChatReq && m.id === convLastChatAsk) {
+        const row = mk('div', 'row'); row.style.marginTop = '8px';
+        const yes = btn('✅ Allow', null, 'go'), no = btn('Not now', null);
+        const go = async allow => { yes.disabled = no.disabled = true; const r = await api('/api/admin/chat/access', 'POST', { id: convOpen.id, allow }); if (!r.ok) { yes.disabled = no.disabled = false; return; } convSig = ''; pollConv(); loadConvs(); loadChats(); };
+        yes.onclick = () => go(true); no.onclick = () => go(false); row.append(yes, no); b.appendChild(row);
+      } else b.appendChild(mk('div', 'small', 'Answered'));
+    }
     if (!m.mine && m.body === '[unlock-request]') {
       b.classList.add('askcard'); b.textContent = '';
       const t1 = document.createElement('b'); t1.textContent = '🔔 ' + name + ' asked you to unlock the completed Science booklet';
@@ -426,10 +442,11 @@ details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
     if (!convOpen) return; const chat = $('#chat'); if (!chat) return;
     // fetch the whole chat (they're short) so "seen" updates too; redraw only when something changed
     const r = await api('/api/admin/messages/' + convOpen.id); if (!r.ok) return;
-    convUnlocked = !!r.data.unlocked;
+    convUnlocked = !!r.data.unlocked; convChatReq = !!r.data.chatReq && !r.data.chatAccess;
+    const asks = r.data.messages.filter(m => !m.mine && m.body === '[chat-request]'); convLastChatAsk = asks.length ? asks[asks.length - 1].id : 0;
     const notes = r.data.messages.filter(m => (!m.mine && m.body === '[unlock-request]') || (m.mine && (m.body === '[unlock-allowed]' || m.body === '[unlock-declined]')));
     const lastNote = notes[notes.length - 1]; convLastAsk = lastNote && !lastNote.mine ? lastNote.id : 0;
-    const sig = (convUnlocked ? 'U' : '') + r.data.messages.map(m => m.id + (m.read ? 'r' : '')).join(',');
+    const sig = (convUnlocked ? 'U' : '') + (convChatReq ? 'C' : '') + r.data.messages.map(m => m.id + (m.read ? 'r' : '')).join(',');
     if (sig === convSig) return; convSig = sig;
     const near = chat.scrollHeight - chat.scrollTop - chat.clientHeight < 80, top = chat.scrollTop;
     if (r.data.messages.length) chat.replaceChildren();
@@ -462,6 +479,7 @@ details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
   let chatTab = 'messages', chatData = null, chatThread = null;
   const CHAT_HELP = {
     messages: 'Private chats students send you from Chat → ✉️ Beau. Tap a person to read and reply. Booklet unlock requests show here with Allow / Not now.',
+    access: 'Students have to ask before they can see the group chat or chat with friends. Allow or say not now here. They can always message you, even without access.',
     reports: 'Messages students reported. Delete hides a message from everyone.',
     group: 'Everything in the group chat. You can post in it as Beau from the Chat page.',
     dms: '1-on-1 chats between friends.',
@@ -470,12 +488,12 @@ details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
   function pickChatTab(c) {
     chatTab = c; chatThread = null;
     $$('#chatTabs [data-c]').forEach(x => { x.classList.toggle('on', x.dataset.c === c); x.setAttribute('aria-selected', String(x.dataset.c === c)); });
-    $('#chatHelp').textContent = CHAT_HELP[c] + (c !== 'messages' ? ' Pause chatting (tap a person in Everyone) stops someone sending chat messages; they can still message you.' : '');
+ $('#chatHelp').textContent = CHAT_HELP[c] + (c !== 'messages' && c !== 'access' ? ' Pause chatting (tap a person in Everyone) stops someone sending chat messages; they can still message you.' : '');
     $('#msgsView').hidden = c !== 'messages'; $('#chatBody').hidden = c === 'messages';
     drawChats();
   }
   $$('#chatTabs [data-c]').forEach(b => b.onclick = () => pickChatTab(b.dataset.c));
-  async function loadChats() { const r = await api('/api/admin/chat/overview'); if (!r.ok) return; chatData = r.data; repNew = chatData.reports.filter(x => x.status === 'new').length; $('#tRep').textContent = repNew; $('#tRep').closest('.tile').classList.toggle('alert', repNew > 0); chatBadges(); drawChats(); }
+  async function loadChats() { const r = await api('/api/admin/chat/overview'); if (!r.ok) return; chatData = r.data; repNew = chatData.reports.filter(x => x.status === 'new').length; accReq = chatData.people.filter(x => x.req && !x.access).length; $('#tRep').textContent = repNew; $('#tRep').closest('.tile').classList.toggle('alert', repNew > 0); chatBadges(); drawChats(); }
   const mk = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
   const fmtC = s => new Date(s * 1000).toLocaleString('en-AU', { timeZone: TZ, weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' });
   function line(top, body, hidden, acts) {
@@ -502,6 +520,18 @@ details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
     if (chatThread) return openChatThread(chatThread);
     const box = $('#chatBody'); box.replaceChildren();
     const none = t => box.appendChild(mk('p', 'muted small', t));
+    if (chatTab === 'access') {
+      const answer = (u, allow) => async () => { await api('/api/admin/chat/access', 'POST', { id: u.id, allow }); await loadChats(); loadConvs(); };
+      const pend = chatData.people.filter(x => x.req && !x.access), yes = chatData.people.filter(x => x.access), no = chatData.people.filter(x => !x.access && !x.req);
+      box.appendChild(mk('h3', '', '🙋 Waiting for you (' + pend.length + ')'));
+      if (!pend.length) none('No requests right now. When a student taps “Ask Beau for chat access”, they show up here.');
+      pend.forEach(u => box.appendChild(line([mk('span', 'pill warn', 'asked'), u.name, 'asked ' + fmtC(u.req)], '', false, [btn('✅ Allow', answer(u, true), 'go'), btn('Not now', answer(u, false))])));
+      const sec = (title, list, mkBtn, open) => { const d = mk('details'); d.open = open; d.appendChild(mk('summary', '', title + ' (' + list.length + ')')); const w = mk('div', 'chatlog'); w.style.marginTop = '8px'; list.forEach(u => w.appendChild(line([u.name, 'last on ' + (u.seen ? ago(u.seen) : 'never')], '', false, [mkBtn(u)]))); if (!list.length) w.appendChild(mk('p', 'muted small', 'Nobody.')); d.appendChild(w); box.appendChild(d); };
+      sec('✅ Can use Chat', yes, u => btn('Take access away', answer(u, false), 'danger'), true);
+      sec('🔒 Can’t use Chat yet', no, u => btn('Allow', answer(u, true)), false);
+      box.querySelectorAll('.cl .body').forEach(b => { if (!b.textContent) b.remove(); });
+      return;
+    }
     if (chatTab === 'reports') {
       if (!chatData.reports.length) none('No reports. When a student taps Report on a message, it shows up here.');
       chatData.reports.forEach(r => {

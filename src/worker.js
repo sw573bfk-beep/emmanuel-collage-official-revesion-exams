@@ -415,7 +415,7 @@ async function handleAdmin(req, env, path, method, me) {
   if (path === '/api/admin/overview' && method === 'GET') {
     const since30 = dayKey(t - 29 * 86400), since7 = dayKey(t - 6 * 86400);
     const [users, perUser, perUser7, today_, visits, daily, signups, progress, sciProgress, unlockRows, codeCount, fbCount] = await env.DB.batch([
-      env.DB.prepare('SELECT id, username, created_at, last_login, login_count, last_seen, last_subject, in_stats, chat_muted FROM users ORDER BY last_seen DESC'),
+      env.DB.prepare('SELECT id, username, created_at, last_login, login_count, last_seen, last_subject, in_stats, chat_muted, chat_access, chat_req FROM users ORDER BY last_seen DESC'),
       env.DB.prepare('SELECT user_id, SUM(seconds) AS s FROM daily GROUP BY user_id'),
       env.DB.prepare('SELECT user_id, SUM(seconds) AS s FROM daily WHERE day >= ? GROUP BY user_id').bind(since7),
       env.DB.prepare('SELECT user_id, SUM(seconds) AS s FROM daily WHERE day = ? GROUP BY user_id').bind(today),
@@ -438,7 +438,7 @@ async function handleAdmin(req, env, path, method, me) {
       let sdata = null; try { sdata = spr[u.id] ? JSON.parse(spr[u.id].data) : null; } catch { /* bad row */ }
       return { id: u.id, name: u.username, joined: u.created_at, lastLogin: u.last_login, logins: u.login_count, lastSeen: u.last_seen, lastSubject: u.last_subject,
         online: t - u.last_seen <= 120 && !!u.last_subject, totalSeconds: (all[u.id] || {}).s || 0, weekSeconds: (wk[u.id] || {}).s || 0, todaySeconds: (td[u.id] || {}).s || 0,
-        visits: (vs[u.id] || {}).n || 0, device: (vs[u.id] || {}).device || null, maths: mathsStats(data), science: mathsStats(sdata), unlocked: unlockRows.results.some(r => r.user_id === u.id), inStats: !left.has(u.id), chatMuted: !!u.chat_muted, admin: u.username.toLowerCase() === String(env.ADMIN_USERNAME || '').toLowerCase() };
+        visits: (vs[u.id] || {}).n || 0, device: (vs[u.id] || {}).device || null, maths: mathsStats(data), science: mathsStats(sdata), unlocked: unlockRows.results.some(r => r.user_id === u.id), inStats: !left.has(u.id), chatMuted: !!u.chat_muted, chatAccess: !!u.chat_access, chatReq: !!u.chat_req, admin: u.username.toLowerCase() === String(env.ADMIN_USERNAME || '').toLowerCase() };
     });
     const signupDays = {}; signups.results.forEach(r => { const d = dayKey(r.created_at); signupDays[d] = (signupDays[d] || 0) + 1; });
     const counted = daily.results.filter(r => !left.has(r.user_id));
@@ -486,7 +486,8 @@ async function handleAdmin(req, env, path, method, me) {
     const rows = await env.DB.prepare('SELECT id, from_admin, body, created_at, read_at FROM messages WHERE user_id = ? AND id > ? ORDER BY id LIMIT 500').bind(uid, after).all();
     await env.DB.prepare('UPDATE messages SET read_at = ? WHERE user_id = ? AND from_admin = 0 AND read_at IS NULL').bind(t, uid).run();
     const ul = await env.DB.prepare("SELECT 1 FROM unlocks WHERE user_id = ? AND feature = 'theory'").bind(uid).first();
-    return json({ user: who, unlocked: !!ul, messages: rows.results.map(r => ({ id: r.id, mine: !!r.from_admin, body: r.body, at: r.created_at, read: !!r.read_at })) });
+    const ca = await env.DB.prepare('SELECT chat_access, chat_req FROM users WHERE id = ?').bind(uid).first();
+    return json({ user: who, unlocked: !!ul, chatAccess: !!ca.chat_access, chatReq: !!ca.chat_req, messages: rows.results.map(r => ({ id: r.id, mine: !!r.from_admin, body: r.body, at: r.created_at, read: !!r.read_at })) });
   }
   const um = path.match(/^\/api\/admin\/user\/(\d+)$/);
   if (um && method === 'GET') {

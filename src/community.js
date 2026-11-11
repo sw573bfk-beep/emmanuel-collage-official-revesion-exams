@@ -72,6 +72,29 @@ export async function handleCommunity(req, env, url, user) {
 
   if (!path.startsWith('/api/chat/')) return null;
 
+  /* ---------- chat access: students ask Beau first ---------- */
+  const acc = await env.DB.prepare('SELECT chat_access, chat_req FROM users WHERE id = ?').bind(me).first() || {};
+  const access = admin || !!acc.chat_access;
+  if (path === '/api/chat/access-request' && method === 'POST') {
+    if (access) return json({ ok: true, access: true });
+    if (acc.chat_req) return json({ ok: true, pending: true });
+    const last = await env.DB.prepare("SELECT body, created_at FROM messages WHERE user_id = ? AND from_admin = 1 AND body IN ('[chat-declined]', '[chat-removed]') ORDER BY id DESC LIMIT 1").bind(me).first();
+    if (last && now() - last.created_at < 86400) return err(429, 'Beau said not yet. You can ask again tomorrow, or send Beau a message.');
+    const t = now();
+    await env.DB.batch([
+      env.DB.prepare('UPDATE users SET chat_req = ? WHERE id = ?').bind(t, me),
+      env.DB.prepare("INSERT INTO messages (user_id, from_admin, body, created_at) VALUES (?, 0, '[chat-request]', ?)").bind(me, t)
+    ]);
+    return json({ ok: true, pending: true }, 201);
+  }
+  if (!access) {
+    if (path === '/api/chat/summary' && method === 'GET') {
+      await env.DB.prepare('UPDATE users SET last_seen = ?1 WHERE id = ?2 AND (last_seen IS NULL OR last_seen < ?1 - 60)').bind(now(), me).run();
+      return json({ access: false, requested: !!acc.chat_req, requests: 0, unreadDm: 0, unreadGroup: 0, muted: false, admin });
+    }
+    return json({ error: 'Ask Beau for chat access first. Go to Chat and tap “Ask Beau for chat access”.', locked: true }, 403);
+  }
+
   /* ---------- badge counts ---------- */
   if (path === '/api/chat/summary' && method === 'GET') {
     const [req_, dm, grp, u] = await env.DB.batch([
@@ -81,7 +104,7 @@ export async function handleCommunity(req, env, url, user) {
       env.DB.prepare('SELECT chat_muted FROM users WHERE id = ?').bind(me)
     ]);
     await env.DB.prepare('UPDATE users SET last_seen = ?1 WHERE id = ?2 AND (last_seen IS NULL OR last_seen < ?1 - 60)').bind(now(), me).run();
-    return json({ requests: req_.results[0].n, unreadDm: dm.results[0].n, unreadGroup: Math.min(99, grp.results[0].n), muted: !!(u.results[0] || {}).chat_muted, admin });
+    return json({ access: true, requests: req_.results[0].n, unreadDm: dm.results[0].n, unreadGroup: Math.min(99, grp.results[0].n), muted: !!(u.results[0] || {}).chat_muted, admin });
   }
 
   /* ---------- group chat ---------- */
@@ -245,7 +268,7 @@ export async function handleCommunityAdmin(req, env, url) {
   const path = url.pathname, method = req.method;
   if (!path.startsWith('/api/admin/chat/')) return null;
   if (path === '/api/admin/chat/overview' && method === 'GET') {
-    const [group, threads, reports, blocked, muted] = await env.DB.batch([
+    const [group, threads, reports, blocked, muted, people] = await env.DB.batch([
       env.DB.prepare('SELECT g.id, g.body, g.created_at, g.hidden, u.username AS name, u.id AS uid FROM group_messages g JOIN users u ON u.id = g.user_id ORDER BY g.id DESC LIMIT 200'),
       env.DB.prepare(`SELECT t.id, t.status, t.updated_at, ua.username AS a_name, ub.username AS b_name, (SELECT COUNT(*) FROM dm_messages WHERE thread_id = t.id) AS n
         FROM dm_threads t JOIN users ua ON ua.id = t.a JOIN users ub ON ub.id = t.b ORDER BY t.updated_at DESC LIMIT 200`),
@@ -256,9 +279,10 @@ export async function handleCommunityAdmin(req, env, url) {
         CASE r.kind WHEN 'dm' THEN (SELECT thread_id FROM dm_messages WHERE id = r.message_id) ELSE NULL END AS thread
         FROM chat_reports r JOIN users ru ON ru.id = r.reporter_id ORDER BY r.status = 'new' DESC, r.id DESC LIMIT 100`),
       env.DB.prepare('SELECT f.id, f.place, f.why, f.body, f.created_at, u.username AS name FROM filter_log f LEFT JOIN users u ON u.id = f.user_id ORDER BY f.id DESC LIMIT 100'),
-      env.DB.prepare('SELECT id, username AS name FROM users WHERE chat_muted = 1 ORDER BY username')
+      env.DB.prepare('SELECT id, username AS name FROM users WHERE chat_muted = 1 ORDER BY username'),
+      env.DB.prepare('SELECT id, username AS name, chat_access AS access, chat_req AS req, last_seen AS seen FROM users WHERE username != ? COLLATE NOCASE ORDER BY chat_req IS NULL, chat_req, username COLLATE NOCASE').bind(String(env.ADMIN_USERNAME || ''))
     ]);
-    return json({ group: group.results, threads: threads.results, reports: reports.results, blocked: blocked.results, muted: muted.results });
+    return json({ group: group.results, threads: threads.results, reports: reports.results, blocked: blocked.results, muted: muted.results, people: people.results });
   }
   const dm = path.match(/^\/api\/admin\/chat\/dm\/(\d+)$/);
   if (dm && method === 'GET') {
@@ -271,6 +295,18 @@ export async function handleCommunityAdmin(req, env, url) {
     const table = b.kind === 'dm' ? 'dm_messages' : 'group_messages';
     await env.DB.prepare('UPDATE ' + table + ' SET hidden = ? WHERE id = ?').bind(b.hidden ? 1 : 0, +b.id || 0).run();
     return json({ ok: true });
+  }
+  // allow / say not now to a chat access request, or take access away (the student gets a note in their Beau chat)
+  if (path === '/api/admin/chat/access') {
+    const id = +b.id || 0, u = await env.DB.prepare('SELECT chat_access, chat_req FROM users WHERE id = ?').bind(id).first();
+    if (!u) return err(404, 'No such user');
+    const t = now(), allow = !!b.allow, note = allow ? '[chat-allowed]' : u.chat_access ? '[chat-removed]' : '[chat-declined]';
+    await env.DB.batch([
+      env.DB.prepare('UPDATE users SET chat_access = ?, chat_req = NULL WHERE id = ?').bind(allow ? 1 : 0, id),
+      env.DB.prepare('INSERT INTO messages (user_id, from_admin, body, created_at) VALUES (?, 1, ?, ?)').bind(id, note, t),
+      env.DB.prepare("UPDATE messages SET read_at = ? WHERE user_id = ? AND from_admin = 0 AND read_at IS NULL AND body = '[chat-request]'").bind(t, id)
+    ]);
+    return json({ ok: true, access: allow });
   }
   if (path === '/api/admin/chat/mute') {
     await env.DB.prepare('UPDATE users SET chat_muted = ? WHERE id = ?').bind(b.muted ? 1 : 0, +b.id || 0).run();
