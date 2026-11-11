@@ -70,7 +70,7 @@ export async function handleCommunity(req, env, url, user) {
       range, from, total: rows.length,
       top: rows.slice(0, 50).map(r => ({ rank: r.rank, id: r.id, name: r.name, points: r.points, minutes: r.minutes, correct: r.correct, booklet: r.booklet, me: r.id === me })),
       me: mine ? { rank: mine.rank, points: mine.points, minutes: mine.minutes, correct: mine.correct, booklet: mine.booklet } : null,
-      leftOut: !meUser || !meUser.in_stats || admin
+      leftOut: !meUser || !meUser.in_stats || admin, admin
     });
   }
 

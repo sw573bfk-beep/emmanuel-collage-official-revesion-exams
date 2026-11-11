@@ -89,7 +89,7 @@ button.person:hover{border-color:var(--accent);background:var(--accent-soft)}
     <div id="viewMine" class="stack" hidden>
       <div class="card stack">
         <h3>Find people</h3>
-        <p class="small muted">Search for a student, then tap <b>Add friend</b>. Once they accept, you’re friends and can chat any time.</p>
+        <p class="small muted">Search for a student, then tap <b>Add friend</b>. Once they accept <b>and Beau approves it</b>, you can chat any time.</p>
         <div class="search-wrap"><label class="sr" for="find">Search for a student by name</label><input id="find" type="search" autocomplete="off" placeholder="Search by name…"></div>
         <div class="list" id="found" aria-live="polite"></div>
         <div id="findOut" role="status"></div>
@@ -103,7 +103,7 @@ button.person:hover{border-color:var(--accent);background:var(--accent-soft)}
 
     <div id="viewBeau" class="card stack" hidden>
       <div class="beau-head"><span class="av" aria-hidden="true">✉️</span><div><h3>Beau</h3><span class="small muted">A private chat with Beau, who runs EC Revisions. Ask anything about the site or your revision.</span></div></div>
-      <div id="beauAdmin" class="stack" hidden><p>You’re Beau, so this is where students message <b>you</b>. Read and reply to them in the dashboard.</p><a class="btn" href="/admin/#chats" style="align-self:flex-start">Open Chats &amp; messages in the dashboard</a></div>
+      <div id="beauAdmin" class="stack" hidden><p>You’re Beau (the admin), so you don’t add friends. Friends are for students chatting with each other.</p><ul style="margin:0;padding-left:1.2em;display:flex;flex-direction:column;gap:4px"><li><b>To message a student:</b> dashboard → 👥 Everyone → tap their name → <b>Message</b>.</li><li><b>To approve two students chatting:</b> dashboard → 💬 Chats &amp; messages → <b>🙋 Chats to approve</b>.</li><li><b>To test the friends feature:</b> log into a second (student) account with <b>Switch account</b> on the home page.</li></ul><a class="btn" href="/admin/#chats" style="align-self:flex-start">Open Chats &amp; messages in the dashboard</a></div>
       <div class="chat" id="beauChat" aria-live="polite" aria-label="Messages with Beau"></div>
       <form class="compose" id="beauForm" novalidate><label class="sr" for="beauText">Message to Beau</label><textarea id="beauText" rows="1" maxlength="1000" placeholder="Message Beau…"></textarea><button class="btn" type="submit">Send</button></form>
       <div id="beauOut" role="status"></div>
@@ -264,6 +264,7 @@ button.person:hover{border-color:var(--accent);background:var(--accent-soft)}
     me.requested = true; drawLock();
   };
   function show(v) {
+    if (me.admin && v !== 'beau') v = 'beau'; // the admin account doesn't add friends
     view = v; clearInterval(timer);
     const lock = !me.access && v !== 'beau';
     $('#viewLocked').hidden = !lock;
