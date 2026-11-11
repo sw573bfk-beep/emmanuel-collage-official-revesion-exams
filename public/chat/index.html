@@ -74,6 +74,7 @@ button.person:hover{border-color:var(--accent);background:var(--accent-soft)}
   <div class="brand"><span class="mark">EC Revisions</span><h1>Chat</h1><p>Chat 1-on-1 with your friends, and privately with Beau.</p></div>
   <p class="rules"><b>👀 Beau can read every chat.</b> <b>🗑️ Messages are deleted after 21 days.</b> A chat only starts when you <b>both</b> agree to be friends <b>and</b> Beau approves it. Be kind. Never share personal details (phone number, address, school timetable, social media). Rude or unsafe messages are blocked, and only letters, numbers, . , ? ! ’, maths symbols and a few friendly emojis can be typed. You can report anything that worries you.</p>
   <p id="loading" class="muted">Loading…</p>
+  <p id="studyNote" class="msg" hidden style="border:2px solid var(--accent);background:var(--accent-soft)">📚 <b>Study mode is on</b>, so chatting with friends is off for now. You can still message Beau below.</p>
   <p id="mutedNote" class="msg bad" hidden>Beau has paused chatting on your account. You can still read chats and message Beau in the <b>✉️ Beau</b> tab.</p>
   <section id="app" class="stack" hidden>
     <div class="tabs2" role="tablist"><button type="button" role="tab" id="tabMine" class="on">👥 Friends <span class="n" id="nMine" hidden></span></button><button type="button" role="tab" id="tabBeau">✉️ Beau <span class="n" id="nBeau" hidden></span></button></div>
@@ -273,7 +274,7 @@ button.person:hover{border-color:var(--accent);background:var(--accent-soft)}
     me.requested = true; drawLock();
   };
   function show(v) {
-    if (me.admin && v !== 'beau') v = 'beau'; // the admin account doesn't add friends
+    if ((me.admin || me.study) && v !== 'beau') v = 'beau'; // the admin account doesn't add friends; study mode: Beau only
     view = v; clearInterval(timer);
     const lock = !me.access && v !== 'beau';
     $('#viewLocked').hidden = !lock;
@@ -337,6 +338,7 @@ button.person:hover{border-color:var(--accent);background:var(--accent-soft)}
   // from the leaderboard: "Chat" next to a name
   function request(p, into) { $('#find').value = p.name; found({ id: p.id, name: p.name, state: 'none' }, into); runSearch(); }
   (async () => {
+    try { const L = window.ecLive ? await window.ecLive() : null; if (L && L.study && L.study.study) { me.study = true; $('#studyNote').hidden = false; $('#tabMine').hidden = true; } } catch (e) { /* fine */ }
     try { await counts(); } catch (e) { $('#loading').textContent = 'Can’t reach the server. Check your connection and reload.'; return; }
     $('#loading').hidden = true; $('#app').hidden = false;
     const withId = +params.get('with') || 0, withName = params.get('name');

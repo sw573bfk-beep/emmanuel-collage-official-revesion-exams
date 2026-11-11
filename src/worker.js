@@ -108,16 +108,40 @@ async function liveNotice(env, fresh) {
   return noticeCache.v;
 }
 // Study mode. The site-wide switch is cached for a few seconds (every request checks it).
-let studyAllCache = { at: 0, on: false };
-async function studyAll(env, fresh) {
-  if (!fresh && Date.now() - studyAllCache.at < 5000) return studyAllCache.on;
-  const r = await env.DB.prepare("SELECT value FROM settings WHERE key = 'study_all'").first();
-  studyAllCache = { at: Date.now(), on: !!r && r.value === '1' }; return studyAllCache.on;
+// Study mode for everyone: Beau's switch, plus automatic on/off times on chosen days (Queensland time).
+// Whichever happened last wins: an automatic time, or Beau flipping the switch.
+let studyCache = { at: 0, s: null };
+async function studySettings(env, fresh) {
+  if (!fresh && studyCache.s && Date.now() - studyCache.at < 5000) return studyCache.s;
+  const rows = (await env.DB.prepare("SELECT key, value FROM settings WHERE key IN ('study_all', 'study_all_at', 'study_sched')").all()).results;
+  const m = Object.fromEntries(rows.map(r => [r.key, r.value])); let sched = null; try { sched = JSON.parse(m.study_sched || 'null'); } catch { sched = null; }
+  studyCache = { at: Date.now(), s: { manual: m.study_all === '1', manualAt: +m.study_all_at || 0, sched } }; return studyCache.s;
 }
+const hmSecs = x => { const [hh, mm] = String(x || '').split(':').map(Number); return (hh || 0) * 3600 + (mm || 0) * 60; };
+// every automatic on/off time from 8 days ago to 8 days ahead, oldest first
+function schedTimes(sched, t) {
+  if (!sched || !sched.enabled) return [];
+  const days = new Set(sched.days || []), out = [], todayStart = Math.floor((t + QLD_OFFSET) / 86400) * 86400 - QLD_OFFSET;
+  for (let i = -8; i <= 8; i++) {
+    const start = todayStart + i * 86400, dow = new Date((start + QLD_OFFSET) * 1000).getUTCDay();
+    if (!days.has(dow)) continue;
+    out.push({ at: start + hmSecs(sched.on), on: true }, { at: start + hmSecs(sched.off), on: false });
+  }
+  return out.sort((x, y) => x.at - y.at);
+}
+async function siteStudy(env, fresh) {
+  const s = await studySettings(env, fresh), t = now(), times = schedTimes(s.sched, t);
+  const last = times.filter(x => x.at <= t).pop(), next = times.find(x => x.at > t) || null;
+  const cur = last && last.at > s.manualAt ? { on: last.on, since: last.at, by: 'schedule' } : { on: s.manual, since: s.manualAt, by: 'switch' };
+  return { ...cur, next, sched: s.sched };
+}
+const studyAll = async (env, fresh) => (await siteStudy(env, fresh)).on;
 async function studyState(env, user) {
-  if (isAdmin(user, env)) return { study: false, requested: false, site: await studyAll(env) };
-  const [u, site] = await Promise.all([env.DB.prepare('SELECT study_mode, study_free, study_req FROM users WHERE id = ?').bind(user.id).first(), studyAll(env)]);
-  const study = !!u && (!!u.study_mode || (site && !u.study_free));
+  // Beau and Top tier admins are never in study mode
+  if (isAdmin(user, env) || user.role === 'top') return { study: false, requested: false, site: await studyAll(env) };
+  const [u, S] = await Promise.all([env.DB.prepare('SELECT study_mode, study_free, study_free_at, study_req FROM users WHERE id = ?').bind(user.id).first(), siteStudy(env)]);
+  const site = S.on, letOut = u && u.study_free && u.study_free_at >= S.since; // let out by Beau since study mode last turned on
+  const study = !!u && (!!u.study_mode || (site && !letOut));
   return { study, requested: study && !!(u && u.study_req), site, why: !u ? null : u.study_mode ? 'you' : site ? 'everyone' : null };
 }
 async function studyPayload(env, user) {
@@ -138,7 +162,8 @@ async function liveChat(env, user) {
   await env.DB.prepare('UPDATE users SET last_seen = ?1 WHERE id = ?2 AND (last_seen IS NULL OR last_seen < ?1 - 60)').bind(now(), me).run();
   return { requests: req_.results[0].n, unreadDm: dm.results[0].n, beau: beau.results[0].n, admin, muted: !!(mu.results[0] || {}).chat_muted };
 }
-const STUDY_BLOCKED = p => p.startsWith('/api/chat/') || p.startsWith('/api/messages') || p === '/api/leaderboard' || p === '/api/feedback';
+// In study mode: no chatting with friends and no feedback form. Messaging Beau and looking at the leaderboard still work.
+const STUDY_BLOCKED = p => p.startsWith('/api/chat/') || p === '/api/feedback';
 // ---------- limits per device (IP address, only ever stored as a short hash) ----------
 const ipOf = req => req.headers.get('cf-connecting-ip') || 'local';
 const ipKey = async req => (await sha256('ec-ip:' + ipOf(req))).slice(0, 20);
@@ -337,7 +362,8 @@ async function handleApi(req, env, url) {
     if (user) {
       out.me = { name: user.username, admin: isAdmin(user, env), role: staffRole(user, env) };
       out.study = await studyPayload(env, user);
-      if (!out.study.study) out.chat = await liveChat(env, user);
+      out.chat = await liveChat(env, user);
+      if (out.study.study) { out.chat.requests = 0; out.chat.unreadDm = 0; } // in study mode only Beau's messages count
     }
     return json(out);
   }
@@ -374,8 +400,7 @@ async function handleApi(req, env, url) {
     return json({ ok: true }, 201);
   }
   if (STUDY_BLOCKED(path) && !isAdmin(user, env) && (await studyState(env, user)).study) {
-    if (path === '/api/messages/unread') return json({ unread: 0, admin: false, study: true });
-    return json({ error: 'Study mode is on, so this is turned off. You can use Maths, Science and Play with friends.', study: true }, 403);
+    return json({ error: 'Study mode is on, so chatting with friends and feedback are turned off for now. You can still message Beau.', study: true }, 403);
   }
   const cm = await handleCommunity(req, env, url, user); if (cm) return cm;
   const gm = await handleGames(req, env, url, user); if (gm) return gm;
@@ -429,15 +454,15 @@ async function handleApi(req, env, url) {
       B('🤝', 'Friendly', 'Make a friend', fr.results[0].n, 1)
     ];
     if (user.tester) badges.push(B('🧪', 'Official tester', 'Helped test EC Revisions', 1, 1));
-    const lb = study ? null : { week: (await leaderboard(env, me, 'week', isAdmin(user, env))).me, all: (await leaderboard(env, me, 'all', isAdmin(user, env))).me };
+    const lb = { week: (await leaderboard(env, me, 'week', isAdmin(user, env))).me, all: (await leaderboard(env, me, 'all', isAdmin(user, env))).me };
     const NOTE = { '[unlock-request]': '🔔 You asked to unlock the booklet', '[unlock-allowed]': '✅ Beau unlocked the booklet', '[unlock-declined]': 'Beau said not yet', '[chat-request]': '🙋 You asked to use Chat', '[chat-allowed]': '✅ Beau let you into Chat', '[chat-declined]': 'Beau said not yet', '[chat-removed]': 'Chat turned off', '[study-request]': '📚 You asked to leave study mode', '[study-allowed]': '✅ Study mode off', '[study-declined]': 'Beau said not yet' };
     const b0 = beau.results[0];
     const tch = await env.DB.prepare('SELECT u.username AS name FROM teacher_students ts JOIN users u ON u.id = ts.teacher_id WHERE ts.student_id = ? ORDER BY u.username').bind(me).all();
     return json({ now: t, name: u.results[0].username, joined: u.results[0].created_at, study, teacher: user.teacher, teachers: tch.results.map(x => x.name), role: staffRole(user, env), roleName: ROLE_NAME[staffRole(user, env)] || null, tester: user.tester, booklet: await hasUnlock(env, user, 'theory'),
       time: { today: D[today] || 0, week: Array.from({ length: 7 }, (_, i) => D[back(i)] || 0).reduce((a, x) => a + x, 0), all: all.results[0].s || 0, last14, streak },
       leaderboard: lb, topics, friends: fr.results[0].n, badges: badges.concat(lb && lb.week && lb.week.rank <= 3 ? [B('🏆', 'Podium', 'Top 3 on this week’s leaderboard', 1, 1)] : []),
-      messages: study ? null : { beau: { last: b0 ? (NOTE[b0.body] || b0.body) : null, mine: b0 ? !b0.from_admin : false, at: b0 ? b0.created_at : null, unread: beauN.results[0].n },
-        chats: thr.results.map(r => ({ id: r.id, name: r.name, last: r.last, at: r.at || 0, unread: r.unread, online: t - (r.seen || 0) < 180 })).sort((a, b) => (b.unread - a.unread) || (b.at - a.at)) } });
+      messages: { beau: { last: b0 ? (NOTE[b0.body] || b0.body) : null, mine: b0 ? !b0.from_admin : false, at: b0 ? b0.created_at : null, unread: beauN.results[0].n },
+        chats: study ? [] : thr.results.map(r => ({ id: r.id, name: r.name, last: r.last, at: r.at || 0, unread: r.unread, online: t - (r.seen || 0) < 180 })).sort((a, b) => (b.unread - a.unread) || (b.at - a.at)) } });
   }
   if (path === '/api/ping' && method === 'POST') {
     let body; try { body = await readJson(req); } catch { return err(400, 'Bad request'); }
@@ -879,24 +904,35 @@ async function handleAdmin(req, env, path, method, me, role = 'owner') {
   }
   // Study mode: the site-wide switch, one person on/off (answers their request if they asked)
   if (path === '/api/admin/study' && method === 'GET') {
-    const rows = await env.DB.prepare('SELECT id, username AS name, study_mode, study_free, study_req, last_seen, chat_muted FROM users WHERE username != ? COLLATE NOCASE ORDER BY study_req IS NULL, study_req, username COLLATE NOCASE').bind(String(env.ADMIN_USERNAME || '')).all();
-    const site = await studyAll(env, true);
-    return json({ now: t, site, people: rows.results.map(u => ({ id: u.id, name: u.name, study: !!u.study_mode || (site && !u.study_free), own: !!u.study_mode, req: u.study_req, seen: u.last_seen, muted: !!u.chat_muted })), role });
+    const rows = await env.DB.prepare('SELECT id, username AS name, study_mode, study_free, study_free_at, study_req, last_seen, chat_muted, role FROM users WHERE username != ? COLLATE NOCASE ORDER BY study_req IS NULL, study_req, username COLLATE NOCASE').bind(String(env.ADMIN_USERNAME || '')).all();
+    const S = await siteStudy(env, true), site = S.on;
+    return json({ now: t, site, siteBy: S.by, since: S.since, next: S.next, sched: S.sched, people: rows.results.map(u => ({ id: u.id, name: u.name, top: u.role === 'top',
+      study: u.role !== 'top' && (!!u.study_mode || (site && !(u.study_free && u.study_free_at >= S.since))), own: !!u.study_mode, req: u.study_req, seen: u.last_seen, muted: !!u.chat_muted })), role });
   }
   if (path === '/api/admin/study-all' && method === 'POST') {
     let b; try { b = await readJson(req); } catch { return err(400, 'Bad request'); }
     const on = !!b.on;
     if (!on && role === 'basic') return err(403, 'Only Beau or a Top tier admin can turn study mode off.');
-    const stmts = [env.DB.prepare("INSERT INTO settings (key, value) VALUES ('study_all', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value").bind(on ? '1' : '0')];
-    if (on) stmts.push(env.DB.prepare('UPDATE users SET study_free = 0'));
-    await env.DB.batch(stmts); await studyAll(env, true);
+    // the switch wins until the next automatic time; turning it on puts back anyone Beau had let out
+    await env.DB.batch([env.DB.prepare("INSERT INTO settings (key, value) VALUES ('study_all', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value").bind(on ? '1' : '0'),
+      env.DB.prepare("INSERT INTO settings (key, value) VALUES ('study_all_at', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value").bind(String(t))]);
+    await studyAll(env, true);
     return json({ ok: true, site: on });
+  }
+  if (path === '/api/admin/study-schedule' && method === 'POST') {
+    let b; try { b = await readJson(req); } catch { return err(400, 'Bad request'); }
+    const okT = x => /^([01]\d|2[0-3]):[0-5]\d$/.test(String(x || ''));
+    if (!okT(b.on) || !okT(b.off)) return err(400, 'Times look like 09:00 and 15:10.');
+    const sched = { enabled: !!b.enabled, on: b.on, off: b.off, days: (Array.isArray(b.days) ? b.days : []).map(Number).filter(d => d >= 0 && d <= 6) };
+    await env.DB.prepare("INSERT INTO settings (key, value) VALUES ('study_sched', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value").bind(JSON.stringify(sched)).run();
+    await studyAll(env, true);
+    return json({ ok: true, sched });
   }
   if (path === '/api/admin/study' && method === 'POST') {
     let b; try { b = await readJson(req); } catch { return err(400, 'Bad request'); }
     const id = +b.id || 0, u = await env.DB.prepare('SELECT study_req FROM users WHERE id = ?').bind(id).first(); if (!u) return err(404, 'No such user');
     if (!b.on && role === 'basic') return err(403, 'Only Beau or a Top tier admin can take someone out of study mode.');
-    const on = !!b.on, stmts = [on ? env.DB.prepare('UPDATE users SET study_mode = 1, study_free = 0, study_req = NULL WHERE id = ?').bind(id) : env.DB.prepare('UPDATE users SET study_mode = 0, study_free = 1, study_req = NULL WHERE id = ?').bind(id)];
+    const on = !!b.on, stmts = [on ? env.DB.prepare('UPDATE users SET study_mode = 1, study_free = 0, study_req = NULL WHERE id = ?').bind(id) : env.DB.prepare('UPDATE users SET study_mode = 0, study_free = 1, study_free_at = ?, study_req = NULL WHERE id = ?').bind(t, id)];
     if (u.study_req) stmts.push(env.DB.prepare('INSERT INTO messages (user_id, from_admin, body, created_at) VALUES (?, 1, ?, ?)').bind(id, on ? '[study-declined]' : '[study-allowed]', t),
       env.DB.prepare("UPDATE messages SET read_at = ? WHERE user_id = ? AND from_admin = 0 AND read_at IS NULL AND body = '[study-request]'").bind(t, id));
     await env.DB.batch(stmts);

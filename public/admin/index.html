@@ -129,6 +129,7 @@ details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
 .study-all{display:flex;align-items:center;gap:14px;flex-wrap:wrap;border:2px solid var(--rule);border-radius:14px;padding:14px 16px}
 .study-all.on{border-color:var(--accent);background:var(--accent-soft)}
 .study-all .st{flex:1 1 240px;display:flex;flex-direction:column;gap:2px}
+.sched{border:1.5px dashed var(--rule);border-radius:12px;padding:12px 14px}
 .study-all .st b{font-size:1.125rem}
 .switch{position:relative;width:64px;height:36px;border-radius:999px;border:0;background:var(--field);cursor:pointer;flex:none;transition:background .15s}
 .switch::after{content:"";position:absolute;top:4px;left:4px;width:28px;height:28px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgb(0 0 0 / .3);transition:left .15s}
@@ -198,8 +199,8 @@ details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
       <div id="modList" class="chatlog" style="max-height:none"></div>
     </section>
 
-    <section class="card stack sec" id="study" data-title="📚 Study mode" data-hint="Maths, Science and Play only">
-      <p class="small muted">In study mode a student can only use <b>Maths</b>, <b>Science</b> and <b>Play with friends</b>. Chat (including messaging you), the leaderboard and feedback are turned off, and they get a button to ask you to turn it off.</p>
+    <section class="card stack sec" id="study" data-title="📚 Study mode" data-hint="Friend chats + feedback off">
+      <p class="small muted">In study mode students can use <b>Maths</b>, <b>Science</b>, <b>Play with friends</b>, the <b>leaderboard</b>, their <b>profile</b> and <b>messaging you</b>. Chatting with friends and the feedback form are turned off, and they get a button to ask you to turn it off. <b>You and ⭐ Top tier admins are never in study mode.</b></p>
       <div class="study-all" id="studyAll"></div>
       <div class="toolbar"><input type="search" id="studySearch" placeholder="Search names" aria-label="Search names in study mode lists"></div>
       <div id="studyBody" class="chatlog" style="max-height:none"></div>
@@ -725,10 +726,28 @@ details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
   function drawStudy() {
     const d = studyData, all = $('#studyAll'); all.replaceChildren(); all.classList.toggle('on', d.site);
     const sw = mk('button', 'switch'); sw.type = 'button'; sw.setAttribute('role', 'switch'); sw.setAttribute('aria-checked', String(d.site)); sw.setAttribute('aria-label', 'Study mode for everyone');
-    const st = mk('div', 'st'); st.append(mk('b', '', d.site ? '📚 Study mode is ON for everyone' : 'Study mode for everyone is off'), mk('span', 'small muted', d.site ? 'Every student (and every new account) is in study mode, except anyone you let out below.' : 'Only the people you put in study mode below are in it. Turn this on to put every student in study mode at once.'));
+    const tm = x => new Date(x * 1000).toLocaleString('en-AU', { timeZone: TZ, weekday: 'short', hour: 'numeric', minute: '2-digit' });
+    const how = (d.siteBy === 'schedule' ? 'automatically' : 'by the switch') + (d.since ? ' since ' + tm(d.since) : '') + (d.next ? ' · next automatic time: ' + (d.next.on ? 'on' : 'off') + ' ' + tm(d.next.at) : '');
+    const st = mk('div', 'st'); st.append(mk('b', '', (d.site ? '📚 Study mode is ON for everyone' : 'Study mode for everyone is off')), mk('span', 'small', how), mk('span', 'small muted', d.site ? 'Every student (and every new account) is in study mode, except anyone you let out below.' : 'Only the people you put in study mode below are in it. Turn this on to put every student in study mode at once.'));
     if (d.site && ROLE === 'basic') sw.disabled = true;
-    sw.onclick = async () => { if (!d.site && !confirm('Turn on study mode for EVERY student? They’ll only be able to use Maths, Science and Play with friends.')) return; sw.disabled = true; await api('/api/admin/study-all', 'POST', { on: !d.site }); loadStudy(); };
+    sw.onclick = async () => { if (!d.site && !confirm('Turn on study mode for everyone now? (Not you or Top tier admins.) It stays on until you turn it off or the next automatic time.')) return; sw.disabled = true; await api('/api/admin/study-all', 'POST', { on: !d.site }); loadStudy(); };
     all.append(sw, st);
+    // ⏰ automatic times (Beau only)
+    if (ROLE === 'owner') {
+      const sc = d.sched || { enabled: false, on: '09:00', off: '15:10', days: [1, 2, 3, 4, 5] };
+      const box = mk('div', 'sched'); box.innerHTML = '<b>⏰ Automatic times</b> <span class="small muted">(Queensland time)</span>'
+        + '<div class="row" style="align-items:center;gap:10px;margin-top:6px"><label class="row" style="gap:6px;align-items:center"><input type="checkbox" data-en style="width:auto;margin:0;flex:none"> Turn on and off by itself</label>'
+        + '<label class="row" style="gap:6px;align-items:center">On at <input type="time" data-on style="width:auto"></label><label class="row" style="gap:6px;align-items:center">Off at <input type="time" data-off style="width:auto"></label></div>'
+        + '<div class="row" data-days style="gap:6px;margin-top:6px"></div><div class="row" style="align-items:center;margin-top:8px"><button type="button" class="btn sm" data-save>Save times</button><span class="small" data-out></span></div>'
+        + '<p class="small muted" style="margin:6px 0 0">The switch above still works any time. Whatever happened last wins: a flip of the switch lasts until the next automatic time.</p>';
+      box.querySelector('[data-en]').checked = !!sc.enabled; box.querySelector('[data-on]').value = sc.on; box.querySelector('[data-off]').value = sc.off;
+      const dd = box.querySelector('[data-days]'); [[1, 'Mon'], [2, 'Tue'], [3, 'Wed'], [4, 'Thu'], [5, 'Fri'], [6, 'Sat'], [0, 'Sun']].forEach(([n, l]) => { const c = mk('button', 'chip' + (sc.days.includes(n) ? ' on' : ''), l); c.type = 'button'; c.dataset.d = n; c.onclick = () => c.classList.toggle('on'); dd.appendChild(c); });
+      box.querySelector('[data-save]').onclick = async () => {
+        const body = { enabled: box.querySelector('[data-en]').checked, on: box.querySelector('[data-on]').value, off: box.querySelector('[data-off]').value, days: [...dd.querySelectorAll('.chip.on')].map(c => +c.dataset.d) };
+        const r = await api('/api/admin/study-schedule', 'POST', body); box.querySelector('[data-out]').textContent = r.ok ? '✅ Saved' : (r.data.error || 'Couldn’t save.'); if (r.ok) loadStudy();
+      };
+      all.after(box); all.parentNode.querySelectorAll('.sched').forEach(x => { if (x !== box) x.remove(); });
+    }
     const box = $('#studyBody'); box.replaceChildren();
     const match = u => !studyQ || u.name.toLowerCase().includes(studyQ);
     const pend = d.people.filter(u => u.study && u.req), inS = d.people.filter(u => u.study && match(u)), out = d.people.filter(u => !u.study && match(u));

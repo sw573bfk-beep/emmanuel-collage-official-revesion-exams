@@ -1,16 +1,17 @@
-/* EC Revisions: study mode. Loaded on every page by theme.js. When Beau has turned study mode on
-   for this student (or for everyone), only Maths, Science and Play with friends work: the Chat,
-   Leaderboard and Feedback buttons disappear, and those pages show a study-mode screen with a
-   button to ask Beau to turn it off. The server blocks those features too. */
+/* EC Revisions: study mode. Loaded on every page by theme.js. When study mode is on for this student
+   (Beau's switch, the automatic school-hours times, or just for them): Maths, Science, Play with friends,
+   the leaderboard, their profile and messaging Beau all work. Chatting with friends and the Feedback form
+   are turned off (the Chat page shows only the ✉️ Beau tab). There's a button to ask Beau to turn it off.
+   The server blocks those features too. */
 (() => {
   if (window.ecStudy) return; window.ecStudy = true;
   const path = location.pathname;
   if (path.startsWith('/admin')) return;
-  const BLOCKED = ['/chat', '/leaderboard', '/feedback'].some(p => path.startsWith(p));
+  const BLOCKED = ['/feedback'].some(p => path.startsWith(p));
   const root = document.documentElement;
   const css = document.createElement('style');
   css.textContent = `
-html.ec-study a[data-chat],html.ec-study a[data-msg],html.ec-study a[href^="/leaderboard"],html.ec-study a[href^="/feedback"],html.ec-study a[href^="/chat"]{display:none!important}
+html.ec-study a[href^="/feedback"]{display:none!important}
 html.ec-study .ec-hide-study{display:none!important}
 html.ec-study-wait main{visibility:hidden}
 .ec-study-card{border:2.5px solid var(--accent,#2453d6);background:var(--accent-soft,#e8eefc);color:var(--ink,#1b1b1b);border-radius:16px;padding:18px 20px;display:flex;flex-direction:column;gap:10px}
@@ -26,7 +27,7 @@ html.ec-study-wait main{visibility:hidden}
   function card(big) {
     const c = document.createElement('section'); c.className = 'ec-study-card'; c.id = 'ecStudyCard';
     const h = document.createElement(big ? 'h2' : 'h3'); h.textContent = '📚 Study mode is on';
-    const p = document.createElement('p'); p.textContent = (state.why === 'everyone' ? 'Beau has turned on study mode for everyone. ' : 'Beau has turned on study mode for your account. ') + 'You can use Maths, Science and Play with friends. Chat, the leaderboard and feedback are turned off.';
+    const p = document.createElement('p'); p.textContent = (state.why === 'everyone' ? 'Study mode is on for everyone right now (it turns on by itself in school hours). ' : 'Beau has turned on study mode for your account. ') + 'You can use Maths, Science, Play with friends, the leaderboard and your profile, and you can still message Beau. Chatting with friends and the feedback form are turned off.';
     const row = document.createElement('div'); row.className = 'ec-s-row';
     const ask = document.createElement('button'); ask.type = 'button'; ask.className = 'btn' + (big ? '' : ' sm');
     const msg = document.createElement('p'); msg.className = 'ec-s-msg'; msg.setAttribute('role', 'status');
@@ -62,7 +63,7 @@ html.ec-study-wait main{visibility:hidden}
       const spot = document.querySelector('#pickView') || main; if (spot) spot.insertBefore(card(false), spot.firstChild);
     } else {
       const tools = document.querySelector('.top-tools');
-      if (tools) { const pill = document.createElement('span'); pill.className = 'ec-study-pill'; pill.textContent = '📚 Study mode'; pill.title = 'Beau has turned on study mode: Maths, Science and Play with friends only.'; tools.insertBefore(pill, tools.firstChild); }
+      if (tools) { const pill = document.createElement('span'); pill.className = 'ec-study-pill'; pill.textContent = '📚 Study mode'; pill.title = 'Study mode is on: chatting with friends and feedback are off for now.'; tools.insertBefore(pill, tools.firstChild); }
     }
   }
   async function check(first, force) {
