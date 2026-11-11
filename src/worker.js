@@ -127,6 +127,28 @@ function flooding(req) {
   return ++w.n > 1500; // a whole class on one school network stays far below this
 }
 const SESSION_DAYS = 30, ADMIN_SESSION_DAYS = 7;
+// Today's (UTC day = from 10 am Queensland time) and this month's usage, from Cloudflare's analytics. Cached 2 minutes.
+let cfCache = { at: 0, v: null };
+async function cfUsage(env) {
+  if (!env.CF_API_TOKEN || !env.CF_ACCOUNT_ID) return { connected: false };
+  if (Date.now() - cfCache.at < 120000 && cfCache.v) return cfCache.v;
+  const d = new Date(), day = d.toISOString().slice(0, 10), month = day.slice(0, 8) + '01';
+  const q = 'query($a:String!,$d:Date!,$m:Date!,$db:String!){viewer{accounts(filter:{accountTag:$a}){'
+    + 'today:d1AnalyticsAdaptiveGroups(limit:5,filter:{date_geq:$d,databaseId:$db}){sum{readQueries writeQueries rowsRead rowsWritten}} '
+    + 'month:d1AnalyticsAdaptiveGroups(limit:40,filter:{date_geq:$m,databaseId:$db}){sum{rowsRead rowsWritten}} '
+    + 'wToday:workersInvocationsAdaptive(limit:20,filter:{date_geq:$d,scriptName:"ec-revisions"}){sum{requests errors}} '
+    + 'wMonth:workersInvocationsAdaptive(limit:100,filter:{date_geq:$m,scriptName:"ec-revisions"}){sum{requests errors}}}}}';
+  try {
+    const res = await fetch('https://api.cloudflare.com/client/v4/graphql', { method: 'POST', headers: { authorization: 'Bearer ' + env.CF_API_TOKEN, 'content-type': 'application/json' },
+      body: JSON.stringify({ query: q, variables: { a: env.CF_ACCOUNT_ID, d: day, m: month, db: env.D1_DATABASE_ID || '' } }) });
+    const j = await res.json(); const a = j && j.data && j.data.viewer && j.data.viewer.accounts && j.data.viewer.accounts[0];
+    if (!a) return { connected: false, error: (j && j.errors && j.errors[0] && j.errors[0].message) || 'Cloudflare didn’t answer' };
+    const add = (list, k) => (list || []).reduce((s, x) => s + ((x.sum && x.sum[k]) || 0), 0);
+    cfCache = { at: Date.now(), v: { connected: true, day, requests: add(a.wToday, 'requests'), errors: add(a.wToday, 'errors'), rowsRead: add(a.today, 'rowsRead'), rowsWritten: add(a.today, 'rowsWritten'),
+      monthRequests: add(a.wMonth, 'requests'), monthRowsRead: add(a.month, 'rowsRead'), monthRowsWritten: add(a.month, 'rowsWritten') } };
+    return cfCache.v;
+  } catch (e) { return { connected: false, error: 'Couldn’t reach Cloudflare' }; }
+}
 const PBKDF2_ITERATIONS = 100000; // the maximum Workers allows
 const SUBJECTS = new Set(['maths', 'science']);
 const MAX_PROGRESS_BYTES = 256 * 1024;
@@ -591,6 +613,18 @@ async function handleAdmin(req, env, path, method, me) {
     ]);
     if (!u.results.length) return err(404, 'No such user');
     return json({ user: u.results[0], visits: vis.results, days: days.results });
+  }
+  // Limits & usage: database size, accounts, and (with a CF_API_TOKEN secret) today's requests and database reads/writes
+  if (path === '/api/admin/usage' && method === 'GET') {
+    const r = await env.DB.prepare(`SELECT (SELECT COUNT(*) FROM users) AS users, (SELECT COUNT(*) FROM progress) AS progress, (SELECT COUNT(*) FROM messages) + (SELECT COUNT(*) FROM dm_messages) AS messages,
+      (SELECT COUNT(*) FROM visits) AS visits, (SELECT COUNT(*) FROM games) AS games, (SELECT value FROM settings WHERE key = 'cf_plan') AS plan`).all();
+    const row = r.results[0];
+    return json({ now: t, dbBytes: (r.meta && (r.meta.size_after || r.meta.size)) || null, counts: row, plan: row.plan === 'paid' ? 'paid' : 'free', cf: await cfUsage(env) });
+  }
+  if (path === '/api/admin/usage-plan' && method === 'POST') {
+    let b; try { b = await readJson(req); } catch { return err(400, 'Bad request'); }
+    await env.DB.prepare("INSERT INTO settings (key, value) VALUES ('cf_plan', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value").bind(b.plan === 'paid' ? 'paid' : 'free').run();
+    return json({ ok: true });
   }
   // Security: recent admin sign-ins (and wrong tries), and "log out everywhere else"
   if (path === '/api/admin/security' && method === 'GET') {

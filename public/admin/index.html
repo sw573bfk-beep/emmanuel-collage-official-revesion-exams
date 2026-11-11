@@ -119,6 +119,13 @@ details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
 .bc-rec{display:flex;flex-direction:column;gap:6px;margin-top:10px}
 .bc-rec .cl .body{font-size:.95rem}
 .ctabs{display:flex;gap:6px;flex-wrap:wrap}
+.meter{display:flex;flex-direction:column;gap:6px;border:1.5px solid var(--rule);border-radius:12px;padding:12px 14px}
+.meter .top{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;background:none;border:0}
+.meter .bar{height:10px;border-radius:99px;background:var(--card-2);overflow:hidden;border:1px solid var(--rule)}
+.meter .bar i{display:block;height:100%;background:var(--good)}
+.meter.warn .bar i{background:var(--warn)}.meter.bad .bar i{background:var(--pen)}
+.meter .sub{font-size:.875rem;color:var(--muted)}
+.meters{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:12px}
 .study-all{display:flex;align-items:center;gap:14px;flex-wrap:wrap;border:2px solid var(--rule);border-radius:14px;padding:14px 16px}
 .study-all.on{border-color:var(--accent);background:var(--accent-soft)}
 .study-all .st{flex:1 1 240px;display:flex;flex-direction:column;gap:2px}
@@ -221,6 +228,12 @@ details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
       <p class="small muted">Every sign-in to your account, and every wrong password typed for it. A device only gets 5 wrong tries an hour on your account. If you see wrong tries you don’t recognise, someone is guessing: use a long password only you know.</p>
       <div class="row" style="align-items:center"><span id="secSessions" class="small"></span><button type="button" class="btn quiet sm" id="secOut">Log out everywhere else</button></div>
       <div id="secLog" class="chatlog"></div>
+    </section>
+
+    <section class="card stack sec" id="usage" data-title="📊 Limits &amp; usage" data-hint="Cloudflare limits and how much is used">
+      <div class="row" style="align-items:center"><span class="small"><b>Your Cloudflare plan:</b></span><div class="row" id="planPick"><button type="button" class="chip" data-p="free">Free</button><button type="button" class="chip" data-p="paid">Workers Paid ($5 US/month)</button></div></div>
+      <div id="usageBody" class="stack" style="gap:12px"></div>
+      <p class="small muted">Daily limits reset at <b>10:00 am Queensland time</b> (midnight UTC). If a daily limit runs out on the Free plan, the site stops working for everyone until then. Limits are from Cloudflare’s pricing pages (check <b>dash.cloudflare.com</b> if they change).</p>
     </section>
 
     <section class="card stack sec" id="stats" data-title="📈 Last 30 days" data-hint="charts" data-closed>
@@ -353,7 +366,7 @@ details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
     $('#tFb').closest('.tile').classList.toggle('alert', T.feedbackNew > 0); setBadge('feedback', T.feedbackNew);
     const dt = $('#dayTable'); dt.replaceChildren(); const hr = document.createElement('tr'); ['Day', 'People', 'Minutes', 'New accounts'].forEach(h => { const th = document.createElement('th'); th.textContent = h; hr.appendChild(th); }); dt.appendChild(hr);
     data.days.slice().reverse().forEach(d => { const tr = document.createElement('tr'); [dayLabel(d.day), d.people, Math.round(d.seconds / 60), d.signups].forEach(v => cell(tr, v)); dt.appendChild(tr); });
-    drawTable(); loadCodes(); loadFeedback(); loadConvs(); loadChats(); loadBroadcast(); loadStudy(); loadSecurity();
+    drawTable(); loadCodes(); loadFeedback(); loadConvs(); loadChats(); loadBroadcast(); loadStudy(); loadSecurity(); loadUsage();
     $('#updated').textContent = 'Updated ' + new Date().toLocaleTimeString('en-AU', { timeZone: TZ, hour: 'numeric', minute: '2-digit' }) + ' (Queensland time). Refreshes every 30 seconds.';
   }
   function drawCharts() {
@@ -629,6 +642,46 @@ details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
     box.querySelectorAll('.cl .body').forEach(b => { if (!b.textContent) b.remove(); });
   }
   $('#secOut').onclick = async () => { if (!confirm('Log your account out on every other device and browser?')) return; const r = await api('/api/admin/logout-others', 'POST', {}); if (r.ok) { alert('Done. ' + r.data.ended + ' other sign-in' + (r.data.ended === 1 ? '' : 's') + ' ended.'); loadSecurity(); } };
+  /* ---------- limits & usage ---------- */
+  const LIMITS = {
+    free: { requests: [100000, 'day'], rowsRead: [5000000, 'day'], rowsWritten: [100000, 'day'], dbMB: 500 },
+    paid: { requests: [10000000, 'month'], rowsRead: [25000000000, 'month'], rowsWritten: [50000000, 'month'], dbMB: 10240 }
+  };
+  const big = n => n >= 1e9 ? (n / 1e9).toFixed(n >= 1e10 ? 0 : 1) + ' billion' : n >= 1e6 ? (n / 1e6).toFixed(n >= 1e7 ? 0 : 1) + ' million' : n.toLocaleString('en-AU');
+  function meter(label, used, max, note) {
+    const pc = max ? Math.min(100, used / max * 100) : 0;
+    const m = mk('div', 'meter' + (pc >= 90 ? ' bad' : pc >= 60 ? ' warn' : ''));
+    const top = mk('div', 'top'); top.append(mk('b', '', label), mk('span', '', used == null ? 'not connected' : big(used) + (max ? ' of ' + big(max) + ' (' + (pc < 1 && used ? '<1' : Math.round(pc)) + '%)' : '')));
+    const bar = mk('div', 'bar'), fill = mk('i'); fill.style.width = (used == null ? 0 : Math.max(pc, used ? 1 : 0)) + '%'; bar.appendChild(fill);
+    m.append(top, bar); if (note) m.appendChild(mk('span', 'sub', note)); return m;
+  }
+  async function loadUsage() {
+    const r = await api('/api/admin/usage'); if (!r.ok) return;
+    const d = r.data, L = LIMITS[d.plan], cf = d.cf || {}, box = $('#usageBody'); box.replaceChildren();
+    $$('#planPick .chip').forEach(c => c.classList.toggle('on', c.dataset.p === d.plan));
+    const per = k => L[k][1] === 'day' ? 'today' : 'this month', val = k => !cf.connected ? null : L[k][1] === 'day' ? cf[k] : cf['month' + k.charAt(0).toUpperCase() + k.slice(1)];
+    const ms = mk('div', 'meters');
+    ms.appendChild(meter('🌐 Visits to the site (requests) ' + per('requests'), val('requests'), L.requests[0], 'Every page and every background check counts. ' + (L.requests[1] === 'day' ? 'The Free plan allows 100,000 a day.' : 'Paid includes 10 million a month, then $0.30 US per extra million.')));
+    ms.appendChild(meter('📖 Database reads ' + per('rowsRead'), val('rowsRead'), L.rowsRead[0], L.rowsRead[1] === 'day' ? 'Free plan: 5 million rows read a day.' : 'Paid includes 25 billion a month.'));
+    ms.appendChild(meter('✍️ Database writes ' + per('rowsWritten'), val('rowsWritten'), L.rowsWritten[0], L.rowsWritten[1] === 'day' ? 'Free plan: 100,000 rows written a day (saving progress, messages, study time…).' : 'Paid includes 50 million a month.'));
+    const mb = d.dbBytes ? d.dbBytes / 1048576 : null;
+    const perUser = d.dbBytes && d.counts.users ? d.dbBytes / d.counts.users : null;
+    ms.appendChild(meter('💾 Database storage', mb == null ? null : Math.round(mb * 10) / 10, L.dbMB, (mb == null ? '' : 'Using ' + mb.toFixed(1) + ' MB of ' + (L.dbMB >= 1024 ? L.dbMB / 1024 + ' GB' : L.dbMB + ' MB') + '. ') + 'This is the only thing that limits how many accounts there can be.'));
+    box.appendChild(ms);
+    const acc = mk('div', 'meter'); const at = mk('div', 'top'); at.append(mk('b', '', '👥 Accounts'), mk('span', '', d.counts.users + ' accounts · no set limit')); acc.appendChild(at);
+    acc.appendChild(mk('span', 'sub', 'Cloudflare doesn’t limit the number of accounts. ' + (perUser ? 'Each account uses about ' + Math.round(perUser / 1024) + ' KB (progress, study time and messages), so the storage above fits roughly ' + big(Math.floor(L.dbMB * 1048576 / perUser)) + ' accounts.' : '')));
+    box.appendChild(acc);
+    if (!cf.connected) {
+      const how = mk('div', 'bc-live'); how.style.borderColor = 'var(--accent)'; how.style.background = 'var(--accent-soft)';
+      how.appendChild(mk('b', '', '🔌 Connect Cloudflare to see visits, reads and writes (one-time, about 3 minutes)' + (cf.error ? ' · ' + cf.error : '')));
+      const ol = mk('ol'); ol.style.margin = '0'; ol.style.paddingLeft = '1.3em';
+      ['Go to dash.cloudflare.com → your profile icon (top right) → My Profile → API Tokens → Create Token.', 'Choose “Create Custom Token”. Name it “EC Revisions usage”. Under Permissions pick: Account → Account Analytics → Read. Then Continue → Create Token, and copy the token.',
+        'Go to Workers & Pages → ec-revisions → Settings → Variables and Secrets → Add. Type: Secret. Name: CF_API_TOKEN. Value: paste the token. Deploy.', 'Come back here and tap Refresh. The token can only read usage numbers: it can’t change anything.'].forEach(x => ol.appendChild(mk('li', '', x)));
+      how.appendChild(ol); box.appendChild(how);
+    } else if (cf.errors) box.appendChild(mk('p', 'small muted', cf.errors + ' requests failed with an error today.'));
+    const c = d.counts; box.appendChild(mk('p', 'small muted', 'Saved so far: ' + [c.progress + ' saved subjects', c.messages + ' messages', c.visits + ' study visits', c.games + ' games'].join(' · ') + '.'));
+  }
+  $$('#planPick .chip').forEach(c => c.onclick = async () => { await api('/api/admin/usage-plan', 'POST', { plan: c.dataset.p }); loadUsage(); });
   /* ---------- study mode ---------- */
   let studyData = null, studyQ = '';
   async function loadStudy() { const r = await api('/api/admin/study'); if (!r.ok) return; studyData = r.data; drawStudy(); }

@@ -10,6 +10,10 @@ preview_urls = false
 [vars]
 # This account can open the admin dashboard at /admin/. Case doesn't matter when logging in.
 ADMIN_USERNAME = "Beau"
+# Used by the admin "Limits & usage" section to ask Cloudflare how much of the daily limits are used.
+# (It also needs a secret CF_API_TOKEN with "Account Analytics: Read", added in the Cloudflare dashboard.)
+CF_ACCOUNT_ID = "8859192e3ec70410341f57569d7da75f"
+D1_DATABASE_ID = "b7b26faf-65cf-4d7b-98ad-da731ff695c3"
 
 # The pages in public/ are bundled into the Worker itself (see the imports at the top of src/worker.js),
 # so a deploy is a single upload.

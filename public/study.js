@@ -74,6 +74,6 @@ html.ec-study-wait main{visibility:hidden}
     state = s; if (changed) apply();
   }
   window.ecStudyCheck = () => check();
-  const go = () => { check(true); setInterval(() => { if (document.visibilityState === 'visible') check(); }, 20000); document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') check(); }); };
+  const go = () => { check(true); setInterval(() => { if (document.visibilityState === 'visible') check(); }, 60000); document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') check(); }); };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', go); else go();
 })();
