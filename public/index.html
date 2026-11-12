@@ -5,7 +5,7 @@
 <script src="/acct.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>EC Revisions</title>
-<meta name="description" content="EC Revisions: Year 8 exam revision for Maths and Science. Make an account, pick a subject and your progress is saved.">
+<meta name="description" content="EC Revisions: Year 8 exam revision for Maths, Science and English. Make an account, pick a subject and your progress is saved.">
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Lexend:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
 <link rel="stylesheet" href="/site.css">
@@ -22,6 +22,8 @@
 .subject ul{margin:0;padding-left:1.1em;font-size:1rem;display:flex;flex-direction:column;gap:3px}
 .soon{display:inline-block;font-size:.875rem;font-weight:600;letter-spacing:.06em;text-transform:uppercase;background:var(--sci-soft);color:var(--sci);border-radius:999px;padding:2px 10px}
 .btn.sci{background:var(--sci);border-color:var(--sci)}
+.subject.english{border-top:5px solid var(--eng,#6b3fc4)} .subject.english .glyph{background:var(--eng-soft,#efe8fb);color:var(--eng,#6b3fc4)}
+.btn.eng{background:var(--eng,#6b3fc4);border-color:var(--eng,#6b3fc4);color:var(--paper,#fff)}
 .hint{background:var(--accent-soft);border-radius:8px;padding:8px 12px}
 .notice{border:1px dashed var(--rule);border-radius:8px;padding:8px 12px;color:var(--muted)}
 .top{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap}
@@ -39,7 +41,7 @@ details.acct[open] summary{margin-bottom:12px}
 <body>
 <main class="wrap">
   <div class="top">
-    <div class="brand"><span class="mark">year 8 · week 7</span><h1>EC Revisions</h1><p id="tagline">Year 8 Maths and Science exam revision. Make a free account so your progress is saved and follows you to any device.</p></div>
+    <div class="brand"><span class="mark">year 8 · week 7</span><h1>EC Revisions</h1><p id="tagline">Year 8 Maths, Science and English exam revision. Make a free account so your progress is saved and follows you to any device.</p></div>
     <div class="row" id="whoBox" hidden><span class="muted small">Logged in as <b id="who"></b></span><button class="btn quiet sm" type="button" id="switchBtn" aria-expanded="false" aria-controls="acctsCard">Switch account</button><a class="btn quiet sm" href="/leaderboard/">🏆 Leaderboard</a><a class="btn quiet sm" href="/chat/" data-chat>💬 Chat</a><a class="btn quiet sm" href="/feedback/">Feedback</a><button class="btn quiet sm" type="button" id="logout">Log out</button></div>
   </div>
 
@@ -98,6 +100,14 @@ details.acct[open] summary{margin-bottom:12px}
         <ul><li>Quick notes for every checklist section</li><li>Practice questions and workbook questions</li><li>The salts graph task</li><li>Completed theory booklet (unlock code needed)</li></ul>
         <p class="small muted" id="sciLast"></p>
         <a class="btn sci" href="/science/">Study Science →</a>
+      </article>
+      <article class="card subject english">
+        <span class="glyph">“ ”</span>
+        <h2>English</h2>
+        <p class="muted">The Invention of Hugo Cabret: setting, climax, characters, the big ideas and full example answers for every gap.</p>
+        <ul><li>5 characters, 3 gaps each, with notes</li><li>Example answers (200, 300 and 400 words)</li><li>Quiz, flashcards and write-a-gap practice</li><li>Unlock code needed</li></ul>
+        <p class="small muted" id="engLast"></p>
+        <a class="btn eng" href="/english/">Study English →</a>
       </article>
     </div>
     <a class="card row" href="/feedback/" style="justify-content:space-between;text-decoration:none;color:var(--ink)"><span><b>Got feedback?</b> <span class="muted small">Found a mistake or have an idea? Tell Beau.</span></span><span class="btn quiet sm">Send feedback →</span></a>
@@ -195,7 +205,7 @@ details.acct[open] summary{margin-bottom:12px}
     if (su) { $('#password').value = ''; $('#confirm').value = ''; } else fillSaved();
   }
   function picked(me) {
-    if (['maths', 'science', 'feedback', 'message', 'chat', 'leaderboard', 'play', 'me', 'teacher'].includes(next)) { location.replace('/' + next + '/'); return; }
+    if (['maths', 'science', 'english', 'feedback', 'message', 'chat', 'leaderboard', 'play', 'me', 'teacher'].includes(next)) { location.replace('/' + next + '/'); return; }
     if (next === 'admin' && me.admin) { location.replace('/admin/'); return; }
     $('#adminCard').hidden = !(me.admin || me.role);
     $('#who').textContent = me.username; $('#who2').textContent = me.username;
@@ -203,6 +213,8 @@ details.acct[open] summary{margin-bottom:12px}
     $('#mathsLast').textContent = t ? 'Last saved ' + new Date(t * 1000).toLocaleString('en-AU', { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }) : 'Not started yet';
     const ts = me.subjects && me.subjects.science;
     $('#sciLast').textContent = ts ? 'Last saved ' + new Date(ts * 1000).toLocaleString('en-AU', { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }) : 'Not started yet';
+    const te = me.subjects && me.subjects.english;
+    $('#engLast').textContent = te ? 'Last saved ' + new Date(te * 1000).toLocaleString('en-AU', { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }) : 'Not started yet';
     show('pick'); if (window.ecMsgCheck) window.ecMsgCheck(); if (window.ecStudyCheck) window.ecStudyCheck(); if (window.ecLive && window.ecProfileCheck) window.ecLive(true).then(() => window.ecProfileCheck());
   }
   $('#switchBtn').onclick = () => { const c = $('#acctsCard'); c.hidden = !c.hidden; $('#switchBtn').setAttribute('aria-expanded', !c.hidden); if (!c.hidden) { refreshAccounts(); c.scrollIntoView({ block: 'nearest' }); } };

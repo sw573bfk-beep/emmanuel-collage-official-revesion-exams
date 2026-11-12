@@ -10,7 +10,7 @@
   --paper:#f4f6fa; --card:#ffffff; --card-2:#f7f9fc; --ink:#141b29; --muted:#414c61; --line:#dfe5ee; --rule:#c3cddc; --field:#6f7c93;
   --accent:#2443c2; --accent-ink:#ffffff; --accent-soft:#e6ebfb; --accent-line:#a9b8ec;
   --hi:#fff066; --pen:#b3261e; --pen-soft:#fce8e6; --good:#126b42; --good-soft:#e2f3e9; --warn:#7f4c00; --warn-soft:#fdf0d9;
-  --sci:#0c6b5f; --sci-soft:#dcf2ee;
+  --sci:#0c6b5f; --sci-soft:#dcf2ee; --eng:#6b3fc4; --eng-soft:#efe8fb;
   --shadow:0 1px 2px rgb(20 27 41 / .06),0 4px 14px rgb(20 27 41 / .05);
   --lvl-e-bg:#e2f3e9; --lvl-e:#126b42; --lvl-m-bg:#fdf0d9; --lvl-m:#7f4c00; --lvl-h-bg:#fce8e6; --lvl-h:#b3261e;
   --sheet:#ffffff;
@@ -20,7 +20,7 @@
   --paper:#0d1220; --card:#161d2e; --card-2:#1b2337; --ink:#e9edf5; --muted:#b4bed0; --line:#263049; --rule:#3a4763; --field:#7d8bab;
   --accent:#8fa8ff; --accent-ink:#0a1024; --accent-soft:#1f2a50; --accent-line:#4b5d9e;
   --hi:#6b5b00; --pen:#ff9a91; --pen-soft:#3a1b1d; --good:#6fd9a5; --good-soft:#12301f; --warn:#f2b759; --warn-soft:#33260f;
-  --sci:#5fd6c4; --sci-soft:#0f2f2b;
+  --sci:#5fd6c4; --sci-soft:#0f2f2b; --eng:#c3a6ff; --eng-soft:#2a2046;
   --shadow:0 1px 2px rgb(0 0 0 / .4),0 4px 14px rgb(0 0 0 / .25);
   --lvl-e-bg:#12301f; --lvl-e:#6fd9a5; --lvl-m-bg:#33260f; --lvl-m:#f2b759; --lvl-h-bg:#3a1b1d; --lvl-h:#ff9a91;
   --sheet:#1b2337;
@@ -31,7 +31,7 @@
     --paper:#0d1220; --card:#161d2e; --card-2:#1b2337; --ink:#e9edf5; --muted:#b4bed0; --line:#263049; --rule:#3a4763; --field:#7d8bab;
     --accent:#8fa8ff; --accent-ink:#0a1024; --accent-soft:#1f2a50; --accent-line:#4b5d9e;
     --hi:#6b5b00; --pen:#ff9a91; --pen-soft:#3a1b1d; --good:#6fd9a5; --good-soft:#12301f; --warn:#f2b759; --warn-soft:#33260f;
-    --sci:#5fd6c4; --sci-soft:#0f2f2b;
+    --sci:#5fd6c4; --sci-soft:#0f2f2b; --eng:#c3a6ff; --eng-soft:#2a2046;
     --shadow:0 1px 2px rgb(0 0 0 / .4),0 4px 14px rgb(0 0 0 / .25);
     --lvl-e-bg:#12301f; --lvl-e:#6fd9a5; --lvl-m-bg:#33260f; --lvl-m:#f2b759; --lvl-h-bg:#3a1b1d; --lvl-h:#ff9a91;
     --sheet:#1b2337;

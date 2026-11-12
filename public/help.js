@@ -1,8 +1,8 @@
 /* EC Revisions: "Don't know how to use the site?" help panel and guided tour.
-   Every page has its own guide: home, Maths, Science, Feedback, Chat, Profile, Play with friends, Leaderboard. */
+   Every page has its own guide: home, Maths, Science, English, Feedback, Chat, Profile, Play with friends, Leaderboard. */
 (() => {
   const path = location.pathname;
-  const PAGE = path.startsWith('/science') ? 'science' : path.startsWith('/maths') ? 'maths' : path.startsWith('/feedback') ? 'feedback' : path.startsWith('/chat') ? 'chat'
+  const PAGE = path.startsWith('/english') ? 'english' : path.startsWith('/science') ? 'science' : path.startsWith('/maths') ? 'maths' : path.startsWith('/feedback') ? 'feedback' : path.startsWith('/chat') ? 'chat'
     : path.startsWith('/me') ? 'me' : path.startsWith('/play') ? 'play' : path.startsWith('/leaderboard') ? 'leaderboard' : path.startsWith('/teacher') ? 'teacher' : 'start';
   const label = el => el && (el.closest('label') || el);
 
@@ -22,7 +22,7 @@
     { h: 'Feedback', t: 'Found a mistake, got an idea or something confusing? Tap <b>Feedback</b> to tell Beau. Every message is read.', sel: '.top-tools a[href^="/feedback"]' },
     { h: 'Leaderboard', t: 'Earn points by studying: 1 per minute, 2 per correct answer, 1 per booklet question marked right. See the top 50 and your own place, this week and all time.', sel: '.top-tools a[href^="/leaderboard"]' },
     { h: 'Chat', t: 'Chat 1-on-1 with friends and privately with Beau. In <b>Friends</b>, search for someone and tap <b>Add friend</b>. When you <b>both</b> agree and Beau approves it, you can chat any time and invite them to games. <b>✉️ Beau</b> is a private chat with Beau. Beau can read every chat, and rude or unsafe messages are blocked.', sel: '.top-tools a[data-chat]' },
-    { h: 'Switch subject', t: '<b>Subjects</b> takes you back to pick Maths or Science. Your progress in each one is kept.', sel: '.top-tools a[href="/"]' },
+    { h: 'Switch subject', t: '<b>Subjects</b> takes you back to pick Maths, Science or English. Your progress in each one is kept.', sel: '.top-tools a[href="/"]' },
     { h: 'Your progress is saved', t: 'Everything you do is saved to your account, so it follows you to any phone or computer. Your name shows which account this tab is using, and under it it says when it last saved. To use another account, go to <b>Subjects</b> and tap <b>Switch account</b>.', sel: '.top-tools .acct' }
   ];
   const helpStep = { h: 'This help button', t: 'Tap this any time to see this help again or take the tour.', sel: '#ecHelpBtn' };
@@ -33,7 +33,7 @@
       intro: 'EC Revisions helps you revise for the Year 8 Maths and Science exams. Here’s how it works.',
       steps: [
         { h: 'Make an account', t: 'New here? Tap <b>Create account</b>. Please use your real name. Already have one? Just log in. Your progress is saved to your account.', sel: '#authCard' },
-        { h: 'Pick a subject', t: 'Once you’re logged in, pick <b>Maths</b> or <b>Science</b> to start studying.', sel: ['#pickView .card:has(a[href="/maths/"])', '#pickView a[href="/maths/"]'] },
+        { h: 'Pick a subject', t: 'Once you’re logged in, pick <b>Maths</b>, <b>Science</b> or <b>English</b> to start studying. English (The Invention of Hugo Cabret) needs an unlock code from Beau.', sel: ['#pickView .card:has(a[href="/maths/"])', '#pickView a[href="/maths/"]'] },
         { h: 'More than one account', t: 'Tap <b>Switch account</b> to add another account or swap between them. Each tab can use a different account, so you can be logged into two at once.', sel: '#switchBtn' },
         { h: 'Send feedback', t: 'Found a mistake or have an idea? Tell Beau here.', sel: ['#pickView a.card[href="/feedback/"]', '#whoBox a[href="/feedback/"]'] },
         profileStep,
@@ -165,6 +165,20 @@
         profileStep, helpStep
       ],
       extra: [...everywhere]
+    },
+    english: {
+      title: 'How to use English',
+      intro: 'Everything for The Invention of Hugo Cabret. English needs a code from Beau: type it in the box (or in your 👤 profile) and it stays unlocked.',
+      steps: [
+        { h: 'The tabs', t: '<b>Overview</b> (setting, climax and how to build an answer), <b>Characters</b>, <b>Ideas</b> (the 5 themes), <b>Theme map</b>, <b>Quiz</b>, <b>Flashcards</b> and <b>Write a gap</b>. On a phone, swipe the tabs sideways.', sel: '#etabs' },
+        { h: '👥 Characters', t: 'Each of the 5 characters has 3 gaps. Tap a gap to open its short notes. <b>📖 In the book</b> means the scene is in the book, <b>💭 Imagined</b> means you write a moment the book doesn’t show, from the character’s view. Tap <b>Show full example</b> to read a whole answer.', sel: '#etabs a[data-v="characters"]' },
+        { h: '💡 Ideas', t: 'The 5 big ideas (themes): what each one means and which gaps use it.', sel: '#etabs a[data-v="ideas"]' },
+        { h: '❓ Quiz', t: '10 questions a round on the setting, plot, characters and themes. Pick an answer, then tap <b>Confirm</b>. Questions you haven’t got right yet come up first.', sel: '#etabs a[data-v="quiz"]' },
+        { h: '🃏 Flashcards', t: 'Tap a card to flip it, then <b>Got it</b> or <b>Not yet</b>. Tick “Only cards I don’t know yet” to focus on the hard ones.', sel: '#etabs a[data-v="cards"]' },
+        { h: '✍️ Write a gap', t: 'Pick a gap and write your answer. A word counter and a checklist (character, perspective, setting, theme, climax link) tick themselves as you write. Your draft saves by itself. Then compare it with the example.', sel: '#etabs a[data-v="write"]' },
+        ...topBar, helpStep
+      ],
+      extra: [{ h: 'Locked?', t: 'Type your 5-character English code in the box. No code? Ask Beau in 💬 Chat → ✉️ Beau.' }, ...everywhere]
     },
     leaderboard: {
       title: 'How the leaderboard works',

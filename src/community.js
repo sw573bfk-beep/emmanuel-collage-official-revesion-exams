@@ -143,7 +143,7 @@ export async function handleCommunity(req, env, url, user) {
       ORDER BY (u.username LIKE ?4 ESCAPE '\\') DESC, u.username COLLATE NOCASE LIMIT 12`)
       .bind('%' + esc + '%', me, adminName, esc + '%').all();
     const state = r => r.status === 'active' ? 'friend' : r.status === 'approval' ? 'waiting' : r.status === 'pending' ? (r.requested_by === me ? 'sent' : 'incoming') : 'none';
-    return json({ people: rows.results.map(r => ({ id: r.id, name: r.username, subject: r.last_subject === 'maths' ? 'Maths' : r.last_subject === 'science' ? 'Science' : null, state: state(r), thread: r.tid || null })) });
+    return json({ people: rows.results.map(r => ({ id: r.id, name: r.username, subject: r.last_subject === 'maths' ? 'Maths' : r.last_subject === 'science' ? 'Science' : r.last_subject === 'english' ? 'English' : null, state: state(r), thread: r.tid || null })) });
   }
   // remove a friend, or cancel a request you sent (the messages stay for Beau to check)
   if (path === '/api/chat/unfriend' && method === 'POST') {

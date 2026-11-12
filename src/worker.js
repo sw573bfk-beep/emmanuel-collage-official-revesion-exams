@@ -31,6 +31,8 @@ import msgJs from '../public/msg.js';
 import chatHtml from '../public/chat/index.html';
 import boardHtml from '../public/leaderboard/index.html';
 import playHtml from '../public/play/index.html';
+import englishHtml from '../public/english/index.html';
+import { HUGO } from './english/hugo.js';
 import playSciJs from '../public/play/sci.js';
 import playMathsJs from '../public/play/maths.js';
 import { checkText, checkName, checkPieces, checkWords } from './filter.js';
@@ -58,6 +60,7 @@ const PAGES = {
   '/leaderboard/': [boardHtml, HTML], '/leaderboard/index.html': [boardHtml, HTML],
   '/play/': [playHtml, HTML], '/play/index.html': [playHtml, HTML], '/play/sci.js': [playSciJs, 'text/javascript; charset=utf-8'], '/play/maths.js': [playMathsJs, 'text/javascript; charset=utf-8'],
   '/maths/': [mathsHtml, HTML], '/maths/index.html': [mathsHtml, HTML], '/maths/app.js': [mathsJs, 'text/javascript; charset=utf-8'],
+  '/english/': [englishHtml, HTML], '/english/index.html': [englishHtml, HTML],
   '/science/': [scienceHtml, HTML], '/science/index.html': [scienceHtml, HTML], '/science/app.js': [scienceJs, 'text/javascript; charset=utf-8'],
   '/admin/': [adminHtml, HTML], '/admin/index.html': [adminHtml, HTML],
   '/feedback/': [feedbackHtml, HTML], '/feedback/index.html': [feedbackHtml, HTML]
@@ -84,7 +87,7 @@ BODY['/theme.js'] = BODY['/theme.js'].replace("src + '?v=' + (document.documentE
 function servePage(url) {
   // "Message Beau" is now the ✉️ Beau tab of the Chat page
   if (url.pathname === '/message' || url.pathname.startsWith('/message/')) { const q = new URLSearchParams(url.search); q.set('tab', 'beau'); return Response.redirect(url.origin + '/chat/?' + q, 302); }
-  if (['/maths', '/science', '/admin', '/feedback', '/chat', '/privacy', '/me', '/teacher', '/leaderboard', '/play'].includes(url.pathname)) return Response.redirect(url.origin + url.pathname + '/' + url.search, 301);
+  if (['/maths', '/science', '/english', '/admin', '/feedback', '/chat', '/privacy', '/me', '/teacher', '/leaderboard', '/play'].includes(url.pathname)) return Response.redirect(url.origin + url.pathname + '/' + url.search, 301);
   const page = PAGES[url.pathname];
   if (!page) return new Response(notFoundHtml, { status: 404, headers: { 'content-type': HTML, ...SECURITY_HEADERS } });
   const type = page[1];
@@ -215,7 +218,7 @@ async function cfUsage(env) {
   } catch (e) { return { connected: false, error: 'Couldn’t reach Cloudflare' }; }
 }
 const PBKDF2_ITERATIONS = 100000; // the maximum Workers allows
-const SUBJECTS = new Set(['maths', 'science']);
+const SUBJECTS = new Set(['maths', 'science', 'english']);
 const MAX_PROGRESS_BYTES = 256 * 1024;
 // Names: 2–30 characters, letters, numbers, spaces and ' . _ - (so real names like "Sam O'Neil" work).
 const USERNAME_RE = /^[A-Za-z0-9][A-Za-z0-9 '._-]{1,29}$/;
@@ -542,6 +545,11 @@ async function handleApi(req, env, url) {
     const r = await useCode(env, user, row, t); if (r.error) return err(400, r.error);
     return json({ ok: true, type: row.feature, message: r.message });
   }
+  // 📗 English (Hugo Cabret study pack): only for people who unlocked it with an English code
+  if (path === '/api/english' && method === 'GET') {
+    if (!(await hasUnlock(env, user, 'english'))) return err(403, 'Locked. Enter an English code to unlock it.');
+    return new Response(JSON.stringify(HUGO), { headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'private, no-store' } });
+  }
   if (path === '/api/theory' && method === 'GET') {
     if (!(await hasUnlock(env, user, 'theory'))) return err(403, 'Locked. Enter a code to unlock the completed booklet.');
     // the completed booklet, page by page: each page's questions (Minimal and Extra info); pictures come from /api/theory/page/:n
@@ -624,6 +632,7 @@ async function handleApi(req, env, url) {
       const old = await env.DB.prepare('SELECT data FROM progress WHERE user_id = ? AND subject = ?').bind(user.id, subject).first();
       let before = null; try { before = old ? JSON.parse(old.data) : null; } catch { before = null; }
       await env.DB.prepare('INSERT INTO progress (user_id, subject, data, updated_at) VALUES (?, ?, ?, ?) ON CONFLICT(user_id, subject) DO UPDATE SET data = excluded.data, updated_at = excluded.updated_at').bind(user.id, subject, text, t).run();
+      if (subject === 'english') return json({ ok: true, updated_at: t }); // English: quiz, flashcards and drafts (points come from study time)
       // leaderboard: newly correct answers, and booklet answers marked right beyond your best so far (no farming by re-marking)
       const was = mathsStats(before), now_ = mathsStats(body.data);
       const bb = await env.DB.prepare('SELECT best FROM booklet_best WHERE user_id = ? AND subject = ?').bind(user.id, subject).first();
@@ -681,11 +690,12 @@ async function hasUnlock(env, user, feature) {
 // 5-character codes from letters and numbers that can't be mixed up (no 0/O, 1/I/L), typed in any case
 const CODE_CHARS = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 function newCode() { const b = crypto.getRandomValues(new Uint8Array(5)); return Array.from(b, x => CODE_CHARS[x % CODE_CHARS.length]).join(''); }
-const CODE_TYPES = { theory: '📘 Science booklet', top: '⭐ Top tier admin', basic: '🛡️ Basic admin', tester: '🧪 Official tester', teacher: '👩‍🏫 Teacher' };
+const CODE_TYPES = { theory: '📘 Science booklet', english: '📗 English (Hugo Cabret)', top: '⭐ Top tier admin', basic: '🛡️ Basic admin', tester: '🧪 Official tester', teacher: '👩‍🏫 Teacher' };
 // What a code does. Codes are only used up if they actually give you something new.
 async function useCode(env, user, row, t) {
   const f = row.feature, owner = isAdmin(user, env);
   if (f === 'theory' && await hasUnlock(env, user, 'theory')) return { error: 'You already have the completed booklet, so this code wasn’t used. Give it to someone else.' };
+  if (f === 'english' && await hasUnlock(env, user, 'english')) return { error: 'You already have English unlocked, so this code wasn’t used. Give it to someone else.' };
   if ((f === 'top' || f === 'basic') && owner) return { error: 'You’re the owner already.' };
   if (f === 'top' && user.role === 'top') return { error: 'You’re already a Top tier admin, so this code wasn’t used.' };
   if (f === 'basic' && (user.role === 'top' || user.role === 'basic')) return { error: 'You already have ' + (user.role === 'top' ? 'Top tier' : 'Basic') + ' admin, so this code wasn’t used.' };
@@ -694,10 +704,11 @@ async function useCode(env, user, row, t) {
   const claim = await env.DB.prepare('UPDATE codes SET redeemed_by = ?, redeemed_at = ? WHERE code = ? AND redeemed_by IS NULL').bind(user.id, t, row.code).run();
   if (!claim.meta.changes) return { error: 'That code has already been used.' };
   if (f === 'theory') await env.DB.prepare("INSERT OR IGNORE INTO unlocks (user_id, feature, unlocked_at, code) VALUES (?, 'theory', ?, ?)").bind(user.id, t, row.code).run();
+  if (f === 'english') await env.DB.prepare("INSERT OR IGNORE INTO unlocks (user_id, feature, unlocked_at, code) VALUES (?, 'english', ?, ?)").bind(user.id, t, row.code).run();
   if (f === 'top' || f === 'basic') await env.DB.prepare('UPDATE users SET role = ? WHERE id = ?').bind(f, user.id).run();
   if (f === 'tester') await env.DB.prepare('UPDATE users SET tester = 1 WHERE id = ?').bind(user.id).run();
   if (f === 'teacher') await env.DB.prepare('UPDATE users SET teacher = 1, in_stats = 0 WHERE id = ?').bind(user.id).run(); // teachers aren't on the leaderboard
-  return { message: { theory: '📘 The completed Science booklet is unlocked! Open Science → Booklet.', top: '⭐ You’re now a Top tier admin. Open the dashboard from your profile.', basic: '🛡️ You’re now a Basic admin. Open the dashboard from your profile.', tester: '🧪 You’re now an Official tester! Check out your profile banner.', teacher: '👩‍🏫 You’re now a teacher. Open “My class” from your profile to add your students.' }[f] };
+  return { message: { english: '📗 English is unlocked! Open Subjects → English.', theory: '📘 The completed Science booklet is unlocked! Open Science → Booklet.', top: '⭐ You’re now a Top tier admin. Open the dashboard from your profile.', basic: '🛡️ You’re now a Basic admin. Open the dashboard from your profile.', tester: '🧪 You’re now an Official tester! Check out your profile banner.', teacher: '👩‍🏫 You’re now a teacher. Open “My class” from your profile to add your students.' }[f] };
 }
 
 // Summarise one student's saved maths progress for the dashboard.

@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<script src="/acct.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>EC Revisions English</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Lexend:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="/site.css">
+<style>
+:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+[hidden]{display:none!important}
+.wrap{max-width:900px}
+.top{display:flex;justify-content:space-between;align-items:flex-start;gap:16px;flex-wrap:wrap}
+.top-tools{display:flex;gap:8px;align-items:center;flex-wrap:wrap;justify-content:flex-end}
+.acct{display:flex;flex-direction:column;align-items:flex-end;line-height:1.2}.acct-name{font-weight:600}
+.brand .mark{background:var(--eng-soft,#efe8fb);color:var(--eng,#6b3fc4);border-color:var(--eng,#6b3fc4)}
+.etabs{display:flex;gap:4px;overflow-x:auto;border-bottom:1.5px solid var(--rule);scrollbar-width:thin;position:sticky;top:0;z-index:5;background:var(--paper);margin:0 -4px;padding:0 4px}
+.etabs a{flex:none;font-weight:600;font-size:1rem;text-decoration:none;color:var(--muted);padding:10px 12px;border-bottom:4px solid transparent;white-space:nowrap}
+.etabs a.on{color:var(--eng);border-bottom-color:var(--eng)}
+.view{display:flex;flex-direction:column;gap:16px;padding-top:16px}
+.key{border:2.5px solid var(--eng);background:var(--eng-soft);border-radius:16px;padding:16px 18px;font-weight:600;font-size:1.0625rem}
+.facts{display:grid;gap:10px}
+.fact{display:grid;grid-template-columns:110px 1fr;gap:10px;align-items:start}
+@media (max-width:560px){.fact{grid-template-columns:1fr;gap:2px}}
+.chip{display:inline-flex;align-items:center;gap:4px;font-size:.8125rem;font-weight:600;border-radius:999px;padding:2px 10px;border:1.5px solid var(--rule);background:var(--card);color:var(--ink);white-space:nowrap}
+#app .chip{text-decoration:none}
+#app .view .chip.th{border-color:var(--eng);color:var(--eng);background:var(--eng-soft)}
+#app .view .chip.im{border-color:var(--warn);color:var(--warn);background:var(--warn-soft)}
+#app .view .chip.bk{border-color:var(--good);color:var(--good);background:var(--good-soft)}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.char h2{margin:0;font-size:1.5rem}
+details.gap{border:1.5px solid var(--rule);border-radius:12px;padding:0;background:var(--card)}
+details.gap>summary{cursor:pointer;list-style:none;padding:12px 14px;display:flex;flex-direction:column;gap:6px}
+details.gap>summary::-webkit-details-marker{display:none}
+details.gap>summary .t{font-weight:700;font-size:1.0625rem}
+details.gap>summary .t::before{content:'▸ ';color:var(--eng)}
+details.gap[open]>summary .t::before{content:'▾ '}
+details.gap .in{padding:0 14px 14px;display:flex;flex-direction:column;gap:10px}
+.notes{margin:0;padding-left:1.1em;display:flex;flex-direction:column;gap:4px}
+.example{border-left:4px solid var(--eng);background:var(--card-2);border-radius:0 10px 10px 0;padding:10px 14px}
+.example p{margin:0 0 .7em}.example p:last-child{margin:0}
+.theme-card h2{margin:0;font-size:1.35rem}
+.theme-card ul{margin:0;padding-left:1.1em;display:flex;flex-direction:column;gap:4px}
+.tablewrap{overflow-x:auto}
+table.map{width:100%;border-collapse:collapse;font-size:.9375rem}
+table.map th,table.map td{border:1px solid var(--rule);padding:8px 10px;text-align:left;vertical-align:top}
+table.map th{background:var(--card-2)}
+.recipe{display:grid;gap:8px}
+.recipe div{border:1.5px solid var(--rule);border-radius:10px;padding:8px 12px}
+/* quiz */
+.qcard{display:flex;flex-direction:column;gap:12px}
+.qtop{display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center}
+.qtext{font-size:1.15rem;font-weight:600;margin:0}
+.opts{display:flex;flex-direction:column;gap:8px}
+.opt{font:inherit;text-align:left;border:2px solid var(--rule);background:var(--card);color:var(--ink);border-radius:12px;padding:11px 14px;cursor:pointer}
+.opt.sel{border-color:var(--accent);background:var(--accent-soft)}
+.opt.right{border-color:var(--good);background:var(--good-soft)}
+.opt.wrong{border-color:var(--pen);background:var(--pen-soft)}
+.opt:disabled{cursor:default}
+.bar{height:10px;border-radius:999px;background:var(--line);overflow:hidden}.bar i{display:block;height:100%;background:var(--eng);border-radius:999px;transition:width .2s}
+/* flashcards */
+.flash{min-height:190px;border:2.5px solid var(--eng);border-radius:18px;background:var(--card);display:grid;place-items:center;text-align:center;padding:22px;cursor:pointer;font:inherit;color:var(--ink);width:100%}
+.flash .f{font-family:var(--f-display,inherit);font-size:1.5rem;font-weight:800}
+.flash .b{font-size:1.0625rem}
+.flash.back{background:var(--eng-soft)}
+/* write */
+textarea.essay{width:100%;min-height:320px;font:inherit;font-size:1.0625rem;line-height:1.55;border:2px solid var(--rule);border-radius:12px;padding:12px 14px;background:var(--card);color:var(--ink);resize:vertical;box-sizing:border-box}
+textarea.essay:focus{outline:3px solid var(--accent-soft);border-color:var(--accent)}
+.checks{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px}
+.checks li{display:flex;gap:8px;align-items:flex-start}
+select.pick{font:inherit;padding:9px 10px;border-radius:10px;border:2px solid var(--rule);background:var(--card);color:var(--ink);max-width:100%}
+.lock{border:2.5px solid var(--eng);background:var(--eng-soft)}
+.lock input{font:inherit;font-size:1.3rem;letter-spacing:.2em;text-transform:uppercase;max-width:220px}
+.foot{margin-top:28px}
+</style>
+<script src="/theme.js"></script>
+<link rel="stylesheet" href="/theme.css?v=1">
+</head>
+<body>
+<main class="wrap">
+  <div class="top">
+    <div class="brand"><span class="mark">EC Revisions · english</span><h1>Hugo Cabret</h1><p>The Invention of Hugo Cabret: setting, climax, characters, ideas and full example answers.</p></div>
+    <div class="top-tools"><span class="acct"><span class="acct-name" id="acctName"></span><span class="small muted" id="syncStatus" aria-live="polite"></span></span><a class="btn quiet sm" href="/feedback/?from=english">Feedback</a><a class="btn quiet sm" href="/leaderboard/?from=english">🏆 Leaderboard</a><a class="btn quiet sm" href="/chat/?from=english" data-chat>💬 Chat</a><a class="btn quiet sm" href="/">Subjects</a><button id="logoutBtn" class="btn quiet sm" type="button">Log out</button></div>
+  </div>
+  <p id="loading" class="muted">Loading…</p>
+
+  <!-- locked: needs an English code -->
+  <section id="lockView" class="card stack lock" hidden>
+    <h2 style="margin:0">🔒 English needs a code</h2>
+    <p style="margin:0">The Hugo Cabret study pack is unlocked with a 5-character code from Beau. Type it below. (You can also type codes in your 👤 profile.)</p>
+    <form id="codeForm" class="row" style="gap:10px;align-items:center" novalidate>
+      <label class="sr" for="codeIn" style="position:absolute;left:-9999px">Your code</label>
+      <input id="codeIn" autocomplete="off" autocapitalize="characters" spellcheck="false" maxlength="5" placeholder="ABC12">
+      <button class="btn" type="submit" id="codeBtn">Unlock</button>
+    </form>
+    <div id="codeMsg" class="msg" role="status" hidden></div>
+    <p class="small muted" style="margin:0">No code? Ask Beau in <a href="/chat/?tab=beau">💬 Chat → ✉️ Beau</a>.</p>
+  </section>
+
+  <div id="app" hidden>
+    <nav class="etabs" id="etabs" aria-label="Sections">
+      <a href="#overview" data-v="overview">🏠 Overview</a>
+      <a href="#characters" data-v="characters">👥 Characters</a>
+      <a href="#ideas" data-v="ideas">💡 Ideas</a>
+      <a href="#map" data-v="map">🗺️ Theme map</a>
+      <a href="#quiz" data-v="quiz">❓ Quiz</a>
+      <a href="#cards" data-v="cards">🃏 Flashcards</a>
+      <a href="#write" data-v="write">✍️ Write a gap</a>
+    </nav>
+    <section class="view" id="v-overview"></section>
+    <section class="view" id="v-characters" hidden></section>
+    <section class="view" id="v-ideas" hidden></section>
+    <section class="view" id="v-map" hidden></section>
+    <section class="view" id="v-quiz" hidden></section>
+    <section class="view" id="v-cards" hidden></section>
+    <section class="view" id="v-write" hidden></section>
+  </div>
+  <p class="small muted foot">English revision for The Invention of Hugo Cabret by Brian Selznick. Your quiz scores, flashcards and drafts are saved to your account. Beau, who runs EC Revisions, can see your name, when you study and for how long.</p>
+</main>
+<script>
+(function () {
+  const $ = s => document.querySelector(s);
+  const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+  const api = async (p, m = 'GET', b, keepalive) => { const r = await fetch(p, { method: m, credentials: 'same-origin', keepalive: !!keepalive, headers: b ? { 'content-type': 'application/json' } : {}, body: b ? JSON.stringify(b) : undefined }); let j = {}; try { j = await r.json(); } catch (e) { /* empty */ } return { ok: r.ok, status: r.status, data: j }; };
+  const status = t => { $('#syncStatus').textContent = t; };
+  let D = null, P = { eq: {}, ef: {}, ew: {} };
+
+  // ---------- saving progress (quiz, flashcards, drafts) ----------
+  let timer = null, dirty = false, saving = false;
+  async function save(keepalive) {
+    if (!dirty || (saving && !keepalive)) return; dirty = false; saving = true; status('Saving…');
+    try { const r = await api('/api/progress/english', 'PUT', { data: P }, keepalive); if (r.status === 401) return location.replace('/?next=english'); if (!r.ok) throw new Error('save'); status('Saved'); }
+    catch (e) { dirty = true; status('Not saved yet, retrying'); clearTimeout(timer); timer = setTimeout(save, 8000); }
+    finally { saving = false; }
+  }
+  const changed = () => { dirty = true; status('Unsaved changes'); clearTimeout(timer); timer = setTimeout(() => { timer = null; save(); }, 1200); };
+  document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') save(true); });
+  window.addEventListener('pagehide', () => save(true));
+  $('#logoutBtn').onclick = async () => {
+    if (!(window.ecConfirmLogout ? await window.ecConfirmLogout() : confirm('Are you sure you want to log out?'))) return;
+    await save(true); try { await api('/api/logout', 'POST', {}); } catch (e) { /* offline */ } location.href = '/';
+  };
+
+  // ---------- study time + 💤 sleep mode (same rules as Maths and Science) ----------
+  function heartbeat() {
+    const visit = Array.from(crypto.getRandomValues(new Uint8Array(12)), b => b.toString(16).padStart(2, '0')).join('');
+    let lastInput = Date.now(), asleep = false, sleepEl = null; const SLEEP_MS = 10 * 60000;
+    ['pointerdown', 'keydown', 'wheel', 'touchstart', 'scroll', 'input'].forEach(ev => window.addEventListener(ev, () => { lastInput = Date.now(); }, { passive: true, capture: true }));
+    const ping = keepalive => { if (asleep || Date.now() - lastInput > 180000) return; fetch('/api/ping', { method: 'POST', credentials: 'same-origin', keepalive: !!keepalive, headers: { 'content-type': 'application/json' }, body: JSON.stringify({ subject: 'english', visit }) }).catch(() => { /* offline */ }); };
+    function sleep() {
+      if (asleep) return; asleep = true;
+      if (!sleepEl) {
+        const st = el('style'); st.textContent = '.ec-sleep{position:fixed;inset:0;z-index:3000;display:grid;place-items:center;padding:20px;background:rgb(10 14 30 / .72);backdrop-filter:blur(4px)}.ec-sleep .box{max-width:420px;width:100%;background:var(--card,#fff);color:var(--ink,#111);border-radius:18px;padding:26px 24px;text-align:center;display:flex;flex-direction:column;gap:12px;box-shadow:0 20px 50px rgb(0 0 0 / .35)}.ec-sleep .z{font-size:3rem;line-height:1}.ec-sleep h2,.ec-sleep p{margin:0}'; document.head.appendChild(st);
+        sleepEl = el('div', 'ec-sleep'); sleepEl.setAttribute('role', 'dialog'); sleepEl.setAttribute('aria-modal', 'true');
+        sleepEl.innerHTML = '<div class="box"><div class="z" aria-hidden="true">💤</div><h2>Sleep mode</h2><p>You haven’t done anything for 10 minutes, so your study time has stopped counting.</p><button type="button" class="btn">I’m back, keep studying</button></div>';
+        sleepEl.querySelector('button').onclick = () => { asleep = false; lastInput = Date.now(); sleepEl.remove(); ping(); };
+      }
+      document.body.appendChild(sleepEl); sleepEl.querySelector('button').focus();
+    }
+    setInterval(() => { if (!asleep && Date.now() - lastInput > SLEEP_MS) sleep(); }, 15000);
+    ping(); setInterval(() => { if (document.visibilityState === 'visible' && !asleep) ping(); }, 60000);
+    document.addEventListener('visibilitychange', () => { if (asleep) return; if (document.visibilityState === 'visible') { if (Date.now() - lastInput > SLEEP_MS) return sleep(); lastInput = Date.now(); ping(); } else ping(true); });
+  }
+
+  // ---------- helpers ----------
+  const TH = id => D.themes.find(t => t.id === id);
+  const kindChip = k => el('span', 'chip ' + (k === 'book' ? 'bk' : 'im'), k === 'book' ? '📖 In the book' : k === 'both' ? '📖💭 In the book + Imagined' : '💭 Imagined');
+  const themeChips = ids => { const c = el('span', 'chips'); ids.forEach(id => { const t = TH(id); c.append(el('span', 'chip th', t.icon + ' ' + t.name)); }); return c; };
+  const paras = (txt, box) => { txt.split(/\n\s*\n/).forEach(p => box.append(el('p', '', p.trim()))); return box; };
+  const allGaps = () => D.characters.flatMap(c => c.gaps.map((g, i) => ({ c, g, i, key: c.id + '-' + i })));
+  const words = s => (s.trim().match(/[A-Za-zÀ-ÿ0-9’'-]+/g) || []).length;
+  const shuffle = a => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+
+  // ---------- 🏠 overview ----------
+  function overview() {
+    const v = $('#v-overview'); v.replaceChildren();
+    v.append(el('div', 'key', '⭐ ' + D.key));
+    const s = el('section', 'card stack'); s.append(el('h2', '', '📍 Setting'));
+    const f = el('div', 'facts'); D.setting.forEach(([h, t]) => { const r = el('div', 'fact'); r.append(el('b', '', h), el('span', '', t)); f.append(r); }); s.append(f); v.append(s);
+    const c = el('section', 'card stack'); c.append(el('h2', '', '🎯 Climax (brief summary)')); D.climax.forEach(p => c.append(el('p', '', p))); v.append(c);
+    const h = el('section', 'card stack'); h.append(el('h2', '', '📘 How to use this pack'), el('p', '', D.howTo));
+    const rc = el('div', 'recipe'); D.recipe.forEach(([a, b]) => { const d = el('div'); d.append(el('b', '', a + ': '), document.createTextNode(b)); rc.append(d); });
+    h.append(el('b', '', '✍️ How every gap answer is built'), rc); v.append(h);
+    const k = el('section', 'card stack'); k.append(el('h2', '', '✅ Check before the exam')); const ul = el('ul'); D.checks.forEach(x => ul.append(el('li', '', x))); k.append(ul); v.append(k);
+  }
+
+  // ---------- 👥 characters ----------
+  function characters() {
+    const v = $('#v-characters'); v.replaceChildren();
+    const jump = el('div', 'chips'); D.characters.forEach(c => { const a = el('a', 'chip', c.icon + ' ' + c.name); a.href = '#characters'; a.onclick = e => { e.preventDefault(); document.getElementById('ch-' + c.id).scrollIntoView({ behavior: 'smooth', block: 'start' }); }; jump.append(a); }); v.append(jump);
+    D.characters.forEach(c => {
+      const s = el('section', 'card stack char'); s.id = 'ch-' + c.id; s.style.scrollMarginTop = '60px';
+      s.append(el('h2', '', c.icon + ' ' + c.name), el('p', '', c.who));
+      c.gaps.forEach((g, i) => {
+        const d = el('details', 'gap'); d.id = 'gap-' + c.id + '-' + i;
+        const sm = el('summary'); sm.append(el('span', 't', 'Gap ' + (i + 1) + ': ' + g.title)); const chips = el('span', 'chips'); chips.append(kindChip(g.kind), ...themeChips(g.themes).childNodes); sm.append(chips); d.append(sm);
+        const inn = el('div', 'in'); inn.append(el('b', '', 'Short notes'));
+        const ul = el('ul', 'notes'); g.notes.forEach(([h, t]) => { const li = el('li'); li.append(el('b', '', h + ': '), document.createTextNode(t)); ul.append(li); }); inn.append(ul);
+        const ex = el('div', 'example'); ex.hidden = true; paras(g.example, ex);
+        const row = el('div', 'row'); const lbl = ' full example (' + words(g.example) + ' words · target ~' + g.words + ')'; const tg = el('button', 'btn quiet sm', '📄 Show' + lbl); tg.type = 'button';
+        tg.onclick = () => { ex.hidden = !ex.hidden; tg.textContent = (ex.hidden ? '📄 Show' : '🙈 Hide') + lbl; };
+        const pr = el('a', 'btn sm', '✍️ Practise writing this'); pr.href = '#write'; pr.onclick = () => { writeKey = c.id + '-' + i; };
+        row.append(tg, pr); inn.append(row, ex); d.append(inn); s.append(d);
+      });
+      v.append(s);
+    });
+  }
+
+  // ---------- 💡 ideas (themes) ----------
+  function ideas() {
+    const v = $('#v-ideas'); v.replaceChildren();
+    v.append(el('p', 'muted', 'The five big ideas (themes) in the book, what they mean, and which gaps you can use for each.'));
+    D.themes.forEach(t => {
+      const s = el('section', 'card stack theme-card'); s.append(el('h2', '', t.icon + ' ' + t.name), el('p', '', t.idea));
+      const ul = el('ul'); t.points.forEach(p => ul.append(el('li', '', p))); s.append(ul);
+      const g = allGaps().filter(x => x.g.themes.includes(t.id));
+      s.append(el('b', '', 'Gaps that use this theme (' + g.length + ')'));
+      const ch = el('div', 'chips'); g.forEach(x => { const a = el('a', 'chip', x.c.icon + ' ' + x.c.name.split(' (')[0] + ': ' + x.g.title); a.href = '#characters'; a.onclick = e => { e.preventDefault(); show('characters'); const d = document.getElementById('gap-' + x.key); d.open = true; d.scrollIntoView({ behavior: 'smooth', block: 'start' }); }; ch.append(a); }); s.append(ch);
+      v.append(s);
+    });
+  }
+
+  // ---------- 🗺️ theme map ----------
+  function map() {
+    const v = $('#v-map'); v.replaceChildren();
+    v.append(el('p', 'muted', 'Each character has three gaps, and each gap uses a different theme. Tap a gap to open it.'));
+    const w = el('div', 'tablewrap'), t = el('table', 'map'), hr = el('tr'); ['Character', 'Gap 1', 'Gap 2', 'Gap 3'].forEach(h => hr.append(el('th', '', h))); t.append(hr);
+    D.characters.forEach(c => { const tr = el('tr'); tr.append(el('th', '', c.icon + ' ' + c.name.split(' (')[0])); c.gaps.forEach((g, i) => { const td = el('td'); const a = el('a', '', g.themes.map(id => TH(id).name).join(' / ')); a.href = '#characters'; a.onclick = e => { e.preventDefault(); show('characters'); const d = document.getElementById('gap-' + c.id + '-' + i); d.open = true; d.scrollIntoView({ behavior: 'smooth', block: 'start' }); }; td.append(a, el('div', 'small muted', g.title)); tr.append(td); }); t.append(tr); });
+    w.append(t); v.append(w);
+  }
+
+  // ---------- ❓ quiz: 10 questions a round, the ones you haven't got right yet first ----------
+  let Q = null;
+  function newRound() {
+    const right = P.eq.right || {};
+    const order = shuffle(D.quiz.map((q, i) => i)).sort((a, b) => (right[a] || 0) - (right[b] || 0));
+    Q = { list: order.slice(0, 10).map(i => ({ i, opts: shuffle(D.quiz[i].o.map((t, k) => ({ t, k }))) })), at: 0, score: 0, picked: null, done: false };
+    quiz();
+  }
+  function quiz() {
+    const v = $('#v-quiz'); v.replaceChildren();
+    const eq = P.eq, mastered = Object.values(eq.right || {}).filter(n => n > 0).length;
+    const head = el('div', 'card row'); head.style.justifyContent = 'space-between';
+    head.append(el('span', '', '🏅 Best round: ' + (eq.best != null ? eq.best + '/10' : 'none yet') + ' · Rounds played: ' + (eq.rounds || 0)), el('span', 'small muted', mastered + ' of ' + D.quiz.length + ' questions answered right at least once'));
+    v.append(head);
+    if (!Q) { const s = el('section', 'card stack'); s.append(el('h2', '', '❓ Quick quiz'), el('p', '', '10 questions on the setting, plot, characters and themes. Pick an answer, then tap Confirm.')); const b = el('button', 'btn', 'Start a round'); b.type = 'button'; b.onclick = newRound; s.append(b); v.append(s); return; }
+    if (Q.done) {
+      const s = el('section', 'card stack'); s.append(el('h2', '', (Q.score >= 9 ? '🌟 ' : Q.score >= 6 ? '👍 ' : '💪 ') + 'You got ' + Q.score + ' out of 10'), el('p', '', Q.score >= 9 ? 'Excellent! You know the book really well.' : Q.score >= 6 ? 'Good work. Play again to get the rest.' : 'Keep going. Read the Characters and Ideas tabs, then try again.'));
+      const b = el('button', 'btn', 'Play another round'); b.type = 'button'; b.onclick = newRound; s.append(b); v.append(s); return;
+    }
+    const it = Q.list[Q.at], q = D.quiz[it.i], answered = Q.picked != null && Q.checked;
+    const s = el('section', 'card qcard');
+    const top = el('div', 'qtop'); top.append(el('b', '', 'Question ' + (Q.at + 1) + ' of 10'), el('span', 'small muted', 'Score: ' + Q.score));
+    const bar = el('div', 'bar'), bi = el('i'); bi.style.width = (Q.at / 10 * 100) + '%'; bar.append(bi);
+    s.append(top, bar, el('p', 'qtext', q.q));
+    const opts = el('div', 'opts');
+    it.opts.forEach((o, n) => {
+      const b = el('button', 'opt', o.t); b.type = 'button'; b.disabled = answered;
+      if (Q.picked === n) b.classList.add('sel');
+      if (answered) { if (o.k === q.a) b.classList.add('right'); else if (Q.picked === n) b.classList.add('wrong'); }
+      b.onclick = () => { Q.picked = n; quiz(); };
+      opts.append(b);
+    });
+    s.append(opts);
+    if (!answered) { const c = el('button', 'btn', 'Confirm'); c.type = 'button'; c.disabled = Q.picked == null; c.onclick = () => {
+      Q.checked = true; const ok = it.opts[Q.picked].k === q.a; if (ok) Q.score++;
+      P.eq.right = P.eq.right || {}; P.eq.right[it.i] = (P.eq.right[it.i] || 0) + (ok ? 1 : 0); changed(); quiz(); }; const r = el('div', 'row'); r.append(c); s.append(r); }
+    else {
+      const ok = it.opts[Q.picked].k === q.a;
+      s.append(el('div', 'msg ' + (ok ? 'good' : 'bad'), (ok ? '✅ Correct! ' : '❌ Not quite. The answer is: ' + q.o[q.a] + '. ') + q.why));
+      const n = el('button', 'btn', Q.at === 9 ? 'See my score' : 'Next question →'); n.type = 'button';
+      n.onclick = () => { if (Q.at === 9) { Q.done = true; P.eq.rounds = (P.eq.rounds || 0) + 1; P.eq.best = Math.max(P.eq.best || 0, Q.score); changed(); } else { Q.at++; Q.picked = null; Q.checked = false; } quiz(); };
+      const r = el('div', 'row'); r.append(n); s.append(r); setTimeout(() => n.focus({ preventScroll: true }), 0);
+    }
+    v.append(s);
+  }
+
+  // ---------- 🃏 flashcards ----------
+  let F = { only: false, at: 0, back: false, deck: null };
+  function deck() { const known = P.ef.known || {}; return D.cards.map((c, i) => i).filter(i => !F.only || !known[i]); }
+  function cards() {
+    const v = $('#v-cards'); v.replaceChildren();
+    const known = P.ef.known || {}, nKnown = D.cards.filter((c, i) => known[i]).length;
+    if (!F.deck) F.deck = deck();
+    const head = el('div', 'card stack'); const hr = el('div', 'row'); hr.style.justifyContent = 'space-between';
+    hr.append(el('b', '', '🃏 ' + nKnown + ' of ' + D.cards.length + ' cards known'));
+    const lab = el('label', 'row'); lab.style.gap = '6px'; const cb = el('input'); cb.type = 'checkbox'; cb.checked = F.only; cb.style.width = 'auto'; cb.onchange = () => { F.only = cb.checked; F.deck = deck(); F.at = 0; F.back = false; cards(); }; lab.append(cb, document.createTextNode('Only cards I don’t know yet')); hr.append(lab);
+    const bar = el('div', 'bar'), bi = el('i'); bi.style.width = (nKnown / D.cards.length * 100) + '%'; bar.append(bi); head.append(hr, bar); v.append(head);
+    if (!F.deck.length) { const s = el('section', 'card stack'); s.append(el('h2', '', '🎉 You know every card!'), el('p', '', 'Untick “Only cards I don’t know yet” to go through them all again.')); v.append(s); return; }
+    if (F.at >= F.deck.length) F.at = 0;
+    const i = F.deck[F.at], [front, back] = D.cards[i];
+    v.append(el('p', 'small muted', 'Card ' + (F.at + 1) + ' of ' + F.deck.length + '. Tap the card to flip it.'));
+    const b = el('button', 'flash' + (F.back ? ' back' : '')); b.type = 'button'; b.setAttribute('aria-label', F.back ? 'Answer: ' + back : 'Card: ' + front + '. Tap to flip.');
+    b.append(el('span', F.back ? 'b' : 'f', F.back ? back : front)); b.onclick = () => { F.back = !F.back; cards(); }; v.append(b);
+    const r = el('div', 'row');
+    const prev = el('button', 'btn quiet', '← Previous'); prev.type = 'button'; prev.disabled = F.at === 0; prev.onclick = () => { F.at--; F.back = false; cards(); };
+    const no = el('button', 'btn quiet', '🔁 Not yet'); no.type = 'button'; no.onclick = () => { P.ef.known = P.ef.known || {}; delete P.ef.known[i]; changed(); F.at++; F.back = false; if (F.at >= F.deck.length) F.at = 0; cards(); };
+    const yes = el('button', 'btn', '✅ Got it'); yes.type = 'button'; yes.onclick = () => { P.ef.known = P.ef.known || {}; P.ef.known[i] = 1; changed(); if (F.only) { F.deck = deck(); } else F.at++; F.back = false; if (F.at >= F.deck.length) F.at = 0; cards(); };
+    r.append(prev, no, yes); v.append(r);
+    const sh = el('button', 'btn quiet sm', '🔀 Shuffle'); sh.type = 'button'; sh.onclick = () => { F.deck = shuffle(deck()); F.at = 0; F.back = false; cards(); }; v.append(sh);
+  }
+
+  // ---------- ✍️ write a gap: pick one, write it, word counter + checklist, then compare with the example ----------
+  let writeKey = null;
+  const SETTING = /paris|station|montparnasse|booth|cinema|flat|film academy|library|studio|clock|walls|winter|1930/i;
+  const CLIMAX = /climax|automaton|signature|signs?\b|signed|méliès|melies/i;
+  function write() {
+    const v = $('#v-write'); v.replaceChildren();
+    const G = allGaps(); if (!writeKey || !G.find(x => x.key === writeKey)) writeKey = P.ew.last || G[0].key;
+    const x = G.find(y => y.key === writeKey), g = x.g, c = x.c;
+    const top = el('section', 'card stack');
+    top.append(el('h2', '', '✍️ Write a gap answer'), el('p', 'small muted', 'Pick a gap, write your answer, and the checklist ticks itself as you go. Your draft saves automatically. When you’re done, compare it with the example.'));
+    const sel = el('select', 'pick'); sel.setAttribute('aria-label', 'Choose a gap');
+    D.characters.forEach(ch => { const og = el('optgroup'); og.label = ch.icon + ' ' + ch.name; ch.gaps.forEach((gg, i) => { const o = el('option', '', 'Gap ' + (i + 1) + ': ' + gg.title + ' (' + gg.themes.map(id => TH(id).name).join(' / ') + ')' + ((P.ew.d || {})[ch.id + '-' + i] ? ' ✏️' : '')); o.value = ch.id + '-' + i; og.append(o); }); sel.append(og); });
+    sel.value = writeKey; sel.onchange = () => { writeKey = sel.value; P.ew.last = writeKey; changed(); write(); };
+    top.append(sel);
+    const chips = el('div', 'chips'); chips.append(kindChip(g.kind), ...themeChips(g.themes).childNodes, el('span', 'chip', '🎯 about ' + g.words + ' words')); top.append(chips);
+    const nd = el('details'); nd.append(el('summary', '', '📝 Show the short notes')); const ul = el('ul', 'notes'); g.notes.forEach(([h, t]) => { const li = el('li'); li.append(el('b', '', h + ': '), document.createTextNode(t)); ul.append(li); }); nd.append(ul); top.append(nd);
+    v.append(top);
+    const box = el('section', 'card stack');
+    const ta = el('textarea', 'essay'); ta.maxLength = 6000; ta.placeholder = 'Start with the gap: what moment is it, and whose view are you writing from?'; ta.value = (P.ew.d || {})[writeKey] || ''; ta.setAttribute('aria-label', 'Your answer');
+    const wc = el('div', 'row'); wc.style.justifyContent = 'space-between'; const wct = el('b'), wch = el('span', 'small muted'); wc.append(wct, wch);
+    const bar = el('div', 'bar'), bi = el('i'); bar.append(bi);
+    const checks = el('ul', 'checks');
+    const name = c.name.split(' (')[0].replace(/^The /, '').split(' ').pop();
+    const tests = [
+      ['Names the character (' + c.name.split(' (')[0] + ')', s => new RegExp(name.normalize('NFD').replace(/[̀-ͯ]/g, ''), 'i').test(s.normalize('NFD').replace(/[̀-ͯ]/g, ''))],
+      [g.kind === 'book' ? 'Explains the scene from the character’s point of view' : 'Writes from the character’s perspective (imagined)', s => /perspective|point of view|from (his|her|their|\w+’s|\w+'s) view|imagine|would feel|feels|felt/i.test(s)],
+      ['Mentions the setting (where and when)', s => SETTING.test(s)],
+      ['Names the theme (' + g.themes.map(id => TH(id).name).join(' / ') + ')', s => g.themes.some(id => ({ isolation: /isolat|lonel|alone/i, awe: /awe|amaze|wonder/i, family: /family|friend/i, memory: /memory|memories|remember|the past/i, truth: /truth|secret|hidden|hide/i })[id].test(s))],
+      ['Links to the climax (the automaton signing Georges Méliès’s name)', s => CLIMAX.test(s)],
+      ['Close to the word target (' + Math.round(g.words * 0.85) + '+ words)', s => words(s) >= g.words * 0.85]
+    ];
+    function update() {
+      const s = ta.value, n = words(s); wct.textContent = n + ' words'; wch.textContent = 'Target: about ' + g.words; bi.style.width = Math.min(100, n / g.words * 100) + '%';
+      checks.replaceChildren(); tests.forEach(([t, f]) => { const ok = f(s); const li = el('li'); li.append(el('span', '', ok ? '✅' : '⬜'), el('span', ok ? '' : 'muted', t)); checks.append(li); });
+    }
+    let tmr = null; ta.oninput = () => { update(); clearTimeout(tmr); tmr = setTimeout(() => { P.ew.d = P.ew.d || {}; if (ta.value.trim()) P.ew.d[writeKey] = ta.value; else delete P.ew.d[writeKey]; P.ew.last = writeKey; changed(); }, 600); };
+    box.append(ta, wc, bar, el('b', '', 'Checklist'), checks);
+    const ex = el('div', 'example'); ex.hidden = true; paras(g.example, ex);
+    const r = el('div', 'row'); const tg = el('button', 'btn quiet', '📄 Compare with the example'); tg.type = 'button'; tg.onclick = () => { ex.hidden = !ex.hidden; tg.textContent = ex.hidden ? '📄 Compare with the example' : '🙈 Hide the example'; };
+    const clr = el('button', 'btn quiet', '🗑️ Clear my draft'); clr.type = 'button'; clr.onclick = () => { if (!ta.value.trim() || confirm('Clear this draft? This can’t be undone.')) { ta.value = ''; ta.oninput(); } };
+    r.append(tg, clr); box.append(r, ex); v.append(box);
+    update();
+  }
+
+  // ---------- tabs ----------
+  const VIEWS = { overview, characters, ideas, map, quiz, cards, write };
+  function show(v) {
+    if (!VIEWS[v]) v = 'overview';
+    document.querySelectorAll('#etabs a').forEach(a => a.classList.toggle('on', a.dataset.v === v));
+    Object.keys(VIEWS).forEach(k => { $('#v-' + k).hidden = k !== v; });
+    if (v === 'write' || v === 'quiz' || v === 'cards') VIEWS[v]();
+    const on = document.querySelector('#etabs a.on'); if (on) on.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    if (location.hash !== '#' + v) history.replaceState(null, '', '#' + v);
+  }
+  $('#etabs').addEventListener('click', e => { const a = e.target.closest('a'); if (!a) return; e.preventDefault(); show(a.dataset.v); window.scrollTo({ top: 0 }); });
+  window.addEventListener('hashchange', () => show(location.hash.slice(1)));
+
+  // ---------- 🔒 code ----------
+  $('#codeForm').onsubmit = async e => {
+    e.preventDefault(); const m = $('#codeMsg'), b = $('#codeBtn'); b.disabled = true;
+    const r = await api('/api/code', 'POST', { code: $('#codeIn').value }); b.disabled = false;
+    m.hidden = false; m.className = 'msg ' + (r.ok ? 'good' : 'bad');
+    if (r.ok && r.data.type === 'english') { m.textContent = '📗 Unlocked! Loading…'; return start(); }
+    m.textContent = r.ok ? (r.data.message || 'Code used.') + ' That wasn’t an English code, so English is still locked.' : (r.data.error || 'That code didn’t work.');
+  };
+
+  async function start() {
+    let me;
+    try {
+      me = await api('/api/me'); if (me.status === 401) return location.replace('/?next=english'); if (!me.ok) throw new Error('server');
+      $('#acctName').textContent = me.data.username;
+      const c = await api('/api/english');
+      if (c.status === 403) { $('#loading').hidden = true; $('#lockView').hidden = false; return; }
+      if (!c.ok) throw new Error('server');
+      D = c.data;
+      const pr = await api('/api/progress/english'); if (pr.ok && pr.data.data) P = Object.assign({ eq: {}, ef: {}, ew: {} }, pr.data.data);
+    } catch (e) { $('#loading').textContent = 'Can’t reach the server. Check your internet connection, then reload the page.'; return; }
+    $('#loading').hidden = true; $('#lockView').hidden = true; $('#app').hidden = false; status('Saved');
+    overview(); characters(); ideas(); map();
+    show(location.hash.slice(1) || 'overview');
+    if (!window.ecEngBeat) { window.ecEngBeat = true; heartbeat(); } // study time only counts once English is open
+  }
+  start();
+})();
+</script>
+<script src="/msg.js" defer></script>
+<script src="/help.js" defer></script>
+</body>
+</html>
