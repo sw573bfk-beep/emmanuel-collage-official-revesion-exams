@@ -1,6 +1,10 @@
 // English: The Invention of Hugo Cabret exam study pack. Served only to people who have unlocked
 // English with a code (GET /api/english), so none of this is in the public page.
-// Paragraphs in examples are separated by blank lines.
+// Each gap has 3 example answers (ex1-3.js): short ~200, medium ~300, long ~400 words. Paragraphs are separated by blank lines.
+import { EX1 } from './ex1.js';
+import { EX2 } from './ex2.js';
+import { EX3 } from './ex3.js';
+const EXAMPLES = { ...EX1, ...EX2, ...EX3 };
 
 export const HUGO = {
   title: 'The Invention of Hugo Cabret',
@@ -17,11 +21,12 @@ export const HUGO = {
     'When the children find his hidden box of drawings, Papa Georges breaks down, and Mama Georges, Isabelle and Hugo bring the hidden past into the open. After the Station Inspector’s chase, the family takes Hugo in and Georges is honoured at the Film Academy.',
     'The climax is where isolation turns into family and truth, and the past is remembered again.'
   ],
-  howTo: 'Each gap is marked 💭 Imagined (a moment the book doesn’t show, written from the character’s view) or 📖 In the book. Each gap has short notes, then a full example at about 200, 300 or 400 words.',
+  howTo: 'Each gap is marked 💭 Imagined (a moment the book doesn’t show, written from the character’s view) or 📖 In the book. Each gap has short notes, then three example answers written at Year 8 level: 📝 Short (about 200 words, simpler), 📄 Medium (about 300 words) and 📚 Long (about 400 words, the strongest).',
   checks: [
     'Chapter order and small details (like exactly when Georges is honoured) can differ in your teacher’s version, so check each 📖 In the book scene against your copy.',
     'The Station Inspector is a minor character, so his gaps are mostly imagined.',
-    'If your class uses different themes or has a word count rule, tell Beau and this can be changed.'
+    'Every answer must link to one of the 5 themes: Family and friends, Awe and amazement, Memory and the past, Isolation, or Truth.',
+    'English on EC Revisions is not perfect and could be wrong. If something doesn’t match your book or what your teacher says, go with your book and teacher, and tell Beau.'
   ],
   // 💡 the big ideas (themes)
   themes: [
@@ -40,145 +45,48 @@ export const HUGO = {
   characters: [
     { id: 'etienne', name: 'Étienne', icon: '🎬', who: 'Étienne is Isabelle’s friend. He used to work at the cinema and sneak her in, until he was fired. Later he is a student at the Film Academy, where he helps Hugo.',
       gaps: [
-        { title: 'Fired from the cinema', themes: ['isolation'], kind: 'imagined', words: 300,
-          notes: [['Setting', 'the cinema near the station, in winter.'], ['Gap', 'the book only tells us that Étienne was fired for sneaking children in. His walk out is never shown.'], ['Theme', 'from Étienne’s view he loses his job, his place and his link to films.'], ['Climax link', 'his friendship with Hugo and Isabelle ends his isolation.']],
-          example: `When Étienne is fired from the cinema, the book only tells us about it second-hand. We never see Étienne’s side, but we can imagine it, and from his perspective this moment shows the theme of isolation. The cinema is more than a job to him. It is the place where he is surrounded by stories, light and people. By letting children in secretly, he is acting out of kindness, because he wants others to feel the same wonder he does. The cinema does not see it that way and treats it as a crime.
-
-Being fired cuts Étienne off from everything he loves. He loses his wage, his routine and the dark, magical room where he belongs. The imagined walk out of the building would be quiet and lonely, with no one defending him. Selznick shows isolation through empty spaces and silence, and this moment fits that pattern. Étienne is punished for being generous, which shows how cold the adult world can be to people who follow their hearts.
-
-The theme matters because many characters in the book are isolated in different ways. Hugo hides in the walls, Georges hides from his past, and now Étienne is pushed out of the place he loves. However, the book does not leave him alone. He later helps Hugo and Isabelle at the Film Academy, which shows that isolation can be broken by friendship. Étienne’s firing shows how easily a person can be cut off, and his later kindness shows how connection can bring someone back in. This links to the climax, where the lonely characters finally come together as a family.` },
-        { title: 'Sneaking into the movies', themes: ['awe'], kind: 'book', words: 200,
-          notes: [['Setting', 'inside the cinema, as Hugo sees a film for the first time in a long while.'], ['Scene', 'Étienne used to sneak Isabelle in, but he has been fired, so Hugo picks the lock with one of Isabelle’s hairpins and they watch the Harold Lloyd comedy Safety Last.'], ['Theme', 'film is shown as magic that fills people with wonder.'], ['Climax link', 'Hugo’s awe at film prepares him to understand Georges.']],
-          example: `Étienne’s secret kindness is the reason Isabelle has seen the magic of the cinema at all, and the cinema scene is a clear example of awe and amazement. Étienne used to sneak her in, but he has been fired for it, so this time Hugo picks the lock with one of Isabelle’s hairpins. Hugo has spent his days alone with clocks and gears, so sitting in a dark cinema is like entering another world. When he watches Safety Last, he sees an actor hanging from a clock high above the street, and the scene reminds him of his own life with the station clocks. The pictures, the music and the laughter make him forget his worries for a while.
-
-Étienne’s rule-breaking shows he believed cinema should not be only for people with money, and that wonder is meant to be shared. Hugo and Isabelle carry on that idea. Later, when Hugo learns that Georges made the first magical films, his awe is already there because of this moment. This links to the climax, where the automaton’s drawing reveals the creator of that magic.` },
-        { title: 'Helping Hugo at the Film Academy', themes: ['family'], kind: 'book', words: 400,
-          notes: [['Setting', 'the Film Academy library.'], ['Scene', 'Étienne, a student at the Academy and Isabelle’s friend, helps Hugo find The Invention of Dreams.'], ['Theme', 'friends can act like a family and help us find the truth.'], ['Climax link', 'the book proves Georges was a famous filmmaker, which drives the climax.']],
-          example: `The Film Academy scene shows the theme of family and friends in a powerful way. Hugo arrives as a nervous boy who trusts almost no one, because he has lived in secret since his uncle disappeared and he knows the Station Inspector could send him to an orphanage. Étienne has no reason to help a stranger, yet he welcomes Hugo and takes him to the library. He shows him how to use the card catalogue and helps him find the book The Invention of Dreams: The Story of the First Movies Ever Made. This is an act of friendship, and it gives Hugo something he badly needs: someone who is on his side.
-
-The scene is important because it shows that family is not only about blood. Hugo lost his father, his uncle is gone, and Georges treats him like a thief. But in this room he finds a friend of a friend, and then a small group of helpers. Isabelle, who is Étienne’s friend, brings Hugo to him because she trusts him, and Étienne trusts them in return. Together they form a team, and that team is what makes the discovery possible.
-
-The book they find holds the truth about the past. It reveals that Georges Méliès was one of the first great filmmakers, and it connects the automaton to the film A Trip to the Moon. Without Étienne’s help, Hugo might never have learned this. In this way, friendship leads directly to truth and to the climax. When the automaton draws the picture and signs Georges’s name, Hugo and Isabelle already understand why it matters, and that understanding comes from this library scene.
-
-Selznick also uses a warm setting here. After the cold station and the empty streets, the library is quiet and safe, and the characters work together. The scene shows that support from friends can break isolation, open the door to the past, and begin to build a new family. Étienne is a minor character, but he is a key helper, and his kindness helps change Hugo’s life.` }
+        { title: 'Fired from the cinema', themes: ['isolation'], kind: 'imagined',
+          notes: [['Setting', 'the cinema near the station, in winter.'], ['Gap', 'the book only tells us that Étienne was fired for sneaking children in. His walk out is never shown.'], ['Theme', 'from Étienne’s view he loses his job, his place and his link to films.'], ['Climax link', 'his friendship with Hugo and Isabelle ends his isolation.']] },
+        { title: 'Sneaking into the movies', themes: ['awe'], kind: 'book',
+          notes: [['Setting', 'inside the cinema, as Hugo sees a film for the first time in a long while.'], ['Scene', 'Étienne used to sneak Isabelle in, but he has been fired, so Hugo picks the lock with one of Isabelle’s hairpins and they watch the Harold Lloyd comedy Safety Last.'], ['Theme', 'film is shown as magic that fills people with wonder.'], ['Climax link', 'Hugo’s awe at film prepares him to understand Georges.']] },
+        { title: 'Helping Hugo at the Film Academy', themes: ['family'], kind: 'book',
+          notes: [['Setting', 'the Film Academy library.'], ['Scene', 'Étienne, a student at the Academy and Isabelle’s friend, helps Hugo find The Invention of Dreams.'], ['Theme', 'friends can act like a family and help us find the truth.'], ['Climax link', 'the book proves Georges was a famous filmmaker, which drives the climax.']] }
       ] },
     { id: 'jeanne', name: 'Mama Georges (Jeanne)', icon: '🎭', who: 'Mama Georges is Papa Georges’s wife and Isabelle’s godmother. She was once an actress in his films and is the gentle keeper of the family’s memory.',
       gaps: [
-        { title: 'Watching Georges’s past disappear', themes: ['memory'], kind: 'imagined', words: 400,
-          notes: [['Setting', 'the years after the war, in Georges’s old studio and then the Paris flat.'], ['Gap', 'the book tells us his films were melted down for shoe heels. We never see how Jeanne coped.'], ['Theme', 'she keeps the memory alive even when the world forgets.'], ['Climax link', 'she is the one who helps tell the truth at the end.']],
-          example: `Mama Georges, whose real name is Jeanne, was once an actress in her husband’s films. This gives her a special link to the theme of memory and the past, because she lived through the golden age of cinema and then watched it be forgotten. The book tells us that after the war Georges’s studio closed and many of his films were melted down to make things like shoe heels. It does not show how Jeanne felt, so we must imagine it.
-
-From her perspective, this would be a painful time. She would remember the glass studio, the costumes, the sets and the laughter, and then see all of it treated as scrap. She would also see her husband change from a joyful magician into a quiet man behind a toy booth. Yet she stays with him. Instead of letting the past vanish, she protects what she can, including his drawings and memories, which are kept hidden in the flat. This shows that memory can be a quiet kind of love.
-
-The theme works because memory in the book is both a gift and a wound. Georges tries to bury the past because it hurts, but Jeanne understands it must not be lost. Her gentle patience is the opposite of his bitterness. She does not force him to remember, but she keeps the door open so that one day the past can return.
-
-That day arrives when Hugo and Isabelle bring the truth about Georges to the flat. Jeanne helps explain what happened, and her calm voice allows the family to face their history. This links directly to the climax, where the hidden past finally comes out and is celebrated instead of hidden. Without Jeanne’s years of quiet protection, there would be less left to rediscover.
-
-Selznick presents her as a gentle keeper of memory. Her gap in the story, those silent years, shows that remembering is not only about big events. It is also about small acts of loyalty, like keeping a box of drawings safe. The theme is explained through her: the past is painful, but it can heal people if someone is brave enough to carry it for them.` },
-        { title: 'Welcoming Hugo into the family', themes: ['family'], kind: 'book', words: 300,
-          notes: [['Setting', 'the flat, near the end of the story.'], ['Scene', 'Jeanne treats Hugo kindly and helps him belong.'], ['Theme', 'family is built by care, not just blood.'], ['Climax link', 'the Georges family takes Hugo in after the truth is revealed.']],
-          example: `Mama Georges shows the theme of family and friends through her warmth toward Hugo. Hugo begins the story as an orphan who steals and hides, and most adults see him as a problem. Jeanne is different. She treats him as a child who needs care, and her kindness gives him his first real taste of family life since losing his father.
-
-Her role is important because Papa Georges is angry and closed off for much of the book. Jeanne balances him. She is gentler, more patient and more willing to listen. When the truth about the automaton comes out, she helps calm the situation and guides the family towards understanding instead of more anger. This shows that family is not only about being related, but about choosing to look after each other.
-
-By the end of the book, Hugo is taken in by Georges and Jeanne, and Isabelle becomes like a sister to him. Jeanne’s welcome is a big part of this. She gives Hugo a home when he has none, and she makes the Georges family bigger instead of smaller.
-
-This links to the climax because the revealing of the past brings everyone together. Hugo gets a family, and the Georgeses get a boy who brings their history back to life. Selznick suggests that kindness can repair what loss has broken. Mama Georges, quiet and gentle, is the heart of that message.` },
-        { title: 'Keeping the secret from Isabelle', themes: ['isolation', 'truth'], kind: 'imagined', words: 200,
-          notes: [['Setting', 'the Georges family’s flat, over many years.'], ['Gap', 'why Jeanne and Georges never told Isabelle about his past.'], ['Theme', 'silence isolates people, and truth brings them back together.'], ['Climax link', 'the secret finally breaks open.']],
-          example: `One gap in the book is the long time that Jeanne and Georges kept the truth hidden from Isabelle. Isabelle is forbidden from going to the cinema and does not know her godfather was a famous filmmaker. From Jeanne’s perspective, this silence is done out of love, because she wants to protect Georges from the pain of remembering. But it also creates isolation inside the home. Isabelle feels shut out of the family’s story, and Georges is alone with his memories.
-
-This shows how secrets can separate people even when they live in the same house. The theme of truth is important because the book argues that hiding the past does not heal it. Only when Hugo brings the automaton to life and the signature appears is the silence broken. Jeanne’s imagined years of secrecy explain why the climax matters so much. When the truth finally comes out, the family stops being a house of secrets and becomes a real family.` }
+        { title: 'Watching Georges’s past disappear', themes: ['memory'], kind: 'imagined',
+          notes: [['Setting', 'the years after the war, in Georges’s old studio and then the Paris flat.'], ['Gap', 'the book tells us his films were melted down for shoe heels. We never see how Jeanne coped.'], ['Theme', 'she keeps the memory alive even when the world forgets.'], ['Climax link', 'she is the one who helps tell the truth at the end.']] },
+        { title: 'Welcoming Hugo into the family', themes: ['family'], kind: 'book',
+          notes: [['Setting', 'the flat, near the end of the story.'], ['Scene', 'Jeanne treats Hugo kindly and helps him belong.'], ['Theme', 'family is built by care, not just blood.'], ['Climax link', 'the Georges family takes Hugo in after the truth is revealed.']] },
+        { title: 'Keeping the secret from Isabelle', themes: ['isolation', 'truth'], kind: 'imagined',
+          notes: [['Setting', 'the Georges family’s flat, over many years.'], ['Gap', 'why Jeanne and Georges never told Isabelle about his past.'], ['Theme', 'silence isolates people, and truth brings them back together.'], ['Climax link', 'the secret finally breaks open.']] }
       ] },
     { id: 'isabelle', name: 'Isabelle', icon: '🗝️', who: 'Isabelle is Georges’s goddaughter. She is adventurous, loves books, and wears the heart-shaped key that starts the automaton.',
       gaps: [
-        { title: 'Becoming Hugo’s friend', themes: ['family'], kind: 'book', words: 200,
-          notes: [['Setting', 'the station and the streets of Paris.'], ['Scene', 'Isabelle chooses to help Hugo even though he stole from her godfather.'], ['Theme', 'friendship makes a new family.'], ['Climax link', 'her loyalty brings the truth to light.']],
-          example: `Isabelle shows the theme of family and friends by choosing to help Hugo even though he is a stranger who took things from her godfather’s booth. She is an adventurous girl who loves books and wants more from life than her quiet home allows. When she meets Hugo, she sees a person who needs a friend, and she acts on that instead of following the rules.
-
-Her loyalty is strong. She goes with Hugo to the cinema and the Film Academy, and she brings her heart-shaped key to the automaton. She even risks upsetting her godparents to help him. This shows that friendship can sometimes matter more than obeying family rules, especially when the rules hide an important truth.
-
-Isabelle is also the bridge between two families. She belongs to the Georges household, and she helps Hugo become part of it. Without her trust, Hugo would stay alone. In the climax her friendship leads to the truth about Georges, and in the ending it helps make Hugo her brother in all but name.` },
-        { title: 'The automaton draws', themes: ['awe'], kind: 'book', words: 400,
-          notes: [['Setting', 'Hugo’s hidden room in the station walls, with the automaton and Isabelle’s key.'], ['Scene', 'the heart-shaped key starts the machine and it draws a picture signed “Georges Méliès”.'], ['Theme', 'amazement at the hidden magic of the past.'], ['Climax link', 'this is the turning point of the whole story.']],
-          example: `The moment when the automaton comes to life is the best example of awe and amazement in the book, and Isabelle is right at the centre of it. Her heart-shaped key has always been a mystery to her, just a strange piece of jewellery she wears. Hugo has searched for the missing piece for so long that the machine has become the most important thing in his life. When Isabelle’s key fits and the automaton begins to move, both children are stunned.
-
-The automaton’s small hand starts to scratch across the paper, and the reader watches as slowly, line by line, a picture appears. It is a scene from A Trip to the Moon, the moon with a rocket in its eye, and the machine signs the picture with the name Georges Méliès. For a few seconds the children cannot believe what they are seeing. Hugo had hoped the automaton would carry a message from his father, and instead it reveals a name from the first days of film. Isabelle realises that the man she calls Papa Georges has a secret history she knew nothing about.
-
-Selznick makes this moment powerful by slowing the story down. The pictures and the quiet around them give the reader the same sense of wonder that the characters feel. It is like watching a magic trick where the audience knows something amazing is happening but cannot yet explain it.
-
-For Isabelle, the awe is double. She feels amazement at the machine itself, but she also feels amazement at her own family, because the signature changes how she sees her godfather. The boring man at the toy booth becomes a magician and a pioneer.
-
-This moment links directly to the climax because it is the turning point. Once the drawing is signed, the truth about Georges can no longer be hidden, and the characters must face the past. The theme of awe and amazement shows that wonder is not just entertainment. It can also be the key that opens up memory, truth and love. Isabelle’s key, in the end, unlocks far more than a machine.` },
-        { title: 'Life before Hugo', themes: ['isolation', 'truth'], kind: 'imagined', words: 300,
-          notes: [['Setting', 'the Georges family’s flat.'], ['Gap', 'what Isabelle felt before she met Hugo, forbidden from cinema and surrounded by adults.'], ['Theme', 'isolation caused by secrets.'], ['Climax link', 'the truth ends her loneliness.']],
-          example: `Before Isabelle meets Hugo, her life is quiet and limited, and the book does not show this period directly. We can imagine it, and it shows isolation. Isabelle lives with her godparents. She loves stories and adventure, yet she is forbidden from going to the cinema. To her, this rule makes no sense, because nobody explains it. She is surrounded by adults who hide something, and she is left curious and lonely.
-
-From her perspective, the flat would feel like a place of secrets. Her godfather is withdrawn, her godmother is gentle but careful, and the only exciting things are in books. Without friends her own age, she is isolated even though she is not alone. This is an important idea in the book, because isolation is not only about being physically by yourself. It can also be about being kept away from the truth.
-
-When Hugo appears, Isabelle finally has someone who shares her sense of adventure. He becomes her first real partner in mystery, and together they start asking questions about the past. Her loneliness turns into action, and she is brave enough to break the family’s silence.
-
-This links to the climax because Isabelle’s discovery of the truth about Georges is the moment her isolation ends. She learns who her godfather really is, and the family stops hiding from its history. Selznick shows that truth, even when it is difficult, is what brings people close. Isabelle’s imagined years of waiting explain why her friendship with Hugo is so important.` }
+        { title: 'Becoming Hugo’s friend', themes: ['family'], kind: 'book',
+          notes: [['Setting', 'the station and the streets of Paris.'], ['Scene', 'Isabelle chooses to help Hugo even though he stole from her godfather.'], ['Theme', 'friendship makes a new family.'], ['Climax link', 'her loyalty brings the truth to light.']] },
+        { title: 'The automaton draws', themes: ['awe'], kind: 'book',
+          notes: [['Setting', 'Hugo’s hidden room in the station walls, with the automaton and Isabelle’s key.'], ['Scene', 'the heart-shaped key starts the machine and it draws a picture signed “Georges Méliès”.'], ['Theme', 'amazement at the hidden magic of the past.'], ['Climax link', 'this is the turning point of the whole story.']] },
+        { title: 'Life before Hugo', themes: ['isolation', 'truth'], kind: 'imagined',
+          notes: [['Setting', 'the Georges family’s flat.'], ['Gap', 'what Isabelle felt before she met Hugo, forbidden from cinema and surrounded by adults.'], ['Theme', 'isolation caused by secrets.'], ['Climax link', 'the truth ends her loneliness.']] }
       ] },
     { id: 'georges', name: 'Papa Georges (Georges Méliès)', icon: '🎩', who: 'Papa Georges was a famous magician and filmmaker. Now he is a forgotten old man selling toys in the station.',
       gaps: [
-        { title: 'Remembering the glass studio', themes: ['memory'], kind: 'book', words: 300,
-          notes: [['Setting', 'his old film studio and the present-day toy booth.'], ['Scene', 'Georges was a famous magician and filmmaker. After the war his films were melted down and he was forgotten.'], ['Theme', 'the past can be painful, but forgetting it is worse.'], ['Climax link', 'the automaton forces him to face his past.']],
-          example: `Papa Georges is the main character connected to the theme of memory and the past. In the early days of cinema, he was a magician who built a glass studio and made hundreds of films, including A Trip to the Moon. People were amazed by his imagination. After the war, however, audiences lost interest, his studio closed, and many of his films were melted down for scrap. He ended up selling toys in a train station, forgotten by the world.
-
-For Georges, memory is a source of grief. Every reminder of film hurts, because it shows him how much he lost. That is why he forbids Isabelle from going to the cinema and reacts so angrily when Hugo’s automaton appears. The machine was once his own creation, and seeing it forces him to remember a time of joy and a time of loss together.
-
-The theme is explained through his change. At the start he is bitter and closed off, as if the past is a locked room. By the end he is willing to open that room, and he learns that people still remember him and value his work. The past, which seemed dead, returns as a gift.
-
-This links to the climax. When the automaton draws the picture and signs his name, Georges can no longer hide. His breakdown is painful, but it is also the beginning of healing. Selznick suggests that memory can hurt, but it also keeps us human. A person who forgets the past loses part of himself, and Georges regains himself when his past is honoured.` },
-        { title: 'The years behind the toy booth', themes: ['isolation'], kind: 'imagined', words: 400,
-          notes: [['Setting', 'the toy booth in the station, year after year.'], ['Gap', 'what Georges felt as he sat alone every day, unseen.'], ['Theme', 'shame and loss shut him away from everyone.'], ['Climax link', 'the truth ends his isolation.']],
-          example: `The book shows Georges as an old man selling toys, but it does not show the long period between losing his studio and meeting Hugo. This is a gap that clearly shows isolation. We can imagine the years in which he sat in the same small booth, repairing toys and seeing travellers rush past without a glance. In the past he was celebrated, and now he is invisible.
-
-From Georges’s perspective, the isolation would come from shame as well as sadness. He believes the world has forgotten him and that his work no longer matters. Instead of fighting this, he withdraws. He hides his drawings, avoids films, and tries to live as if the past never happened. Even at home, he keeps his feelings closed. This is why he can be harsh with Hugo and with Isabelle. His anger is not really about them. It is the pain of a man who has been alone with his grief for too long.
-
-Selznick often shows isolation using the station itself. It is a place full of people, but few of them truly connect with each other. The toy booth is like a small cage in the middle of the crowd, and Georges is trapped in it by his memories. Hugo is also hidden in the station walls, so the two characters mirror each other. One is a boy hiding from the world, and the other is an old man hiding from his past.
-
-The theme matters because the book argues that isolation can be broken only through connection and truth. Hugo’s arrival, even though it begins with stealing, forces Georges to interact with someone. The automaton then drives him to face what he has hidden. By the climax, the old man who sat alone in a booth is surrounded by family and by people who honour his life.
-
-This change shows the hope in the story. Georges’s imagined years of loneliness make his final recognition more moving. When he stands in front of a crowd that celebrates him, we feel how long he waited, and we understand that isolation does not have to be permanent.` },
-        { title: 'Being honoured at the end', themes: ['awe'], kind: 'book', words: 200,
-          notes: [['Setting', 'the Film Academy celebration, near the end.'], ['Scene', 'Georges’s films are shown and people applaud him.'], ['Theme', 'wonder returns when the past is honoured.'], ['Climax link', 'this is the resolution of the climax.']],
-          example: `At the end of the book, Georges is honoured at a celebration of his films, and it is a moving example of awe and amazement. For years he believed that nobody remembered his work. Now he stands in a room full of people who admire the magic he created. The old films are shown again, and the audience reacts with the same wonder that people felt when they were first made.
-
-For Georges, the amazement is also personal. He sees that his life’s work survived and that younger people, like Hugo, Isabelle and Étienne, helped bring it back. He is no longer a forgotten toy seller. He is a magician again.
-
-This scene is the happy ending that follows the climax. The truth about the automaton opens the way, and the celebration completes it. The theme shows that wonder never really disappears. It can be lost for a while, but when memory and friendship bring it back, it fills people with joy again.` }
+        { title: 'Remembering the glass studio', themes: ['memory'], kind: 'book',
+          notes: [['Setting', 'his old film studio and the present-day toy booth.'], ['Scene', 'Georges was a famous magician and filmmaker. After the war his films were melted down and he was forgotten.'], ['Theme', 'the past can be painful, but forgetting it is worse.'], ['Climax link', 'the automaton forces him to face his past.']] },
+        { title: 'The years behind the toy booth', themes: ['isolation'], kind: 'imagined',
+          notes: [['Setting', 'the toy booth in the station, year after year.'], ['Gap', 'what Georges felt as he sat alone every day, unseen.'], ['Theme', 'shame and loss shut him away from everyone.'], ['Climax link', 'the truth ends his isolation.']] },
+        { title: 'Being honoured at the end', themes: ['awe'], kind: 'book',
+          notes: [['Setting', 'the Film Academy celebration, near the end.'], ['Scene', 'Georges’s films are shown and people applaud him.'], ['Theme', 'wonder returns when the past is honoured.'], ['Climax link', 'this is the resolution of the climax.']] }
       ] },
     { id: 'inspector', name: 'The Station Inspector', icon: '👮', who: 'The Inspector is a minor character in the book, so these gaps are mostly imagined. Use the in-book facts (he chases Hugo and threatens the orphanage) and build on them.',
       gaps: [
-        { title: 'Patrolling alone', themes: ['isolation'], kind: 'imagined', words: 200,
-          notes: [['Setting', 'the station concourse, day after day.'], ['Gap', 'what his life is like outside work.'], ['Theme', 'rules and duty can leave a person lonely.'], ['Climax link', 'his chase pushes Hugo to the final confrontation.']],
-          example: `The Station Inspector is mostly shown as a chaser, but we never see his private life, which is a gap that points to isolation. He walks around the station day after day, watching people, looking for lost children, and enforcing rules. He is surrounded by crowds but we never see him with a friend or family member.
-
-From his perspective, the job may be the only thing that gives his life shape. By catching children he feels useful and in control. However, this also keeps people away from him. Hugo fears him, other characters avoid him, and he seems to have no one to share a laugh with. His strictness makes him lonely.
-
-The Inspector shows a different kind of isolation from Hugo’s. Hugo is alone because he lost his family, while the Inspector is alone partly because of his own hard attitude. This contrast helps the book show that isolation can come from loss or from choices. His chase of Hugo drives the tension that leads to the climax, where Hugo must finally reveal the truth.` },
-        { title: 'An outsider among friends', themes: ['family'], kind: 'imagined', words: 300,
-          notes: [['Setting', 'the station, in contrast with the friendship scenes.'], ['Gap', 'the Inspector never joins the circle of helpers.'], ['Theme', 'friendship and family are what he lacks.'], ['Climax link', 'the others unite while he stays an outsider.']],
-          example: `The Station Inspector helps highlight the theme of family and friends by being the character who stands outside it. Around him, people form bonds. Hugo and Isabelle become friends, Étienne helps them, and Georges and Jeanne become Hugo’s new family. The Inspector, by contrast, is always on the edge of these scenes, chasing, watching and threatening.
-
-From his own perspective, this may feel natural. He sees himself as someone who keeps order, not someone who joins in. Yet the book suggests that something is missing. When he sees orphans, he treats them as a problem to be removed rather than as children who need care. This shows that he does not understand the value of family, perhaps because he has none or has forgotten what it feels like.
-
-His role works as a contrast. Hugo has almost nothing, but he gains friends and a family. The Inspector has authority and a uniform, but he has no real connection with anyone. Selznick uses him to show that power is not the same as belonging.
-
-This links to the climax because the friends work together to reveal the truth, and the Inspector cannot stop them. The strength of their bond defeats the fear he represents. The message is that people who stand together, even if they are small and poor, can overcome cold rules. Meanwhile, the Inspector reminds us what life looks like without friendship: it is orderly, but it is empty.` },
-        { title: 'The threat of discovery', themes: ['truth'], kind: 'both', words: 400,
-          notes: [['Setting', 'the station, during the chases.'], ['Scene', 'the Inspector threatens to send Hugo to the orphanage if he finds him.'], ['Theme', 'Hugo hides the truth to survive.'], ['Climax link', 'the truth finally comes out and ends the need to hide.']],
-          example: `The Station Inspector is a living reminder of what could happen if the truth about Hugo is discovered. Hugo is a twelve-year-old boy living secretly in the station walls, winding the clocks so nobody notices that his uncle is gone. If the Inspector learns the truth, Hugo could be sent to an orphanage and lose his chance to finish the automaton. Because of this, Hugo spends much of the book hiding and avoiding questions, so the theme of truth appears as something dangerous to reveal.
-
-From the Inspector’s perspective, he is only doing his job. He believes he is protecting children by taking them off the streets. He does not know that Hugo is keeping a mystery that links to the past of a famous filmmaker. This gap in his knowledge creates tension. The reader knows more than the Inspector does, and each chase feels like a race between a hidden truth and a rule that would crush it.
-
-The theme works because truth in the book is complicated. Hugo’s lies protect him, but they also keep him lonely. Georges’s silence protects him from pain, but it also hides his greatness. Everyone is hiding something, and the Inspector represents the outside world that could expose them. He makes the characters afraid of the truth.
-
-The climax changes this. When the automaton signs the drawing and Georges’s secret comes out, hiding is no longer necessary. The truth does not destroy the characters. It saves them. Hugo no longer has to run, and the family can openly accept him. The Inspector’s threat loses its power because Hugo now has a home and people who will stand up for him.
-
-Selznick uses the Inspector to show that fear of discovery can make people hide for too long. His role is small, but it adds pressure to the story and makes the final honesty feel like a relief. The theme is explained clearly: truth can be frightening, but living in secrets is more painful. Once the truth is told, the characters can finally stop hiding and start belonging.` }
+        { title: 'Patrolling alone', themes: ['isolation'], kind: 'imagined',
+          notes: [['Setting', 'the station concourse, day after day.'], ['Gap', 'what his life is like outside work.'], ['Theme', 'rules and duty can leave a person lonely.'], ['Climax link', 'his chase pushes Hugo to the final confrontation.']] },
+        { title: 'An outsider among friends', themes: ['family'], kind: 'imagined',
+          notes: [['Setting', 'the station, in contrast with the friendship scenes.'], ['Gap', 'the Inspector never joins the circle of helpers.'], ['Theme', 'friendship and family are what he lacks.'], ['Climax link', 'the others unite while he stays an outsider.']] },
+        { title: 'The threat of discovery', themes: ['truth'], kind: 'both',
+          notes: [['Setting', 'the station, during the chases.'], ['Scene', 'the Inspector threatens to send Hugo to the orphanage if he finds him.'], ['Theme', 'Hugo hides the truth to survive.'], ['Climax link', 'the truth finally comes out and ends the need to hide.']] }
       ] }
   ],
   // ✍️ how every answer is built (the pattern the examples follow)
@@ -186,7 +94,7 @@ Selznick uses the Inspector to show that fear of discovery can make people hide 
     ['1. Name the gap', 'Say what moment it is and whether the book shows it or you are imagining it.'],
     ['2. Character’s view', 'Write from the character’s perspective: what they would feel and why.'],
     ['3. Setting', 'Place it: where and when (Paris, the station, the toy booth, the cinema, the flat, the Film Academy).'],
-    ['4. Explain the theme', 'Name the theme and explain how this moment shows it. Compare with other characters if you can.'],
+    ['4. ⭐ Link to the theme (most important)', 'Name one of the 5 themes (Family and friends, Awe and amazement, Memory and the past, Isolation, Truth). Say “this shows the theme of …” and explain how this moment shows it. Compare with other characters if you can.'],
     ['5. Link to the climax', 'Finish by connecting it to the automaton signing Georges Méliès’s name and what that changes.']
   ],
   // ❓ quiz: a = index of the right answer
@@ -222,6 +130,7 @@ Selznick uses the Inspector to show that fear of discovery can make people hide 
     { q: 'Which character’s gaps are mostly imagined because he is a minor character?', o: ['The Station Inspector', 'Papa Georges', 'Isabelle', 'Mama Georges'], a: 0, why: 'Use the in-book facts (he chases Hugo and threatens the orphanage) and build on them.' },
     { q: 'Which of these gaps is Imagined, not In the book?', o: ['Georges’s years behind the toy booth', 'The automaton draws', 'Étienne helping at the Film Academy', 'Georges being honoured'], a: 0, why: 'The book never shows those long lonely years, so you imagine them from his view.' },
     { q: 'Why did Jeanne and Georges keep his past secret from Isabelle?', o: ['To protect Georges from the pain of remembering', 'Because Isabelle was too young to read', 'Because the Inspector told them to', 'Because they forgot'], a: 0, why: 'It was done out of love, but it also created isolation inside the home.' },
+    { q: 'What is the most important thing every gap answer must do?', o: ['Link to one of the 5 themes', 'Use exactly 300 words', 'Quote the film Safety Last', 'Describe every character'], a: 0, why: 'Every answer must name a theme (Family and friends, Awe and amazement, Memory and the past, Isolation or Truth) and explain how the moment shows it.' },
     { q: 'What should every gap answer finish with?', o: ['A link to the climax', 'A list of characters', 'A quote from the film', 'The word count'], a: 0, why: 'Connect the moment to the automaton signing Georges Méliès’s name and what that changes.' }
   ],
   // 🃏 flashcards
@@ -251,6 +160,11 @@ Selznick uses the Inspector to show that fear of discovery can make people hide 
     ['The ending', 'The Georges family takes Hugo in, and Georges is honoured at the Film Academy.'],
     ['💭 Imagined gap', 'A moment the book doesn’t show, written from the character’s view and built on facts from the book.'],
     ['📖 In the book gap', 'A real scene from the book, explained through a theme and linked to the climax.'],
-    ['How to build a gap answer', 'Name the gap → character’s view → setting → explain the theme → link to the climax.']
+    ['How to build a gap answer', 'Name the gap → character’s view → setting → link to the theme (most important) → link to the climax.']
   ]
 };
+// attach the three examples to every gap (curly apostrophes, like the rest of the site)
+HUGO.characters.forEach(c => c.gaps.forEach((g, i) => {
+  const e = EXAMPLES[c.id + '-' + i];
+  g.examples = Object.fromEntries(['short', 'medium', 'long'].map(k => [k, e[k].replace(/'/g, '’')]));
+}));

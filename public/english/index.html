@@ -75,6 +75,10 @@ select.pick{font:inherit;padding:9px 10px;border-radius:10px;border:2px solid va
 .lock{border:2.5px solid var(--eng);background:var(--eng-soft)}
 .lock input{font:inherit;font-size:1.3rem;letter-spacing:.2em;text-transform:uppercase;max-width:220px}
 .foot{margin-top:28px}
+.warnbar{margin-top:12px;border:1.5px solid var(--warn);background:var(--warn-soft);color:var(--ink);border-radius:10px;padding:8px 12px;font-size:.9375rem}
+.exrow{display:flex;gap:8px;flex-wrap:wrap}
+#app .exrow .btn.on,#app .exrow .btn.quiet.on{background:var(--eng);border-color:var(--eng);color:var(--card)}
+.thline{font-weight:700;color:var(--eng)}
 </style>
 <script src="/theme.js"></script>
 <link rel="stylesheet" href="/theme.css?v=1">
@@ -110,6 +114,7 @@ select.pick{font:inherit;padding:9px 10px;border-radius:10px;border:2px solid va
       <a href="#cards" data-v="cards">🃏 Flashcards</a>
       <a href="#write" data-v="write">✍️ Write a gap</a>
     </nav>
+    <p class="warnbar">⚠️ <b>English on EC Revisions is not perfect and could be wrong.</b> Always check facts and scenes against your own copy of the book and what your teacher says.</p>
     <section class="view" id="v-overview"></section>
     <section class="view" id="v-characters" hidden></section>
     <section class="view" id="v-ideas" hidden></section>
@@ -170,6 +175,8 @@ select.pick{font:inherit;padding:9px 10px;border-radius:10px;border:2px solid va
   const kindChip = k => el('span', 'chip ' + (k === 'book' ? 'bk' : 'im'), k === 'book' ? '📖 In the book' : k === 'both' ? '📖💭 In the book + Imagined' : '💭 Imagined');
   const themeChips = ids => { const c = el('span', 'chips'); ids.forEach(id => { const t = TH(id); c.append(el('span', 'chip th', t.icon + ' ' + t.name)); }); return c; };
   const paras = (txt, box) => { txt.split(/\n\s*\n/).forEach(p => box.append(el('p', '', p.trim()))); return box; };
+  const LENS = [['short', '📝 Short (~200)'], ['medium', '📄 Medium (~300)'], ['long', '📚 Long (~400)']];
+  const TARGET = { short: 200, medium: 300, long: 400 };
   const allGaps = () => D.characters.flatMap(c => c.gaps.map((g, i) => ({ c, g, i, key: c.id + '-' + i })));
   const words = s => (s.trim().match(/[A-Za-zÀ-ÿ0-9’'-]+/g) || []).length;
   const shuffle = a => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
@@ -178,6 +185,8 @@ select.pick{font:inherit;padding:9px 10px;border-radius:10px;border:2px solid va
   function overview() {
     const v = $('#v-overview'); v.replaceChildren();
     v.append(el('div', 'key', '⭐ ' + D.key));
+    const tr = el('section', 'card stack'); tr.append(el('h2', '', '🎯 Every answer must link to a theme'), el('p', '', 'This is the most important part. There are only 5 themes, and every gap answer has to name one and explain how the moment shows it:'));
+    const tc = el('div', 'chips'); D.themes.forEach(t => tc.append(el('span', 'chip th', t.icon + ' ' + t.name))); tr.append(tc); v.append(tr);
     const s = el('section', 'card stack'); s.append(el('h2', '', '📍 Setting'));
     const f = el('div', 'facts'); D.setting.forEach(([h, t]) => { const r = el('div', 'fact'); r.append(el('b', '', h), el('span', '', t)); f.append(r); }); s.append(f); v.append(s);
     const c = el('section', 'card stack'); c.append(el('h2', '', '🎯 Climax (brief summary)')); D.climax.forEach(p => c.append(el('p', '', p))); v.append(c);
@@ -197,13 +206,16 @@ select.pick{font:inherit;padding:9px 10px;border-radius:10px;border:2px solid va
       c.gaps.forEach((g, i) => {
         const d = el('details', 'gap'); d.id = 'gap-' + c.id + '-' + i;
         const sm = el('summary'); sm.append(el('span', 't', 'Gap ' + (i + 1) + ': ' + g.title)); const chips = el('span', 'chips'); chips.append(kindChip(g.kind), ...themeChips(g.themes).childNodes); sm.append(chips); d.append(sm);
-        const inn = el('div', 'in'); inn.append(el('b', '', 'Short notes'));
+        const inn = el('div', 'in'); inn.append(el('div', 'thline', '🎯 Theme: ' + g.themes.map(id => TH(id).name).join(' + ')), el('b', '', 'Short notes'));
         const ul = el('ul', 'notes'); g.notes.forEach(([h, t]) => { const li = el('li'); li.append(el('b', '', h + ': '), document.createTextNode(t)); ul.append(li); }); inn.append(ul);
-        const ex = el('div', 'example'); ex.hidden = true; paras(g.example, ex);
-        const row = el('div', 'row'); const lbl = ' full example (' + words(g.example) + ' words · target ~' + g.words + ')'; const tg = el('button', 'btn quiet sm', '📄 Show' + lbl); tg.type = 'button';
-        tg.onclick = () => { ex.hidden = !ex.hidden; tg.textContent = (ex.hidden ? '📄 Show' : '🙈 Hide') + lbl; };
-        const pr = el('a', 'btn sm', '✍️ Practise writing this'); pr.href = '#write'; pr.onclick = () => { writeKey = c.id + '-' + i; };
-        row.append(tg, pr); inn.append(row, ex); d.append(inn); s.append(d);
+        const ex = el('div', 'example'); ex.hidden = true;
+        inn.append(el('b', '', '📄 Example answers (Year 8 level)'));
+        const exr = el('div', 'exrow'); let open = null;
+        LENS.forEach(([k, label]) => { const b = el('button', 'btn quiet sm', label + ' · ' + words(g.examples[k]) + ' words'); b.type = 'button';
+          b.onclick = () => { open = open === k ? null : k; exr.querySelectorAll('button').forEach(x => x.classList.remove('on')); ex.replaceChildren(); ex.hidden = !open; if (open) { b.classList.add('on'); paras(g.examples[k], ex); } };
+          exr.append(b); });
+        const row = el('div', 'row'); const pr = el('a', 'btn sm', '✍️ Practise writing this'); pr.href = '#write'; pr.onclick = () => { writeKey = c.id + '-' + i; };
+        row.append(pr); inn.append(exr, ex, row); d.append(inn); s.append(d);
       });
       v.append(s);
     });
@@ -311,17 +323,20 @@ select.pick{font:inherit;padding:9px 10px;border-radius:10px;border:2px solid va
     const v = $('#v-write'); v.replaceChildren();
     const G = allGaps(); if (!writeKey || !G.find(x => x.key === writeKey)) writeKey = P.ew.last || G[0].key;
     const x = G.find(y => y.key === writeKey), g = x.g, c = x.c;
+    const len = TARGET[P.ew.len] ? P.ew.len : 'medium', goal = TARGET[len], dk = writeKey + '|' + len; // drafts are kept per gap and per length
     const top = el('section', 'card stack');
-    top.append(el('h2', '', '✍️ Write a gap answer'), el('p', 'small muted', 'Pick a gap, write your answer, and the checklist ticks itself as you go. Your draft saves automatically. When you’re done, compare it with the example.'));
+    top.append(el('h2', '', '✍️ Write a gap answer'), el('p', 'small muted', 'Pick a gap and a length, write your answer, and the checklist ticks itself as you go. Your draft saves automatically. When you’re done, compare it with the example of the same length.'));
     const sel = el('select', 'pick'); sel.setAttribute('aria-label', 'Choose a gap');
-    D.characters.forEach(ch => { const og = el('optgroup'); og.label = ch.icon + ' ' + ch.name; ch.gaps.forEach((gg, i) => { const o = el('option', '', 'Gap ' + (i + 1) + ': ' + gg.title + ' (' + gg.themes.map(id => TH(id).name).join(' / ') + ')' + ((P.ew.d || {})[ch.id + '-' + i] ? ' ✏️' : '')); o.value = ch.id + '-' + i; og.append(o); }); sel.append(og); });
+    D.characters.forEach(ch => { const og = el('optgroup'); og.label = ch.icon + ' ' + ch.name; ch.gaps.forEach((gg, i) => { const o = el('option', '', 'Gap ' + (i + 1) + ': ' + gg.title + ' (' + gg.themes.map(id => TH(id).name).join(' / ') + ')' + (Object.keys(P.ew.d || {}).some(k => k.startsWith(ch.id + '-' + i + '|')) ? ' ✏️' : '')); o.value = ch.id + '-' + i; og.append(o); }); sel.append(og); });
     sel.value = writeKey; sel.onchange = () => { writeKey = sel.value; P.ew.last = writeKey; changed(); write(); };
     top.append(sel);
-    const chips = el('div', 'chips'); chips.append(kindChip(g.kind), ...themeChips(g.themes).childNodes, el('span', 'chip', '🎯 about ' + g.words + ' words')); top.append(chips);
+    const lr = el('div', 'exrow'); LENS.forEach(([k, label]) => { const b = el('button', 'btn quiet sm' + (k === len ? ' on' : ''), label); b.type = 'button'; b.onclick = () => { P.ew.len = k; changed(); write(); }; lr.append(b); }); top.append(lr);
+    top.append(el('div', 'thline', '🎯 Theme: ' + g.themes.map(id => TH(id).name).join(' + ') + ' (make sure your answer links to it)'));
+    const chips = el('div', 'chips'); chips.append(kindChip(g.kind), el('span', 'chip', '✏️ about ' + goal + ' words')); top.append(chips);
     const nd = el('details'); nd.append(el('summary', '', '📝 Show the short notes')); const ul = el('ul', 'notes'); g.notes.forEach(([h, t]) => { const li = el('li'); li.append(el('b', '', h + ': '), document.createTextNode(t)); ul.append(li); }); nd.append(ul); top.append(nd);
     v.append(top);
     const box = el('section', 'card stack');
-    const ta = el('textarea', 'essay'); ta.maxLength = 6000; ta.placeholder = 'Start with the gap: what moment is it, and whose view are you writing from?'; ta.value = (P.ew.d || {})[writeKey] || ''; ta.setAttribute('aria-label', 'Your answer');
+    const ta = el('textarea', 'essay'); ta.maxLength = 6000; ta.placeholder = 'Start with the gap: what moment is it, and whose view are you writing from?'; ta.value = (P.ew.d || {})[dk] || ''; ta.setAttribute('aria-label', 'Your answer');
     const wc = el('div', 'row'); wc.style.justifyContent = 'space-between'; const wct = el('b'), wch = el('span', 'small muted'); wc.append(wct, wch);
     const bar = el('div', 'bar'), bi = el('i'); bar.append(bi);
     const checks = el('ul', 'checks');
@@ -330,18 +345,19 @@ select.pick{font:inherit;padding:9px 10px;border-radius:10px;border:2px solid va
       ['Names the character (' + c.name.split(' (')[0] + ')', s => new RegExp(name.normalize('NFD').replace(/[̀-ͯ]/g, ''), 'i').test(s.normalize('NFD').replace(/[̀-ͯ]/g, ''))],
       [g.kind === 'book' ? 'Explains the scene from the character’s point of view' : 'Writes from the character’s perspective (imagined)', s => /perspective|point of view|from (his|her|their|\w+’s|\w+'s) view|imagine|would feel|feels|felt/i.test(s)],
       ['Mentions the setting (where and when)', s => SETTING.test(s)],
-      ['Names the theme (' + g.themes.map(id => TH(id).name).join(' / ') + ')', s => g.themes.some(id => ({ isolation: /isolat|lonel|alone/i, awe: /awe|amaze|wonder/i, family: /family|friend/i, memory: /memory|memories|remember|the past/i, truth: /truth|secret|hidden|hide/i })[id].test(s))],
+      ['⭐ Most important: names the theme (' + g.themes.map(id => TH(id).name).join(' / ') + ') and says it’s a theme', s => /\btheme/i.test(s) && g.themes.some(id => ({ isolation: /isolat/i, awe: /\bawe\b|amaz/i, family: /family|friend/i, memory: /memor|the past/i, truth: /truth/i })[id].test(s))],
       ['Links to the climax (the automaton signing Georges Méliès’s name)', s => CLIMAX.test(s)],
-      ['Close to the word target (' + Math.round(g.words * 0.85) + '+ words)', s => words(s) >= g.words * 0.85]
+      ['Close to the word target (' + Math.round(goal * 0.85) + '+ words)', s => words(s) >= goal * 0.85]
     ];
     function update() {
-      const s = ta.value, n = words(s); wct.textContent = n + ' words'; wch.textContent = 'Target: about ' + g.words; bi.style.width = Math.min(100, n / g.words * 100) + '%';
+      const s = ta.value, n = words(s); wct.textContent = n + ' words'; wch.textContent = 'Target: about ' + goal; bi.style.width = Math.min(100, n / goal * 100) + '%';
       checks.replaceChildren(); tests.forEach(([t, f]) => { const ok = f(s); const li = el('li'); li.append(el('span', '', ok ? '✅' : '⬜'), el('span', ok ? '' : 'muted', t)); checks.append(li); });
     }
-    let tmr = null; ta.oninput = () => { update(); clearTimeout(tmr); tmr = setTimeout(() => { P.ew.d = P.ew.d || {}; if (ta.value.trim()) P.ew.d[writeKey] = ta.value; else delete P.ew.d[writeKey]; P.ew.last = writeKey; changed(); }, 600); };
+    let tmr = null; ta.oninput = () => { update(); clearTimeout(tmr); tmr = setTimeout(() => { P.ew.d = P.ew.d || {}; if (ta.value.trim()) P.ew.d[dk] = ta.value; else delete P.ew.d[dk]; P.ew.last = writeKey; changed(); }, 600); };
     box.append(ta, wc, bar, el('b', '', 'Checklist'), checks);
-    const ex = el('div', 'example'); ex.hidden = true; paras(g.example, ex);
-    const r = el('div', 'row'); const tg = el('button', 'btn quiet', '📄 Compare with the example'); tg.type = 'button'; tg.onclick = () => { ex.hidden = !ex.hidden; tg.textContent = ex.hidden ? '📄 Compare with the example' : '🙈 Hide the example'; };
+    const ex = el('div', 'example'); ex.hidden = true; paras(g.examples[len], ex);
+    const cmp = '📄 Compare with the ' + len + ' example (' + words(g.examples[len]) + ' words)';
+    const r = el('div', 'row'); const tg = el('button', 'btn quiet', cmp); tg.type = 'button'; tg.onclick = () => { ex.hidden = !ex.hidden; tg.textContent = ex.hidden ? cmp : '🙈 Hide the example'; };
     const clr = el('button', 'btn quiet', '🗑️ Clear my draft'); clr.type = 'button'; clr.onclick = () => { if (!ta.value.trim() || confirm('Clear this draft? This can’t be undone.')) { ta.value = ''; ta.oninput(); } };
     r.append(tg, clr); box.append(r, ex); v.append(box);
     update();
