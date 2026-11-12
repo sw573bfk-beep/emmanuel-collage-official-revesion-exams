@@ -13,6 +13,7 @@
     { h: '💤 Sleep mode', t: 'If you don’t touch the page for 10 minutes, a Sleep mode screen appears and your study time stops counting (so nobody can leave a tab open overnight for points). Tap <b>I’m back, keep studying</b> to carry on.' },
     { h: '📣 Messages from Beau', t: 'Sometimes a message from Beau pops up at the top of the screen for a short time. Tap ✕ to close it.' },
     { h: '📚 Study mode', t: 'Study mode can turn on by itself during school hours, or Beau can turn it on. Then Maths, Science, Play with friends, the leaderboard, your profile and messaging Beau all work, but chatting with friends and the feedback form are off. You can ask Beau to turn it off for you.' },
+    { h: '🎯 Focus mode', t: 'Tap <b>🎯 Focus</b> at the top of Home, Maths, Science or English. Flip the switch and pick how long (25 min to 2 hours, your own time, or until you turn it off). It hides chat, friends, the leaderboard, Play, feedback, your profile and all red numbers, so only Maths, Science, English and Beau’s announcements are left. Turn it off any time from the same menu.' },
     { h: '🌙 Light or dark', t: 'Tap the 🌙 / ☀️ button to switch between light and dark mode.' },
     { h: '🔒 Privacy and safety', t: 'EC Revisions is made by a student, not the school. Tap <b>Privacy and safety</b> at the bottom of any page to see what’s saved and who can see it.' }
   ];

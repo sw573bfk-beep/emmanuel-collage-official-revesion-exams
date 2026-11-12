@@ -150,6 +150,8 @@ async function studyState(env, user) {
   const off = why === 'everyone' ? schedTimes(S.sched, now()).find(x => !x.on && x.at > now()) : null;
   return { study, requested: study && !!(u && u.study_req), site, why, until: study && off ? off.at : null };
 }
+// 🎯 focus mode (the student's own choice): on until a time, or until they turn it off
+const focusOf = u => { const f = +u.focus_until || 0; return { on: f === -1 || f > now(), until: f > 0 ? f : null }; };
 async function studyPayload(env, user) {
   const st = await studyState(env, user);
   let declined = false;
@@ -278,9 +280,9 @@ async function startSession(env, userId, url, slot = 0, days = SESSION_DAYS) {
 }
 async function currentUser(req, env, slot = slotOf(req)) {
   const token = getCookie(req, sidName(slot)); if (!token || !/^[0-9a-f]{64}$/.test(token)) return null;
-  const row = await env.DB.prepare('SELECT u.id, u.username, u.role, u.tester, u.teacher, s.expires_at FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token_hash = ?').bind(await sha256(token)).first();
+  const row = await env.DB.prepare('SELECT u.id, u.username, u.role, u.tester, u.teacher, u.focus_until, s.expires_at FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token_hash = ?').bind(await sha256(token)).first();
   if (!row || row.expires_at < now()) return null;
-  return { id: row.id, username: row.username, role: row.role || null, tester: !!row.tester, teacher: !!row.teacher, tokenHash: await sha256(token) };
+  return { id: row.id, username: row.username, role: row.role || null, tester: !!row.tester, teacher: !!row.teacher, focus_until: row.focus_until || 0, tokenHash: await sha256(token) };
 }
 async function readJson(req) {
   if (!(req.headers.get('content-type') || '').includes('application/json')) throw new Error('Expected JSON');
@@ -370,10 +372,21 @@ async function handleApi(req, env, url) {
       out.study = await studyPayload(env, user);
       out.chat = await liveChat(env, user);
       if (out.study.study) { out.chat.requests = 0; out.chat.unreadDm = 0; } // in study mode only Beau's messages count
+      out.focus = focusOf(user);
+      if (out.focus.on) { out.chat.requests = 0; out.chat.unreadDm = 0; out.chat.beau = 0; } // 🎯 focus mode: no red numbers at all
     }
     return json(out);
   }
   if (!user) return err(401, 'Not logged in');
+  // 🎯 Focus mode, turned on by the student themselves: { minutes: 1-480 } or { forever: true } to turn it on, { off: true } to turn it off
+  if (path === '/api/focus' && method === 'POST') {
+    let b; try { b = await readJson(req); } catch { return err(400, 'Bad request'); }
+    const m = Math.floor(+b.minutes || 0);
+    const until = b.off ? 0 : b.forever ? -1 : m >= 1 && m <= 480 ? now() + m * 60 : null;
+    if (until === null) return err(400, 'Pick between 1 minute and 8 hours.');
+    await env.DB.prepare('UPDATE users SET focus_until = ? WHERE id = ?').bind(until, user.id).run();
+    return json({ ok: true, focus: focusOf({ focus_until: until }) });
+  }
   // Study mode: only Maths, Science and Play with friends. Students can ask Beau to turn it off.
   if (path === '/api/study' && method === 'GET') return json(await studyPayload(env, user));
   if (path === '/api/study/request' && method === 'POST') {
