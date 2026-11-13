@@ -558,9 +558,8 @@ async function handleApi(req, env, url) {
     const r = await useCode(env, user, row, t); if (r.error) return err(400, r.error);
     return json({ ok: true, type: row.feature, message: r.message });
   }
-  // 📗 English (Hugo Cabret study pack): only for people who unlocked it with an English code
+  // 📗 English (Hugo Cabret study pack): open to everyone who is logged in (no code needed)
   if (path === '/api/english' && method === 'GET') {
-    if (!(await hasUnlock(env, user, 'english'))) return err(403, 'Locked. Enter an English code to unlock it.');
     return new Response(JSON.stringify(HUGO), { headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'private, no-store' } });
   }
   if (path === '/api/theory' && method === 'GET') {
@@ -703,12 +702,11 @@ async function hasUnlock(env, user, feature) {
 // 5-character codes from letters and numbers that can't be mixed up (no 0/O, 1/I/L), typed in any case
 const CODE_CHARS = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 function newCode() { const b = crypto.getRandomValues(new Uint8Array(5)); return Array.from(b, x => CODE_CHARS[x % CODE_CHARS.length]).join(''); }
-const CODE_TYPES = { theory: '📘 Science booklet', english: '📗 English (Hugo Cabret)', top: '⭐ Top tier admin', basic: '🛡️ Basic admin', tester: '🧪 Official tester', teacher: '👩‍🏫 Teacher' };
+const CODE_TYPES = { theory: '📘 Science booklet', top: '⭐ Top tier admin', basic: '🛡️ Basic admin', tester: '🧪 Official tester', teacher: '👩‍🏫 Teacher' };
 // What a code does. Codes are only used up if they actually give you something new.
 async function useCode(env, user, row, t) {
   const f = row.feature, owner = isAdmin(user, env);
   if (f === 'theory' && await hasUnlock(env, user, 'theory')) return { error: 'You already have the completed booklet, so this code wasn’t used. Give it to someone else.' };
-  if (f === 'english' && await hasUnlock(env, user, 'english')) return { error: 'You already have English unlocked, so this code wasn’t used. Give it to someone else.' };
   if ((f === 'top' || f === 'basic') && owner) return { error: 'You’re the owner already.' };
   if (f === 'top' && user.role === 'top') return { error: 'You’re already a Top tier admin, so this code wasn’t used.' };
   if (f === 'basic' && (user.role === 'top' || user.role === 'basic')) return { error: 'You already have ' + (user.role === 'top' ? 'Top tier' : 'Basic') + ' admin, so this code wasn’t used.' };
@@ -717,11 +715,10 @@ async function useCode(env, user, row, t) {
   const claim = await env.DB.prepare('UPDATE codes SET redeemed_by = ?, redeemed_at = ? WHERE code = ? AND redeemed_by IS NULL').bind(user.id, t, row.code).run();
   if (!claim.meta.changes) return { error: 'That code has already been used.' };
   if (f === 'theory') await env.DB.prepare("INSERT OR IGNORE INTO unlocks (user_id, feature, unlocked_at, code) VALUES (?, 'theory', ?, ?)").bind(user.id, t, row.code).run();
-  if (f === 'english') await env.DB.prepare("INSERT OR IGNORE INTO unlocks (user_id, feature, unlocked_at, code) VALUES (?, 'english', ?, ?)").bind(user.id, t, row.code).run();
   if (f === 'top' || f === 'basic') await env.DB.prepare('UPDATE users SET role = ? WHERE id = ?').bind(f, user.id).run();
   if (f === 'tester') await env.DB.prepare('UPDATE users SET tester = 1 WHERE id = ?').bind(user.id).run();
   if (f === 'teacher') await env.DB.prepare('UPDATE users SET teacher = 1, in_stats = 0 WHERE id = ?').bind(user.id).run(); // teachers aren't on the leaderboard
-  return { message: { english: '📗 English is unlocked! Open Subjects → English.', theory: '📘 The completed Science booklet is unlocked! Open Science → Booklet.', top: '⭐ You’re now a Top tier admin. Open the dashboard from your profile.', basic: '🛡️ You’re now a Basic admin. Open the dashboard from your profile.', tester: '🧪 You’re now an Official tester! Check out your profile banner.', teacher: '👩‍🏫 You’re now a teacher. Open “My class” from your profile to add your students.' }[f] };
+  return { message: { theory: '📘 The completed Science booklet is unlocked! Open Science → Booklet.', top: '⭐ You’re now a Top tier admin. Open the dashboard from your profile.', basic: '🛡️ You’re now a Basic admin. Open the dashboard from your profile.', tester: '🧪 You’re now an Official tester! Check out your profile banner.', teacher: '👩‍🏫 You’re now a teacher. Open “My class” from your profile to add your students.' }[f] };
 }
 
 // Summarise one student's saved maths progress for the dashboard.

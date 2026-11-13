@@ -34,7 +34,7 @@
       intro: 'EC Revisions helps you revise for the Year 8 Maths and Science exams. Here’s how it works.',
       steps: [
         { h: 'Make an account', t: 'New here? Tap <b>Create account</b>. Please use your real name. Already have one? Just log in. Your progress is saved to your account.', sel: '#authCard' },
-        { h: 'Pick a subject', t: 'Once you’re logged in, pick <b>Maths</b>, <b>Science</b> or <b>English</b> to start studying. English (The Invention of Hugo Cabret) needs an unlock code from Beau.', sel: ['#pickView .card:has(a[href="/maths/"])', '#pickView a[href="/maths/"]'] },
+        { h: 'Pick a subject', t: 'Once you’re logged in, pick <b>Maths</b>, <b>Science</b> or <b>English</b> to start studying. English is The Invention of Hugo Cabret.', sel: ['#pickView .card:has(a[href="/maths/"])', '#pickView a[href="/maths/"]'] },
         { h: 'More than one account', t: 'Tap <b>Switch account</b> to add another account or swap between them. Each tab can use a different account, so you can be logged into two at once.', sel: '#switchBtn' },
         { h: 'Send feedback', t: 'Found a mistake or have an idea? Tell Beau here.', sel: ['#pickView a.card[href="/feedback/"]', '#whoBox a[href="/feedback/"]'] },
         profileStep,
@@ -169,7 +169,7 @@
     },
     english: {
       title: 'How to use English',
-      intro: 'Everything for The Invention of Hugo Cabret. English needs a code from Beau: type it in the box (or in your 👤 profile) and it stays unlocked.',
+      intro: 'Everything for The Invention of Hugo Cabret: setting, climax, characters, the 5 themes, example answers and practice.',
       steps: [
         { h: 'The tabs', t: '<b>Overview</b> (setting, climax and how to build an answer), <b>Characters</b>, <b>Ideas</b> (the 5 themes), <b>Theme map</b>, <b>Quiz</b>, <b>Flashcards</b> and <b>Write a gap</b>. On a phone, swipe the tabs sideways.', sel: '#etabs' },
         { h: '👥 Characters', t: 'Each of the 5 characters has 3 gaps. Tap a gap to open its short notes. <b>📖 In the book</b> means the scene is in the book, <b>💭 Imagined</b> means you write a moment the book doesn’t show, from the character’s view. Tap <b>Show full example</b> to read a whole answer.', sel: '#etabs a[data-v="characters"]' },
@@ -179,7 +179,7 @@
         { h: '✍️ Write a gap', t: 'Pick a gap and write your answer. A word counter and a checklist (character, perspective, setting, theme, climax link) tick themselves as you write. Your draft saves by itself. Then compare it with the example.', sel: '#etabs a[data-v="write"]' },
         ...topBar, helpStep
       ],
-      extra: [{ h: 'Locked?', t: 'Type your 5-character English code in the box. No code? Ask Beau in 💬 Chat → ✉️ Beau.' }, ...everywhere]
+      extra: [{ h: '⚠️ Could be wrong', t: 'English on EC Revisions is not perfect and could be wrong. Always check it against your own copy of the book and what your teacher says.' }, ...everywhere]
     },
     leaderboard: {
       title: 'How the leaderboard works',
