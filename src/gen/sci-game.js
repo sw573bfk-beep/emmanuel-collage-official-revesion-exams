@@ -901,12 +901,27 @@ gen('meanUnc', 'C6', 'Mean and uncertainty of trials', () => {
 });
 // energy diagram with numbers (kJ), so every one is different
 function energyNumSVG(R, P, peak) {
-  const W = 330, H = 210, y = v => 185 - v / 400 * 165;
+  // big and easy to read: a gridline every 50 kJ, each level labelled with its exact value, and a dashed line from each level to the axis
+  const W = 460, H = 300, L = 62, T = 14, B = 258, RT = 446, y = v => B - v / 400 * (B - T);
+  const rc = 'var(--accent,#2443c2)', pc = 'var(--pen,#b3261e)';
   let s = '<svg class="dia" viewBox="0 0 ' + W + ' ' + H + '" style="max-width:' + W + 'px;width:100%" role="img" aria-label="Energy diagram: reactants ' + R + ' kJ, peak ' + peak + ' kJ, products ' + P + ' kJ">';
-  s += '<line class="ax" x1="46" y1="190" x2="46" y2="10"/><line class="ax" x1="46" y1="190" x2="320" y2="190"/><text x="14" y="100" transform="rotate(-90 14 100)" text-anchor="middle">Energy (kJ)</text><text x="185" y="206" text-anchor="middle">Reaction progress</text>';
-  [0, 100, 200, 300, 400].forEach(v => { s += '<line x1="42" y1="' + y(v) + '" x2="46" y2="' + y(v) + '" stroke="var(--ink)"/><text x="38" y="' + (y(v) + 4) + '" text-anchor="end" style="font-size:10px">' + v + '</text><line x1="46" y1="' + y(v) + '" x2="320" y2="' + y(v) + '" stroke="var(--line)" stroke-dasharray="2 3"/>'; });
-  s += '<path class="edge" d="M56 ' + y(R) + ' H115 C150 ' + y(R) + ' 155 ' + y(peak) + ' 185 ' + y(peak) + ' S220 ' + y(P) + ' 255 ' + y(P) + ' H312" />';
-  s += '<text x="85" y="' + (y(R) - 6) + '" text-anchor="middle" class="lbl">Reactants</text><text x="284" y="' + (y(P) - 6) + '" text-anchor="middle" class="lbl">Products</text>';
+  for (let v = 0; v <= 400; v += 50) {
+    const major = v % 100 === 0;
+    s += '<line x1="' + L + '" y1="' + y(v) + '" x2="' + RT + '" y2="' + y(v) + '" stroke="var(--rule,#c3cddc)" stroke-width="' + (major ? 1.2 : 0.8) + '"' + (major ? '' : ' stroke-dasharray="3 4"') + '/>';
+    s += '<line x1="' + (L - 6) + '" y1="' + y(v) + '" x2="' + L + '" y2="' + y(v) + '" stroke="var(--ink)" stroke-width="1.5"/><text x="' + (L - 10) + '" y="' + (y(v) + 5) + '" text-anchor="end" style="font-size:' + (major ? 15 : 13) + 'px;font-weight:' + (major ? 700 : 400) + '">' + v + '</text>';
+  }
+  s += '<line class="ax" x1="' + L + '" y1="' + B + '" x2="' + L + '" y2="' + (T - 4) + '" stroke-width="2"/><line class="ax" x1="' + L + '" y1="' + B + '" x2="' + RT + '" y2="' + B + '" stroke-width="2"/>';
+  s += '<text x="16" y="' + ((T + B) / 2) + '" transform="rotate(-90 16 ' + ((T + B) / 2) + ')" text-anchor="middle" style="font-size:15px;font-weight:600">Energy (kJ)</text><text x="' + ((L + RT) / 2) + '" y="' + (H - 12) + '" text-anchor="middle" style="font-size:15px;font-weight:600">Reaction progress</text>';
+  // dashed guides from each level to the energy axis
+  s += '<line x1="' + L + '" y1="' + y(R) + '" x2="84" y2="' + y(R) + '" stroke="' + rc + '" stroke-width="2" stroke-dasharray="5 4"/>';
+  s += '<line x1="' + L + '" y1="' + y(P) + '" x2="318" y2="' + y(P) + '" stroke="' + pc + '" stroke-width="2" stroke-dasharray="5 4"/>';
+  // the curve: reactants level, over the hump, down/up to the products level
+  s += '<path d="M84 ' + y(R) + ' H170 C205 ' + y(R) + ' 210 ' + y(peak) + ' 245 ' + y(peak) + ' S285 ' + y(P) + ' 318 ' + y(P) + '" fill="none" stroke="var(--ink)" stroke-width="2.5"/>';
+  s += '<line x1="84" y1="' + y(R) + '" x2="170" y2="' + y(R) + '" stroke="' + rc + '" stroke-width="5" stroke-linecap="round"/><line x1="318" y1="' + y(P) + '" x2="436" y2="' + y(P) + '" stroke="' + pc + '" stroke-width="5" stroke-linecap="round"/>';
+  const tag = (x, yy, txt, col, anchor) => '<text x="' + x + '" y="' + yy + '" text-anchor="' + anchor + '" style="font-size:14px;font-weight:700;fill:' + col + ';paint-order:stroke;stroke:var(--card,#fff);stroke-width:4px">' + txt + '</text>';
+  // labels sit just under their level (where the curve never goes), or just above if there's no room under it
+  const at = v => y(v) + 22 < B - 4 ? y(v) + 22 : y(v) - 10;
+  s += tag(80, at(R), 'Reactants: ' + R + ' kJ', rc, 'start') + tag(326, at(P), 'Products: ' + P + ' kJ', pc, 'start');
   return s + '</svg>';
 }
 gen('energyDiagram', 'C6', 'Read an energy diagram', () => {
