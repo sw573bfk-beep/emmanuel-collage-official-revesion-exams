@@ -140,11 +140,12 @@ button.person:hover{border-color:var(--accent);background:var(--accent-soft)}
   const MODE = { speed: '⚡ Speed Quiz', treasure: '💰 Treasure Chests', parkour: '🏃 Parkour Run' };
   const GAME = /^\[game:(\d{6}):(speed|treasure|parkour):(science|maths)\]$/;
   const ago = (s, now) => { const d = Math.max(0, (now || Date.now() / 1000) - s); if (!s) return 'Not seen yet'; if (d < 180) return 'Online now'; if (d < 3600) return 'Last seen ' + Math.round(d / 60) + ' min ago'; if (d < 86400) return 'Last seen ' + Math.round(d / 3600) + ' h ago'; const n = Math.round(d / 86400); return 'Last seen ' + n + (n === 1 ? ' day' : ' days') + ' ago'; };
-  function person(name, sub, online, tag) {
+  function person(name, sub, online, tag, look) {
     const it = el(tag || 'div', 'person'); if (tag === 'button') it.type = 'button';
     const av = el('span', 'av', (name || '?').trim().charAt(0).toUpperCase()); av.setAttribute('aria-hidden', 'true');
+    if (look && window.ecAv) window.ecAv(av, look, name);
     if (online != null) av.appendChild(el('span', 'dot' + (online ? ' on' : '')));
-    const t = el('span', 't'); t.appendChild(el('b', '', name)); if (sub) { const s = el('span', online ? 'on' : '', sub); t.appendChild(s); }
+    const t = el('span', 't'); const nb = el('b', '', name); const tt = look && window.ecTitle && window.ecTitle(look); if (tt) nb.appendChild(tt); t.appendChild(nb); if (sub) { const s = el('span', online ? 'on' : '', sub); t.appendChild(s); }
     it.append(av, t); return it;
   }
 
@@ -178,7 +179,7 @@ button.person:hover{border-color:var(--accent);background:var(--accent-soft)}
     const fr = r.data.threads.filter(t => t.status === 'active').sort((x, y) => (y.online - x.online) || (y.unread - x.unread) || (y.at - x.at));
     const rl = $('#reqs'); rl.innerHTML = ''; $('#reqCard').hidden = !inc.length;
     inc.forEach(t => {
-      const it = person(t.name, 'Wants to be your friend');
+      const it = person(t.name, 'Wants to be your friend', null, null, t.look);
       const acts = el('div', 'acts'); const ok = el('button', 'btn sm', 'Accept'), no = el('button', 'btn quiet sm', 'Decline'), bl = el('button', 'btn danger sm', 'Block');
       [ok, no, bl].forEach(b => b.type = 'button');
       ok.onclick = async () => { await api('/api/chat/respond', 'POST', { id: t.id, accept: true }); loadMine(); };
@@ -191,7 +192,7 @@ button.person:hover{border-color:var(--accent);background:var(--accent-soft)}
     $('#friendsTitle').textContent = 'Your friends' + (fr.length ? ' (' + fr.length + (on ? ', ' + on + ' online' : '') + ')' : '');
     if (!fr.length) tl.appendChild(el('p', 'small muted', 'No friends yet. Search for someone above and tap Add friend.'));
     fr.forEach(t => {
-      const b = person(t.name, t.online ? 'Online now' + (t.last ? ' · ' + t.last : '') : (t.last || ago(t.seen, now)), t.online, 'button');
+      const b = person(t.name, t.online ? 'Online now' + (t.last ? ' · ' + t.last : '') : (t.last || ago(t.seen, now)), t.online, 'button', t.look);
       if (t.unread) b.appendChild(el('span', 'n', String(t.unread)));
       b.setAttribute('aria-label', 'Chat with ' + t.name + (t.online ? ', online now' : '') + (t.unread ? ', ' + t.unread + ' new' : ''));
       b.onclick = () => openThread(t.id); tl.appendChild(b);

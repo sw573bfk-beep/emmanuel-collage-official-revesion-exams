@@ -298,7 +298,7 @@ details.acct[open] summary{margin-bottom:12px}
   const api = async (p, m = 'GET', b) => { const r = await fetch(p, { method: m, credentials: 'same-origin', headers: b ? { 'content-type': 'application/json' } : {}, body: b ? JSON.stringify(b) : undefined }); let j = {}; try { j = await r.json(); } catch (e) { /* empty */ } return { ok: r.ok, status: r.status, data: j }; };
   const btn = (txt, cls, fn) => { const b = el('button', 'btn sm ' + (cls || ''), txt); b.type = 'button'; b.onclick = fn; return b; };
   const link = (txt, href) => { const a = el('a', 'btn sm', txt); a.href = href; return a; };
-  const row = (name, sub, acts) => { const d = el('div', 'fr-row'), t = el('span', 'fr-t'); t.append(el('b', '', name)); if (sub) t.append(el('span', 'small muted', sub)); const a = el('span', 'fr-a'); acts.forEach(x => a.append(x)); d.append(t, a); return d; };
+  const row = (name, sub, acts, look) => { const d = el('div', 'fr-row'), t = el('span', 'fr-t'); const nb = el('b', '', (look && look.a ? look.a + ' ' : '') + name); const tt = look && window.ecTitle && window.ecTitle(look); if (tt) nb.appendChild(tt); t.append(nb); if (sub) t.append(el('span', 'small muted', sub)); const a = el('span', 'fr-a'); acts.forEach(x => a.append(x)); d.append(t, a); return d; };
   const say = (t, good) => { const o = q('#frOut'); o.replaceChildren(); if (t) o.append(el('div', 'msg ' + (good ? 'good' : 'bad'), t)); };
   async function list() {
     const s = await api('/api/chat/summary'); if (!s.ok || s.data.admin) { card.hidden = true; return; }
@@ -308,7 +308,7 @@ details.acct[open] summary{margin-bottom:12px}
     T.filter(t => t.status === 'pending' && !t.byMe).forEach(t => box.append(row(t.name, 'wants to be your friend', [
       btn('Accept', '', async () => { await api('/api/chat/respond', 'POST', { id: t.id, accept: true }); say('Accepted! Beau will check the chat, then you can talk.', true); list(); }),
       btn('Decline', 'quiet', async () => { await api('/api/chat/respond', 'POST', { id: t.id, accept: false }); list(); })])));
-    T.filter(t => t.status === 'active').forEach(t => box.append(row(t.name, t.online ? '● online now' : 'friend', [link('💬 Chat', '/chat/?thread=' + t.id)])));
+    T.filter(t => t.status === 'active').forEach(t => box.append(row(t.name, t.online ? '● online now' : 'friend', [link('💬 Chat', '/chat/?thread=' + t.id)], t.look)));
     T.filter(t => t.status === 'approval').forEach(t => box.append(row(t.name, '⏳ waiting for Beau to approve', [])));
     T.filter(t => t.status === 'pending' && t.byMe).forEach(t => box.append(row(t.name, 'request sent', [])));
     if (!T.length) box.append(el('p', 'small muted', 'No friends yet. Search for someone above.'));

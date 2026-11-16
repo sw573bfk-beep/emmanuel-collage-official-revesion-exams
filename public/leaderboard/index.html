@@ -28,6 +28,16 @@ tr.me td{background:var(--accent-soft);font-weight:600}
 .medal{font-size:1.15rem}
 .how{font-size:1rem}
 .how li{margin:2px 0}
+.who{display:inline-flex;align-items:center;gap:10px;font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer;text-align:left}
+.who .av{flex:none;width:32px;height:32px;border-radius:50%;display:grid;place-items:center;font-weight:800;background:var(--accent);color:var(--accent-ink)}
+.who b{font-weight:600}
+.who .av.emo{font-size:1.15rem}
+.who .nm{display:flex;flex-direction:column;align-items:flex-start;gap:2px}.who .nm .ec-title{margin-left:0}
+dialog.card-dlg{border:0;border-radius:18px;padding:0;max-width:340px;width:calc(100% - 32px);background:var(--card);color:var(--ink);box-shadow:0 20px 50px rgb(0 0 0 / .35)}
+dialog.card-dlg::backdrop{background:rgb(10 14 30 / .5)}
+.pcard{display:flex;flex-direction:column;align-items:center;gap:10px;padding:24px 20px;text-align:center}
+.pcard .av{width:84px;height:84px;border-radius:50%;display:grid;place-items:center;font-size:2.6rem;font-weight:800;background:var(--accent);color:var(--accent-ink);margin:6px 0}
+.pcard h2{margin:0}.pcard .pics{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;font-size:1.4rem}
 </style>
 <script src="/theme.js"></script>
 <link rel="stylesheet" href="/theme.css?v=1">
@@ -50,6 +60,7 @@ tr.me td{background:var(--accent-soft);font-weight:600}
     </ul>
     <p class="small muted">“This week” starts again every Monday (Queensland time), so everyone gets a fresh chance. “All time” keeps adding up.</p>
   </details>
+  <dialog class="card-dlg" id="cardDlg"><div class="pcard" id="cardBody"></div></dialog>
   <div class="row"><a class="btn quiet" href="/" id="back">Back to subjects</a><a class="btn quiet" href="/chat/">💬 Chat</a></div>
 </main>
 <script>
@@ -83,13 +94,31 @@ tr.me td{background:var(--accent-soft);font-weight:600}
       const tr = el('tr', p.me ? 'me' : '');
       const medal = p.rank === 1 ? '🥇' : p.rank === 2 ? '🥈' : p.rank === 3 ? '🥉' : '';
       const rk = el('td'); if (medal) rk.appendChild(el('span', 'medal', medal + ' ')); rk.appendChild(document.createTextNode(p.rank)); tr.appendChild(rk);
-      tr.appendChild(el('td', '', p.name + (p.me ? ' (you)' : '')));
+      const nt = el('td'), who = el('button', 'who'); who.type = 'button'; who.title = 'See ' + p.name + '’s profile card';
+      const av = el('span', 'av'); av.setAttribute('aria-hidden', 'true'); if (window.ecAv) window.ecAv(av, p.look, p.name);
+      const nm = el('span', 'nm'); nm.appendChild(el('b', '', p.name + (p.me ? ' (you)' : ''))); const tt = window.ecTitle && window.ecTitle(p.look); if (tt) nm.appendChild(tt);
+      who.append(av, nm); who.onclick = () => showCard(p); nt.appendChild(who); tr.appendChild(nt);
       [p.points, p.minutes, p.correct, p.booklet].forEach(v => tr.appendChild(el('td', 'num', String(v))));
       const c = el('td');
       if (!p.me && !d.admin) { const a = el('a', 'btn quiet sm', '➕ Add friend'); a.href = '/chat/?with=' + p.id + '&name=' + encodeURIComponent(p.name); c.appendChild(a); }
       tr.appendChild(c); tb.appendChild(tr);
     });
   }
+  // a person's card: picture, frame, title and the pictures they've unlocked (no other stats)
+  async function showCard(p) {
+    const dlg = $('#cardDlg'), b = $('#cardBody'); b.replaceChildren(el('p', 'muted', 'Loading…')); dlg.showModal();
+    let d = null; try { const r = await fetch('/api/card/' + p.id, { credentials: 'same-origin' }); if (r.ok) d = await r.json(); } catch (e) { /* offline */ }
+    b.replaceChildren();
+    if (!d) { b.append(el('p', '', 'Couldn’t load this card.')); } else {
+      const av = el('span', 'av'); if (window.ecAv) window.ecAv(av, d.look, d.name);
+      const h = el('h2', '', d.name); const tt = window.ecTitle && window.ecTitle(d.look);
+      b.append(av, h); if (tt) b.append(tt);
+      b.append(el('p', 'small muted', '🏅 ' + d.count + ' reward' + (d.count === 1 ? '' : 's') + ' unlocked · #' + p.rank + ' ' + (range === 'week' ? 'this week' : 'of all time') + ' with ' + p.points + ' points'));
+      if (d.pics.length) { const pics = el('div', 'pics'); d.pics.forEach(x => pics.append(el('span', '', ({ a_seed: '🌱', a_pizza: '🍕', a_cat: '🐱', a_fox: '🦊', a_dragon: '🐉', a_unicorn: '🦄', a_fire: '🔥', a_bolt: '⚡', a_volcano: '🌋', a_clock: '⏰', a_owl: '🦉', a_brain: '🧠', a_rocket: '🚀', a_memo: '📝', a_flag: '🏁', a_trophy: '🏆', a_map: '🗺️', a_blue: '📘', a_hands: '🤝', a_party: '🥳', a_crown: '👑', a_goat: '🐐' })[x] || ''))); b.append(el('span', 'small muted', 'Pictures unlocked'), pics); }
+    }
+    const c = el('button', 'btn quiet', 'Close'); c.type = 'button'; c.onclick = () => dlg.close(); b.append(c);
+  }
+  $('#cardDlg').addEventListener('click', e => { if (e.target.id === 'cardDlg') $('#cardDlg').close(); });
   const pick = r => { range = r; $('#tWeek').classList.toggle('on', r === 'week'); $('#tAll').classList.toggle('on', r === 'all'); load(); };
   $('#tWeek').onclick = () => pick('week'); $('#tAll').onclick = () => pick('all');
   load(); setInterval(() => { if (document.visibilityState === 'visible') load(); }, 60000);

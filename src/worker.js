@@ -40,6 +40,7 @@ import { handleCommunity, handleCommunityAdmin, addPoints, logBlocked, FAKE_NOTE
 import { TOPICS as MATHS_TOPICS } from './gen/maths-game.js';
 import { TOPICS as SCI_TOPICS } from './gen/sci-game.js';
 import { handleGames } from './games.js';
+import { rewardStatus, keepIds, canUse, lookView, lookIds, savedRewards } from './rewards.js';
 
 const HTML = 'text/html; charset=utf-8';
 const PAGES = {
@@ -291,9 +292,9 @@ async function startSession(env, userId, url, slot = 0, days = SESSION_DAYS) {
 }
 async function currentUser(req, env, slot = slotOf(req)) {
   const token = getCookie(req, sidName(slot)); if (!token || !/^[0-9a-f]{64}$/.test(token)) return null;
-  const row = await env.DB.prepare('SELECT u.id, u.username, u.prev_name, u.role, u.tester, u.teacher, u.focus_until, s.expires_at FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token_hash = ?').bind(await sha256(token)).first();
+  const row = await env.DB.prepare('SELECT u.id, u.username, u.prev_name, u.role, u.tester, u.teacher, u.focus_until, u.look, s.expires_at FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token_hash = ?').bind(await sha256(token)).first();
   if (!row || row.expires_at < now()) return null;
-  return { id: row.id, username: row.username, prevName: row.prev_name || null, role: row.role || null, tester: !!row.tester, teacher: !!row.teacher, focus_until: row.focus_until || 0, tokenHash: await sha256(token) };
+  return { id: row.id, username: row.username, prevName: row.prev_name || null, role: row.role || null, tester: !!row.tester, teacher: !!row.teacher, focus_until: row.focus_until || 0, look: row.look || null, tokenHash: await sha256(token) };
 }
 async function readJson(req) {
   if (!(req.headers.get('content-type') || '').includes('application/json')) throw new Error('Expected JSON');
@@ -390,7 +391,7 @@ async function handleApi(req, env, url) {
   if (path === '/api/live' && method === 'GET') {
     const out = { now: now(), notice: await liveNotice(env), study: null, chat: null, me: null };
     if (user) {
-      out.me = { name: user.username, admin: isAdmin(user, env), role: staffRole(user, env) };
+      out.me = { name: user.username, admin: isAdmin(user, env), role: staffRole(user, env), look: lookView(user.look) };
       out.study = await studyPayload(env, user);
       out.chat = await liveChat(env, user);
       if (out.study.study) { out.chat.requests = 0; out.chat.unreadDm = 0; } // in study mode only Beau's messages count
@@ -400,6 +401,27 @@ async function handleApi(req, env, url) {
     return json(out);
   }
   if (!user) return err(401, 'Not logged in');
+  // 🎨 choose your picture, frame and title (only from what you've unlocked)
+  if (path === '/api/look' && method === 'POST') {
+    let b; try { b = await readJson(req); } catch { return err(400, 'Bad request'); }
+    const row = await env.DB.prepare('SELECT rewards, look FROM users WHERE id = ?').bind(user.id).first();
+    const kept = savedRewards(row.rewards), flags = { tester: user.tester, teacher: user.teacher, role: !!staffRole(user, env), owner: isAdmin(user, env) };
+    const cur = lookIds(row.look), next = { ...cur };
+    for (const [k, pre] of [['a', 'a_'], ['f', 'f_'], ['t', 't_']]) {
+      if (b[k] == null) continue; const id = String(b[k]);
+      if (!id.startsWith(pre) || !canUse(id, kept, flags)) return err(403, 'You haven’t unlocked that yet.');
+      next[k] = id;
+    }
+    await env.DB.prepare('UPDATE users SET look = ? WHERE id = ?').bind(JSON.stringify(next), user.id).run();
+    return json({ ok: true, look: next, view: lookView(JSON.stringify(next)) });
+  }
+  // someone's public card (from the leaderboard): their name, look and unlocked rewards. No stats.
+  const cardM = path.match(/^\/api\/card\/(\d+)$/);
+  if (cardM && method === 'GET') {
+    const r = await env.DB.prepare('SELECT username, look, rewards FROM users WHERE id = ?').bind(+cardM[1]).first(); if (!r) return err(404, 'No such person');
+    const got = [...savedRewards(r.rewards)];
+    return json({ name: r.username, look: lookView(r.look), count: got.length, pics: got.filter(id => id.startsWith('a_')) });
+  }
   // 🎯 Focus mode, turned on by the student themselves: { minutes: 1-480 } or { forever: true } to turn it on, { off: true } to turn it off
   if (path === '/api/focus' && method === 'POST') {
     let b; try { b = await readJson(req); } catch { return err(400, 'Bad request'); }
@@ -450,7 +472,7 @@ async function handleApi(req, env, url) {
   if (path === '/api/profile' && method === 'GET') {
     const t = now(), me = user.id, today = dayKey(t), study = (await studyState(env, user)).study;
     const [u, days, all, prog, fr, thr, beau, beauN] = await env.DB.batch([
-      env.DB.prepare('SELECT username, created_at FROM users WHERE id = ?').bind(me),
+      env.DB.prepare('SELECT username, created_at, rewards, look FROM users WHERE id = ?').bind(me),
       env.DB.prepare('SELECT day, SUM(seconds) AS s FROM daily WHERE user_id = ? GROUP BY day ORDER BY day DESC LIMIT 400').bind(me),
       env.DB.prepare('SELECT SUM(seconds) AS s FROM daily WHERE user_id = ?').bind(me),
       env.DB.prepare('SELECT subject, data FROM progress WHERE user_id = ?').bind(me),
@@ -470,8 +492,8 @@ async function handleApi(req, env, url) {
     const topics = [];
     prog.results.forEach(r => { let d = {}; try { d = JSON.parse(r.data); } catch { d = {}; } Object.entries(d.tstats || {}).forEach(([id, x]) => { if (x && x.a > 0 && NAMES[r.subject] && NAMES[r.subject][id]) topics.push({ subject: r.subject, id, name: NAMES[r.subject][id], a: x.a, c: Math.min(x.c || 0, x.a) }); }); });
     // 🏅 badges, worked out from saved progress, study time and friends
-    const stats = { answered: 0, correct: 0, bookletDone: 0, exams: [], tried: { maths: new Set(), science: new Set() } };
-    prog.results.forEach(r => { let d0 = {}; try { d0 = JSON.parse(r.data); } catch { d0 = {}; } const m = mathsStats(d0); stats.answered += m.answered; stats.correct += m.correct; stats.bookletDone += m.bookletDone;
+    const stats = { answered: 0, correct: 0, bookletDone: 0, exams: [], tried: { maths: new Set(), science: new Set() }, bySubj: {} };
+    prog.results.forEach(r => { let d0 = {}; try { d0 = JSON.parse(r.data); } catch { d0 = {}; } const m = mathsStats(d0); stats.answered += m.answered; stats.correct += m.correct; stats.bookletDone += m.bookletDone; stats.bySubj[r.subject] = m.correct;
       (Array.isArray(d0.exams) ? d0.exams : []).forEach(e => stats.exams.push(e)); Object.entries(d0.tstats || {}).forEach(([id, x]) => { if (x && x.a > 0 && stats.tried[r.subject]) stats.tried[r.subject].add(id); }); });
     const hours = (all.results[0].s || 0) / 3600;
     const allTopics = s => s === 'maths' ? MATHS_TOPICS.length : SCI_TOPICS.length;
@@ -496,10 +518,18 @@ async function handleApi(req, env, url) {
     ];
     if (user.tester) badges.push(B('🧪', 'Official tester', 'Helped test EC Revisions', 1, 1));
     const lb = { week: (await leaderboard(env, me, 'week', isAdmin(user, env))).me, all: (await leaderboard(env, me, 'all', isAdmin(user, env))).me };
+    // 🎨 rewards: worked out from the same numbers, and anything unlocked before stays unlocked
+    const role_ = staffRole(user, env), u0 = u.results[0], kept = savedRewards(u0.rewards);
+    const rs = { correct: lb.all ? lb.all.correct : stats.correct, answered: stats.answered, streak, hours, exams: stats.exams,
+      explorer: Math.max(stats.tried.maths.size / allTopics('maths'), stats.tried.science.size / allTopics('science')) >= 1, booklet: stats.bookletDone, friends: fr.results[0].n,
+      points: lb.all ? lb.all.points : 0, weekRank: lb.week ? lb.week.rank : 0, allRank: lb.all ? lb.all.rank : 0, mathsCorrect: stats.bySubj.maths || 0, sciCorrect: stats.bySubj.science || 0,
+      tester: user.tester, teacher: user.teacher, role: !!role_, owner: isAdmin(user, env) };
+    const rewards = rewardStatus(rs, kept), keepNow = keepIds(rewards);
+    if (keepNow.some(id => !kept.has(id))) await env.DB.prepare('UPDATE users SET rewards = ? WHERE id = ?').bind(JSON.stringify([...new Set([...kept, ...keepNow])]), me).run();
     const NOTE = { '[unlock-request]': '🔔 You asked to unlock the booklet', '[unlock-allowed]': '✅ Beau unlocked the booklet', '[unlock-declined]': 'Beau said not yet', '[chat-request]': '🙋 You asked to use Chat', '[chat-allowed]': '✅ Beau let you into Chat', '[chat-declined]': 'Beau said not yet', '[chat-removed]': 'Chat turned off', '[study-request]': '📚 You asked to leave study mode', '[study-allowed]': '✅ Study mode off', '[study-declined]': 'Beau said not yet' };
     const b0 = beau.results[0];
     const tch = await env.DB.prepare('SELECT u.username AS name FROM teacher_students ts JOIN users u ON u.id = ts.teacher_id WHERE ts.student_id = ? ORDER BY u.username').bind(me).all();
-    return json({ now: t, name: u.results[0].username, joined: u.results[0].created_at, study, teacher: user.teacher, teachers: tch.results.map(x => x.name), role: staffRole(user, env), roleName: ROLE_NAME[staffRole(user, env)] || null, tester: user.tester, booklet: await hasUnlock(env, user, 'theory'),
+    return json({ now: t, name: u.results[0].username, joined: u.results[0].created_at, rewards, look: lookIds(u0.look), lookView: lookView(u0.look), study, teacher: user.teacher, teachers: tch.results.map(x => x.name), role: staffRole(user, env), roleName: ROLE_NAME[staffRole(user, env)] || null, tester: user.tester, booklet: await hasUnlock(env, user, 'theory'),
       time: { today: D[today] || 0, week: Array.from({ length: 7 }, (_, i) => D[back(i)] || 0).reduce((a, x) => a + x, 0), all: all.results[0].s || 0, last14, streak },
       leaderboard: lb, topics, friends: fr.results[0].n, badges: badges.concat(lb && lb.week && lb.week.rank <= 3 ? [B('🏆', 'Podium', 'Top 3 on this week’s leaderboard', 1, 1)] : []),
       messages: { beau: { last: b0 ? (NOTE[b0.body] || b0.body) : null, mine: b0 ? !b0.from_admin : false, at: b0 ? b0.created_at : null, unread: beauN.results[0].n },

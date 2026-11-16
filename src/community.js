@@ -1,6 +1,7 @@
 // Student chats (1-on-1 chats between friends that start with a friend request), the leaderboard,
 // and Beau's moderation tools. Every student message goes through the strict filter in filter.js.
 import { checkText, checkPieces } from './filter.js';
+import { lookView } from './rewards.js';
 
 const MAX_LEN = 2000;
 export const MAX_CORRECT_DAY = 400, MAX_BOOKLET_DAY = 250; // leaderboard points caps per person per day
@@ -51,7 +52,7 @@ export async function leaderboard(env, me, range, admin) {
   const t = now(); const dow = new Date((t + QLD) * 1000).getUTCDay();
   const from = range === 'all' ? '0000-00-00' : dayKey(t - ((dow + 6) % 7) * 86400); // Monday (Queensland time)
   const [people, mins, pts] = await env.DB.batch([
-    env.DB.prepare('SELECT id, username, in_stats FROM users'),
+    env.DB.prepare('SELECT id, username, in_stats, look FROM users'),
     env.DB.prepare('SELECT user_id, SUM(seconds) AS s FROM daily WHERE day >= ? GROUP BY user_id').bind(from),
     env.DB.prepare('SELECT user_id, SUM(correct) AS c, SUM(booklet) AS b FROM points_daily WHERE day >= ? GROUP BY user_id').bind(from)
   ]);
@@ -59,7 +60,7 @@ export async function leaderboard(env, me, range, admin) {
   const adminName = String(env.ADMIN_USERNAME || '').toLowerCase();
   const rows = people.results.filter(u => u.in_stats && u.username.toLowerCase() !== adminName).map(u => {
     const minutes = Math.floor((M[u.id] || 0) / 60), correct = (P[u.id] || {}).c || 0, booklet = (P[u.id] || {}).b || 0;
-    return { id: u.id, name: u.username, minutes, correct, booklet, points: minutes + 2 * correct + booklet };
+    return { id: u.id, name: u.username, look: lookView(u.look), minutes, correct, booklet, points: minutes + 2 * correct + booklet };
   }).filter(r => r.points > 0).sort((a, b) => b.points - a.points || b.minutes - a.minutes || a.name.localeCompare(b.name));
   let rank = 0, prev = null;
   rows.forEach((r, i) => { if (r.points !== prev) { rank = i + 1; prev = r.points; } r.rank = rank; });
@@ -67,7 +68,7 @@ export async function leaderboard(env, me, range, admin) {
   const meUser = people.results.find(u => u.id === me);
   return {
     range, from, total: rows.length,
-    top: rows.slice(0, 50).map(r => ({ rank: r.rank, id: r.id, name: r.name, points: r.points, minutes: r.minutes, correct: r.correct, booklet: r.booklet, me: r.id === me })),
+    top: rows.slice(0, 50).map(r => ({ rank: r.rank, id: r.id, name: r.name, look: r.look, points: r.points, minutes: r.minutes, correct: r.correct, booklet: r.booklet, me: r.id === me })),
     me: mine ? { rank: mine.rank, points: mine.points, minutes: mine.minutes, correct: mine.correct, booklet: mine.booklet } : null,
     leftOut: !meUser || !meUser.in_stats || admin, admin
   };
@@ -120,7 +121,7 @@ export async function handleCommunity(req, env, url, user) {
   /* ---------- 1-on-1 chats ---------- */
   if (path === '/api/chat/threads' && method === 'GET') {
     const [rows, blocked] = await env.DB.batch([
-      env.DB.prepare(`SELECT t.id, t.status, t.requested_by, t.updated_at, CASE WHEN t.a = ?1 THEN t.b ELSE t.a END AS other, u.username AS name, u.last_seen AS seen,
+      env.DB.prepare(`SELECT t.id, t.status, t.requested_by, t.updated_at, CASE WHEN t.a = ?1 THEN t.b ELSE t.a END AS other, u.username AS name, u.look AS look, u.last_seen AS seen,
         (SELECT CASE WHEN body LIKE '[game:%' THEN '🎮 Game invite' ELSE body END FROM dm_messages WHERE thread_id = t.id AND hidden = 0 ORDER BY id DESC LIMIT 1) AS last,
         (SELECT COUNT(*) FROM dm_messages m WHERE m.thread_id = t.id AND m.user_id != ?1 AND m.hidden = 0 AND m.id > (CASE WHEN t.a = ?1 THEN t.a_read ELSE t.b_read END)) AS unread
         FROM dm_threads t JOIN users u ON u.id = (CASE WHEN t.a = ?1 THEN t.b ELSE t.a END)
@@ -128,7 +129,7 @@ export async function handleCommunity(req, env, url, user) {
       env.DB.prepare('SELECT b.blocked_id AS id, u.username AS name FROM blocks b JOIN users u ON u.id = b.blocked_id WHERE b.user_id = ? ORDER BY u.username').bind(me)
     ]);
     const t0 = now();
-    return json({ now: t0, threads: rows.results.map(r => { const friend = r.status === 'active'; return { id: r.id, other: r.other, name: r.name, status: r.status, byMe: r.requested_by === me, last: friend ? r.last : null, unread: friend ? r.unread : 0, at: r.updated_at, seen: friend ? (r.seen || 0) : null, online: friend && t0 - (r.seen || 0) < ONLINE_SECS }; }), blocked: blocked.results });
+    return json({ now: t0, threads: rows.results.map(r => { const friend = r.status === 'active'; return { id: r.id, other: r.other, name: r.name, look: lookView(r.look), status: r.status, byMe: r.requested_by === me, last: friend ? r.last : null, unread: friend ? r.unread : 0, at: r.updated_at, seen: friend ? (r.seen || 0) : null, online: friend && t0 - (r.seen || 0) < ONLINE_SECS }; }), blocked: blocked.results });
   }
   if (path === '/api/chat/people' && method === 'GET') {
     const q = String(url.searchParams.get('q') || '').trim().slice(0, 30);

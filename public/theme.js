@@ -34,6 +34,25 @@
     liveP = fetch('/api/live', { credentials: 'same-origin', cache: 'no-store' }).then(r => r.ok ? r.json() : null).catch(() => null);
     return liveP;
   };
+  // 🎨 someone's look: window.ecAv(span, look, name) puts their picture (or first letter) and frame on a round
+  // avatar span; window.ecTitle(look) gives a small title pill (or null).
+  const lookCss = document.createElement('style');
+  lookCss.textContent = '.ec-lk{position:relative}.ec-lk.emo{background:var(--card-2,#f3f5f9)!important;color:var(--ink,#111)!important}.ec-prof .av.emo{font-size:1.15rem}'
+    + '.ec-fr-bronze{box-shadow:0 0 0 3px #b8733a}.ec-fr-silver{box-shadow:0 0 0 3px #9aa6b5,0 0 0 5px #dfe5ee}.ec-fr-gold{box-shadow:0 0 0 3px #e0a800,0 0 8px 2px rgb(224 168 0 / .55)}'
+    + '.ec-fr-diamond{box-shadow:0 0 0 3px #53c7f0,0 0 0 5px #b8ecff,0 0 10px 3px rgb(83 199 240 / .6)}.ec-fr-fire{box-shadow:0 0 0 3px #ff5a1f,0 0 10px 3px rgb(255 120 30 / .65)}'
+    + '.ec-fr-rainbow{animation:ecRainbow 3s linear infinite}@keyframes ecRainbow{0%{box-shadow:0 0 0 3px #ff4d4d,0 0 9px 2px #ff4d4d}20%{box-shadow:0 0 0 3px #ffb700,0 0 9px 2px #ffb700}40%{box-shadow:0 0 0 3px #3ccf4e,0 0 9px 2px #3ccf4e}60%{box-shadow:0 0 0 3px #2fa8ff,0 0 9px 2px #2fa8ff}80%{box-shadow:0 0 0 3px #a34dff,0 0 9px 2px #a34dff}100%{box-shadow:0 0 0 3px #ff4d4d,0 0 9px 2px #ff4d4d}}'
+    + '@media (prefers-reduced-motion:reduce){.ec-fr-rainbow{animation:none;box-shadow:0 0 0 3px #a34dff}}'
+    + '.ec-title{display:inline-block;font-size:.75rem;font-weight:700;letter-spacing:.02em;color:var(--accent,#2453d6);background:var(--accent-soft,#e8eefc);border-radius:999px;padding:1px 8px;margin-left:6px;white-space:nowrap;vertical-align:middle}';
+  document.head.appendChild(lookCss);
+  window.ecAv = (span, look, name) => {
+    if (!span) return span;
+    [...span.classList].filter(c => c.startsWith('ec-fr-')).forEach(c => span.classList.remove(c));
+    span.classList.add('ec-lk'); span.classList.toggle('emo', !!(look && look.a));
+    const dot = span.querySelector('.dot'); span.textContent = look && look.a ? look.a : String(name || '?').trim().charAt(0).toUpperCase(); if (dot) span.appendChild(dot);
+    if (look && look.f) span.classList.add('ec-fr-' + look.f);
+    return span;
+  };
+  window.ecTitle = look => { if (!look || !look.t) return null; const s = document.createElement('span'); s.className = 'ec-title'; s.textContent = look.t; return s; };
   // 👤 Profile button, top right of every page once you're logged in (with a red number for new messages)
   const profile = async () => {
     const path = location.pathname; if (path.startsWith('/admin') || path.startsWith('/me')) return;
@@ -49,7 +68,7 @@
       const sub = path.startsWith('/maths') ? '?from=maths' : path.startsWith('/science') ? '?from=science' : '';
       a.href = j.me.admin ? '/admin/' : '/me/' + sub; a.title = j.me.admin ? 'Admin dashboard' : 'My profile: stats, friends and messages';
       a.innerHTML = '<span class="av" aria-hidden="true"></span><span class="nm"></span><span class="nb" hidden></span>';
-      a.querySelector('.av').textContent = j.me.name.trim().charAt(0).toUpperCase(); a.querySelector('.nm').textContent = j.me.admin ? 'Dashboard' : 'Profile';
+      window.ecAv(a.querySelector('.av'), j.me.look, j.me.name); a.querySelector('.nm').textContent = j.me.admin ? 'Dashboard' : 'Profile';
       a.classList.add('float'); document.body.appendChild(a); // always the top right corner of the page
     }
     const a = document.getElementById('ecProfile'), c = j.chat, n = c ? (c.admin ? c.beau : c.requests + c.unreadDm + c.beau) : 0, nb = a.querySelector('.nb');

@@ -53,6 +53,20 @@
 .codebox input:focus{border-color:var(--accent);outline:none;box-shadow:0 0 0 3px var(--accent-soft)}
 .have{display:flex;flex-wrap:wrap;gap:8px}
 .have span{font-size:.9375rem;border:1.5px solid var(--rule);border-radius:999px;padding:4px 12px}
+.cz-prev{display:flex;align-items:center;gap:16px;border:1.5px solid var(--rule);border-radius:16px;padding:14px 16px;background:var(--card-2)}
+.cz-prev .av{flex:none;width:68px;height:68px;border-radius:50%;display:grid;place-items:center;font-size:2.3rem;font-weight:800;background:var(--accent);color:var(--accent-ink)}
+.cz-tabs{display:flex;gap:6px;flex-wrap:wrap}
+.cz-tabs button{font:inherit;font-weight:600;border:1.5px solid var(--rule);background:var(--card);color:var(--ink);border-radius:999px;padding:6px 14px;cursor:pointer}
+.cz-tabs button.on{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.cz-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:10px}
+.cz-item{display:flex;flex-direction:column;align-items:center;text-align:center;gap:5px;border:2px solid var(--rule);border-radius:14px;padding:12px 8px;background:var(--card);color:var(--ink);font:inherit;cursor:pointer}
+.cz-item:hover:not(:disabled){border-color:var(--accent)}
+.cz-item.sel{border-color:var(--accent);background:var(--accent-soft);box-shadow:0 0 0 2px var(--accent)}
+.cz-item:disabled{cursor:default;opacity:.62}
+.cz-item .pic{font-size:2rem;line-height:1.1;width:46px;height:46px;border-radius:50%;display:grid;place-items:center;background:var(--card-2)}
+.cz-item:disabled .pic{filter:grayscale(1)}
+.cz-item b{font-size:.875rem}.cz-item span{font-size:.75rem;color:var(--muted);line-height:1.3}
+.cz-item .pb{width:100%;height:5px;border-radius:99px;background:var(--card-2);overflow:hidden;border:1px solid var(--rule)}.cz-item .pb i{display:block;height:100%;background:var(--accent)}
 .badges{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px}
 .badge{display:flex;flex-direction:column;align-items:center;text-align:center;gap:4px;border:1.5px solid var(--rule);border-radius:14px;padding:12px 10px;background:var(--card)}
 .badge .i{font-size:2rem;line-height:1.1}.badge b{font-size:.9375rem}.badge span{font-size:.8125rem;color:var(--muted);line-height:1.35}
@@ -68,12 +82,12 @@
 <main class="wrap stack">
   <p id="loading" class="muted">Loading your profile…</p>
   <div id="app" class="stack" hidden>
-    <div class="hero"><span class="av" id="av" aria-hidden="true"></span><div><span class="mark">My profile</span><h1 id="name"></h1><p class="small muted" id="joined"></p></div></div>
+    <div class="hero"><span class="av" id="av" aria-hidden="true"></span><div><span class="mark">My profile</span><h1 id="name"></h1><span id="heroTitle"></span><p class="small muted" id="joined"></p></div></div>
     <div class="tester" id="testerBanner" hidden><span class="big" aria-hidden="true">🧪</span><div>Official tester<span>Thanks for helping test EC Revisions!</span></div></div>
     <div class="row" id="roleRow" hidden style="align-items:center"><span class="role" id="roleName"></span><a class="btn sm" href="/admin/">Open the admin dashboard →</a></div>
     <div class="row" id="teacherRow" hidden style="align-items:center"><span class="role">👩‍🏫 Teacher</span><a class="btn sm" href="/teacher/">Open my class →</a></div>
     <p class="small muted" id="teachersNote" hidden style="margin:0"></p>
-    <p class="small muted" style="margin:0">🔒 Only you can see your profile.</p>
+    <p class="small muted" style="margin:0">🔒 Only you can see your profile. Your picture, frame and title (from 🎨 Customise below) are the only things other people see, on the leaderboard and in chat.</p>
     <div class="tabs2" role="tablist"><button type="button" role="tab" id="tabOv" class="on">📊 Overview</button><button type="button" role="tab" id="tabMsg">💬 Messages <span class="n" id="nMsg" hidden></span></button></div>
 
     <section id="viewOv" class="stack">
@@ -86,6 +100,13 @@
       <div class="grid2">
         <div class="card stack" id="lbCard"><h2 style="margin:0;font-size:1.3rem">🏆 Leaderboard</h2><div class="stats" id="lbStats"></div><a class="btn quiet sm" href="/leaderboard/" style="align-self:flex-start">Open the leaderboard →</a></div>
         <div class="card stack" id="frCard"><h2 style="margin:0;font-size:1.3rem">👥 Friends</h2><div class="stats"><div class="stat"><span class="v" id="frN">0</span><span class="l">friends</span></div></div><a class="btn quiet sm" href="/chat/?tab=mine" style="align-self:flex-start">Find or add friends →</a></div>
+      </div>
+      <div class="card stack" id="czCard">
+        <h2 style="margin:0;font-size:1.3rem">🎨 Customise your profile <span class="small muted" id="czCount" style="font-weight:500"></span></h2>
+        <p class="small muted" style="margin:0">Unlock pictures, frames and titles by studying, then show them off. Everyone sees them next to your name on the 🏆 leaderboard and in 💬 chat. Tap one you’ve unlocked to use it.</p>
+        <div class="cz-prev"><span class="av" id="czAv" aria-hidden="true"></span><div><b id="czName"></b><div id="czTitle"></div><span class="small muted" id="czSaved" role="status"></span></div></div>
+        <div class="cz-tabs" role="tablist"><button type="button" data-k="a" class="on">🖼️ Pictures</button><button type="button" data-k="f">⭕ Frames</button><button type="button" data-k="t">🏷️ Titles</button></div>
+        <div class="cz-grid" id="czGrid"></div>
       </div>
       <div class="card stack" id="badgesCard">
         <h2 style="margin:0;font-size:1.3rem">🏅 Badges <span class="small muted" id="badgeCount" style="font-weight:500"></span></h2>
@@ -124,13 +145,44 @@
   const stat = (v, l, cls) => { const d = el('div', 'stat' + (cls ? ' ' + cls : '')); d.append(el('span', 'v', v), el('span', 'l', l)); return d; };
   const show = v => { $('#viewOv').hidden = v !== 'ov'; $('#viewMsg').hidden = v !== 'msg'; $('#tabOv').classList.toggle('on', v === 'ov'); $('#tabMsg').classList.toggle('on', v === 'msg'); try { history.replaceState(null, '', v === 'msg' ? '?tab=messages' : location.pathname); } catch (e) { /* fine */ } };
   $('#tabOv').onclick = () => show('ov'); $('#tabMsg').onclick = () => show('msg');
+  // 🎨 rewards: your picture, frame and title
+  let czTab = 'a', czData = null;
+  const FRAME_ICON = { none: '⚪', bronze: '🥉', silver: '🥈', gold: '🥇', diamond: '💎', fire: '🔥', rainbow: '🌈' };
+  function viewOf(d) { const by = Object.fromEntries(d.rewards.map(x => [x.id, x])), a = by[d.look.a], f = by[d.look.f], t = by[d.look.t]; return { a: a ? a.v : null, f: f && f.v !== 'none' ? f.v : null, t: t && t.v ? t.v : null }; }
+  function drawLook(d) {
+    const v = viewOf(d); window.ecAv($('#av'), v, d.name); window.ecAv($('#czAv'), v, d.name); $('#czName').textContent = d.name;
+    $('#heroTitle').replaceChildren(); $('#czTitle').replaceChildren(); const t1 = window.ecTitle(v), t2 = window.ecTitle(v); if (t1) { t1.style.marginLeft = '0'; $('#heroTitle').append(t1); } if (t2) { t2.style.marginLeft = '0'; $('#czTitle').append(t2); }
+  }
+  function drawCz(d) {
+    czData = d; const got = d.rewards.filter(x => x.earned && x.need !== 'Free').length, all = d.rewards.filter(x => x.need !== 'Free').length;
+    $('#czCount').textContent = got + ' of ' + all + ' unlocked';
+    document.querySelectorAll('.cz-tabs button').forEach(b => { b.classList.toggle('on', b.dataset.k === czTab); b.onclick = () => { czTab = b.dataset.k; drawCz(czData); }; });
+    const g = $('#czGrid'); g.replaceChildren();
+    d.rewards.filter(x => x.k === czTab).sort((a, b) => b.earned - a.earned).forEach(x => {
+      const it = el('button', 'cz-item' + (d.look[czTab] === x.id ? ' sel' : '')); it.type = 'button'; it.disabled = !x.earned;
+      const pic = el('span', 'pic');
+      if (x.k === 'a') pic.textContent = x.v;
+      else if (x.k === 'f') { pic.textContent = d.look.a ? (d.rewards.find(r => r.id === d.look.a) || {}).v || '🙂' : '🙂'; if (x.v !== 'none') pic.classList.add('ec-fr-' + x.v); }
+      else pic.textContent = '🏷️';
+      it.append(pic, el('b', '', x.k === 't' && !x.v ? 'No title' : x.name), el('span', '', x.earned ? (d.look[czTab] === x.id ? '✅ Using this' : x.need === 'Free' ? 'Free' : '🔓 Unlocked') : '🔒 ' + x.need));
+      if (!x.earned && x.needN > 1) { const pb = el('div', 'pb'), f = el('i'); f.style.width = Math.round(x.have / x.needN * 100) + '%'; pb.appendChild(f); it.append(pb, el('span', '', x.have + ' / ' + x.needN)); }
+      it.setAttribute('aria-pressed', d.look[czTab] === x.id ? 'true' : 'false');
+      it.onclick = async () => {
+        const body = {}; body[czTab] = x.id; $('#czSaved').textContent = 'Saving…';
+        let ok = false, j = {}; try { const r = await fetch('/api/look', { method: 'POST', credentials: 'same-origin', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }); ok = r.ok; j = await r.json(); } catch (e) { /* offline */ }
+        if (!ok) { $('#czSaved').textContent = j.error || 'Couldn’t save. Check your connection.'; return; }
+        d.look = j.look; $('#czSaved').textContent = '✅ Saved. Everyone sees your new look.'; drawLook(d); drawCz(d);
+      };
+      g.appendChild(it);
+    });
+  }
   async function load() {
     const r = await fetch('/api/profile', { credentials: 'same-origin', cache: 'no-store' });
     if (r.status === 401) { location.replace('/?next=me'); return; }
     if (!r.ok) { $('#loading').textContent = 'Couldn’t load your profile. Check your connection and reload.'; return; }
     const d = await r.json();
     $('#loading').hidden = true; $('#app').hidden = false;
-    $('#av').textContent = (d.name || '?').trim().charAt(0).toUpperCase(); $('#name').textContent = d.name;
+    $('#name').textContent = d.name; drawLook(d); drawCz(d);
     $('#testerBanner').hidden = !d.tester;
     $('#teacherRow').hidden = !d.teacher;
     $('#teachersNote').hidden = !d.teachers.length; $('#teachersNote').textContent = '👩‍🏫 ' + d.teachers.join(', ') + (d.teachers.length === 1 ? ' has' : ' have') + ' added you to their class, so they can see your study time and scores (never your messages).';
