@@ -71,7 +71,7 @@ function questionCard(Q, opts = {}) {
 }
 
 /* ================= router ================= */
-const VIEWS = ['home', 'need', 'learn', 'practice', 'booklet', 'exam', 'tools', 'ask', 'cards', 'glossary', 'skill'];
+const VIEWS = ['home', 'last', 'need', 'learn', 'practice', 'booklet', 'exam', 'tools', 'ask', 'cards', 'glossary', 'skill'];
 const RENDER = {}; const rendered = {};
 function show(view, force) {
   if (!VIEWS.includes(view)) view = 'home';
@@ -923,6 +923,46 @@ RENDER.need = () => {
     });
   };
   $('#needNew', qq).onclick = () => { load(); document.getElementById('needQs').scrollIntoView({ behavior: 'smooth', block: 'start' }); };
+  load();
+};
+
+/* ================= 🚨 LAST MINUTE: the whiteboard topics, with the !!! rules ================= */
+RENDER.last = () => {
+  const v = $('#v-last'); v.innerHTML = '';
+  v.appendChild(h('<div class="view-head"><h2>🚨 Last-minute revision</h2><p>The topics on the class whiteboard, explained simply. The <b class="lm-bang-t">!!!</b> boxes are the rules you <b>must</b> know. Topics marked <span class="lm-red">🔴 Teacher said: important</span> were written in red. Read them, then do the quick-fire questions at the bottom.</p></div>'));
+  const jump = h('<div class="row" style="gap:6px"></div>');
+  LASTMIN.forEach((t, i) => { const c = h('<button type="button" class="chip' + (t.red ? ' lm-chip-red' : '') + '">' + (i + 1) + '. ' + esc(t.title.split(':')[0].split(' (')[0]) + (t.red ? ' 🔴' : '') + '</button>'); c.onclick = () => document.getElementById('lm-' + t.id).scrollIntoView({ behavior: 'smooth', block: 'start' }); jump.appendChild(c); });
+  const qc = h('<button type="button" class="chip on">⚡ Quick-fire questions ↓</button>'); qc.onclick = () => document.getElementById('lmQs').scrollIntoView({ behavior: 'smooth', block: 'start' }); jump.appendChild(qc);
+  v.appendChild(jump);
+  LASTMIN.forEach((t, i) => {
+    const c = h('<section class="card stack lm-card' + (t.red ? ' lm-is-red' : '') + '" id="lm-' + t.id + '"></section>');
+    c.appendChild(h('<div class="row" style="justify-content:space-between;align-items:center;gap:8px"><h3 style="margin:0">' + (i + 1) + '. ' + t.title + '</h3>' + (t.red ? '<span class="lm-red">🔴 Teacher said: important</span>' : '') + '</div>'));
+    c.appendChild(h('<p class="lm-what">' + t.what + '</p>'));
+    c.appendChild(h('<div class="lm-bang"><div class="lm-bang-h">!!! MUST KNOW</div><ul>' + t.must.map(m => '<li>' + m + '</li>').join('') + '</ul></div>'));
+    const body = h('<div class="lm-grid"></div>');
+    body.appendChild(h('<div class="stack" style="gap:8px"><b>How to do it</b><ol class="lm-steps">' + t.steps.map(s => '<li>' + s + '</li>').join('') + '</ol><div class="lm-eg"><b>Example:</b> ' + t.eg.q + '<ul>' + t.eg.work.map(w => '<li>' + w + '</li>').join('') + '</ul></div></div>'));
+    if (t.fig) body.appendChild(h('<div class="lm-fig">' + t.fig() + '</div>'));
+    c.appendChild(body);
+    c.appendChild(h('<p class="lm-trap">⚠️ <b>Common mistake:</b> ' + t.trap + '</p>'));
+    const r = h('<div class="row"></div>');
+    t.practice.forEach(id => { const tp = TOPIC[id]; if (!tp) return; const b = h('<button type="button" class="btn quiet sm">✏️ Practise ' + id + ' ' + esc(tp.name) + '</button>'); b.onclick = () => openPractice(id); r.appendChild(b); });
+    c.appendChild(r);
+    v.appendChild(c);
+  });
+  // ⚡ quick-fire: one question on each whiteboard topic
+  const qq = h('<section class="card stack" id="lmQs"><div class="row" style="justify-content:space-between"><div><h3>⚡ Quick-fire questions</h3><p class="small muted">One question on each whiteboard topic. Answer them all, then check your score.</p></div><div class="row"><div><div class="bignum" style="font-size:1.6rem" id="lmScore">0/0</div><div class="small muted">right</div></div><button type="button" class="btn quiet" id="lmNew">New questions</button></div></div><div class="stack" id="lmList"></div></section>');
+  v.appendChild(qq);
+  const load = () => {
+    const list = $('#lmList', qq); list.innerHTML = ''; let right = 0, done = 0; const total = LASTMIN.length;
+    const upd = () => { $('#lmScore', qq).textContent = right + '/' + done; }; upd();
+    LASTMIN.forEach((t, i) => {
+      const tid = pick(t.practice), gens = TOPIC_GENS[tid]; if (!gens || !gens.length) return;
+      const Q = makeQ(pick(gens));
+      const card = questionCard(Q, { num: (i + 1) + ' of ' + total, onAnswer: (ok, partial) => { if (partial) return; record(tid, ok); done++; if (ok) right++; upd(); if (done === total) toast('All done: ' + right + ' out of ' + total); } });
+      const w = h('<div class="need-q"></div>'); w.appendChild(h('<div class="small muted" style="margin-bottom:4px">' + (i + 1) + '. ' + esc(t.title.split(':')[0].split(' (')[0]) + '</div>')); w.appendChild(card.el); list.appendChild(w);
+    });
+  };
+  $('#lmNew', qq).onclick = () => { load(); document.getElementById('lmQs').scrollIntoView({ behavior: 'smooth', block: 'start' }); };
   load();
 };
 

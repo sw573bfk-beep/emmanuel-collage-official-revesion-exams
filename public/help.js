@@ -79,6 +79,7 @@
       intro: 'Everything for the Year 8 Maths exam. The quickest way to start: follow the 3 steps on Home.',
       steps: [
         { h: 'The tabs', t: 'Each tab is a different way to study. On a phone, swipe the tabs sideways to see them all.', sel: '#tabs' },
+        { h: '🚨 Last minute', t: 'The topics from the class whiteboard, explained simply, with <b>!!! MUST KNOW</b> rules, a worked example, the common mistake and quick-fire questions. 🔴 marks the ones the teacher wrote in red.', sel: '#tabs a[data-v="last"]' },
         { h: 'Start here', t: 'Three steps: <b>Learn</b> a topic, <b>Practise</b> until you get 5 in a row, then <b>Test yourself</b>.', sel: '.start-steps' },
         { h: 'Short on time?', t: '<b>Need to know</b> has everything on one page, plus a question on every topic.', sel: ['.need-tip', '#tabs a[data-v="need"]'] },
         { h: 'Exam countdown', t: 'Put in your exam date and it counts down the days.', sel: '#examDate', get: label },

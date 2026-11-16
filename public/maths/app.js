@@ -2457,6 +2457,83 @@ function reportMistakeBtn(Q) {
   };
   return b;
 }
+/* ================= 🚨 LAST MINUTE: the topics on the class whiteboard, explained simply =================
+   red: the teacher wrote it in red (important). must: the !!! rules you can't forget. */
+const LASTMIN = [
+  { id: 'reflect', title: 'Reflecting coordinates', practice: ['10A'],
+    what: 'A reflection flips a point over a mirror line. The point ends up the <b>same distance</b> from the line, on the <b>other side</b>.',
+    must: ['Reflect in the <b>x-axis</b>: (x, y) → (x, <b>−y</b>). The y changes sign.', 'Reflect in the <b>y-axis</b>: (x, y) → (<b>−x</b>, y). The x changes sign.', 'The coordinate that matches the axis’s name stays the same: x-axis keeps x, y-axis keeps y.'],
+    steps: ['Find the mirror line.', 'Count how far the point is from the line.', 'Count the same distance on the other side.'],
+    eg: { q: 'Reflect A(3, 2) in the x-axis and in the y-axis.', work: ['x-axis: keep x, change the sign of y → <b>(3, −2)</b>', 'y-axis: keep y, change the sign of x → <b>(−3, 2)</b>'] },
+    trap: 'Mixing up the axes. The x-axis is the flat (horizontal) one, so reflecting in it moves the point up or down.',
+    fig: () => gridSVG({ xmin: -5, xmax: 5, ymin: -4, ymax: 4, size: 280, mirrors: [{ t: 'x-axis' }, { t: 'y-axis' }], points: [{ x: 3, y: 2, label: 'A(3, 2)' }, { x: 3, y: -2, label: "(3, −2)", cls: 'b' }, { x: -3, y: 2, label: "(−3, 2)", cls: 'b' }], label: 'A(3, 2) reflected in the x-axis to (3, −2) and in the y-axis to (−3, 2)' }) },
+
+  { id: 'vector', title: 'Translating by a vector', practice: ['10B'],
+    what: 'A translation slides a shape without turning or flipping it. A <b>vector</b> tells you how far: the <b>top number</b> is left/right, the <b>bottom number</b> is up/down.',
+    must: ['Vector <span class="lm-vec"><span>a</span><span>b</span></span>: add <b>a</b> to x and <b>b</b> to y. (x, y) → (x + a, y + b)', 'Top: + is <b>right</b>, − is <b>left</b>. Bottom: + is <b>up</b>, − is <b>down</b>.'],
+    steps: ['Add the top number to the x-coordinate.', 'Add the bottom number to the y-coordinate.', 'Do the same for every corner of the shape.'],
+    eg: { q: 'Translate P(2, −1) by the vector <span class="lm-vec"><span>−3</span><span>4</span></span>.', work: ['x: 2 + (−3) = −1 (3 left)', 'y: −1 + 4 = 3 (4 up)', 'P′ = <b>(−1, 3)</b>'] },
+    trap: 'Putting the numbers the wrong way round. Top always goes with x (across), bottom with y (up).',
+    fig: () => gridSVG({ xmin: -3, xmax: 4, ymin: -2, ymax: 4, size: 260, points: [{ x: 2, y: -1, label: 'P(2, −1)' }, { x: -1, y: 3, label: "P′(−1, 3)", cls: 'b' }], polys: [{ pts: [[2, -1], [-1, -1]], cls: 'b' }, { pts: [[-1, -1], [-1, 3]], cls: 'b' }], label: 'P(2, −1) moves 3 left and 4 up to P′(−1, 3)' }) },
+
+  { id: 'tests', title: 'Congruence tests: SSS, SAS, ASA, RHS (and similar vs congruent)', practice: ['10E', '10H'],
+    what: '<b>Congruent</b> means exactly the same shape <b>and</b> size (one fits perfectly on the other). <b>Similar</b> means the same shape but a <b>different size</b> (one is an enlargement of the other).',
+    must: ['<b>SSS</b>: all 3 sides match.', '<b>SAS</b>: 2 sides and the angle <b>between</b> them match.', '<b>ASA</b> (or AAS): 2 angles and a matching side match.', '<b>RHS</b>: a Right angle, the Hypotenuse and one other Side match.', 'Congruent = same size. Similar = angles equal, sides in the same ratio (scale factor).'],
+    steps: ['Look at what information is marked equal (sides with dashes, angles with arcs).', 'Match it to a test: 3 sides → SSS, 2 sides + angle between → SAS, 2 angles + side → ASA, right angle + hypotenuse + side → RHS.', 'Write the matching vertices in the same order, e.g. △ABC ≅ △DEF.'],
+    eg: { q: 'Two triangles have sides 5, 7 and the angle between them 40° the same. Which test?', work: ['Two sides and the angle <b>between</b> them → <b>SAS</b>. So they are congruent.'] },
+    trap: 'AAA (all three angles equal) does <b>not</b> prove congruent. It only proves the triangles are <b>similar</b>, because they could be different sizes. And in SAS the angle must be <b>between</b> the two sides.' },
+
+  { id: 'pct', title: 'Percentages of amounts', red: true, practice: ['3H', '3I'],
+    what: '“Of” means <b>multiply</b>. To find a percentage of an amount, turn the percentage into a decimal (÷ 100) and multiply.',
+    must: ['<b>x% of an amount = x ÷ 100 × amount</b>', '10% = ÷ 10. 5% = half of 10%. 1% = ÷ 100. 50% = half. 25% = a quarter.', 'Increase by x%: amount × (1 + x/100). Decrease by x%: amount × (1 − x/100).'],
+    steps: ['Change the % to a decimal: 15% → 0.15.', 'Multiply by the amount.', 'Check it makes sense (15% should be a small part).'],
+    eg: { q: 'Find 15% of $80, then increase $80 by 15%.', work: ['15% of 80 = 0.15 × 80 = <b>$12</b>', 'Or: 10% = 8, 5% = 4, so 15% = 8 + 4 = 12', 'Increase: 80 + 12 = <b>$92</b> (or 80 × 1.15 = 92)'] },
+    trap: 'Writing 15% as 1.5 or 0.015. 15% is <b>0.15</b> (divide by 100 once).' },
+
+  { id: 'ineq', title: 'Solving inequalities', practice: ['7J', '7I'],
+    what: 'Solve an inequality just like an equation: do the same thing to both sides. There is <b>one extra rule</b>.',
+    must: ['If you <b>multiply or divide by a negative number, flip the sign</b>: &lt; becomes &gt; and ≤ becomes ≥.', 'On a number line: <b>open circle</b> ○ for &lt; or &gt;, <b>closed circle</b> ● for ≤ or ≥.'],
+    steps: ['Get the x term on its own (add or subtract).', 'Divide by the number in front of x.', 'If that number is negative, flip the sign.', 'Check with a number: does it make the inequality true?'],
+    eg: { q: 'Solve 3 − 2x &gt; 11.', work: ['Subtract 3: −2x &gt; 8', 'Divide by −2 and <b>flip the sign</b>: <b>x &lt; −4</b>', 'Check x = −5: 3 − 2(−5) = 13 &gt; 11 ✔'] },
+    trap: 'Forgetting to flip the sign when dividing by a negative. Always check with a number.' },
+
+  { id: 'xyz', title: '3D coordinates', practice: ['XYZ'],
+    what: 'In 3D a point has three coordinates (x, y, z): x is across, y is along (into the page), z is <b>up</b>. The origin is (0, 0, 0).',
+    must: ['Always write them in order: <b>(x, y, z)</b>, alphabetical.', 'A point on an axis has two zeros, e.g. (0, 0, 4) is on the z-axis.', 'A point on the floor (flat) has z = 0.'],
+    steps: ['Start at the origin.', 'Go along x, then along y, then up z.', 'Write the three distances in order (x, y, z).'],
+    eg: { q: 'A box is 4 long (x), 3 wide (y) and 2 high (z), with one corner at the origin. What is the top corner opposite the origin?', work: ['Go 4 along x, 3 along y and 2 up z → <b>(4, 3, 2)</b>'] },
+    trap: 'Mixing up the order. It is always x first, then y, then z.' },
+
+  { id: 'unknowns', title: 'Finding unknowns in congruent triangles', practice: ['10E', '10D'],
+    what: 'If two triangles are congruent, every <b>matching</b> side and angle is equal. Use that, plus the angle sum, to find what is missing.',
+    must: ['△ABC ≅ △DEF means A matches D, B matches E, C matches F (same order!). So AB = DE, BC = EF, ∠A = ∠D …', '<b>Angles in a triangle add to 180°.</b>'],
+    steps: ['Match the vertices using the order of the letters.', 'Copy each known side or angle across to its match.', 'Use 180° for any missing angle.'],
+    eg: { q: '△ABC ≅ △DEF. ∠A = 50°, ∠B = 70° and EF = 6 cm. Find ∠F and BC.', work: ['∠C = 180 − 50 − 70 = 60°, and C matches F, so <b>∠F = 60°</b>', 'BC matches EF, so <b>BC = 6 cm</b>'] },
+    trap: 'Matching sides by where they look, not by the letter order. Trust the letters.' },
+
+  { id: 'scale', title: 'Scale factor', red: true, practice: ['10H', '10I'],
+    what: 'The scale factor tells you how many times bigger (or smaller) a similar shape is. Every length is multiplied by the same number.',
+    must: ['<b>Scale factor = new length ÷ original length</b> (matching sides).', 'Bigger than 1 → enlargement. Between 0 and 1 → reduction.', 'New length = original × scale factor. Original = new ÷ scale factor.', 'Angles do <b>not</b> change when you enlarge.'],
+    steps: ['Find a pair of matching sides where you know both lengths.', 'Divide new ÷ original to get the scale factor.', 'Multiply (or divide) to find the missing side.'],
+    eg: { q: 'A triangle with sides 4, 6 and 8 cm is enlarged. The 4 cm side becomes 10 cm. Find the scale factor and the new 6 cm side.', work: ['Scale factor = 10 ÷ 4 = <b>2.5</b>', 'New side = 6 × 2.5 = <b>15 cm</b>'] },
+    trap: 'Dividing the wrong way (old ÷ new). If the shape got bigger, the scale factor must be bigger than 1.' },
+
+  { id: 'grad', title: 'Gradient', red: true, practice: ['L2'],
+    what: 'Gradient is how steep a line is: how far it goes <b>up</b> for every 1 it goes <b>across</b>.',
+    must: ['<b>m = <span class="lm-frac"><span>y₂ − y₁</span><span>x₂ − x₁</span></span> = <span class="lm-frac"><span>rise</span><span>run</span></span></b>', 'Uphill (left to right) = <b>positive</b>. Downhill = <b>negative</b>. Flat = <b>0</b>. Vertical = undefined.', 'Use the points in the <b>same order</b> on the top and the bottom.'],
+    steps: ['Label the points (x₁, y₁) and (x₂, y₂).', 'Work out y₂ − y₁ (the rise) and x₂ − x₁ (the run).', 'Divide rise by run.'],
+    eg: { q: 'Find the gradient through (1, 2) and (4, 11).', work: ['m = (11 − 2) ÷ (4 − 1)', '= 9 ÷ 3 = <b>3</b>'] },
+    trap: 'Doing x on top. It is always <b>y on top</b> (rise over run).',
+    fig: () => gridSVG({ xmin: 0, xmax: 5, ymin: 0, ymax: 12, size: 250, lines: [{ m: 3, c: -1, cls: 'b' }], polys: [{ pts: [[1, 2], [4, 2], [4, 11]], cls: 'b' }], points: [{ x: 1, y: 2, label: '(1, 2)' }, { x: 4, y: 11, label: '(4, 11)' }], label: 'The line through (1, 2) and (4, 11): run 3, rise 9, gradient 3' }) },
+
+  { id: 'linear', title: 'Writing and graphing linear equations', red: true, practice: ['L4', 'L3'],
+    what: 'A straight line has an equation <b>y = mx + c</b>. m is the gradient (steepness) and c is the y-intercept (where it crosses the y-axis).',
+    must: ['<b>y = mx + c</b>: <b>m = gradient</b>, <b>c = y-intercept</b> (the y value when x = 0).', 'From a table: m = how much y goes up each time x goes up by 1. c = y when x = 0.', 'To graph: plot c on the y-axis, then use the gradient (up m, across 1) to plot more points, and join with a ruler.'],
+    steps: ['Find c: the y value when x = 0 (or where it crosses the y-axis).', 'Find m: the change in y for each +1 in x (or rise ÷ run).', 'Write y = mx + c, then check it with one point from the table.'],
+    eg: { q: 'Write the rule for this table: x = 0, 1, 2, 3 and y = 5, 8, 11, 14. Then graph it.', work: ['y goes up by 3 each time → m = 3', 'When x = 0, y = 5 → c = 5', 'Rule: <b>y = 3x + 5</b>. Check x = 2: 3 × 2 + 5 = 11 ✔', 'Graph: start at (0, 5), go up 3 and across 1 each time.'] },
+    trap: 'Swapping m and c (writing y = 5x + 3). The number on its own (no x) is where the line crosses the y-axis.',
+    fig: () => gridSVG({ xmin: -1, xmax: 3, ymin: 0, ymax: 15, size: 250, lines: [{ m: 3, c: 5, cls: 'b' }], points: [{ x: 0, y: 5, label: '(0, 5)' }, { x: 1, y: 8 }, { x: 2, y: 11 }, { x: 3, y: 14, label: '(3, 14)' }], label: 'The graph of y = 3x + 5' }) }
+];
 /* ================= small UI helpers ================= */
 function h(html) { const t = document.createElement('template'); t.innerHTML = html.trim(); return t.content.firstElementChild; }
 let toastT;
@@ -2530,7 +2607,7 @@ function questionCard(Q, opts = {}) {
 }
 
 /* ================= router ================= */
-const VIEWS = ['home', 'need', 'learn', 'practice', 'booklet', 'exam', 'tools', 'ask', 'cards', 'glossary', 'skill'];
+const VIEWS = ['home', 'last', 'need', 'learn', 'practice', 'booklet', 'exam', 'tools', 'ask', 'cards', 'glossary', 'skill'];
 const RENDER = {}; const rendered = {};
 function show(view, force) {
   if (!VIEWS.includes(view)) view = 'home';
@@ -3382,6 +3459,46 @@ RENDER.need = () => {
     });
   };
   $('#needNew', qq).onclick = () => { load(); document.getElementById('needQs').scrollIntoView({ behavior: 'smooth', block: 'start' }); };
+  load();
+};
+
+/* ================= 🚨 LAST MINUTE: the whiteboard topics, with the !!! rules ================= */
+RENDER.last = () => {
+  const v = $('#v-last'); v.innerHTML = '';
+  v.appendChild(h('<div class="view-head"><h2>🚨 Last-minute revision</h2><p>The topics on the class whiteboard, explained simply. The <b class="lm-bang-t">!!!</b> boxes are the rules you <b>must</b> know. Topics marked <span class="lm-red">🔴 Teacher said: important</span> were written in red. Read them, then do the quick-fire questions at the bottom.</p></div>'));
+  const jump = h('<div class="row" style="gap:6px"></div>');
+  LASTMIN.forEach((t, i) => { const c = h('<button type="button" class="chip' + (t.red ? ' lm-chip-red' : '') + '">' + (i + 1) + '. ' + esc(t.title.split(':')[0].split(' (')[0]) + (t.red ? ' 🔴' : '') + '</button>'); c.onclick = () => document.getElementById('lm-' + t.id).scrollIntoView({ behavior: 'smooth', block: 'start' }); jump.appendChild(c); });
+  const qc = h('<button type="button" class="chip on">⚡ Quick-fire questions ↓</button>'); qc.onclick = () => document.getElementById('lmQs').scrollIntoView({ behavior: 'smooth', block: 'start' }); jump.appendChild(qc);
+  v.appendChild(jump);
+  LASTMIN.forEach((t, i) => {
+    const c = h('<section class="card stack lm-card' + (t.red ? ' lm-is-red' : '') + '" id="lm-' + t.id + '"></section>');
+    c.appendChild(h('<div class="row" style="justify-content:space-between;align-items:center;gap:8px"><h3 style="margin:0">' + (i + 1) + '. ' + t.title + '</h3>' + (t.red ? '<span class="lm-red">🔴 Teacher said: important</span>' : '') + '</div>'));
+    c.appendChild(h('<p class="lm-what">' + t.what + '</p>'));
+    c.appendChild(h('<div class="lm-bang"><div class="lm-bang-h">!!! MUST KNOW</div><ul>' + t.must.map(m => '<li>' + m + '</li>').join('') + '</ul></div>'));
+    const body = h('<div class="lm-grid"></div>');
+    body.appendChild(h('<div class="stack" style="gap:8px"><b>How to do it</b><ol class="lm-steps">' + t.steps.map(s => '<li>' + s + '</li>').join('') + '</ol><div class="lm-eg"><b>Example:</b> ' + t.eg.q + '<ul>' + t.eg.work.map(w => '<li>' + w + '</li>').join('') + '</ul></div></div>'));
+    if (t.fig) body.appendChild(h('<div class="lm-fig">' + t.fig() + '</div>'));
+    c.appendChild(body);
+    c.appendChild(h('<p class="lm-trap">⚠️ <b>Common mistake:</b> ' + t.trap + '</p>'));
+    const r = h('<div class="row"></div>');
+    t.practice.forEach(id => { const tp = TOPIC[id]; if (!tp) return; const b = h('<button type="button" class="btn quiet sm">✏️ Practise ' + id + ' ' + esc(tp.name) + '</button>'); b.onclick = () => openPractice(id); r.appendChild(b); });
+    c.appendChild(r);
+    v.appendChild(c);
+  });
+  // ⚡ quick-fire: one question on each whiteboard topic
+  const qq = h('<section class="card stack" id="lmQs"><div class="row" style="justify-content:space-between"><div><h3>⚡ Quick-fire questions</h3><p class="small muted">One question on each whiteboard topic. Answer them all, then check your score.</p></div><div class="row"><div><div class="bignum" style="font-size:1.6rem" id="lmScore">0/0</div><div class="small muted">right</div></div><button type="button" class="btn quiet" id="lmNew">New questions</button></div></div><div class="stack" id="lmList"></div></section>');
+  v.appendChild(qq);
+  const load = () => {
+    const list = $('#lmList', qq); list.innerHTML = ''; let right = 0, done = 0; const total = LASTMIN.length;
+    const upd = () => { $('#lmScore', qq).textContent = right + '/' + done; }; upd();
+    LASTMIN.forEach((t, i) => {
+      const tid = pick(t.practice), gens = TOPIC_GENS[tid]; if (!gens || !gens.length) return;
+      const Q = makeQ(pick(gens));
+      const card = questionCard(Q, { num: (i + 1) + ' of ' + total, onAnswer: (ok, partial) => { if (partial) return; record(tid, ok); done++; if (ok) right++; upd(); if (done === total) toast('All done: ' + right + ' out of ' + total); } });
+      const w = h('<div class="need-q"></div>'); w.appendChild(h('<div class="small muted" style="margin-bottom:4px">' + (i + 1) + '. ' + esc(t.title.split(':')[0].split(' (')[0]) + '</div>')); w.appendChild(card.el); list.appendChild(w);
+    });
+  };
+  $('#lmNew', qq).onclick = () => { load(); document.getElementById('lmQs').scrollIntoView({ behavior: 'smooth', block: 'start' }); };
   load();
 };
 
