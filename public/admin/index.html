@@ -428,6 +428,21 @@ details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
     sbtn.onclick = async () => { const rr = await api('/api/admin/set-stats', 'POST', { id: u.id, inStats: !u.inStats }); if (rr.ok) { u.inStats = !u.inStats; sShow(); load(); } else sl.textContent = rr.data.error || 'Couldn’t change it.'; };
     sShow(); sb.append(sbtn, sl); b.appendChild(sb);
     if (!u.admin) {
+      // ✏️ change their name (Beau and Top tier admins)
+      if (ROLE !== 'basic') {
+        const rn = document.createElement('div'); rn.className = 'row'; rn.style.alignItems = 'flex-end';
+        rn.innerHTML = '<label class="f" style="flex:1 1 220px">✏️ Change their name<input type="text" id="rnIn" maxlength="30" autocomplete="off"></label><button class="btn quiet" type="button" id="rnBtn">Change name</button>';
+        const rnMsg = document.createElement('p'); rnMsg.className = 'small'; rnMsg.setAttribute('role', 'status');
+        const inp = rn.querySelector('#rnIn'); inp.value = u.name;
+        rn.querySelector('#rnBtn').onclick = async () => {
+          const name = inp.value.trim(); if (!name || name === u.name) { rnMsg.textContent = 'Type their new name first.'; return; }
+          const rr = await api('/api/admin/rename', 'POST', { id: u.id, name });
+          if (!rr.ok) { rnMsg.textContent = rr.data.error || 'Couldn’t change it.'; return; }
+          rnMsg.textContent = '✅ ' + rr.data.old + ' is now ' + rr.data.name + '. They log in with the new name (the old one still works too). They stay logged in.';
+          u.name = rr.data.name; h2.textContent = u.name; load();
+        };
+        b.append(rn, rnMsg);
+      }
       const box = document.createElement('div'); box.className = 'row'; box.style.alignItems = 'flex-end';
       const pb = document.createElement('button'); pb.type = 'button'; pb.className = 'btn quiet';
       const pShow = () => { pb.textContent = u.chatMuted ? 'Allow chatting again' : 'Pause chatting'; };

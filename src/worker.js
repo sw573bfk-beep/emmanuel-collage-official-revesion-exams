@@ -280,9 +280,9 @@ async function startSession(env, userId, url, slot = 0, days = SESSION_DAYS) {
 }
 async function currentUser(req, env, slot = slotOf(req)) {
   const token = getCookie(req, sidName(slot)); if (!token || !/^[0-9a-f]{64}$/.test(token)) return null;
-  const row = await env.DB.prepare('SELECT u.id, u.username, u.role, u.tester, u.teacher, u.focus_until, s.expires_at FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token_hash = ?').bind(await sha256(token)).first();
+  const row = await env.DB.prepare('SELECT u.id, u.username, u.prev_name, u.role, u.tester, u.teacher, u.focus_until, s.expires_at FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token_hash = ?').bind(await sha256(token)).first();
   if (!row || row.expires_at < now()) return null;
-  return { id: row.id, username: row.username, role: row.role || null, tester: !!row.tester, teacher: !!row.teacher, focus_until: row.focus_until || 0, tokenHash: await sha256(token) };
+  return { id: row.id, username: row.username, prevName: row.prev_name || null, role: row.role || null, tester: !!row.tester, teacher: !!row.teacher, focus_until: row.focus_until || 0, tokenHash: await sha256(token) };
 }
 async function readJson(req) {
   if (!(req.headers.get('content-type') || '').includes('application/json')) throw new Error('Expected JSON');
@@ -322,7 +322,8 @@ async function handleApi(req, env, url) {
     const ik = await ipKey(req);
     // wrong passwords per device: a whole class can make typos, but nobody can keep guessing
     if (await overLimit(env, 'loginfail:' + ik, 60, 900, false)) return err(429, 'Too many wrong tries from here. Wait 15 minutes and try again.');
-    const user = await env.DB.prepare('SELECT * FROM users WHERE username = ?').bind(username).first();
+    // their current name, or the name they had before Beau changed it
+    const user = (await env.DB.prepare('SELECT * FROM users WHERE username = ?').bind(username).first()) || (await env.DB.prepare('SELECT * FROM users WHERE prev_name = ? COLLATE NOCASE').bind(username).first());
     if (!user) { await hashPassword(password, randomHex(16)); await hit(env, 'loginfail:' + ik); return err(401, 'Wrong username or password.'); }
     const adminTry = isAdmin(user, env);
     // Beau's account: a device gets only 5 wrong tries an hour. (There's no account-wide lock, so nobody can lock Beau out.)
@@ -353,11 +354,11 @@ async function handleApi(req, env, url) {
   // A tab says which person it thinks it is. If a different person is now logged in on its slot
   // (another tab logged out and in as someone else), refuse, so it can't save into the wrong account.
   let expect = null; try { expect = decodeURIComponent(req.headers.get('x-ec-who') || ''); } catch { expect = null; }
-  if (user && expect && expect !== user.username && path !== '/api/me') return err(401, 'Not logged in');
+  if (user && expect && expect !== user.username && expect !== user.prevName && path !== '/api/me') return err(401, 'Not logged in'); // (the old name still counts after Beau renames someone)
   if (path === '/api/me' && method === 'GET') {
     if (!user) return err(401, 'Not logged in');
     const rows = await env.DB.prepare('SELECT subject, updated_at FROM progress WHERE user_id = ?').bind(user.id).all();
-    return json({ username: user.username, admin: isAdmin(user, env), role: staffRole(user, env), tester: user.tester, teacher: user.teacher, subjects: Object.fromEntries(rows.results.map(r => [r.subject, r.updated_at])) });
+    return json({ username: user.username, prevName: user.prevName, admin: isAdmin(user, env), role: staffRole(user, env), tester: user.tester, teacher: user.teacher, subjects: Object.fromEntries(rows.results.map(r => [r.subject, r.updated_at])) });
   }
   if (path === '/api/logout' && method === 'POST') {
     if (user) await env.DB.prepare('DELETE FROM sessions WHERE token_hash = ?').bind(user.tokenHash).run();
@@ -989,6 +990,20 @@ async function handleAdmin(req, env, path, method, me, role = 'owner') {
   if (method !== 'POST') return err(404, 'Not found');
   let body; try { body = await readJson(req); } catch { return err(400, 'Bad request'); }
   const id = +body.id; if (!Number.isInteger(id)) return err(400, 'Bad request');
+  // ✏️ change someone's name (Beau and Top tier admins). Their old name still works for logging in.
+  if (path === '/api/admin/rename') {
+    if (role === 'basic') return err(403, 'Only Beau or a Top tier admin can change names.');
+    const u = await env.DB.prepare('SELECT id, username FROM users WHERE id = ?').bind(id).first(); if (!u) return err(404, 'No such user');
+    if (u.username.toLowerCase() === String(env.ADMIN_USERNAME || '').toLowerCase()) return err(400, 'The owner account’s name can’t be changed here.');
+    const name = cleanName(body.name);
+    if (!USERNAME_RE.test(name)) return err(400, 'Names are 2–30 characters: letters, numbers, spaces, apostrophes, dots, dashes or underscores.');
+    const ok = checkName(name, env.ADMIN_USERNAME); if (!ok.ok) return err(400, ok.message);
+    if (name === u.username) return err(400, 'That’s already their name.');
+    const taken = await env.DB.prepare('SELECT id FROM users WHERE (username = ?1 OR prev_name = ?1 COLLATE NOCASE) AND id != ?2').bind(name, id).first();
+    if (taken) return err(409, 'Someone else already has (or had) that name. Add a last initial or a number.');
+    await env.DB.prepare('UPDATE users SET username = ?, prev_name = ? WHERE id = ?').bind(name, u.username, id).run();
+    return json({ ok: true, name, old: u.username });
+  }
   if (path === '/api/admin/reset-password') {
     const pw = String(body.password || ''); if (pw.length < 8 || pw.length > 200) return err(400, 'Passwords need at least 8 characters.');
     const salt = randomHex(16);

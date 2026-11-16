@@ -42,6 +42,8 @@
       let me; try { me = await r.clone().json(); } catch (e) { return r; }
       const who = getWho();
       if (who === null || who === me.username) { setWho(me.username); return r; }
+      // Beau changed this person's name: same account, so just remember the new name (and the saved login too)
+      if (me.prevName && who === me.prevName) { setWho(me.username); try { if (localStorage.getItem('ec:username') === me.prevName) localStorage.setItem('ec:username', me.username); } catch (e) { /* storage blocked */ } return r; }
       // Someone else is now in this tab's login spot. Find this tab's own account if it is still logged in…
       if (who) { const mine = (await listAccounts()).find(a => a.username === who); if (mine) { use(mine.slot); location.reload(); return new Promise(() => {}); } }
       // …otherwise this tab is logged out: show the login page, not the other person's account.
