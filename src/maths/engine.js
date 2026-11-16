@@ -287,7 +287,10 @@ function checkAnswer(Q, input) {
         let x = parseNum(raw); if (isNaN(x)) return { ok: false, msg: 'Type a number, e.g. 12.5 or 7/4.', bad: true };
         if (Q.signed && /decrease|\bdec\b|loss|down|fall|drop/i.test(raw)) x = -Math.abs(x);
         const tol = Q.tol != null ? Q.tol : (Number.isInteger(Q.ans) ? 1e-9 : 0.0051);
-        return { ok: Math.abs(x - Q.ans) <= tol + 1e-9 };
+        const close = Math.abs(x - Q.ans) <= tol + 1e-9;
+        // "round to 3 decimal places": 48.61 has the right value but should be written 48.610
+        if (close && Q.dp != null) { const dec = (raw.replace(/[^\d.]/g, '').split('.')[1] || '').length; if (dec !== Q.dp) return { ok: false, bad: true, msg: Q.dp ? 'So close! The question asks for ' + Q.dp + ' decimal place' + (Q.dp > 1 ? 's' : '') + ', so write exactly ' + Q.dp + ' digit' + (Q.dp > 1 ? 's' : '') + ' after the point (keep any zeros at the end).' : 'So close! Round to a whole number: no decimal point.' }; }
+        return { ok: close };
       }
       case 'nums': {
         const parts = clean(raw).split(/[,;]| (?=-?\d)/).map(t => t.trim()).filter(Boolean).map(parseNum);
@@ -1082,7 +1085,7 @@ gen('fracDecT', '3F', 'Fraction to terminating decimal', () => {
 gen('fracDecR', '3F', 'Fraction to recurring decimal (rounded)', () => {
   const d = pick([3, 6, 7, 9, 11, 12, 15, 13]); const n = rnd(1, d - 1); if (gcd(n, d) !== 1) return G.fracDecR.fn(); const dp = pick([1, 2, 3]);
   const ld = longDiv(n, d); const ans = r2(n / d, dp);
-  return { type: 'num', q: 'Write <b>' + n + '/' + d + '</b> as a decimal, rounded to <b>' + dp + ' decimal place' + (dp > 1 ? 's' : '') + '</b>.', ans, tol: 1e-9, ansText: ans.toFixed(dp),
+  return { type: 'num', q: 'Write <b>' + n + '/' + d + '</b> as a decimal, rounded to <b>' + dp + ' decimal place' + (dp > 1 ? 's' : '') + '</b>.', ans, tol: 1e-9, ansText: ans.toFixed(dp), dp, distract: roundDistract(n / d, dp),
     hint: 'Divide to get a few more digits than you need, then look at the next digit to round.', sol: [n + ' ÷ ' + d + ' = ' + decLong(ld) + ' = ' + decHTML(ld) + ' (recurring)', 'The digit after the ' + dp + (dp === 1 ? 'st' : dp === 2 ? 'nd' : 'rd') + ' decimal place is ' + decLong(ld, 6).replace('…', '').split('.')[1][dp] + ', so round ' + (+decLong(ld, 6).replace('…', '').split('.')[1][dp] >= 5 ? 'up' : 'down') + ': <b>' + ans.toFixed(dp) + '</b>'] };
 });
 gen('termOrRec', '3F', 'Terminating or recurring?', () => {
@@ -1090,10 +1093,21 @@ gen('termOrRec', '3F', 'Terminating or recurring?', () => {
   return { type: 'mcq', q: 'Is <b>' + n + '/' + d + '</b> a terminating or a recurring decimal?', choices: ['Terminating', 'Recurring'], ans: term ? 0 : 1, ansText: term ? 'Terminating' : 'Recurring',
     hint: 'Simplify first. If the denominator only has prime factors 2 and 5, it terminates.', sol: [(g > 1 ? n + '/' + d + ' = ' + n / g + '/' + dd + '. ' : '') + 'Denominator ' + dd + ' = ' + (f.join(' × ') || '1') + '.', term ? 'Only 2s and 5s, so it <b>terminates</b>: ' + decLong(longDiv(n, d)) : 'It has a prime factor other than 2 or 5, so it <b>recurs</b>: ' + decHTML(longDiv(n, d))] };
 });
+// realistic wrong answers for "round x to k decimal places": not rounding (cutting off), one place too many or too few,
+// dropping a zero at the end, and one unit out in the last place
+function roundDistract(x, k) {
+  const right = r2(x, k).toFixed(k), out = [];
+  out.push((Math.trunc(x * 10 ** k) / 10 ** k).toFixed(k));
+  out.push(r2(x, k + 1).toFixed(k + 1));
+  if (k > 0) out.push(r2(x, k - 1).toFixed(k - 1));
+  if (k > 0 && /0$/.test(right)) out.push(right.replace(/0+$/, '').replace(/\.$/, ''));
+  out.push((r2(x, k) + 10 ** -k).toFixed(k), (r2(x, k) - 10 ** -k).toFixed(k));
+  return [...new Set(out)].filter(w => w !== right && +w >= 0);
+}
 gen('roundDec', '3F', 'Round a decimal', () => {
   const x = rnd(0, 99) + rnd(1, 99999) / 100000; const k = pick([[0, 'the nearest whole number'], [1, '1 decimal place'], [2, '2 decimal places'], [3, '3 decimal places']]); const ans = r2(x, k[0]);
   const s = x.toFixed(5).replace(/0+$/, '');
-  return { type: 'num', q: 'Round <b>' + s + '</b> to ' + k[1] + '.', ans, tol: 1e-9, ansText: ans.toFixed(k[0]), sol: (() => { const pos = s.indexOf('.') + k[0] + (k[0] ? 1 : 1), nxt = s.charAt(pos) || '0', up = +nxt >= 5;
+  return { type: 'num', q: 'Round <b>' + s + '</b> to ' + k[1] + '.', ans, tol: 1e-9, ansText: ans.toFixed(k[0]), dp: k[0], distract: roundDistract(x, k[0]), sol: (() => { const pos = s.indexOf('.') + k[0] + (k[0] ? 1 : 1), nxt = s.charAt(pos) || '0', up = +nxt >= 5;
       return ['Look at the digit straight after the place you are rounding to. 5 or more → round up; 4 or less → leave it.', 'Rounding to ' + k[1] + ': the next digit is <b>' + nxt + '</b>, so ' + (up ? 'round up' : 'leave it') + ': <b>' + ans.toFixed(k[0]) + '</b>'];
     })() };
 });

@@ -22,7 +22,8 @@ function asMCQ(Q) {
   if (!Q) return null;
   if (Q.type === 'mcq') return Q;
   let right = null, wrongs = [];
-  if (Q.type === 'num' && typeof Q.ans === 'number') { right = showNum(Q.ans); wrongs = numWrongs(Q.ans); }
+  if (Q.type === 'num' && typeof Q.ans === 'number' && Q.dp != null) { right = Q.ans.toFixed(Q.dp).replace('-', '−'); wrongs = Q.distract && Q.distract.length >= 3 ? Q.distract.slice() : numWrongs(Q.ans).map(w => (+String(w).replace('−', '-')).toFixed(Q.dp).replace('-', '−')); } // "to 3 dp": 48.610, not 48.61
+  else if (Q.type === 'num' && typeof Q.ans === 'number') { right = showNum(Q.ans); wrongs = numWrongs(Q.ans); }
   else if (Q.type === 'coord' && Array.isArray(Q.ans) && Q.ans.length >= 2 && Q.ans.length <= 3 && Q.ans.every(v => typeof v === 'number')) {
     const [x, y, z] = Q.ans; const P = (...c) => '(' + c.map(showNum).join(', ') + ')';
     right = z === undefined ? P(x, y) : P(x, y, z);

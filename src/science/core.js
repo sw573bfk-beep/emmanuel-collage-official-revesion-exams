@@ -286,7 +286,10 @@ function checkAnswer(Q, input) {
         let x = parseNum(raw); if (isNaN(x)) return { ok: false, msg: 'Type a number, e.g. 12.5 or 7/4.', bad: true };
         if (Q.signed && /decrease|\bdec\b|loss|down|fall|drop/i.test(raw)) x = -Math.abs(x);
         const tol = Q.tol != null ? Q.tol : (Number.isInteger(Q.ans) ? 1e-9 : 0.0051);
-        return { ok: Math.abs(x - Q.ans) <= tol + 1e-9 };
+        const close = Math.abs(x - Q.ans) <= tol + 1e-9;
+        // "round to 3 decimal places": 48.61 has the right value but should be written 48.610
+        if (close && Q.dp != null) { const dec = (raw.replace(/[^\d.]/g, '').split('.')[1] || '').length; if (dec !== Q.dp) return { ok: false, bad: true, msg: Q.dp ? 'So close! The question asks for ' + Q.dp + ' decimal place' + (Q.dp > 1 ? 's' : '') + ', so write exactly ' + Q.dp + ' digit' + (Q.dp > 1 ? 's' : '') + ' after the point (keep any zeros at the end).' : 'So close! Round to a whole number: no decimal point.' }; }
+        return { ok: close };
       }
       case 'nums': {
         const parts = clean(raw).split(/[,;]| (?=-?\d)/).map(t => t.trim()).filter(Boolean).map(parseNum);

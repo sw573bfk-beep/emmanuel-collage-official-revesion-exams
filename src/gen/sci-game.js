@@ -287,7 +287,10 @@ function checkAnswer(Q, input) {
         let x = parseNum(raw); if (isNaN(x)) return { ok: false, msg: 'Type a number, e.g. 12.5 or 7/4.', bad: true };
         if (Q.signed && /decrease|\bdec\b|loss|down|fall|drop/i.test(raw)) x = -Math.abs(x);
         const tol = Q.tol != null ? Q.tol : (Number.isInteger(Q.ans) ? 1e-9 : 0.0051);
-        return { ok: Math.abs(x - Q.ans) <= tol + 1e-9 };
+        const close = Math.abs(x - Q.ans) <= tol + 1e-9;
+        // "round to 3 decimal places": 48.61 has the right value but should be written 48.610
+        if (close && Q.dp != null) { const dec = (raw.replace(/[^\d.]/g, '').split('.')[1] || '').length; if (dec !== Q.dp) return { ok: false, bad: true, msg: Q.dp ? 'So close! The question asks for ' + Q.dp + ' decimal place' + (Q.dp > 1 ? 's' : '') + ', so write exactly ' + Q.dp + ' digit' + (Q.dp > 1 ? 's' : '') + ' after the point (keep any zeros at the end).' : 'So close! Round to a whole number: no decimal point.' }; }
+        return { ok: close };
       }
       case 'nums': {
         const parts = clean(raw).split(/[,;]| (?=-?\d)/).map(t => t.trim()).filter(Boolean).map(parseNum);
@@ -896,7 +899,7 @@ gen('deltaT', 'C6', 'Calculate the temperature change (ΔT)', () => {
 });
 gen('meanUnc', 'C6', 'Mean and uncertainty of trials', () => {
   const base = rnd(120, 380) / 10; const t = [0, 0, 0].map(() => r2(base + rnd(-12, 12) / 10, 1)); const mean = (t[0] + t[1] + t[2]) / 3; const unc = (Math.max(...t) - Math.min(...t)) / 2;
-  if (Math.random() < 0.5) return { type: 'num', q: 'Three trials gave temperatures of <b>' + t.map(v => v.toFixed(1)).join(' °C, ') + ' °C</b>. Calculate the mean (1 decimal place).', ans: r2(mean, 1), tol: 0.051, ansText: fmt(r2(mean, 1)) + ' °C', sol: ['Mean = (' + t.map(v => v.toFixed(1)).join(' + ') + ') ÷ 3', '= ' + fmt(r2(t[0] + t[1] + t[2], 1)) + ' ÷ 3 = <b>' + fmt(r2(mean, 1)) + ' °C</b>'] };
+  if (Math.random() < 0.5) return { type: 'num', q: 'Three trials gave temperatures of <b>' + t.map(v => v.toFixed(1)).join(' °C, ') + ' °C</b>. Calculate the mean (1 decimal place).', ans: r2(mean, 1), tol: 0.051, dp: 1, ansText: r2(mean, 1).toFixed(1) + ' °C', sol: ['Mean = (' + t.map(v => v.toFixed(1)).join(' + ') + ') ÷ 3', '= ' + fmt(r2(t[0] + t[1] + t[2], 1)) + ' ÷ 3 = <b>' + r2(mean, 1).toFixed(1) + ' °C</b>'] };
   return { type: 'num', q: 'Three trials gave temperatures of <b>' + t.map(v => v.toFixed(1)).join(' °C, ') + ' °C</b>. Calculate the uncertainty. (Uncertainty = (highest − lowest) ÷ 2)', ans: r2(unc, 2), tol: 0.051, ansText: '± ' + fmt(r2(unc, 2)) + ' °C', sol: ['Highest = ' + Math.max(...t).toFixed(1) + ', lowest = ' + Math.min(...t).toFixed(1) + '.', '(' + Math.max(...t).toFixed(1) + ' − ' + Math.min(...t).toFixed(1) + ') ÷ 2 = <b>± ' + fmt(r2(unc, 2)) + ' °C</b>'] };
 });
 // energy diagram with numbers (kJ), so every one is different
@@ -1504,7 +1507,8 @@ function asMCQ(Q) {
   if (!Q) return null;
   if (Q.type === 'mcq') return Q;
   let right = null, wrongs = [];
-  if (Q.type === 'num' && typeof Q.ans === 'number') { right = showNum(Q.ans); wrongs = numWrongs(Q.ans); }
+  if (Q.type === 'num' && typeof Q.ans === 'number' && Q.dp != null) { right = Q.ans.toFixed(Q.dp).replace('-', '−'); wrongs = Q.distract && Q.distract.length >= 3 ? Q.distract.slice() : numWrongs(Q.ans).map(w => (+String(w).replace('−', '-')).toFixed(Q.dp).replace('-', '−')); } // "to 3 dp": 48.610, not 48.61
+  else if (Q.type === 'num' && typeof Q.ans === 'number') { right = showNum(Q.ans); wrongs = numWrongs(Q.ans); }
   else if (Q.type === 'coord' && Array.isArray(Q.ans) && Q.ans.length >= 2 && Q.ans.length <= 3 && Q.ans.every(v => typeof v === 'number')) {
     const [x, y, z] = Q.ans; const P = (...c) => '(' + c.map(showNum).join(', ') + ')';
     right = z === undefined ? P(x, y) : P(x, y, z);
