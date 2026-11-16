@@ -291,12 +291,15 @@ RENDER.learn = () => {
 /* ================= PRACTICE ================= */
 function topicSelect(id, value, extra = true) {
   let s = '<select id="' + id + '">';
-  if (extra) s += '<option value="mix">All topics, mixed</option><option value="weak">My weak spots</option>';
+  if (extra) s += '<option value="mix">All topics, mixed</option><option value="weak">My weak spots</option><option value="pick">✅ Choose my topics…</option>';
   UNITS.forEach(u => { s += '<optgroup label="' + u.name + '">'; TOPICS.filter(t => t.unit === u.id).forEach(t => { s += '<option value="' + t.id + '"' + (t.id === value ? ' selected' : '') + '>' + t.id + ' · ' + t.name + '</option>'; }); s += '</optgroup>'; });
   return s + '</select>';
 }
+// ✅ Choose my topics: the topics picked for Practice (saved), or [] if none
+const myTopics = () => (store.get('pTopics', []) || []).filter(id => TOPIC[id]);
 function pickTopic(sel) {
   if (TOPIC[sel]) return sel;
+  if (sel === 'pick') { const mine = myTopics(); return mine.length ? pick(mine) : pick(TOPICS).id; }
   if (sel === 'weak') {
     const w = TOPICS.map(t => { const a = acc(t.id), n = (tstats[t.id] || {}).a || 0; return [t.id, n < 3 ? 0.6 : 1.05 - a]; });
     const tot = w.reduce((s, x) => s + x[1], 0); let r = Math.random() * tot; for (const [id, x] of w) { r -= x; if (r <= 0) return id; } return w[0][0];
@@ -309,8 +312,24 @@ const practiceInto = (v) => {
   v.appendChild(h('<div class="view-head"><h2>Practice</h2><p>Pick a topic, answer the question, press <b>Confirm</b>. Use <b>← Previous</b> and <b>Next →</b> to go back and forth. For word equations, type them like <i>magnesium + oxygen → magnesium oxide</i>. You get two tries, and you can always see the working.</p></div>'));
   const ctr = h('<div class="card row" style="justify-content:space-between"><label class="f" style="flex:1 1 260px">Topic' + topicSelect('pSel', state.practice) + '</label><div class="row" id="pStats" style="gap:18px"></div></div>');
   v.appendChild(ctr);
+  // ✅ Choose my topics: tap as many topics as you like; questions come from just those
+  const pickBox = h('<div class="card stack" style="gap:10px"><div class="row" style="justify-content:space-between;align-items:center"><b>✅ Your topics <span class="small muted" data-cnt></span></b><div class="row" style="gap:6px"><button type="button" class="btn quiet sm" data-all>All</button><button type="button" class="btn quiet sm" data-none>None</button><button type="button" class="btn quiet sm" data-weak>My 3 weakest</button></div></div><div class="stack" style="gap:8px" data-chips></div><p class="small muted" style="margin:0">Tap topics to add or remove them. Questions are mixed from the ones you pick.</p></div>');
+  v.appendChild(pickBox);
   v.appendChild(practiceFilters(() => next()));
   const sel = $('#pSel', ctr); sel.value = state.practice;
+  const chipsEl = $('[data-chips]', pickBox), cntEl = $('[data-cnt]', pickBox);
+  const chipList = () => Array.from(chipsEl.querySelectorAll('.chip'));
+  UNITS.forEach(u => { const g = h('<div><div class="eyebrow" style="margin-bottom:4px">' + u.name + '</div><div class="row" style="gap:6px"></div></div>'); TOPICS.filter(t => t.unit === u.id).forEach(t => { const c = h('<button type="button" class="chip" data-t="' + t.id + '" aria-pressed="false">' + t.id + ' ' + t.name + '</button>'); g.lastChild.appendChild(c); }); chipsEl.appendChild(g); });
+  const drawPick = () => {
+    const mine = myTopics(); pickBox.hidden = sel.value !== 'pick';
+    chipList().forEach(c => { const on = mine.includes(c.dataset.t); c.classList.toggle('on', on); c.setAttribute('aria-pressed', on); });
+    cntEl.textContent = mine.length ? '(' + mine.length + ' picked)' : '(none picked yet: all topics are used until you pick some)';
+  };
+  const setMine = ids => { store.set('pTopics', ids); drawPick(); if (sel.value === 'pick') restart(); };
+  chipList().forEach(c => c.onclick = () => { const mine = myTopics(), id = c.dataset.t; setMine(mine.includes(id) ? mine.filter(x => x !== id) : mine.concat(id)); });
+  $('[data-all]', pickBox).onclick = () => setMine(TOPICS.map(t => t.id));
+  $('[data-none]', pickBox).onclick = () => setMine([]);
+  $('[data-weak]', pickBox).onclick = () => setMine(TOPICS.map(t => [t.id, acc(t.id) ?? 0.5]).sort((a, b) => a[1] - b[1]).slice(0, 3).map(x => x[0]));
   const host = h('<div class="card stack"></div>'); v.appendChild(host);
   const statsEl = $('#pStats', ctr);
   const drawStats = () => { statsEl.innerHTML = '<div><div class="bignum" style="font-size:1.5rem">' + sess.c + '/' + sess.n + '</div><div class="small muted">this session</div></div><div><div class="bignum" style="font-size:1.5rem">' + sess.streak + '</div><div class="small muted">streak</div></div><div><div class="bignum" style="font-size:1.5rem">' + sess.best + '</div><div class="small muted">best streak</div></div>'; };
@@ -347,10 +366,12 @@ const practiceInto = (v) => {
     if (seen.length > 40) { seen.shift().remove(); }
     showAt(seen.length - 1);
   }
-  sel.onchange = () => { state.practice = sel.value; seen.forEach(x => x.remove()); seen.length = 0; next(); };
+  function restart() { seen.forEach(x => x.remove()); seen.length = 0; next(); }
+  sel.onchange = () => { state.practice = sel.value; drawPick(); restart(); };
+  drawPick();
   next();
   const acc2 = h('<div class="card stack"><h3>Your accuracy by topic</h3><div class="grid3" id="accGrid"></div></div>');
-  TOPICS.forEach(t => { const a = acc(t.id), s = tstats[t.id]; const b = h('<button type="button" class="choice"><span class="tag">' + t.id + '</span> ' + t.name + '<div class="bar" style="margin-top:6px"><i style="width:' + (a === null ? 0 : a * 100) + '%"></i></div><span class="small muted">' + (s ? Math.round(a * 100) + '% of ' + s.a : 'not started') + '</span></button>'); b.onclick = () => { sel.value = t.id; state.practice = t.id; next(); window.scrollTo({ top: 0, behavior: 'smooth' }); }; $('#accGrid', acc2).appendChild(b); });
+  TOPICS.forEach(t => { const a = acc(t.id), s = tstats[t.id]; const b = h('<button type="button" class="choice"><span class="tag">' + t.id + '</span> ' + t.name + '<div class="bar" style="margin-top:6px"><i style="width:' + (a === null ? 0 : a * 100) + '%"></i></div><span class="small muted">' + (s ? Math.round(a * 100) + '% of ' + s.a : 'not started') + '</span></button>'); b.onclick = () => { sel.value = t.id; state.practice = t.id; drawPick(); next(); window.scrollTo({ top: 0, behavior: 'smooth' }); }; $('#accGrid', acc2).appendChild(b); });
   v.appendChild(acc2);
 };
 
@@ -837,15 +858,15 @@ TOPICS.forEach((t, i) => { RENDER['t' + (i + 1)] = () => topicPage(t.id, $('#v-t
 /* ================= PRACTICE tab: Mixed / One topic / Timed test ================= */
 RENDER.practice = () => {
   const v = $('#v-practice'); v.innerHTML = '';
-  const modes = [['mix', 'Mixed', 'Questions from all 9 topics'], ['topic', 'One topic', 'Pick a topic'], ['test', 'Timed test', 'Marked at the end, like the exam']];
+  const modes = [['mix', 'Mixed', 'Questions from all 9 topics'], ['topic', 'Choose topics', 'One, three or more'], ['test', 'Timed test', 'Marked at the end, like the exam']];
   if (!state.pmode) state.pmode = 'mix';
   const bar = h('<div class="mode-bar" role="tablist" aria-label="Practice mode"></div>'); v.appendChild(bar);
   const host = h('<div class="view"></div>'); v.appendChild(host);
   const draw = () => {
     bar.innerHTML = '';
-    modes.forEach(([k, l, sub]) => { const b = h('<button type="button" class="mode" role="tab"><b>' + l + '</b><span>' + sub + '</span></button>'); b.classList.toggle('on', state.pmode === k); b.setAttribute('aria-selected', state.pmode === k); b.onclick = () => { state.pmode = k; if (k === 'mix') state.practice = 'mix'; if (k === 'topic' && !TOPIC[state.practice]) state.practice = getPlan().focus; draw(); }; bar.appendChild(b); });
+    modes.forEach(([k, l, sub]) => { const b = h('<button type="button" class="mode" role="tab"><b>' + l + '</b><span>' + sub + '</span></button>'); b.classList.toggle('on', state.pmode === k); b.setAttribute('aria-selected', state.pmode === k); b.onclick = () => { state.pmode = k; if (k === 'mix') state.practice = 'mix'; if (k === 'topic' && !TOPIC[state.practice]) state.practice = 'pick'; draw(); }; bar.appendChild(b); });
     if (state.pmode === 'test') examInto(host);
-    else { if (state.pmode === 'mix' && TOPIC[state.practice]) state.practice = 'mix'; if (state.pmode === 'topic' && !TOPIC[state.practice]) state.practice = getPlan().focus; practiceInto(host); }
+    else { if (state.pmode === 'mix' && (TOPIC[state.practice] || state.practice === 'pick')) state.practice = 'mix'; if (state.pmode === 'topic' && !TOPIC[state.practice] && state.practice !== 'pick') state.practice = 'pick'; practiceInto(host); }
   };
   draw();
 };
