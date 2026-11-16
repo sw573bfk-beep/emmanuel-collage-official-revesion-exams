@@ -858,7 +858,7 @@ async function handleAdmin(req, env, path, method, me, role = 'owner') {
   if (path === '/api/admin/overview' && method === 'GET') {
     const since30 = dayKey(t - 29 * 86400), since7 = dayKey(t - 6 * 86400);
     const [users, perUser, perUser7, today_, visits, daily, signups, progress, sciProgress, unlockRows, codeCount, fbCount] = await env.DB.batch([
-      env.DB.prepare('SELECT id, username, created_at, last_login, login_count, last_seen, last_subject, in_stats, chat_muted, chat_access, chat_req FROM users ORDER BY last_seen DESC'),
+      env.DB.prepare('SELECT id, username, created_at, last_login, login_count, last_seen, last_subject, in_stats, chat_muted, chat_access, chat_req, role, tester, teacher FROM users ORDER BY last_seen DESC'),
       env.DB.prepare('SELECT user_id, SUM(seconds) AS s FROM daily GROUP BY user_id'),
       env.DB.prepare('SELECT user_id, SUM(seconds) AS s FROM daily WHERE day >= ? GROUP BY user_id').bind(since7),
       env.DB.prepare('SELECT user_id, SUM(seconds) AS s FROM daily WHERE day = ? GROUP BY user_id').bind(today),
@@ -881,7 +881,7 @@ async function handleAdmin(req, env, path, method, me, role = 'owner') {
       let sdata = null; try { sdata = spr[u.id] ? JSON.parse(spr[u.id].data) : null; } catch { /* bad row */ }
       return { id: u.id, name: u.username, joined: u.created_at, lastLogin: u.last_login, logins: u.login_count, lastSeen: u.last_seen, lastSubject: u.last_subject,
         online: t - u.last_seen <= 120 && !!u.last_subject, totalSeconds: (all[u.id] || {}).s || 0, weekSeconds: (wk[u.id] || {}).s || 0, todaySeconds: (td[u.id] || {}).s || 0,
-        visits: (vs[u.id] || {}).n || 0, device: (vs[u.id] || {}).device || null, maths: mathsStats(data), science: mathsStats(sdata), unlocked: unlockRows.results.some(r => r.user_id === u.id), inStats: !left.has(u.id), chatMuted: !!u.chat_muted, chatAccess: !!u.chat_access, chatReq: !!u.chat_req, admin: u.username.toLowerCase() === String(env.ADMIN_USERNAME || '').toLowerCase() };
+        visits: (vs[u.id] || {}).n || 0, device: (vs[u.id] || {}).device || null, maths: mathsStats(data), science: mathsStats(sdata), unlocked: unlockRows.results.some(r => r.user_id === u.id), inStats: !left.has(u.id), chatMuted: !!u.chat_muted, chatAccess: !!u.chat_access, chatReq: !!u.chat_req, role: u.role || null, tester: !!u.tester, teacher: !!u.teacher, admin: u.username.toLowerCase() === String(env.ADMIN_USERNAME || '').toLowerCase() };
     });
     const signupDays = {}; signups.results.forEach(r => { const d = dayKey(r.created_at); signupDays[d] = (signupDays[d] || 0) + 1; });
     const counted = daily.results.filter(r => !left.has(r.user_id));
@@ -911,6 +911,8 @@ async function handleAdmin(req, env, path, method, me, role = 'owner') {
   if (path === '/api/admin/role' && method === 'POST') {
     let b; try { b = await readJson(req); } catch { return err(400, 'Bad request'); }
     const id = +b.id || 0, set = [];
+    const who = await env.DB.prepare('SELECT username FROM users WHERE id = ?').bind(id).first(); if (!who) return err(404, 'No such user');
+    if (who.username.toLowerCase() === String(env.ADMIN_USERNAME || '').toLowerCase()) return err(400, 'That’s the owner account.');
     if ('role' in b) set.push(env.DB.prepare('UPDATE users SET role = ? WHERE id = ?').bind(b.role === 'top' || b.role === 'basic' ? b.role : null, id));
     if ('tester' in b) set.push(env.DB.prepare('UPDATE users SET tester = ? WHERE id = ?').bind(b.tester ? 1 : 0, id));
     if ('teacher' in b) { set.push(env.DB.prepare('UPDATE users SET teacher = ? WHERE id = ?').bind(b.teacher ? 1 : 0, id)); if (!b.teacher) set.push(env.DB.prepare('DELETE FROM teacher_students WHERE teacher_id = ?').bind(id)); }

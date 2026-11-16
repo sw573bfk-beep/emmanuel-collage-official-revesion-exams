@@ -73,6 +73,13 @@ tr.out td{color:var(--muted)}
 dialog{border:1px solid var(--rule);border-radius:14px;background:var(--card);color:var(--ink);padding:0;width:min(720px,calc(100vw - 32px));max-height:calc(100vh - 40px)}
 dialog::backdrop{background:rgb(0 0 0 / .45)}
 .dlg{padding:20px;display:flex;flex-direction:column;gap:14px}
+.perm{border:1.5px solid var(--rule);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:10px}
+.perm-row{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.perm-row .l{display:flex;flex-direction:column;min-width:0;flex:1 1 220px}.perm-row .l span{font-size:.8125rem;color:var(--muted)}
+.seg{display:inline-flex;border:1.5px solid var(--rule);border-radius:999px;overflow:hidden}
+.seg button{font:inherit;font-size:.875rem;font-weight:600;border:0;background:var(--card);color:var(--ink);padding:6px 12px;cursor:pointer}
+.seg button+button{border-left:1.5px solid var(--rule)}
+.seg button.on{background:var(--accent);color:var(--accent-ink)}
 .kv{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,150px),1fr));gap:10px}
 .kv div{border:1px solid var(--rule);border-radius:8px;padding:8px 10px}
 .kv b{display:block;font-size:1.15rem;font-variant-numeric:tabular-nums}
@@ -433,6 +440,31 @@ details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
     sbtn.onclick = async () => { const rr = await api('/api/admin/set-stats', 'POST', { id: u.id, inStats: !u.inStats }); if (rr.ok) { u.inStats = !u.inStats; sShow(); load(); } else sl.textContent = rr.data.error || 'Couldn’t change it.'; };
     sShow(); sb.append(sbtn, sl); b.appendChild(sb);
     if (!u.admin) {
+      // ⚙️ what this person is and can do: admin level, tester, teacher, booklet, chat, study mode
+      if (ROLE === 'owner') {
+        const pm = document.createElement('div'); pm.className = 'perm';
+        pm.appendChild(mk('b', '', '⚙️ Account & permissions'));
+        const pmMsg = mk('p', 'small', ''); pmMsg.setAttribute('role', 'status'); pmMsg.style.margin = '0';
+        const row = (label, sub, ctl) => { const r = mk('div', 'perm-row'), l = mk('div', 'l'); l.append(mk('b', '', label), mk('span', '', sub)); r.append(l, ctl); pm.appendChild(r); };
+        const seg = (opts, cur, onPick) => { const s = mk('div', 'seg'); opts.forEach(([v, t]) => { const b = mk('button', v === cur ? 'on' : '', t); b.type = 'button'; b.onclick = async () => { if (v === cur) return; const ok = await onPick(v); if (ok) { cur = v; [...s.children].forEach(x => x.classList.toggle('on', x === b)); } }; s.appendChild(b); }); return s; };
+        const setRole = async (body, done) => { const rr = await api('/api/admin/role', 'POST', Object.assign({ id: u.id }, body)); pmMsg.textContent = rr.ok ? '✅ ' + done : (rr.data.error || 'Couldn’t change it.'); if (rr.ok) load(); return rr.ok; };
+        row('Admin level', 'Top tier: chat moderation, study mode on/off, feedback. Basic: the same, but can’t approve anything or let people out of study mode (they can only say no, or turn study mode on).',
+          seg([[null, 'None'], ['basic', '🛡️ Basic'], ['top', '⭐ Top tier']], u.role || null, async v => { if (v && !confirm('Make ' + u.name + ' a ' + (v === 'top' ? 'Top tier' : 'Basic') + ' admin? They’ll be able to read and moderate chats.')) return false; const ok = await setRole({ role: v }, u.name + (v ? ' is now a ' + (v === 'top' ? '⭐ Top tier' : '🛡️ Basic') + ' admin.' : ' is no longer an admin.')); if (ok) u.role = v; return ok; }));
+        row('🧪 Official tester', 'Shows the tester banner on their profile, plus tester rewards.',
+          seg([[false, 'No'], [true, 'Yes']], !!u.tester, async v => { const ok = await setRole({ tester: v }, v ? u.name + ' is now an Official tester.' : 'Tester banner removed.'); if (ok) u.tester = v; return ok; }));
+        row('👩‍🏫 Teacher', 'Can add students to a class and see their study time and scores. Left off the leaderboard. Turning it off deletes their class list.',
+          seg([[false, 'No'], [true, 'Yes']], !!u.teacher, async v => { if (!v && !confirm('Take away ' + u.name + '’s teacher account? Their class list is deleted.')) return false; const ok = await setRole({ teacher: v }, v ? u.name + ' is now a teacher.' : u.name + ' is no longer a teacher.'); if (ok) u.teacher = v; return ok; }));
+        row('📘 Completed Science booklet', 'Lets them see the completed booklet (normally needs a code).',
+          seg([[false, '🔒 Locked'], [true, '🔓 Unlocked']], !!u.unlocked, async v => { const rr = await api('/api/admin/set-unlock', 'POST', { id: u.id, unlock: v }); pmMsg.textContent = rr.ok ? '✅ Booklet ' + (v ? 'unlocked' : 'locked') + ' for ' + u.name + '.' : (rr.data.error || 'Couldn’t change it.'); if (rr.ok) { u.unlocked = v; load(); } return rr.ok; }));
+        row('💬 Chatting', 'Paused means they can’t send messages to friends (they can still message you).',
+          seg([[false, '✅ Allowed'], [true, '⏸️ Paused']], !!u.chatMuted, async v => { const rr = await api('/api/admin/chat/mute', 'POST', { id: u.id, muted: v }); pmMsg.textContent = rr.ok ? '✅ Chatting ' + (v ? 'paused' : 'allowed') + ' for ' + u.name + '.' : (rr.data.error || 'Couldn’t change it.'); if (rr.ok) { u.chatMuted = v; load(); } return rr.ok; }));
+        const inStudyNow = () => !!(studyData && (studyData.people.find(p => p.id === u.id) || {}).study);
+        row('📚 Study mode', 'In study mode they only get Maths, Science, English, Play, the leaderboard and messaging you.',
+          seg([[false, 'Off'], [true, 'On']], inStudyNow(), async v => { const rr = await api('/api/admin/study', 'POST', { id: u.id, on: v }); pmMsg.textContent = rr.ok ? '✅ Study mode ' + (v ? 'on' : 'off') + ' for ' + u.name + '.' : (rr.data.error || 'Couldn’t change it.'); if (rr.ok) await loadStudy(); return rr.ok; }));
+        row('📊 Stats', 'Left out = not counted in totals, charts, “online now” or the leaderboard.',
+          seg([[true, 'Counted'], [false, 'Left out']], !!u.inStats, async v => { const rr = await api('/api/admin/set-stats', 'POST', { id: u.id, inStats: v }); pmMsg.textContent = rr.ok ? '✅ ' + u.name + ' is now ' + (v ? 'counted in' : 'left out of') + ' the stats.' : (rr.data.error || 'Couldn’t change it.'); if (rr.ok) { u.inStats = v; load(); } return rr.ok; }));
+        pm.appendChild(pmMsg); b.appendChild(pm);
+      }
       // ✏️ change their name (Beau and Top tier admins)
       if (ROLE !== 'basic') {
         const rn = document.createElement('div'); rn.className = 'row'; rn.style.alignItems = 'flex-end';
@@ -462,6 +494,7 @@ details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
       const sbShow = () => { sbn.textContent = inStudy() ? '📚 Turn off study mode' : '📚 Put in study mode'; };
       sbn.onclick = async () => { await api('/api/admin/study', 'POST', { id: u.id, on: !inStudy() }); await loadStudy(); sbShow(); };
       sbShow(); b.appendChild(sbn);
+      if (ROLE === 'owner') { pb.hidden = true; sbn.hidden = true; sb.hidden = true; } // these are in ⚙️ Account & permissions now
       const mb = document.createElement('button'); mb.type = 'button'; mb.className = 'btn'; mb.textContent = 'Message ' + u.name;
       mb.onclick = () => { dlg.close(); pickChatTab('messages'); openSec('chats', true); openConv({ id: u.id, name: u.name }); };
       b.appendChild(mb);
@@ -469,6 +502,7 @@ details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
       const msg = document.createElement('p'); msg.className = 'small'; b.append(box, msg);
       box.querySelector('#rpwBtn').onclick = async () => { const pw = box.querySelector('#rpw').value; const rr = await api('/api/admin/reset-password', 'POST', { id: u.id, password: pw }); msg.textContent = rr.ok ? 'Password reset. Tell ' + u.name + ' their new password; they can change it in Account settings.' : (rr.data.error || 'Couldn’t reset it.'); };
       box.querySelector('#unlockBtn').onclick = async () => { const rr = await api('/api/admin/set-unlock', 'POST', { id: u.id, unlock: !u.unlocked }); if (rr.ok) { u.unlocked = !u.unlocked; box.querySelector('#unlockBtn').textContent = u.unlocked ? 'Lock completed booklet' : 'Unlock completed booklet'; msg.textContent = u.unlocked ? u.name + ' can now open the completed booklet.' : u.name + ' can no longer open the completed booklet.'; load(); } else msg.textContent = rr.data.error || 'Couldn’t change it.'; };
+      if (ROLE === 'owner') box.querySelector('#unlockBtn').hidden = true; // in ⚙️ Account & permissions
       let armed = false; const del = box.querySelector('#delU');
       del.onclick = async () => { if (!armed) { armed = true; del.textContent = 'Tap again to delete ' + u.name; setTimeout(() => { armed = false; del.textContent = 'Delete account'; }, 5000); return; } const rr = await api('/api/admin/delete-user', 'POST', { id: u.id }); if (rr.ok) { dlg.close(); load(); } else msg.textContent = rr.data.error || 'Couldn’t delete.'; };
     }
