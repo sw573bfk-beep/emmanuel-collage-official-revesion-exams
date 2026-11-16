@@ -1031,11 +1031,40 @@ gen('similarCheck', '10H', 'Are the figures similar?', () => {
   return { type: 'mcq', q: 'Rectangle A is ' + a + ' cm by ' + b + ' cm. Rectangle B is ' + fmt(c) + ' cm by ' + fmt(d) + ' cm. Are they similar?', choices: ['Yes', 'No'], ans: yes ? 0 : 1, ansText: yes ? 'Yes' : 'No',
     sol: ['Compare matching sides: ' + fmt(c) + ' ÷ ' + a + ' ' + (Number.isInteger(c / a * 1000) ? '=' : '≈') + ' ' + fmt(c / a, 3) + ' and ' + fmt(d) + ' ÷ ' + b + ' ' + (Number.isInteger(d / b * 1000) ? '=' : '≈') + ' ' + fmt(d / b, 3) + '.', yes ? 'The ratios are equal, so the rectangles are similar.' : 'The ratios are different, so they are not similar.'] };
 });
+// two objects and their shadows, side by side (not to scale): the sun's rays make two similar right-angled triangles
+function shadowSVG(small, h, sh, big, S) {
+  const g = 168, W = 360;
+  const tri = (x, ht, sw, name, hLbl, sLbl) => {
+    const top = g - ht;
+    return '<line x1="' + x + '" y1="' + g + '" x2="' + x + '" y2="' + top + '" stroke="var(--ink)" stroke-width="5" stroke-linecap="round"/>'
+      + '<line x1="' + x + '" y1="' + g + '" x2="' + (x + sw) + '" y2="' + g + '" stroke="var(--muted,#555)" stroke-width="7" stroke-linecap="round" opacity=".55"/>'
+      + '<line x1="' + x + '" y1="' + top + '" x2="' + (x + sw) + '" y2="' + g + '" stroke="var(--warn,#c98a00)" stroke-width="2" stroke-dasharray="5 4"/>'
+      + '<path d="M' + x + ' ' + (g - 10) + ' h10 v10" fill="none" stroke="var(--ink)" stroke-width="1.2"/>'
+      + '<text x="' + (x - 8) + '" y="' + (top + ht / 2 + 5) + '" text-anchor="end" class="lbl">' + hLbl + '</text>'
+      + '<text x="' + (x + sw / 2) + '" y="' + (g + 20) + '" text-anchor="middle" class="lbl">' + sLbl + '</text>'
+      + '<text x="' + x + '" y="' + (top - 8) + '" text-anchor="middle" style="font-size:12px">' + name + '</text>';
+  };
+  const r = sh / h, hs = 52, hb = 120, sws = Math.max(28, Math.min(84, hs * r)), swb = Math.max(50, Math.min(150, hb * r));
+  let o = '<svg class="dia" viewBox="0 0 ' + W + ' 200" style="max-width:' + W + 'px;width:100%" role="img" aria-label="' + small + ' ' + fmt(h) + ' m tall with a ' + fmt(sh) + ' m shadow; ' + big + ' of unknown height with a ' + fmt(S) + ' m shadow">';
+  o += '<text x="8" y="22" style="font-size:22px">☀️</text>'; // the sun is behind them, so the shadows point away from it
+  o += '<line x1="6" y1="' + g + '" x2="' + (W - 6) + '" y2="' + g + '" stroke="var(--rule,#c3cddc)" stroke-width="1.5"/>';
+  o += tri(56, hs, sws, small, fmt(h) + ' m', fmt(sh) + ' m') + tri(Math.max(200, 56 + sws + 70), hb, swb, big, '?', fmt(S) + ' m');
+  return o + '<text x="' + (W - 6) + '" y="16" text-anchor="end" style="font-size:11px" class="muted">Not to scale</text></svg>';
+}
 gen('shadow', '10I', 'Shadows and heights', () => {
-  const k = pick([1.5, 2, 2.5, 3, 4, 5, 6, 8, 10, 12.5]), h = pick([1.2, 1.5, 1.6, 1.8, 2, 3, 4.5]), s = pick([1.2, 1.5, 2, 2.4, 3, 4]); const S = s * k;
-  const it = pick(['tree', 'building', 'flagpole', 'tower']);
-  return { type: 'num', q: 'A ' + fmt(h) + ' m post casts a shadow ' + fmt(s) + ' m long. At the same time a ' + it + ' casts a shadow ' + fmt(S) + ' m long. How tall is the ' + it + '?', ans: r2(h * k, 4), ansText: fmt(h * k, 2) + ' m',
-    hint: 'The object and its shadow form similar right-angled triangles. Find the scale factor from the shadows.', sol: ['Scale factor = ' + fmt(S) + ' ÷ ' + fmt(s) + ' = ' + fmt(k) + '.', 'Height = ' + fmt(h) + ' × ' + fmt(k) + ' = <b>' + fmt(h * k, 2) + ' m</b>.'] };
+  // realistic sizes: a person or post next to something much taller
+  const REF = [['student', 'A student', [1.5, 1.6]], ['post', 'A fence post', [1.2]], ['post', 'A post', [2]], ['lamp post', 'A lamp post', [3]]];
+  const BIG = { tree: [4, 15], flagpole: [6, 15], building: [8, 40], tower: [15, 60] };
+  for (let tries = 0; tries < 200; tries++) {
+    const [small, start, hs] = pick(REF), h = pick(hs), sh = pick([0.8, 1, 1.2, 1.5, 2, 2.4, 3]), k = pick([2.5, 3, 4, 5, 6, 8, 10, 12, 15, 20, 25]);
+    const it = pick(Object.keys(BIG)), H = r2(h * k, 4), S = r2(sh * k, 4);
+    if (H < BIG[it][0] || H > BIG[it][1] || S > 80) continue;
+    return { type: 'num', q: start + ' ' + fmt(h) + ' m tall casts a shadow ' + fmt(sh) + ' m long. At the same time of day, a ' + it + ' next to it casts a shadow ' + fmt(S) + ' m long. How tall is the ' + it + '?',
+      fig: shadowSVG(small, h, sh, it, S), ans: H, ansText: fmt(H, 2) + ' m',
+      hint: 'The sun shines at the same angle on both, so each object and its shadow make similar right-angled triangles. Compare the two shadows to find the scale factor.',
+      sol: ['Scale factor = big shadow ÷ small shadow = ' + fmt(S) + ' ÷ ' + fmt(sh) + ' = ' + fmt(k) + '.', 'Height of the ' + it + ' = ' + fmt(h) + ' × ' + fmt(k) + ' = <b>' + fmt(H, 2) + ' m</b>.'] };
+  }
+  return G.shadow.fn();
 });
 gen('parallelTri', '10I', 'Overlapping similar triangles (DE ∥ BC)', () => {
   const k = pick([2, 2.5, 3, 1.5, 4]), AD = pick([2, 3, 4, 6]), AE = pick([3, 4, 5, 8]), DE = pick([4, 5, 6]);
