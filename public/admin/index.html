@@ -244,6 +244,11 @@ details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
       <div id="secLog" class="chatlog"></div>
     </section>
 
+    <section class="card stack sec" id="laptops" data-title="💻 Same laptop" data-hint="accounts made or used on the same laptop">
+      <p class="small muted">Each laptop (really each browser) can only <b>make one account</b>. Anyone can still <b>log in</b> on any laptop. These are the laptops used by more than one account: <b>🆕 made here</b> means the account was created on that laptop, <b>🔑 logs in here</b> means it only logs in there. Someone who clears their browser, uses a private window or another browser counts as a new laptop. Accounts made before this was added count the first laptop they were seen on.</p>
+      <div id="lapBody" class="stack" style="gap:10px"></div>
+    </section>
+
     <section class="card stack sec" id="usage" data-title="📊 Limits &amp; usage" data-hint="Cloudflare limits and how much is used">
       <div class="row" style="align-items:center"><span class="small"><b>Your Cloudflare plan:</b></span><div class="row" id="planPick"><button type="button" class="chip" data-p="free">Free</button><button type="button" class="chip" data-p="paid">Workers Paid ($5 US/month)</button></div></div>
       <div id="usageBody" class="stack" style="gap:12px"></div>
@@ -370,7 +375,7 @@ details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
     if (!staffReady) {
       staffReady = true;
       document.querySelector('.head h1').textContent = 'EC Revisions ' + (ROLE === 'top' ? '⭐ Top tier admin' : '🛡️ Basic admin');
-      ['overview', 'broadcast', 'people', 'codes', 'security', 'usage', 'stats'].forEach(id => { if (SEC[id]) { SEC[id].sec.hidden = true; SEC[id].mb.hidden = true; } });
+      ['overview', 'broadcast', 'people', 'codes', 'security', 'laptops', 'usage', 'stats'].forEach(id => { if (SEC[id]) { SEC[id].sec.hidden = true; SEC[id].mb.hidden = true; } });
       SEC.moderate.sec.hidden = false; SEC.moderate.mb.hidden = false;
       const mt = document.querySelector('#chatTabs [data-c="messages"]'); if (mt) mt.hidden = true;
       pickChatTab('access');
@@ -401,7 +406,7 @@ details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
     $('#tFb').closest('.tile').classList.toggle('alert', T.feedbackNew > 0); setBadge('feedback', T.feedbackNew);
     const dt = $('#dayTable'); dt.replaceChildren(); const hr = document.createElement('tr'); ['Day', 'People', 'Minutes', 'New accounts'].forEach(h => { const th = document.createElement('th'); th.textContent = h; hr.appendChild(th); }); dt.appendChild(hr);
     data.days.slice().reverse().forEach(d => { const tr = document.createElement('tr'); [dayLabel(d.day), d.people, Math.round(d.seconds / 60), d.signups].forEach(v => cell(tr, v)); dt.appendChild(tr); });
-    drawTable(); loadCodes(); loadFeedback(); loadConvs(); loadChats(); loadBroadcast(); loadStudy(); loadSecurity(); loadUsage();
+    drawTable(); loadCodes(); loadFeedback(); loadConvs(); loadChats(); loadBroadcast(); loadStudy(); loadSecurity(); loadUsage(); loadLaptops();
     $('#updated').textContent = 'Updated ' + new Date().toLocaleTimeString('en-AU', { timeZone: TZ, hour: 'numeric', minute: '2-digit' }) + ' (Queensland time). Refreshes every 30 seconds.';
   }
   function drawCharts() {
@@ -684,6 +689,22 @@ details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
   }
   $$('#fbFilter .chip').forEach(c => c.onclick = () => { fbFilter = c.dataset.f; $$('#fbFilter .chip').forEach(x => x.classList.toggle('on', x === c)); loadFeedback(); });
   /* ---------- security ---------- */
+  /* ---------- 💻 same laptop ---------- */
+  async function loadLaptops() {
+    const r = await api('/api/admin/laptops'); const box = $('#lapBody'); if (!r.ok || !box) return; box.replaceChildren();
+    if (!r.data.groups.length) { box.appendChild(mk('p', 'muted small', 'No laptop is used by more than one account yet.')); return; }
+    r.data.groups.forEach((g, i) => {
+      const c = mk('div', 'sched'); const made = g.people.filter(p => p.made).length;
+      const head = mk('div', 'row'); head.style.justifyContent = 'space-between'; head.style.alignItems = 'center';
+      head.append(mk('b', '', '💻 Laptop ' + (i + 1) + ' · ' + g.people.length + ' accounts' + (made > 1 ? ' · ' + made + ' made here' : '')));
+      const al = btn('➕ Let this laptop make 1 more account', async () => { const rr = await api('/api/admin/laptop-allow', 'POST', { device: g.device }); if (rr.ok) loadLaptops(); }, 'quiet');
+      head.append(al); c.append(head);
+      if (g.extra) c.append(mk('p', 'small muted', 'You’ve let it make ' + g.extra + ' extra account' + (g.extra === 1 ? '' : 's') + '.'));
+      const list = mk('div', 'row'); list.style.gap = '6px';
+      g.people.forEach(p => { const ch = mk('button', 'chip', (p.made ? '🆕 ' : '🔑 ') + p.name); ch.type = 'button'; ch.title = (p.made ? 'Made on this laptop' : 'Logs in on this laptop') + ' · last here ' + ago(p.seen); ch.onclick = () => { const u = (data.users || []).find(x => x.id === p.id); if (u) openUser(u); }; list.append(ch); });
+      c.append(list); box.append(c);
+    });
+  }
   async function loadSecurity() {
     const r = await api('/api/admin/security'); if (!r.ok) return;
     const d = r.data, box = $('#secLog'); box.replaceChildren();

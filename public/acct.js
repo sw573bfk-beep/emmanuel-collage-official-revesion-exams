@@ -21,6 +21,15 @@
     if (who != null) setWho(who);
   };
   use(slot);
+  // This browser's ID (the "laptop"): random, made once, kept in storage and a cookie. Sent with every request so
+  // the site allows one new account per browser and Beau can see which accounts share one.
+  const DK = 'ec:device', okDev = v => /^[0-9a-f]{32}$/.test(v || '');
+  let device = null;
+  try { device = localStorage.getItem(DK); } catch (e) { /* storage blocked */ }
+  if (!okDev(device)) { const m = document.cookie.match(/(?:^|; )ecdev=([0-9a-f]{32})/); device = m ? m[1] : null; }
+  if (!okDev(device)) device = Array.from(crypto.getRandomValues(new Uint8Array(16)), b => b.toString(16).padStart(2, '0')).join('');
+  try { localStorage.setItem(DK, device); } catch (e) { /* storage blocked */ }
+  try { document.cookie = 'ecdev=' + device + '; path=/; max-age=63072000; samesite=lax' + (location.protocol === 'https:' ? '; secure' : ''); } catch (e) { /* cookies blocked */ }
   const listAccounts = async () => { try { const r = await realFetch('/api/accounts', { credentials: 'same-origin' }); return r.ok ? (await r.json()).accounts : []; } catch (e) { return []; } };
   const notLoggedIn = () => new Response(JSON.stringify({ error: 'Not logged in' }), { status: 401, headers: { 'content-type': 'application/json' } });
 
@@ -30,7 +39,7 @@
     if (!api) return realFetch(input, init);
     init = Object.assign({}, init);
     const h = new Headers(init.headers || (input instanceof Request ? input.headers : undefined));
-    h.set('x-ec-acct', String(slot));
+    h.set('x-ec-acct', String(slot)); h.set('x-ec-device', device);
     const path = new URL(url, location.href).pathname, who0 = getWho();
     if (who0 && path !== '/api/login' && path !== '/api/signup') h.set('x-ec-who', encodeURIComponent(who0));
     init.headers = h;

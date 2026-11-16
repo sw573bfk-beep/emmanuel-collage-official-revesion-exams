@@ -224,6 +224,17 @@ const SUBJECTS = new Set(['maths', 'science', 'english']);
 const MAX_PROGRESS_BYTES = 256 * 1024;
 // Names: 2–30 characters, letters, numbers, spaces and ' . _ - (so real names like "Sam O'Neil" work).
 const USERNAME_RE = /^[A-Za-z0-9][A-Za-z0-9 '._-]{1,29}$/;
+// the browser's ID (see acct.js), or null
+const deviceOf_ = req => { const v = req.headers.get('x-ec-device') || ''; return /^[0-9a-f]{32}$/.test(v) ? v : null; };
+// remember that this account uses this browser (at most one write an hour per account and browser). Accounts made
+// before this existed get their "made on" browser set the first time they're seen.
+async function seenOn(env, userId, dev) {
+  if (!dev) return; const t = now();
+  await env.DB.batch([
+    env.DB.prepare('INSERT INTO user_devices (user_id, device, first_seen, last_seen) VALUES (?1, ?2, ?3, ?3) ON CONFLICT(user_id, device) DO UPDATE SET last_seen = excluded.last_seen WHERE last_seen < ?3 - 3600').bind(userId, dev, t),
+    env.DB.prepare('UPDATE users SET made_on = ? WHERE id = ? AND made_on IS NULL').bind(dev, userId)
+  ]);
+}
 const cleanName = s => String(s || '').normalize('NFKC').replace(/\s+/g, ' ').trim();
 const QLD_OFFSET = 10 * 3600; // Queensland is UTC+10 all year
 const dayKey = t => new Date((t + QLD_OFFSET) * 1000).toISOString().slice(0, 10);
@@ -307,10 +318,19 @@ async function handleApi(req, env, url) {
     if (!nameOk.ok) { await logBlocked(env, null, 'new account name', 'name', username); return err(400, nameOk.message); }
     if (password.length < 8) return err(400, 'Passwords need at least 8 characters.');
     if (password.length > 200) return err(400, 'That password is too long.');
+    // one new account per browser (Beau can let a browser make more)
+    const dev = deviceOf_(req);
+    if (!dev) return err(400, 'Reload the page and try again.');
+    const [made, allow] = await env.DB.batch([
+      env.DB.prepare('SELECT username FROM users WHERE made_on = ? ORDER BY id').bind(dev),
+      env.DB.prepare('SELECT extra FROM device_allow WHERE device = ?').bind(dev)
+    ]);
+    if (made.results.length >= 1 + ((allow.results[0] || {}).extra || 0)) return err(403, 'An account has already been made on this laptop (' + made.results.map(r => r.username).join(', ') + '). Log in to it instead. If you need another account, ask Beau.');
     const exists = await env.DB.prepare('SELECT id FROM users WHERE username = ?').bind(username).first();
     if (exists) return err(409, 'That name is already taken. If two people share a name, add a last initial or a number (e.g. Sam Smith 2).');
     const salt = randomHex(16); const hash = await hashPassword(password, salt);
-    const res = await env.DB.prepare('INSERT INTO users (username, pass_hash, salt, created_at, last_login, login_count, last_seen) VALUES (?, ?, ?, ?, ?, 1, ?)').bind(username, hash, salt, now(), now(), now()).run();
+    const res = await env.DB.prepare('INSERT INTO users (username, pass_hash, salt, created_at, last_login, login_count, last_seen, made_on) VALUES (?, ?, ?, ?, ?, 1, ?, ?)').bind(username, hash, salt, now(), now(), now(), dev).run();
+    await seenOn(env, res.meta.last_row_id, dev);
     await env.DB.batch([env.DB.prepare('INSERT INTO rate_hits (k, at) VALUES (?, ?)').bind('signup:' + ik, now()), env.DB.prepare('INSERT INTO rate_hits (k, at) VALUES (?, ?)').bind('signupday:' + ik, now())]);
     const cookie = await startSession(env, res.meta.last_row_id, url, slotOf(req));
     return json({ username }, 201, { 'set-cookie': cookie });
@@ -338,7 +358,7 @@ async function handleApi(req, env, url) {
       return err(401, 'Wrong username or password.');
     }
     await env.DB.prepare('UPDATE users SET failed_logins = 0, locked_until = 0, last_login = ?, login_count = login_count + 1, last_seen = ? WHERE id = ?').bind(now(), now(), user.id).run();
-    if (adminTry) await adminLog(env, req, true);
+    if (adminTry) await adminLog(env, req, true); else await seenOn(env, user.id, deviceOf_(req));
     return json({ username: user.username }, 200, { 'set-cookie': await startSession(env, user.id, url, slotOf(req), adminTry ? ADMIN_SESSION_DAYS : SESSION_DAYS) });
   }
 
@@ -357,6 +377,7 @@ async function handleApi(req, env, url) {
   if (user && expect && expect !== user.username && expect !== user.prevName && path !== '/api/me') return err(401, 'Not logged in'); // (the old name still counts after Beau renames someone)
   if (path === '/api/me' && method === 'GET') {
     if (!user) return err(401, 'Not logged in');
+    if (!isAdmin(user, env)) await seenOn(env, user.id, deviceOf_(req));
     const rows = await env.DB.prepare('SELECT subject, updated_at FROM progress WHERE user_id = ?').bind(user.id).all();
     return json({ username: user.username, prevName: user.prevName, admin: isAdmin(user, env), role: staffRole(user, env), tester: user.tester, teacher: user.teacher, subjects: Object.fromEntries(rows.results.map(r => [r.subject, r.updated_at])) });
   }
@@ -678,6 +699,7 @@ async function handleApi(req, env, url) {
       env.DB.prepare('DELETE FROM visits WHERE user_id = ?').bind(user.id),
       env.DB.prepare('DELETE FROM daily WHERE user_id = ?').bind(user.id),
       env.DB.prepare('DELETE FROM progress WHERE user_id = ?').bind(user.id),
+      env.DB.prepare('DELETE FROM user_devices WHERE user_id = ?').bind(user.id),
       env.DB.prepare('DELETE FROM messages WHERE user_id = ?').bind(user.id),
       env.DB.prepare('DELETE FROM dm_messages WHERE user_id = ?').bind(user.id),
       env.DB.prepare('DELETE FROM dm_messages WHERE thread_id IN (SELECT id FROM dm_threads WHERE a = ? OR b = ?)').bind(user.id, user.id),
@@ -916,6 +938,24 @@ async function handleAdmin(req, env, path, method, me, role = 'owner') {
     return json({ ok: true });
   }
   // Security: recent admin sign-ins (and wrong tries), and "log out everywhere else"
+  // 💻 accounts that share a laptop (browser): made there, or logged in there
+  if (path === '/api/admin/laptops' && method === 'GET') {
+    if (!owner) return err(403, 'Only Beau can see this.');
+    const rows = (await env.DB.prepare(`SELECT d.device, u.id, u.username AS name, (u.made_on = d.device) AS made, d.last_seen AS seen, u.created_at AS joined
+      FROM user_devices d JOIN users u ON u.id = d.user_id WHERE d.device IN (SELECT device FROM user_devices GROUP BY device HAVING COUNT(*) > 1)
+      ORDER BY d.device, made DESC, u.created_at`).all()).results;
+    const allow = Object.fromEntries((await env.DB.prepare('SELECT device, extra FROM device_allow WHERE extra > 0').all()).results.map(r => [r.device, r.extra]));
+    const map = new Map(); rows.forEach(r => { if (!map.has(r.device)) map.set(r.device, { device: r.device, extra: allow[r.device] || 0, people: [] }); map.get(r.device).people.push({ id: r.id, name: r.name, made: !!r.made, seen: r.seen, joined: r.joined }); });
+    const groups = [...map.values()].sort((a, b) => b.people.filter(p => p.made).length - a.people.filter(p => p.made).length || b.people.length - a.people.length);
+    return json({ now: t, groups });
+  }
+  if (path === '/api/admin/laptop-allow' && method === 'POST') {
+    if (!owner) return err(403, 'Only Beau can do this.');
+    let b; try { b = await readJson(req); } catch { return err(400, 'Bad request'); }
+    const dev = String(b.device || ''); if (!/^[0-9a-f]{32}$/.test(dev)) return err(400, 'Bad request');
+    await env.DB.prepare('INSERT INTO device_allow (device, extra) VALUES (?, 1) ON CONFLICT(device) DO UPDATE SET extra = extra + 1').bind(dev).run();
+    return json({ ok: true });
+  }
   if (path === '/api/admin/security' && method === 'GET') {
     const [log, sess] = await env.DB.batch([
       env.DB.prepare('SELECT at, ok, ip_hash, place, device FROM admin_log ORDER BY id DESC LIMIT 30'),
@@ -1051,6 +1091,7 @@ async function handleAdmin(req, env, path, method, me, role = 'owner') {
     await env.DB.prepare('UPDATE codes SET redeemed_by = NULL WHERE redeemed_by = ?').bind(id).run();
     await env.DB.prepare('UPDATE feedback SET user_id = NULL WHERE user_id = ?').bind(id).run();
     await env.DB.batch([
+      env.DB.prepare('DELETE FROM user_devices WHERE user_id = ?').bind(id),
       env.DB.prepare('DELETE FROM dm_messages WHERE user_id = ?').bind(id),
       env.DB.prepare('DELETE FROM dm_messages WHERE thread_id IN (SELECT id FROM dm_threads WHERE a = ? OR b = ?)').bind(id, id),
       env.DB.prepare('DELETE FROM dm_threads WHERE a = ? OR b = ?').bind(id, id),
