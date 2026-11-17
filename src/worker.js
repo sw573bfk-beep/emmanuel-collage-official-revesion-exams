@@ -114,6 +114,7 @@ async function liveNotice(env, fresh) {
   if (r && r.game) { // 🎮 a shared game: the pop-up goes away once the game is over
     const g = await env.DB.prepare('SELECT status, ends_at FROM games WHERE code = ?').bind(r.game).first();
     if (!g || g.status === 'ended' || (g.status === 'live' && g.ends_at && g.ends_at <= t)) r = null;
+    else if (g.status === 'live') { r = { ...r, body: r.body + ' ▶️ It’s already started, but you can still join late and play!' }; if (g.ends_at) r.ends_at = Math.min(r.ends_at, g.ends_at); } // the countdown shows the game's time left
   }
   noticeCache = { at: Date.now(), v: r ? { id: r.id, body: r.body, at: r.created_at, ends: r.ends_at, remind: !!r.remind, game: r.game || null } : null };
   return noticeCache.v;
@@ -1181,7 +1182,7 @@ async function handleAdmin(req, env, path, method, me, role = 'owner') {
     }
     if (g.status === 'ended' || (g.status === 'live' && g.ends_at && g.ends_at <= t)) return err(410, 'That game has finished.');
     const MODE = { speed: '⚡ Speed Quiz', treasure: '💰 Treasure Chests', parkour: '🏃 Parkour Run' };
-    const text = 'Beau is hosting a ' + (MODE[g.mode] || 'game') + ' (' + (g.subject === 'maths' ? 'Maths' : 'Science') + ', ' + g.minutes + ' min)' + (g.status === 'live' ? ' and it’s on now' : '') + '! Tap Join game to play.';
+    const text = 'Beau is hosting a ' + (MODE[g.mode] || 'game') + ' (' + (g.subject === 'maths' ? 'Maths' : 'Science') + ', ' + g.minutes + ' min)! Tap Join game to play.';
     await env.DB.batch([
       env.DB.prepare('UPDATE broadcasts SET ends_at = ?, stopped_at = ? WHERE ends_at > ?').bind(t, t, t),
       env.DB.prepare('INSERT INTO broadcasts (body, created_at, ends_at, remind, game) VALUES (?, ?, ?, 0, ?)').bind(text, t, t + 1800, code),

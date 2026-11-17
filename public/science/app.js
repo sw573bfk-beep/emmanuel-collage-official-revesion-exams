@@ -326,6 +326,8 @@ function checkAnswer(Q, input) {
         if (!g) return { ok: false, msg: 'Write it like: magnesium + oxygen → magnesium oxide (use → or ->).', bad: true };
         const R = sameTerms(g.r, Q.ans.r), P = sameTerms(g.p, Q.ans.p);
         if (R && P) return { ok: true };
+        const fr = sameTerms(g.r, Q.ans.r, true), fp = sameTerms(g.p, Q.ans.p, true); // small spelling slips still count
+        if (fr && fp) return { ok: true, msg: 'Watch the spelling: <b>' + esc(fr.slips.concat(fp.slips).join(', ')) + '</b>.' };
         if (g.r.includes('air') && sameTerms(g.r.map(x => x === 'air' ? 'oxygen' : x), Q.ans.r) && P) return { ok: false, bad: true, msg: 'Nearly! Write <b>oxygen</b> instead of air: it’s the oxygen in the air that reacts.' };
         if (sameTerms(g.r, Q.ans.p) && sameTerms(g.p, Q.ans.r)) return { ok: false, msg: 'Your sides are swapped: reactants go on the left of the arrow, products on the right.' };
         if (R) return { ok: false, msg: 'Your reactants are right; check the products.' };
@@ -335,7 +337,8 @@ function checkAnswer(Q, input) {
       case 'set': {
         const got = splitTerms(raw);
         if (!got.length) return { ok: false, msg: 'Type the names, separated by commas.', bad: true };
-        return { ok: sameTerms(got, Q.ans) };
+        if (sameTerms(got, Q.ans)) return { ok: true };
+        const f = sameTerms(got, Q.ans, true); return f ? { ok: true, msg: 'Watch the spelling: <b>' + esc(f.slips.join(', ')) + '</b>.' } : { ok: false };
       }
       case 'text': {
         const n = x => String(x).toUpperCase().replace(/ANGLE|∠|△|TRIANGLE|\s|\.|′|'/g, '');
@@ -520,12 +523,46 @@ function parseWordEq(raw) {
   return { r, p };
 }
 // expected: array of terms; each term is a string or an array of accepted alternatives
-function sameTerms(got, expected) {
+// fuzzy: forgive small spelling slips (1 letter, or 2 in long names), but never -ate/-ite/-ide swaps
+// (nitrate and nitrite are different chemicals) or a missing di-/mono- (carbon dioxide vs carbon monoxide)
+function editDist(a, b) {
+  if (Math.abs(a.length - b.length) > 2) return 9;
+  let prev = Array.from({ length: b.length + 1 }, (_, j) => j), pp = null;
+  for (let i = 1; i <= a.length; i++) {
+    const cur = [i];
+    for (let j = 1; j <= b.length; j++) {
+      cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+      if (pp && i > 1 && j > 1 && a[i - 1] === b[j - 2] && a[i - 2] === b[j - 1]) cur[j] = Math.min(cur[j], pp[j - 2] + 1); // swapped letters
+    }
+    pp = prev; prev = cur;
+  }
+  return prev[b.length];
+}
+const END_OF = w => (w.match(/(ate|ite|ide)$/) || [])[1] || '', PRE_OF = w => (w.match(/^(di|mon|tri|tetra|per|bi|hydr|thio)/) || [])[1] || '';
+function keyClash(g, a) { // a real chemistry difference, not a typo
+  const gw = g.split(' '), aw = a.split(' ');
+  if (gw.length !== aw.length) { const all = t => t.split(' ').map(w => END_OF(w) + '|' + PRE_OF(w)).join(','); return all(g) !== all(a); }
+  return aw.some((w, i) => { const e1 = END_OF(w), e2 = END_OF(gw[i]); return (e1 && e2 && e1 !== e2) || PRE_OF(w) !== PRE_OF(gw[i]); });
+}
+function closeEnough(g, a) {
+  const ns = x => x.replace(/ /g, ''), G = ns(g), A = ns(a);
+  if (A.length < 5 || keyClash(g, a)) return false;
+  return editDist(G, A) <= (A.length >= 14 ? 2 : 1);
+}
+function sameTerms(got, expected, fuzzy) {
   const exp = expected.map(e => (Array.isArray(e) ? e : [e]).map(normTerm));
   if (got.length !== exp.length) return false;
   const used = new Array(got.length).fill(false);
   const ns = x => x.replace(/ /g, '');
-  return exp.every(alts => { const i = got.findIndex((g, k) => !used[k] && (alts.includes(g) || alts.some(a => ns(a) === ns(g)))); if (i < 0) return false; used[i] = true; return true; });
+  const exact = (g, alts) => alts.includes(g) || alts.some(a => ns(a) === ns(g));
+  const slips = [];
+  const ok = exp.every(alts => {
+    let i = got.findIndex((g, k) => !used[k] && exact(g, alts));
+    if (i < 0 && fuzzy) { i = got.findIndex((g, k) => !used[k] && alts.some(a => closeEnough(g, a))); if (i >= 0) slips.push(alts[0]); }
+    if (i < 0) return false; used[i] = true; return true;
+  });
+  if (fuzzy) return ok ? { slips } : null;
+  return ok;
 }
 const eqText = (r, p) => r.map(x => Array.isArray(x) ? x[0] : x).join(' + ') + ' → ' + p.map(x => Array.isArray(x) ? x[0] : x).join(' + ');
 
@@ -1820,7 +1857,7 @@ function questionCard(Q, opts = {}) {
     if (r.empty) r = { ok: false, msg: 'No answer given.' };
     if (Q.type === 'mcq') $$('.choice', el).forEach((b, i) => { b.disabled = true; if (i === Q.ans) b.classList.add('right'); else if (i === sel) b.classList.add('wrong'); });
     if (input) input.readOnly = true;
-    const msg = r.ok ? '<b>Correct!</b>' + (tries > 1 ? ' (second try)' : '') : (r.gaveUp ? '<b>Answer:</b> ' : '<b>Not this time.</b> ' + (r.msg ? esc(r.msg) + ' ' : '') + 'Answer: ') + (r.ok ? '' : '<span class="m">' + esc(Q.ansText) + '</span>');
+    const msg = r.ok ? '<b>Correct!</b>' + (tries > 1 ? ' (second try)' : '') + (r.msg ? ' ' + r.msg : '') : (r.gaveUp ? '<b>Answer:</b> ' : '<b>Not this time.</b> ' + (r.msg ? esc(r.msg) + ' ' : '') + 'Answer: ') + (r.ok ? '' : '<span class="m">' + esc(Q.ansText) + '</span>');
     fb.appendChild(h('<div class="fb ' + (r.ok ? 'good' : r.gaveUp ? 'info answer-shown' : 'bad') + '">' + msg + '</div>'));
     if (r.ok) { const d = h('<details class="ex"><summary>Show the working</summary></details>'); d.insertAdjacentHTML('beforeend', solHTML(Q)); fb.appendChild(d); }
     else fb.insertAdjacentHTML('beforeend', solHTML(Q));
@@ -2173,7 +2210,7 @@ const bookletInto = (v) => {
         } else if (Qc) {
           const id = 'bk' + key; const inp = h('<input class="ans" type="text" id="' + id + '" autocomplete="off" spellcheck="false" style="width:min(100%,240px)" placeholder="' + (PH[Qc.type] || '') + '" aria-label="Your answer for ' + q.id + ' ' + p.l + '">');
           const cb = h('<button type="button" class="btn sm">Check</button>'); const msg = h('<span class="small"></span>');
-          const doIt = () => { const r = checkAnswer(Qc, inp.value); if (r.empty || r.bad) { msg.textContent = r.msg; msg.className = 'small muted'; return; } bkMarks[key] = r.ok ? 1 : 0; store.set('bk', bkMarks); mr.paint(); msg.innerHTML = r.ok ? '<b class="result-good">✓ Correct</b>' : '<b class="result-bad">✗ Not quite</b>' + (r.msg ? ' ' + r.msg : ''); ansbox.hidden = false; sum(); };
+          const doIt = () => { const r = checkAnswer(Qc, inp.value); if (r.empty || r.bad) { msg.textContent = r.msg; msg.className = 'small muted'; return; } bkMarks[key] = r.ok ? 1 : 0; store.set('bk', bkMarks); mr.paint(); msg.innerHTML = (r.ok ? '<b class="result-good">✓ Correct</b>' : '<b class="result-bad">✗ Not quite</b>') + (r.msg ? ' ' + r.msg : ''); ansbox.hidden = false; sum(); };
           cb.onclick = doIt; inp.addEventListener('keydown', e => { if (e.key === 'Enter') doIt(); });
           ctrl.append(inp, cb, msg);
         }

@@ -73,7 +73,7 @@ export async function handleGames(req, env, url, user) {
     const already = await env.DB.prepare('SELECT 1 FROM game_players WHERE game_id = ? AND user_id = ?').bind(g.id, me).first();
     if (!already) {
       const cap = g.shared ? 100 : 40; if (n.n >= cap) return err(403, 'That game is full (' + cap + ' players).');
-      await env.DB.batch([env.DB.prepare('INSERT INTO game_players (game_id, user_id, name, joined_at) VALUES (?, ?, ?, ?)').bind(g.id, me, user.username, now()), event(env, g, user.username + ' joined')]);
+      await env.DB.batch([env.DB.prepare('INSERT INTO game_players (game_id, user_id, name, joined_at) VALUES (?, ?, ?, ?)').bind(g.id, me, user.username, now()), event(env, g, user.username + (g.status === 'live' ? ' joined late' : ' joined'))]);
     }
     return json({ ok: true, code });
   }

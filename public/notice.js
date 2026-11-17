@@ -34,7 +34,7 @@
   const left = s => { s = Math.max(0, Math.ceil(s)); if (s >= 3600) { const h = Math.floor(s / 3600), m = Math.round((s % 3600) / 60); return h + ' h' + (m ? ' ' + m + ' min' : ''); } if (s >= 60) { const m = Math.floor(s / 60), r = s % 60; return m + ':' + String(r).padStart(2, '0'); } return s + ' sec'; };
   function hide() { clearInterval(tick); tick = null; if (box) box.remove(); box = null; shown = null; }
   function show(n) {
-    if (shown && shown.id === n.id && shown.ends === n.ends) return;
+    if (shown && shown.id === n.id && shown.ends === n.ends && shown.body === n.body) return;
     hide(); shown = n;
     box = document.createElement('div'); box.className = 'ec-notice'; box.setAttribute('role', 'alert'); box.setAttribute('aria-live', 'assertive');
     const top = document.createElement('div'); top.className = 'ec-n-top';
