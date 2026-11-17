@@ -2540,7 +2540,9 @@ let toastT;
 function toast(msg) { const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), 1800); }
 const state = { learn: store.get('learnTopic', '7I'), practice: 'mix', tool: 'solver', bkPart: 'A' };
 const tstats = store.get('tstats', {});
-function record(topic, ok) { const s = tstats[topic] || (tstats[topic] = { a: 0, c: 0 }); s.a++; if (ok) s.c++; store.set('tstats', tstats); }
+// leaderboard points for a right answer: harder and typed answers earn more (easy multiple choice 1 … hard typed 5)
+function qPoints(Q) { if (!Q) return 1; if (Q.type === 'long') return 5; const lvl = Q.diff || (typeof diffOf === 'function' && Q.gen ? diffOf(Q.gen) : 'm'); return ({ e: 1, m: 2, h: 4 })[lvl] + (Q.type === 'mcq' ? 0 : 1) || 2; }
+function record(topic, ok, Q) { const s = tstats[topic] || (tstats[topic] = { a: 0, c: 0 }); s.a++; if (ok) { s.c++; s.p = (s.p || 0) + qPoints(Q); } store.set('tstats', tstats); }
 const acc = tid => { const s = tstats[tid]; return s && s.a ? s.c / s.a : null; };
 const canStore = store.get('can', {});
 const ckStore = store.get('check', {});
@@ -2660,7 +2662,7 @@ RENDER.skill = () => {
   const next = () => {
     let Q; for (let k = 0; k < 12; k++) { Q = makeQ(pick(info.g)); if (Q.q !== last) break; } last = Q.q; n++;
     const host = $('.skill-q', qc); host.innerHTML = '';
-    host.appendChild(questionCard(Q, { num: n, onAnswer: (ok, partial) => { if (partial) return; record(tid, ok); done++; if (ok) right++; upd(); } }).el);
+    host.appendChild(questionCard(Q, { num: n, onAnswer: (ok, partial) => { if (partial) return; record(tid, ok, Q); done++; if (ok) right++; upd(); } }).el);
     upd();
   };
   $('[data-next]', qc).onclick = () => { next(); const inp = $('.skill-q input', qc); if (inp) inp.focus({ preventScroll: true }); };
@@ -2783,7 +2785,7 @@ RENDER.learn = () => {
     body.appendChild(exs);
     if (t.mistakes) body.appendChild(h('<div class="card stack"><h3>Watch out for</h3>' + t.mistakes.map(m => '<p class="mistake">' + m + '</p>').join('') + '</div>'));
     const qc = h('<div class="card stack"><div class="row" style="justify-content:space-between"><h3>Try one</h3><button type="button" class="btn quiet sm">New question</button></div><div class="qhost"></div></div>');
-    const load = () => { const host = $('.qhost', qc); host.innerHTML = ''; const Q = makeQ(pick(TOPIC_GENS[id])); host.appendChild(questionCard(Q, { onAnswer: (ok, partial) => { if (!partial) record(id, ok); } }).el); };
+    const load = () => { const host = $('.qhost', qc); host.innerHTML = ''; const Q = makeQ(pick(TOPIC_GENS[id])); host.appendChild(questionCard(Q, { onAnswer: (ok, partial) => { if (!partial) record(id, ok, Q); } }).el); };
     $('button', qc).onclick = load; load(); body.appendChild(qc);
     const more = h('<details class="card more"><summary><b>More detail</b> <span class="muted small">All the rules, tables and diagrams for this topic</span></summary><div class="notes" style="margin-top:12px"></div></details>');
     $('.notes', more).insertAdjacentHTML('beforeend', t.notes()); body.appendChild(more);
@@ -2865,9 +2867,9 @@ RENDER.practice = () => {
     if (!Q) { page.appendChild(h('<p class="muted">' + got.note + '</p>')); }
     else {
       if (got.note) page.appendChild(h('<p class="small muted pf-note">' + got.note + '</p>'));
-      const lvl = Q.diff || diffOf(Q.gen); page.appendChild(h('<span class="pf-level pf-' + lvl + '">' + DIFF_NAME[lvl] + '</span>'));
+      const lvl = Q.diff || diffOf(Q.gen); page.appendChild(h('<span class="pf-level pf-' + lvl + '">' + DIFF_NAME[lvl] + ' · worth ' + qPoints(Q) + ' point' + (qPoints(Q) === 1 ? '' : 's') + '</span>'));
       const card = (Q.type === 'long' ? longCard : questionCard)(Q, { onAnswer: (ok, partial) => {
-        if (partial) return; record(tid, ok); sess.n++; if (ok) { sess.c++; sess.streak++; if (sess.streak > sess.best) { sess.best = sess.streak; store.set('best', sess.best); } if (sess.streak && sess.streak % 5 === 0) toast(sess.streak + ' in a row!'); } else sess.streak = 0; drawStats();
+        if (partial) return; record(tid, ok, Q); sess.n++; if (ok) { sess.c++; sess.streak++; if (sess.streak > sess.best) { sess.best = sess.streak; store.set('best', sess.best); } if (sess.streak && sess.streak % 5 === 0) toast(sess.streak + ' in a row!'); } else sess.streak = 0; drawStats();
         nextB.focus({ preventScroll: true }); // ready for Enter, without moving the page
       } });
       page.appendChild(card.el);
@@ -3009,7 +3011,7 @@ RENDER.exam = () => {
     let done = false;
     function submit() {
       if (done) return; done = true; clearInterval(examTimer);
-      const res = cards.map((c, i) => { const r = c.finalize(); record(Qs[i].topic, !!r.ok); return !!r.ok; });
+      const res = cards.map((c, i) => { const r = c.finalize(); record(Qs[i].topic, !!r.ok, Qs[i]); return !!r.ok; });
       const s = res.filter(Boolean).length, p = Math.round(s / n * 100); const used = Math.round((Date.now() - start) / 1000);
       const hist = store.get('exams', []); hist.push({ d: new Date().toLocaleDateString('en-AU'), s, n, p, t: Math.floor(used / 60) + 'm ' + used % 60 + 's', lim: mins || 0 }); store.set('exams', hist);
       bar.remove(); bottom.remove();
@@ -3454,7 +3456,7 @@ RENDER.need = () => {
     upd();
     TOPICS.forEach((t, i) => {
       const Q = makeQ(pick(TOPIC_GENS[t.id]));
-      const c = questionCard(Q, { num: (i + 1) + ' of ' + total, onAnswer: (ok, partial) => { if (partial) return; record(t.id, ok); done++; if (ok) right++; upd(); if (done === total) toast('All done: ' + right + ' out of ' + total); } });
+      const c = questionCard(Q, { num: (i + 1) + ' of ' + total, onAnswer: (ok, partial) => { if (partial) return; record(t.id, ok, Q); done++; if (ok) right++; upd(); if (done === total) toast('All done: ' + right + ' out of ' + total); } });
       const w = h('<div class="need-q"></div>'); w.appendChild(c.el); list.appendChild(w);
     });
   };
@@ -3494,7 +3496,7 @@ RENDER.last = () => {
     LASTMIN.forEach((t, i) => {
       const tid = pick(t.practice), gens = TOPIC_GENS[tid]; if (!gens || !gens.length) return;
       const Q = makeQ(pick(gens));
-      const card = questionCard(Q, { num: (i + 1) + ' of ' + total, onAnswer: (ok, partial) => { if (partial) return; record(tid, ok); done++; if (ok) right++; upd(); if (done === total) toast('All done: ' + right + ' out of ' + total); } });
+      const card = questionCard(Q, { num: (i + 1) + ' of ' + total, onAnswer: (ok, partial) => { if (partial) return; record(tid, ok, Q); done++; if (ok) right++; upd(); if (done === total) toast('All done: ' + right + ' out of ' + total); } });
       const w = h('<div class="need-q"></div>'); w.appendChild(h('<div class="small muted" style="margin-bottom:4px">' + (i + 1) + '. ' + esc(t.title.split(':')[0].split(' (')[0]) + '</div>')); w.appendChild(card.el); list.appendChild(w);
     });
   };

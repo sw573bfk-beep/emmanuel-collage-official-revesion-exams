@@ -1698,7 +1698,9 @@ let toastT;
 function toast(msg) { const t = $('#toast'); t.textContent = msg; t.classList.add('show'); clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove('show'), 1800); }
 const state = { learn: store.get('learnTopic', 'C1'), practice: 'mix', tool: 'solver', bkPart: Object.keys(BK_PARTS)[0] };
 const tstats = store.get('tstats', {});
-function record(topic, ok) { const s = tstats[topic] || (tstats[topic] = { a: 0, c: 0 }); s.a++; if (ok) s.c++; store.set('tstats', tstats); if (ok) planTick('right', topic); }
+// leaderboard points for a right answer: harder and typed answers earn more (easy multiple choice 1 … hard typed 5)
+function qPoints(Q) { if (!Q) return 1; if (Q.type === 'long') return 5; const lvl = Q.diff || (typeof diffOf === 'function' && Q.gen ? diffOf(Q.gen) : 'm'); return ({ e: 1, m: 2, h: 4 })[lvl] + (Q.type === 'mcq' ? 0 : 1) || 2; }
+function record(topic, ok, Q) { const s = tstats[topic] || (tstats[topic] = { a: 0, c: 0 }); s.a++; if (ok) { s.c++; s.p = (s.p || 0) + qPoints(Q); } store.set('tstats', tstats); if (ok) planTick('right', topic); }
 /* ---------- today's plan (Home) ---------- */
 const todayKey = () => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
 function pickFocus() {
@@ -1917,7 +1919,7 @@ RENDER.skill = () => {
     const list = $('.skill-qs', qc); list.innerHTML = ''; const seen = new Set(), Qs = [];
     for (let tries = 0; Qs.length < 3 && tries < 20; tries++) { const Q = makeQ(pick(info.g)); if (seen.has(Q.q) && tries < 15) continue; seen.add(Q.q); Qs.push(Q); }
     let done = 0, right = 0; const sc = $('.skill-score', qc); const upd = () => { sc.textContent = done ? right + ' / ' + done + ' right' + (done === 3 ? (right === 3 ? ' · nice!' : '') : '') : '0 / 3 done'; }; upd();
-    Qs.forEach((Q, n) => { const c = questionCard(Q, { num: (n + 1) + ' of 3', onAnswer: (ok, partial) => { if (partial) return; record(tid, ok); done++; if (ok) right++; upd(); } }); list.appendChild(c.el); });
+    Qs.forEach((Q, n) => { const c = questionCard(Q, { num: (n + 1) + ' of 3', onAnswer: (ok, partial) => { if (partial) return; record(tid, ok, Q); done++; if (ok) right++; upd(); } }); list.appendChild(c.el); });
   };
   $('[data-new]', qc).onclick = load; load();
   v.appendChild(qc);
@@ -1965,7 +1967,7 @@ RENDER.learn = () => {
     body.appendChild(exs);
     if (t.mistakes) body.appendChild(h('<div class="card stack"><h3>Watch out for</h3>' + t.mistakes.map(m => '<p class="mistake">' + m + '</p>').join('') + '</div>'));
     const qc = h('<div class="card stack"><div class="row" style="justify-content:space-between"><h3>Try one</h3><button type="button" class="btn quiet sm">New question</button></div><div class="qhost"></div></div>');
-    const load = () => { const host = $('.qhost', qc); host.innerHTML = ''; const Q = makeQ(pick(TOPIC_GENS[id])); host.appendChild(questionCard(Q, { onAnswer: (ok, partial) => { if (!partial) record(id, ok); } }).el); };
+    const load = () => { const host = $('.qhost', qc); host.innerHTML = ''; const Q = makeQ(pick(TOPIC_GENS[id])); host.appendChild(questionCard(Q, { onAnswer: (ok, partial) => { if (!partial) record(id, ok, Q); } }).el); };
     $('button', qc).onclick = load; load(); body.appendChild(qc);
     const more = h('<details class="card more"><summary><b>More detail</b> <span class="muted small">All the rules, tables and diagrams for this topic</span></summary><div class="notes" style="margin-top:12px"></div></details>');
     $('.notes', more).insertAdjacentHTML('beforeend', t.notes()); body.appendChild(more);
@@ -2047,9 +2049,9 @@ const practiceInto = (v) => {
     if (!Q) { page.appendChild(h('<p class="muted">' + got.note + '</p>')); }
     else {
       if (got.note) page.appendChild(h('<p class="small muted pf-note">' + got.note + '</p>'));
-      const lvl = Q.diff || diffOf(Q.gen); page.appendChild(h('<span class="pf-level pf-' + lvl + '">' + DIFF_NAME[lvl] + '</span>'));
+      const lvl = Q.diff || diffOf(Q.gen); page.appendChild(h('<span class="pf-level pf-' + lvl + '">' + DIFF_NAME[lvl] + ' · worth ' + qPoints(Q) + ' point' + (qPoints(Q) === 1 ? '' : 's') + '</span>'));
       const card = (Q.type === 'long' ? longCard : questionCard)(Q, { onAnswer: (ok, partial) => {
-        if (partial) return; record(tid, ok); sess.n++; if (ok) { sess.c++; sess.streak++; if (sess.streak > sess.best) { sess.best = sess.streak; store.set('best', sess.best); } if (sess.streak && sess.streak % 5 === 0) toast(sess.streak + ' in a row!'); } else sess.streak = 0; drawStats();
+        if (partial) return; record(tid, ok, Q); sess.n++; if (ok) { sess.c++; sess.streak++; if (sess.streak > sess.best) { sess.best = sess.streak; store.set('best', sess.best); } if (sess.streak && sess.streak % 5 === 0) toast(sess.streak + ' in a row!'); } else sess.streak = 0; drawStats();
         nextB.focus({ preventScroll: true }); // ready for Enter, without moving the page
       } });
       page.appendChild(card.el);
@@ -2193,7 +2195,7 @@ const examInto = (v) => {
     let done = false;
     function submit() {
       if (done) return; done = true; clearInterval(examTimer);
-      const res = cards.map((c, i) => { const r = c.finalize(); record(Qs[i].topic, !!r.ok); return !!r.ok; });
+      const res = cards.map((c, i) => { const r = c.finalize(); record(Qs[i].topic, !!r.ok, Qs[i]); return !!r.ok; });
       planTick('tested');
       const s = res.filter(Boolean).length, p = Math.round(s / n * 100); const used = Math.round((Date.now() - start) / 1000);
       const hist = store.get('exams', []); hist.push({ d: new Date().toLocaleDateString('en-AU'), s, n, p, t: Math.floor(used / 60) + 'm ' + used % 60 + 's', lim: mins || 0 }); store.set('exams', hist);
@@ -2497,7 +2499,7 @@ RENDER.need = () => {
     upd();
     TOPICS.forEach((t, i) => {
       const Q = makeQ(pick(TOPIC_GENS[t.id]));
-      const c = questionCard(Q, { num: (i + 1) + ' of ' + total, onAnswer: (ok, partial) => { if (partial) return; record(t.id, ok); done++; if (ok) right++; upd(); if (done === total) toast('All done: ' + right + ' out of ' + total); } });
+      const c = questionCard(Q, { num: (i + 1) + ' of ' + total, onAnswer: (ok, partial) => { if (partial) return; record(t.id, ok, Q); done++; if (ok) right++; upd(); if (done === total) toast('All done: ' + right + ' out of ' + total); } });
       const w = h('<div class="need-q"></div>'); w.appendChild(c.el); list.appendChild(w);
     });
   };
@@ -2533,7 +2535,7 @@ function topicPage(id, v) {
   if (!cards.length) fc.appendChild(h('<p class="muted small">No flashcards for this topic.</p>'));
   v.appendChild(fc);
   const qc = h('<div class="card stack topic-sec" id="tp-' + id + '"><div class="row" style="justify-content:space-between"><span class="eyebrow">6 · Practice questions</span><button type="button" class="btn quiet sm">New questions</button></div><div class="stack tq-list" style="gap:16px"></div><button type="button" class="btn ghost sm" style="align-self:flex-start">Keep practising this topic in Practice →</button></div>');
-  const loadQs = () => { const host = $('.tq-list', qc); host.innerHTML = ''; for (let i = 0; i < 3; i++) { const w = h('<div class="need-q"></div>'); w.appendChild(questionCard(makeQ(pick(TOPIC_GENS[id])), { num: (i + 1) + ' of 3', onAnswer: (ok, partial) => { if (!partial) record(id, ok); } }).el); host.appendChild(w); } };
+  const loadQs = () => { const host = $('.tq-list', qc); host.innerHTML = ''; for (let i = 0; i < 3; i++) { const w = h('<div class="need-q"></div>'); const Q = makeQ(pick(TOPIC_GENS[id])); w.appendChild(questionCard(Q, { num: (i + 1) + ' of 3', onAnswer: (ok, partial) => { if (!partial) record(id, ok, Q); } }).el); host.appendChild(w); } };
   $('.row .btn', qc).onclick = loadQs; qc.lastElementChild.onclick = () => openPractice(id); loadQs(); v.appendChild(qc);
   const bq = BOOKLET.filter(q => t.bk.includes(q.id));
   const bc = h('<div class="card stack topic-sec" id="tb-' + id + '"><span class="eyebrow">7 · Workbook questions on this topic</span></div>');

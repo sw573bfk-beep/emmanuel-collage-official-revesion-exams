@@ -4,7 +4,7 @@ import { checkText, checkPieces } from './filter.js';
 import { lookView } from './rewards.js';
 
 const MAX_LEN = 2000;
-export const MAX_CORRECT_DAY = 400, MAX_BOOKLET_DAY = 250; // leaderboard points caps per person per day
+export const MAX_CORRECT_DAY = 400, MAX_BOOKLET_DAY = 250, MAX_QPTS_DAY = 1000; // leaderboard points caps per person per day
 // Messages that look like the site's own notes ("[game:…]", "[chat-allowed]"…) can't be typed by people
 export const FAKE_NOTE = /^\s*\[[a-z-]+(:[^\]]*)?\]\s*$/i;
 const now = () => Math.floor(Date.now() / 1000);
@@ -54,13 +54,13 @@ export async function leaderboard(env, me, range, admin) {
   const [people, mins, pts] = await env.DB.batch([
     env.DB.prepare('SELECT id, username, in_stats, look FROM users'),
     env.DB.prepare('SELECT user_id, SUM(seconds) AS s FROM daily WHERE day >= ? GROUP BY user_id').bind(from),
-    env.DB.prepare('SELECT user_id, SUM(correct) AS c, SUM(booklet) AS b FROM points_daily WHERE day >= ? GROUP BY user_id').bind(from)
+    env.DB.prepare('SELECT user_id, SUM(correct) AS c, SUM(booklet) AS b, SUM(qpts) AS q FROM points_daily WHERE day >= ? GROUP BY user_id').bind(from)
   ]);
   const M = Object.fromEntries(mins.results.map(r => [r.user_id, r.s || 0])), P = Object.fromEntries(pts.results.map(r => [r.user_id, r]));
   const adminName = String(env.ADMIN_USERNAME || '').toLowerCase();
   const rows = people.results.filter(u => u.in_stats && u.username.toLowerCase() !== adminName).map(u => {
-    const minutes = Math.floor((M[u.id] || 0) / 60), correct = (P[u.id] || {}).c || 0, booklet = (P[u.id] || {}).b || 0;
-    return { id: u.id, name: u.username, look: lookView(u.look), minutes, correct, booklet, points: minutes + 2 * correct + booklet };
+    const minutes = Math.floor((M[u.id] || 0) / 60), correct = (P[u.id] || {}).c || 0, booklet = (P[u.id] || {}).b || 0, qpts = (P[u.id] || {}).q || 0;
+    return { id: u.id, name: u.username, look: lookView(u.look), minutes, correct, booklet, qpts, points: minutes + qpts + booklet }; // right answers: 1-5 points each by difficulty
   }).filter(r => r.points > 0).sort((a, b) => b.points - a.points || b.minutes - a.minutes || a.name.localeCompare(b.name));
   let rank = 0, prev = null;
   rows.forEach((r, i) => { if (r.points !== prev) { rank = i + 1; prev = r.points; } r.rank = rank; });
@@ -321,10 +321,11 @@ export async function handleCommunityAdmin(req, env, url, role = 'owner') {
 }
 
 // Leaderboard points: when progress is saved, count the newly correct answers and booklet marks for today.
-export async function addPoints(env, userId, before, after, bookletGain) {
+export async function addPoints(env, userId, before, after, bookletGain, qptsGain = null) {
   const dc = Math.max(0, Math.min(100, after.correct - before.correct)), db = Math.max(0, Math.min(100, bookletGain ?? (after.bookletRight - before.bookletRight)));
-  if (!dc && !db) return;
+  const dq = Math.max(0, Math.min(500, qptsGain ?? 2 * dc));
+  if (!dc && !db && !dq) return;
   // daily caps, so faked progress can't farm the leaderboard (far more than anyone really does in a day)
-  await env.DB.prepare('INSERT INTO points_daily (user_id, day, correct, booklet) VALUES (?, ?, MIN(?, ?), MIN(?, ?)) ON CONFLICT(user_id, day) DO UPDATE SET correct = MIN(?, correct + excluded.correct), booklet = MIN(?, booklet + excluded.booklet)')
-    .bind(userId, dayKey(now()), dc, MAX_CORRECT_DAY, db, MAX_BOOKLET_DAY, MAX_CORRECT_DAY, MAX_BOOKLET_DAY).run();
+  await env.DB.prepare('INSERT INTO points_daily (user_id, day, correct, booklet, qpts) VALUES (?, ?, MIN(?, ?), MIN(?, ?), MIN(?, ?)) ON CONFLICT(user_id, day) DO UPDATE SET correct = MIN(?, correct + excluded.correct), booklet = MIN(?, booklet + excluded.booklet), qpts = MIN(?, qpts + excluded.qpts)')
+    .bind(userId, dayKey(now()), dc, MAX_CORRECT_DAY, db, MAX_BOOKLET_DAY, dq, MAX_QPTS_DAY, MAX_CORRECT_DAY, MAX_BOOKLET_DAY, MAX_QPTS_DAY).run();
 }

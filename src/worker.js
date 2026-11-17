@@ -740,23 +740,26 @@ async function handleApi(req, env, url) {
       // counts twice), at most 25 per topic per day, and no faster than about one every 3 seconds since the last save
       const day = dayKey(t), tsNow = (body.data && body.data.tstats) || {};
       const [bestRows, dayRows] = await env.DB.batch([
-        env.DB.prepare('SELECT topic, best FROM topic_best WHERE user_id = ? AND subject = ?').bind(user.id, subject),
+        env.DB.prepare('SELECT topic, best, bestp FROM topic_best WHERE user_id = ? AND subject = ?').bind(user.id, subject),
         env.DB.prepare('SELECT topic, n FROM topic_daily WHERE user_id = ? AND day = ? AND subject = ?').bind(user.id, day, subject)
       ]);
-      const BEST = Object.fromEntries(bestRows.results.map(r => [r.topic, r.best])), DAY = Object.fromEntries(dayRows.results.map(r => [r.topic, r.n]));
+      const BEST = Object.fromEntries(bestRows.results.map(r => [r.topic, r.best])), BESTP = Object.fromEntries(bestRows.results.map(r => [r.topic, r.bestp || 0])), DAY = Object.fromEntries(dayRows.results.map(r => [r.topic, r.n]));
       const tsBefore = (before && before.tstats) || {};
       let budget = old ? Math.min(100, Math.ceil((t - (old.updated_at || 0)) / 3) + 2) : 20;
-      const writes = []; let credited = 0;
+      const writes = []; let credited = 0, qpts = 0;
       for (const [topic, st] of Object.entries(tsNow)) {
         if (!/^[A-Za-z0-9]{1,6}$/.test(topic) || !st) continue;
         const c = Math.max(0, Math.floor(+st.c || 0)), top = Math.max(BEST[topic] ?? 0, Math.floor(+((tsBefore[topic] || {}).c) || 0));
         if (c <= top) continue;
         const give = Math.max(0, Math.min(c - top, TOPIC_DAY_MAX - (DAY[topic] || 0), budget));
-        writes.push(env.DB.prepare('INSERT INTO topic_best (user_id, subject, topic, best) VALUES (?, ?, ?, ?) ON CONFLICT(user_id, subject, topic) DO UPDATE SET best = MAX(best, excluded.best)').bind(user.id, subject, topic, c));
-        if (give > 0) { credited += give; budget -= give; writes.push(env.DB.prepare('INSERT INTO topic_daily (user_id, day, subject, topic, n) VALUES (?, ?, ?, ?, ?) ON CONFLICT(user_id, day, subject, topic) DO UPDATE SET n = n + excluded.n').bind(user.id, day, subject, topic, give)); }
+        // question points (1-5 each by difficulty, saved by the page as st.p): only new ones, at most 5 per answer that counts
+        const p = Math.max(0, Math.floor(+st.p || 0)), topP = Math.max(BESTP[topic] || 0, Math.floor(+((tsBefore[topic] || {}).p) || 0));
+        const gotP = st.p == null ? give : Math.min(Math.max(0, p - topP), 5 * give); // old pages without st.p: 1 point each
+        writes.push(env.DB.prepare('INSERT INTO topic_best (user_id, subject, topic, best, bestp) VALUES (?, ?, ?, ?, ?) ON CONFLICT(user_id, subject, topic) DO UPDATE SET best = MAX(best, excluded.best), bestp = MAX(bestp, excluded.bestp)').bind(user.id, subject, topic, c, p));
+        if (give > 0) { credited += give; budget -= give; qpts += gotP; writes.push(env.DB.prepare('INSERT INTO topic_daily (user_id, day, subject, topic, n) VALUES (?, ?, ?, ?, ?) ON CONFLICT(user_id, day, subject, topic) DO UPDATE SET n = n + excluded.n').bind(user.id, day, subject, topic, give)); }
       }
       if (writes.length) await env.DB.batch(writes);
-      await addPoints(env, user.id, { correct: 0, bookletRight: 0 }, { correct: credited, bookletRight: 0 }, Math.max(0, now_.bookletRight - best));
+      await addPoints(env, user.id, { correct: 0, bookletRight: 0 }, { correct: credited, bookletRight: 0 }, Math.max(0, now_.bookletRight - best), qpts);
       return json({ ok: true, updated_at: t });
     }
   }

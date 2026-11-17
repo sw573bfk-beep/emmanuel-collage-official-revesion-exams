@@ -23,7 +23,7 @@
   const topBar = [
     profileStep,
     { h: 'Feedback', t: 'Found a mistake, got an idea or something confusing? Tap <b>Feedback</b> to tell Beau. Every message is read.', sel: '.top-tools a[href^="/feedback"]' },
-    { h: 'Leaderboard', t: 'Earn points by studying: 1 per minute, 2 per correct answer, 1 per booklet question marked right. See the top 50 and your own place, this week and all time.', sel: '.top-tools a[href^="/leaderboard"]' },
+    { h: 'Leaderboard', t: 'Earn points by studying: 1 per minute, 1–5 per right answer (harder questions and typed answers earn more), 1 per booklet question marked right. See the top 50 and your own place, this week and all time.', sel: '.top-tools a[href^="/leaderboard"]' },
     { h: 'Chat', t: 'Chat 1-on-1 with friends and privately with Beau. In <b>Friends</b>, search for someone and tap <b>Add friend</b>. When you <b>both</b> agree and Beau approves it, you can chat any time and invite them to games. <b>✉️ Beau</b> is a private chat with Beau. Beau can read every chat, and rude or unsafe messages are blocked.', sel: '.top-tools a[data-chat]' },
     { h: 'Switch subject', t: '<b>Subjects</b> takes you back to pick Maths, Science or English. Your progress in each one is kept.', sel: '.top-tools a[href="/"]' },
     { h: 'Your progress is saved', t: 'Everything you do is saved to your account, so it follows you to any phone or computer. Your name shows which account this tab is using, and under it it says when it last saved. To use another account, go to <b>Subjects</b> and tap <b>Switch account</b>.', sel: '.top-tools .acct' }
@@ -186,7 +186,7 @@
     },
     leaderboard: {
       title: 'How the leaderboard works',
-      intro: 'Earn points by studying: <b>1 per minute</b> of study, <b>2 per correct answer</b>, and <b>1 per booklet question</b> marked right.',
+      intro: 'Earn points by studying: <b>1 per minute</b> of study, <b>1–5 per right answer</b> (hard and typed answers earn the most), and <b>1 per booklet question</b> marked right.',
       steps: [
         { h: 'This week or all time', t: 'Switch between this week (from Monday) and all time.', sel: ['#tWeek', '#tAll'] },
         { h: 'Your place', t: 'Your rank and points, even if you’re not in the top 50.', sel: '#mine' },
