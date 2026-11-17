@@ -73,6 +73,11 @@ tr.out td{color:var(--muted)}
 dialog{border:1px solid var(--rule);border-radius:14px;background:var(--card);color:var(--ink);padding:0;width:min(720px,calc(100vw - 32px));max-height:calc(100vh - 40px)}
 dialog::backdrop{background:rgb(0 0 0 / .45)}
 .dlg{padding:20px;display:flex;flex-direction:column;gap:14px}
+.rate-bars{display:grid;grid-template-columns:auto 1fr auto;gap:4px 10px;align-items:center;max-width:420px}
+.rate-bars i{display:block;height:10px;border-radius:99px;background:#e0a800}
+.rate-item{border:1.5px solid var(--rule);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:6px}
+.rate-item .qa b{display:block;font-size:.8125rem;color:var(--muted)}
+.rate-item .qa p{margin:0;white-space:pre-wrap}
 .perm{border:1.5px solid var(--rule);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:10px}
 .perm-row{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
 .perm-row .l{display:flex;flex-direction:column;min-width:0;flex:1 1 220px}.perm-row .l span{font-size:.8125rem;color:var(--muted)}
@@ -251,6 +256,13 @@ details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
       <div id="secLog" class="chatlog"></div>
     </section>
 
+    <section class="card stack sec" id="ratings" data-title="⭐ Site ratings" data-hint="answers from the Rate the site button">
+      <p class="small muted">Everyone (except you) has a <b>⭐ Rate the site</b> button at the top left of every page: stars, then what they liked, didn’t like, would add, would do if they were in control, and anything else. It’s hidden in study mode and focus mode. Each person can send 3 a day.</p>
+      <div id="rateSum" class="stack" style="gap:8px"></div>
+      <div class="row" style="gap:6px" id="rateFilter"></div>
+      <div id="rateList" class="stack" style="gap:10px"></div>
+    </section>
+
     <section class="card stack sec" id="laptops" data-title="💻 Same laptop" data-hint="accounts made or used on the same laptop">
       <p class="small muted">Each laptop (really each browser) can only <b>make one account</b>. Anyone can still <b>log in</b> on any laptop. These are the laptops used by more than one account: <b>🆕 made here</b> means the account was created on that laptop, <b>🔑 logs in here</b> means it only logs in there. Someone who clears their browser, uses a private window or another browser counts as a new laptop. Accounts made before this was added count the first laptop they were seen on.</p>
       <div id="lapBody" class="stack" style="gap:10px"></div>
@@ -382,7 +394,7 @@ details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
     if (!staffReady) {
       staffReady = true;
       document.querySelector('.head h1').textContent = 'EC Revisions ' + (ROLE === 'top' ? '⭐ Top tier admin' : '🛡️ Basic admin');
-      ['overview', 'broadcast', 'people', 'codes', 'security', 'laptops', 'usage', 'stats'].forEach(id => { if (SEC[id]) { SEC[id].sec.hidden = true; SEC[id].mb.hidden = true; } });
+      ['overview', 'broadcast', 'people', 'codes', 'security', 'ratings', 'laptops', 'usage', 'stats'].forEach(id => { if (SEC[id]) { SEC[id].sec.hidden = true; SEC[id].mb.hidden = true; } });
       SEC.moderate.sec.hidden = false; SEC.moderate.mb.hidden = false;
       const mt = document.querySelector('#chatTabs [data-c="messages"]'); if (mt) mt.hidden = true;
       pickChatTab('access');
@@ -413,7 +425,7 @@ details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
     $('#tFb').closest('.tile').classList.toggle('alert', T.feedbackNew > 0); setBadge('feedback', T.feedbackNew);
     const dt = $('#dayTable'); dt.replaceChildren(); const hr = document.createElement('tr'); ['Day', 'People', 'Minutes', 'New accounts'].forEach(h => { const th = document.createElement('th'); th.textContent = h; hr.appendChild(th); }); dt.appendChild(hr);
     data.days.slice().reverse().forEach(d => { const tr = document.createElement('tr'); [dayLabel(d.day), d.people, Math.round(d.seconds / 60), d.signups].forEach(v => cell(tr, v)); dt.appendChild(tr); });
-    drawTable(); loadCodes(); loadFeedback(); loadConvs(); loadChats(); loadBroadcast(); loadStudy(); loadSecurity(); loadUsage(); loadLaptops();
+    drawTable(); loadCodes(); loadFeedback(); loadRatings(); loadConvs(); loadChats(); loadBroadcast(); loadStudy(); loadSecurity(); loadUsage(); loadLaptops();
     $('#updated').textContent = 'Updated ' + new Date().toLocaleTimeString('en-AU', { timeZone: TZ, hour: 'numeric', minute: '2-digit' }) + ' (Queensland time). Refreshes every 30 seconds.';
   }
   function drawCharts() {
@@ -723,6 +735,32 @@ details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
   }
   $$('#fbFilter .chip').forEach(c => c.onclick = () => { fbFilter = c.dataset.f; $$('#fbFilter .chip').forEach(x => x.classList.toggle('on', x === c)); loadFeedback(); });
   /* ---------- security ---------- */
+  /* ---------- ⭐ site ratings ---------- */
+  let rateStars = 0;
+  async function loadRatings() {
+    const r = await api('/api/admin/surveys'); const list = $('#rateList'); if (!r.ok || !list) return;
+    const d = r.data, total = Object.values(d.counts).reduce((a, b) => a + b, 0), sum = Object.entries(d.counts).reduce((a, [s, n]) => a + s * n, 0);
+    const new24 = d.list.filter(x => d.now - x.created_at < 86400).length; setBadge('ratings', new24);
+    const sm = $('#rateSum'); sm.replaceChildren();
+    sm.appendChild(mk('div', '', total ? '⭐ ' + (sum / total).toFixed(1) + ' out of 5 from ' + total + ' rating' + (total === 1 ? '' : 's') + (new24 ? ' · ' + new24 + ' new today' : '') : 'No ratings yet.'));
+    if (total) { const bars = mk('div', 'rate-bars'); [5, 4, 3, 2, 1].forEach(s => { const n = d.counts[s] || 0, bar = mk('div'), fill = mk('i'); fill.style.width = Math.round(n / total * 100) + '%'; bar.appendChild(fill); bars.append(mk('span', 'small', '⭐'.repeat(s)), bar, mk('span', 'small muted', String(n))); }); sm.appendChild(bars); }
+    const fl = $('#rateFilter'); fl.replaceChildren();
+    [[0, 'All'], [5, '5 ⭐'], [4, '4 ⭐'], [3, '3 ⭐'], [2, '2 ⭐'], [1, '1 ⭐']].forEach(([s, t]) => { const c = mk('button', 'chip' + (rateStars === s ? ' on' : ''), t); c.type = 'button'; c.onclick = () => { rateStars = s; loadRatings(); }; fl.appendChild(c); });
+    list.replaceChildren();
+    const rows = d.list.filter(x => !rateStars || x.stars === rateStars);
+    if (!rows.length) list.appendChild(mk('p', 'muted small', 'Nothing here yet.'));
+    const Q = [['liked', '👍 Liked'], ['disliked', '👎 Didn’t like'], ['add_idea', '💡 Would add'], ['control', '🎮 If they were in control'], ['other', '📝 Anything else']];
+    rows.forEach(x => {
+      const it = mk('div', 'rate-item'), head = mk('div', 'row'); head.style.justifyContent = 'space-between'; head.style.alignItems = 'center';
+      head.append(mk('b', '', '⭐'.repeat(x.stars) + ' ' + x.name), mk('span', 'small muted', fmtC(x.created_at)));
+      it.appendChild(head);
+      Q.forEach(([k, l]) => { if (!x[k]) return; const qa = mk('div', 'qa'); qa.append(mk('b', '', l), mk('p', '', x[k])); it.appendChild(qa); });
+      if (!Q.some(([k]) => x[k])) it.appendChild(mk('span', 'small muted', 'Stars only, no written answers.'));
+      let armed = false; const del = btn('Delete', async () => { if (!armed) { armed = true; del.textContent = 'Tap again to delete'; setTimeout(() => { armed = false; del.textContent = 'Delete'; }, 4000); return; } await api('/api/admin/survey-delete', 'POST', { id: x.id }); loadRatings(); }, 'quiet');
+      const ar = mk('div', 'row'); ar.appendChild(del); it.appendChild(ar);
+      list.appendChild(it);
+    });
+  }
   /* ---------- 💻 same laptop ---------- */
   async function loadLaptops() {
     const r = await api('/api/admin/laptops'); const box = $('#lapBody'); if (!r.ok || !box) return; box.replaceChildren();

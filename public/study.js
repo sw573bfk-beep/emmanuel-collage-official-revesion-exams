@@ -189,3 +189,63 @@ html.ec-focus-block .brand>p{display:none}
   };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', go); else go();
 })();
+
+/* ⭐ Rate the site: a button at the top left of every page (when logged in). Stars plus four short questions
+   and "anything else". Beau reads them in Admin → ⭐ Site ratings. Hidden in study mode and focus mode. */
+(() => {
+  if (window.ecRate) return; window.ecRate = true;
+  if (location.pathname.startsWith('/admin')) return;
+  const css = document.createElement('style');
+  css.textContent = `
+.ec-rate{position:absolute;top:calc(10px + env(safe-area-inset-top,0px));left:12px;z-index:20;display:inline-flex;align-items:center;gap:6px;font:inherit;font-weight:700;font-size:.9375rem;min-height:38px;border-radius:999px;padding:4px 14px;border:1.5px solid var(--warn,#7f4c00);background:var(--warn-soft,#fdf0d9);color:var(--ink,#111);cursor:pointer;box-shadow:0 2px 8px rgb(0 0 0 / .08)}
+.ec-rate:hover{filter:brightness(.97)}
+html.ec-rate-on body{padding-top:48px}
+html.ec-study .ec-rate,html.ec-focus .ec-rate{display:none}
+html.ec-study.ec-rate-on body,html.ec-focus.ec-rate-on body{padding-top:0}
+.ec-rate-pop{position:fixed;inset:0;z-index:2600;display:grid;place-items:center;padding:14px;background:rgb(10 14 30 / .55);overflow-y:auto}
+.ec-rate-box{width:min(100%,520px);max-height:calc(100vh - 28px);overflow-y:auto;background:var(--card,#fff);color:var(--ink,#111);border-radius:18px;padding:20px;display:flex;flex-direction:column;gap:12px;box-shadow:0 20px 50px rgb(0 0 0 / .3)}
+.ec-rate-box h2{margin:0;font-size:1.35rem}.ec-rate-box p{margin:0}
+.ec-rate-stars{display:flex;gap:6px}
+.ec-rate-stars button{font-size:2rem;line-height:1;background:none;border:0;cursor:pointer;padding:2px;color:var(--rule,#c3cddc);filter:grayscale(1);opacity:.55}
+.ec-rate-stars button.on{filter:none;opacity:1}
+.ec-rate-box label{display:flex;flex-direction:column;gap:5px;font-weight:600}
+.ec-rate-box textarea{font:inherit;font-weight:400;min-height:64px;resize:vertical;border:1.5px solid var(--rule,#ccc);border-radius:10px;padding:8px 10px;background:var(--card,#fff);color:var(--ink,#111)}
+.ec-rate-row{display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap}
+.ec-rate-msg{font-weight:600}`;
+  document.head.appendChild(css);
+  const mk = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; };
+  const QS = [['liked', '👍 What did you like?'], ['disliked', '👎 What didn’t you like?'], ['add_idea', '💡 What would you add?'], ['control', '🎮 If you were in control, what would you do?'], ['other', '📝 Anything else? (optional)']];
+  function open() {
+    const pop = mk('div', 'ec-rate-pop'), box = mk('form', 'ec-rate-box'); box.noValidate = true; box.setAttribute('role', 'dialog'); box.setAttribute('aria-modal', 'true'); box.setAttribute('aria-label', 'Rate the site');
+    box.append(mk('h2', '', '⭐ Rate EC Revisions'), mk('p', 'small', 'Tell Beau what you think. Only Beau reads these. Answer as many as you like.'));
+    let stars = 0; const sr = mk('div', 'ec-rate-stars'); sr.setAttribute('role', 'radiogroup'); sr.setAttribute('aria-label', 'Your rating out of 5 stars');
+    const sl = mk('span', 'small', 'Tap the stars');
+    for (let i = 1; i <= 5; i++) { const b = mk('button', '', '⭐'); b.type = 'button'; b.setAttribute('role', 'radio'); b.setAttribute('aria-label', i + ' star' + (i > 1 ? 's' : '')); b.onclick = () => { stars = i; [...sr.children].forEach((x, j) => { x.classList.toggle('on', j < i); x.setAttribute('aria-checked', j === i - 1 ? 'true' : 'false'); }); sl.textContent = ['', 'Bad', 'Not great', 'OK', 'Good', 'Amazing!'][i] + ' (' + i + '/5)'; msg.hidden = true; }; sr.appendChild(b); }
+    const lab = mk('div', ''); lab.append(mk('b', '', 'How would you rate the site? '), sl); box.append(lab, sr);
+    const areas = {};
+    QS.forEach(([k, q]) => { const l = mk('label', '', q), t = mk('textarea'); t.maxLength = 600; t.rows = 2; areas[k] = t; l.appendChild(t); box.appendChild(l); });
+    const msg = mk('p', 'ec-rate-msg'); msg.setAttribute('role', 'status'); msg.hidden = true;
+    const row = mk('div', 'ec-rate-row'), cancel = mk('button', 'btn quiet', 'Cancel'), send = mk('button', 'btn', 'Send to Beau'); cancel.type = 'button'; send.type = 'submit';
+    row.append(cancel, send); box.append(msg, row); pop.appendChild(box);
+    const close = () => { pop.remove(); document.removeEventListener('keydown', esc); };
+    const esc = e => { if (e.key === 'Escape') close(); };
+    cancel.onclick = close; pop.onclick = e => { if (e.target === pop) close(); }; document.addEventListener('keydown', esc);
+    box.onsubmit = async e => {
+      e.preventDefault(); msg.hidden = false; msg.style.color = 'var(--pen,#b3261e)';
+      if (!stars) { msg.textContent = 'Pick 1 to 5 stars first.'; return; }
+      send.disabled = true; msg.style.color = ''; msg.textContent = 'Sending…';
+      const body = { stars }; QS.forEach(([k]) => { body[k] = areas[k].value; });
+      let ok = false, j = {}; try { const r = await fetch('/api/survey', { method: 'POST', credentials: 'same-origin', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }); ok = r.ok; j = await r.json(); } catch (err) { j = { error: 'Can’t reach the server. Check your connection.' }; }
+      if (!ok) { msg.style.color = 'var(--pen,#b3261e)'; msg.textContent = j.error || 'Couldn’t send it.'; send.disabled = false; return; }
+      box.replaceChildren(mk('h2', '', '🎉 Thank you!'), mk('p', '', 'Beau will read your answers. Thanks for helping make EC Revisions better.'));
+      const done = mk('button', 'btn', 'Close'); done.type = 'button'; done.onclick = close; box.appendChild(done); done.focus();
+    };
+    document.body.appendChild(pop); sr.firstChild.focus();
+  }
+  const go = async () => {
+    const j = window.ecLive ? await window.ecLive() : null; if (!j || !j.me || j.me.admin || document.getElementById('ecRateBtn')) return;
+    const b = mk('button', 'ec-rate', '⭐ Rate the site'); b.type = 'button'; b.id = 'ecRateBtn'; b.onclick = open;
+    document.body.appendChild(b); document.documentElement.classList.add('ec-rate-on');
+  };
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', go); else go();
+})();

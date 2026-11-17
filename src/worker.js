@@ -172,7 +172,7 @@ async function liveChat(env, user) {
   return { requests: req_.results[0].n, unreadDm: dm.results[0].n, beau: beau.results[0].n, admin, muted: !!(mu.results[0] || {}).chat_muted };
 }
 // In study mode: no chatting with friends and no feedback form. Messaging Beau and looking at the leaderboard still work.
-const STUDY_BLOCKED = p => p.startsWith('/api/chat/') || p === '/api/feedback';
+const STUDY_BLOCKED = p => p.startsWith('/api/chat/') || p === '/api/feedback' || p === '/api/survey';
 // ---------- limits per device (IP address, only ever stored as a short hash) ----------
 const ipOf = req => req.headers.get('cf-connecting-ip') || 'local';
 const ipKey = async req => (await sha256('ec-ip:' + ipOf(req))).slice(0, 20);
@@ -632,6 +632,22 @@ async function handleApi(req, env, url) {
     return new Response(bytes, { headers: { 'content-type': 'image/webp', 'cache-control': 'private, max-age=2592000', 'x-content-type-options': 'nosniff' } });
   }
 
+  // ⭐ Rate the site: stars plus five short answers, filtered like everything else
+  if (path === '/api/survey' && method === 'POST') {
+    let b; try { b = await readJson(req); } catch { return err(400, 'Bad request'); }
+    const stars = Math.floor(+b.stars || 0); if (stars < 1 || stars > 5) return err(400, 'Pick 1 to 5 stars first.');
+    const F = [['liked', 'what you liked'], ['disliked', 'what you didn’t like'], ['add_idea', 'what you would add'], ['control', 'what you would do in control'], ['other', 'anything else']];
+    const v = {};
+    for (const [k, label] of F) {
+      const s = String(b[k] || '').replace(/\r\n?/g, '\n').trim().slice(0, 600); v[k] = s || null;
+      if (s) { const f = checkText(s); if (!f.ok) { await logBlocked(env, user.id, 'rate the site (' + label + ')', f.why, s); return err(422, 'In “' + label + '”: ' + f.message); } }
+    }
+    const recent = await env.DB.prepare('SELECT COUNT(*) AS n FROM surveys WHERE user_id = ? AND created_at > ?').bind(user.id, now() - 86400).first();
+    if (recent.n >= 3) return err(429, 'You’ve already rated the site 3 times today. Thanks! Try again tomorrow.');
+    await env.DB.prepare('INSERT INTO surveys (user_id, name, stars, liked, disliked, add_idea, control, other, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)')
+      .bind(user.id, user.username, stars, v.liked, v.disliked, v.add_idea, v.control, v.other, now()).run();
+    return json({ ok: true }, 201);
+  }
   if (path === '/api/feedback' && method === 'POST') {
     let body; try { body = await readJson(req); } catch { return err(400, 'Bad request'); }
     const kind = String(body.kind || ''), subject = String(body.subject || ''), rating = Math.round(+body.rating || 0), message = String(body.message || '').trim();
@@ -970,6 +986,20 @@ async function handleAdmin(req, env, path, method, me, role = 'owner') {
     return json({ ok: true });
   }
   // Security: recent admin sign-ins (and wrong tries), and "log out everywhere else"
+  // ⭐ site ratings from the Rate the site form
+  if (path === '/api/admin/surveys' && method === 'GET') {
+    if (!owner) return err(403, 'Only Beau can see this.');
+    const [rows, sum] = await env.DB.batch([
+      env.DB.prepare('SELECT id, name, stars, liked, disliked, add_idea, control, other, created_at FROM surveys ORDER BY id DESC LIMIT 300'),
+      env.DB.prepare('SELECT stars, COUNT(*) AS n FROM surveys GROUP BY stars')
+    ]);
+    return json({ now: t, list: rows.results, counts: Object.fromEntries(sum.results.map(r => [r.stars, r.n])) });
+  }
+  if (path === '/api/admin/survey-delete' && method === 'POST') {
+    if (!owner) return err(403, 'Only Beau can do this.');
+    let b; try { b = await readJson(req); } catch { return err(400, 'Bad request'); }
+    await env.DB.prepare('DELETE FROM surveys WHERE id = ?').bind(+b.id || 0).run(); return json({ ok: true });
+  }
   // 💻 accounts that share a laptop (browser): made there, or logged in there
   if (path === '/api/admin/laptops' && method === 'GET') {
     if (!owner) return err(403, 'Only Beau can see this.');
