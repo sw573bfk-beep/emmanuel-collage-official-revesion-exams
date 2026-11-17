@@ -110,8 +110,12 @@ async function lastUnlockNote(env, userId) {
 let noticeCache = { at: 0, v: null };
 async function liveNotice(env, fresh) {
   const t = now(); if (!fresh && Date.now() - noticeCache.at < 4000) return noticeCache.v && noticeCache.v.ends > t ? noticeCache.v : null;
-  const r = await env.DB.prepare('SELECT id, body, created_at, ends_at, remind FROM broadcasts WHERE ends_at > ? ORDER BY id DESC LIMIT 1').bind(t).first();
-  noticeCache = { at: Date.now(), v: r ? { id: r.id, body: r.body, at: r.created_at, ends: r.ends_at, remind: !!r.remind } : null };
+  let r = await env.DB.prepare('SELECT id, body, created_at, ends_at, remind, game FROM broadcasts WHERE ends_at > ? ORDER BY id DESC LIMIT 1').bind(t).first();
+  if (r && r.game) { // 🎮 a shared game: the pop-up goes away once the game is over
+    const g = await env.DB.prepare('SELECT status, ends_at FROM games WHERE code = ?').bind(r.game).first();
+    if (!g || g.status === 'ended' || (g.status === 'live' && g.ends_at && g.ends_at <= t)) r = null;
+  }
+  noticeCache = { at: Date.now(), v: r ? { id: r.id, body: r.body, at: r.created_at, ends: r.ends_at, remind: !!r.remind, game: r.game || null } : null };
   return noticeCache.v;
 }
 // Study mode. The site-wide switch is cached for a few seconds (every request checks it).
@@ -1163,6 +1167,27 @@ async function handleAdmin(req, env, path, method, me, role = 'owner') {
       env.DB.prepare('INSERT INTO broadcasts (body, created_at, ends_at, remind) VALUES (?, ?, ?, ?)').bind(text, t, t + secs, remind)
     ]);
     return json({ ok: true, live: await liveNotice(env, true) }, 201);
+  }
+  // 🎮 Share a game Beau is hosting to everyone's screen (a pop-up with a Join button), or stop sharing it
+  if (path === '/api/admin/game-share' && method === 'POST') {
+    let b; try { b = await readJson(req); } catch { return err(400, 'Bad request'); }
+    const code = String(b.code || '').replace(/\D/g, '');
+    const g = code.length === 6 ? await env.DB.prepare('SELECT * FROM games WHERE code = ?').bind(code).first() : null;
+    if (!g) return err(404, 'There’s no game with that code.');
+    if (g.host_id !== me.id) return err(403, 'You can only share a game you’re hosting.');
+    if (b.stop) {
+      await env.DB.prepare('UPDATE broadcasts SET ends_at = ?, stopped_at = ? WHERE game = ? AND ends_at > ?').bind(t, t, code, t).run();
+      await liveNotice(env, true); return json({ ok: true, shared: false });
+    }
+    if (g.status === 'ended' || (g.status === 'live' && g.ends_at && g.ends_at <= t)) return err(410, 'That game has finished.');
+    const MODE = { speed: '⚡ Speed Quiz', treasure: '💰 Treasure Chests', parkour: '🏃 Parkour Run' };
+    const text = 'Beau is hosting a ' + (MODE[g.mode] || 'game') + ' (' + (g.subject === 'maths' ? 'Maths' : 'Science') + ', ' + g.minutes + ' min)' + (g.status === 'live' ? ' and it’s on now' : '') + '! Tap Join game to play.';
+    await env.DB.batch([
+      env.DB.prepare('UPDATE broadcasts SET ends_at = ?, stopped_at = ? WHERE ends_at > ?').bind(t, t, t),
+      env.DB.prepare('INSERT INTO broadcasts (body, created_at, ends_at, remind, game) VALUES (?, ?, ?, 0, ?)').bind(text, t, t + 1800, code),
+      env.DB.prepare('UPDATE games SET shared = 1 WHERE id = ?').bind(g.id)
+    ]);
+    return json({ ok: true, shared: true, live: await liveNotice(env, true) }, 201);
   }
   if (path === '/api/admin/broadcast/stop' && method === 'POST') {
     await env.DB.prepare('UPDATE broadcasts SET ends_at = ?, stopped_at = ? WHERE ends_at > ?').bind(t, t, t).run();

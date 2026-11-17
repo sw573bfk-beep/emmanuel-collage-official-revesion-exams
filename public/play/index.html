@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-build="1794955697">
+<html lang="en" data-build="1794958091">
 <head>
 <meta charset="utf-8">
 <script src="/acct.js"></script>
@@ -113,6 +113,7 @@ select{font:inherit;color:var(--ink);background:var(--card);border:2px solid var
     <div class="players" id="lobbyPlayers" style="justify-content:center"></div>
     <button class="btn" type="button" id="start" style="font-size:1.1rem;padding:12px 26px" hidden>Start the game</button>
     <p class="muted" id="waitHost" hidden>Waiting for the host to start…</p>
+    <div class="stack" id="shareBox" hidden style="align-items:center"><button class="btn quiet" type="button" id="shareBtn">📣 Share to everyone’s screen</button><p class="small muted" id="shareNote" style="margin:0"></p></div>
     <div class="invites stack" id="inviteBox" hidden><b>Invite friends</b><p class="small muted" id="inviteNote">They get the invite in Chat → Friends and can join with one tap.</p><div class="ilist" id="inviteList"></div></div>
   </section>
 
@@ -246,8 +247,23 @@ select{font:inherit;color:var(--ink);background:var(--card);border:2px solid var
     $('#lobbyInfo').textContent = (st.subject === 'maths' ? 'Maths' : 'Science') + ' · ' + (st.topic === 'all' ? 'all topics' : (window.TOPIC && TOPIC[st.topic] ? TOPIC[st.topic].name : st.topic)) + ' · ' + DIFFS.find(d => d[0] === st.diff)[1] + ' · ' + st.minutes + ' minutes';
     const pl = $('#lobbyPlayers'); pl.innerHTML = ''; st.players.forEach(p => pl.appendChild(text('span', '', p.name + (p.host ? ' (host)' : ''))));
     $('#start').hidden = !st.isHost; $('#waitHost').hidden = st.isHost;
-    drawInvites();
+    $('#inviteBox').before($('#shareBox')); drawShare(); drawInvites();
   }
+  // 📣 Beau only: put a pop-up with a Join game button on everyone's screen
+  let isBeau = null;
+  async function drawShare() {
+    const box = $('#shareBox'); if (!st || !st.isHost) { box.hidden = true; return; }
+    if (isBeau === null) { isBeau = false; try { const j = window.ecLive ? await window.ecLive() : null; isBeau = !!(j && j.me && j.me.role === 'owner'); } catch (e) { isBeau = false; } }
+    box.hidden = !isBeau; if (!isBeau) return;
+    $('#shareBtn').textContent = st.sharing ? '🛑 Stop sharing' : '📣 Share to everyone’s screen';
+    $('#shareNote').textContent = st.sharing ? 'Everyone online sees a pop-up with a Join game button. It goes away when the game ends.' : 'Puts a pop-up with a Join game button on everyone’s screen (up to 100 players).';
+  }
+  $('#shareBtn').onclick = async () => {
+    const stop = !!st.sharing; $('#shareBtn').disabled = true;
+    const r = await api('/api/admin/game-share', 'POST', { code, stop }); $('#shareBtn').disabled = false;
+    if (!r.ok) return alert(r.data.error || 'Couldn’t share the game.');
+    st.sharing = !stop; drawShare(); if (window.ecNoticeCheck) window.ecNoticeCheck(); // the host doesn't need the pop-up
+  };
   $('#start').onclick = async () => { $('#start').disabled = true; await api('/api/game/' + code + '/start', 'POST', {}); $('#start').disabled = false; poll(); };
   $('#endBtn').onclick = async () => { if (!confirm('End the game for everyone now?')) return; await api('/api/game/' + code + '/end', 'POST', {}); poll(); };
 
@@ -260,7 +276,7 @@ select{font:inherit;color:var(--ink);background:var(--card);border:2px solid var
     $('#hudMode').textContent = M[0] + ' ' + M[1]; $('#hudScoreL').textContent = M[3];
     $('#hudScore').textContent = st.mode === 'parkour' ? (runDist() + ' / ' + st.finish + ' m') : me.score;
     $('#hudStreak').textContent = me.streak; const mine = st.players.find(p => p.me); $('#hudRank').textContent = mine ? mine.rank + ' / ' + st.players.length : '–';
-    $('#endBtn').hidden = !st.isHost;
+    $('#endBtn').hidden = !st.isHost; $('#endBtn').before($('#shareBox')); drawShare();
     const b = $('#board'); b.innerHTML = '';
     st.players.slice(0, 10).concat(mine && mine.rank > 10 ? [mine] : []).forEach(p => {
       const r = el('div', 'row2' + (p.me ? ' me' : '')); r.append(text('span', 'rk', p.rank <= 3 ? ['🥇', '🥈', '🥉'][p.rank - 1] : String(p.rank)), text('span', 'nm', p.name + (p.me ? ' (you)' : '')), text('span', 'sc', st.mode === 'parkour' ? (p.done ? '🏁' : (p.me ? runDist() : p.dist) + ' m') : String(p.score)));

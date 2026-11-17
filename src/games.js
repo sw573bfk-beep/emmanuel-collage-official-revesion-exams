@@ -72,7 +72,7 @@ export async function handleGames(req, env, url, user) {
     const n = await env.DB.prepare('SELECT COUNT(*) AS n FROM game_players WHERE game_id = ?').bind(g.id).first();
     const already = await env.DB.prepare('SELECT 1 FROM game_players WHERE game_id = ? AND user_id = ?').bind(g.id, me).first();
     if (!already) {
-      if (n.n >= 40) return err(403, 'That game is full (40 players).');
+      const cap = g.shared ? 100 : 40; if (n.n >= cap) return err(403, 'That game is full (' + cap + ' players).');
       await env.DB.batch([env.DB.prepare('INSERT INTO game_players (game_id, user_id, name, joined_at) VALUES (?, ?, ?, ?)').bind(g.id, me, user.username, now()), event(env, g, user.username + ' joined')]);
     }
     return json({ ok: true, code });
@@ -95,7 +95,8 @@ export async function handleGames(req, env, url, user) {
     const players = ps.results.map(r => ({ id: r.user_id, name: r.name, score: r.score, dist: r.dist, correct: r.correct, answered: r.answered, streak: r.streak, done: r.finished_at || null, host: r.user_id === g.host_id, me: r.user_id === me }));
     players.sort(g.mode === 'parkour' ? (a, b) => (a.done && b.done ? a.done - b.done : a.done ? -1 : b.done ? 1 : b.dist - a.dist) : (a, b) => b.score - a.score || b.correct - a.correct);
     players.forEach((x, i) => { x.rank = i + 1; });
-    return json({ code: g.code, subject: g.subject, topic: g.topic, diff: g.diff, mode: g.mode, minutes: g.minutes, status: g.status, isHost: g.host_id === me, now: Date.now(), endsAt: g.ends_at ? g.ends_at * 1000 : null, finish: FINISH,
+    const sh = g.host_id === me && g.shared ? await env.DB.prepare('SELECT 1 FROM broadcasts WHERE game = ? AND ends_at > ?').bind(g.code, now()).first() : null;
+    return json({ sharing: !!sh, code: g.code, subject: g.subject, topic: g.topic, diff: g.diff, mode: g.mode, minutes: g.minutes, status: g.status, isHost: g.host_id === me, now: Date.now(), endsAt: g.ends_at ? g.ends_at * 1000 : null, finish: FINISH,
       players, events: ev.results.reverse(), me: { score: p.score, energy: p.energy, dist: p.dist, streak: p.streak, chest: !!p.chest, correct: p.correct, answered: p.answered, done: p.finished_at || null } });
   }
   if (method !== 'POST') return err(404, 'Not found');

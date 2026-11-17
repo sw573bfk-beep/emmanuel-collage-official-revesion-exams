@@ -38,7 +38,7 @@
     hide(); shown = n;
     box = document.createElement('div'); box.className = 'ec-notice'; box.setAttribute('role', 'alert'); box.setAttribute('aria-live', 'assertive');
     const top = document.createElement('div'); top.className = 'ec-n-top';
-    const t = document.createElement('span'); t.className = 'ec-n-ttl'; t.textContent = '📣 Message from Beau';
+    const t = document.createElement('span'); t.className = 'ec-n-ttl'; t.textContent = n.game ? '🎮 Game from Beau' : '📣 Message from Beau';
     const x = document.createElement('button'); x.type = 'button'; x.className = 'ec-n-x'; x.textContent = '✕'; x.setAttribute('aria-label', 'Close this message'); x.onclick = () => (n.rate ? snooze(n.id) : close(n.id));
     top.append(t, x);
     const b = document.createElement('div'); b.className = 'ec-n-body'; b.textContent = n.body;
@@ -46,6 +46,7 @@
     const bar = document.createElement('div'); bar.className = 'ec-n-bar'; const fill = document.createElement('i'); bar.appendChild(fill);
     box.append(top, b);
     if (n.rate) { const row = document.createElement('div'); row.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding-bottom:4px'; const go = document.createElement('button'); go.type = 'button'; go.className = 'btn sm'; go.textContent = '⭐ Rate now'; go.onclick = () => { snooze(n.id); if (window.ecRateOpen) window.ecRateOpen(); }; const sm = document.createElement('span'); sm.style.cssText = 'font-size:.8125rem;color:var(--muted,#555)'; sm.textContent = 'This comes back every hour until you’ve rated the site.'; row.append(go, sm); box.appendChild(row); }
+    if (n.game) { const row = document.createElement('div'); row.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding:2px 0 4px'; const go = document.createElement('a'); go.className = 'btn'; go.href = '/play/?code=' + encodeURIComponent(n.game); go.textContent = '🎮 Join game'; go.style.cssText = 'font-size:1.05rem;padding:10px 22px;text-decoration:none'; go.onclick = () => { ls('ec-notice-closed', [n.id].concat(closed()).slice(0, 20).join(',')); }; const c = document.createElement('span'); c.style.cssText = 'font-family:var(--f-mono,monospace);font-size:.95rem;color:var(--muted,#555)'; c.textContent = 'Code ' + n.game; row.append(go, c); box.appendChild(row); }
     box.append(l, bar); document.body.appendChild(box);
     const total = Math.max(1, n.ends - n.at);
     const step = () => {
@@ -59,7 +60,8 @@
     const j = window.ecLive ? await window.ecLive(force) : null; if (!j) return;
     skew = j.now - Date.now() / 1000;
     const n = j.notice;
-    if (!n || (n.rate ? snoozed(n.id) : closed().includes(String(n.id)))) { if (shown) hide(); return; } // latecomers see it too, until they close it
+    const inIt = n && n.game && location.pathname.startsWith('/play') && new URLSearchParams(location.search).get('code') === n.game; // already in that game
+    if (!n || inIt || (n.rate ? snoozed(n.id) : closed().includes(String(n.id)))) { if (shown) hide(); return; } // latecomers see it too, until they close it
     show(n);
   }
   const go = () => { check(); setInterval(() => { if (document.visibilityState === 'visible') check(); }, 60000); document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') check(); }); };
