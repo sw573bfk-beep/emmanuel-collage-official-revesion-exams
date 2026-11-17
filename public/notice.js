@@ -1,12 +1,12 @@
 /* EC Revisions: "Message everyone" pop-ups from Beau. Loaded on every page by theme.js.
-   A pop-up only shows for people who already had the site open when Beau sent it, stays until its
-   time runs out (or Beau stops it), and can be closed with ✕. Checks once a minute (shared with the other background checks). */
+   A pop-up shows for everyone who has the site open, or opens it, before its time runs out (or Beau
+   stops it). Each person can close it with ✕ and then won't see that one again. Checks once a minute (shared with the other background checks). */
 (() => {
   if (window.ecNotice) return; window.ecNotice = true;
   const ss = (k, v) => { try { if (v === undefined) return sessionStorage.getItem(k); sessionStorage.setItem(k, v); } catch (e) { return null; } };
   const ls = (k, v) => { try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); } catch (e) { return null; } };
   // when this tab first reached the site (server time): pop-ups sent before that aren't for this tab
-  let onSince = +ss('ec-on-since') || 0, skew = 0, shown = null, box = null, tick = null;
+  let skew = 0, shown = null, box = null, tick = null;
   const closed = () => (ls('ec-notice-closed') || '').split(',').filter(Boolean);
   const close = id => { ls('ec-notice-closed', [id].concat(closed()).slice(0, 20).join(',')); hide(); };
   const serverNow = () => Date.now() / 1000 + skew;
@@ -53,9 +53,8 @@
   async function check(force) {
     const j = window.ecLive ? await window.ecLive(force) : null; if (!j) return;
     skew = j.now - Date.now() / 1000;
-    if (!onSince) { onSince = j.now; ss('ec-on-since', String(onSince)); }
     const n = j.notice;
-    if (!n || n.at < onSince - 2 || closed().includes(String(n.id))) { if (shown) hide(); return; }
+    if (!n || closed().includes(String(n.id))) { if (shown) hide(); return; } // latecomers see it too, until they close it
     show(n);
   }
   const go = () => { check(); setInterval(() => { if (document.visibilityState === 'visible') check(); }, 60000); document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') check(); }); };
