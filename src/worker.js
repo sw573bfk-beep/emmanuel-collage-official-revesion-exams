@@ -172,7 +172,7 @@ async function liveChat(env, user) {
   return { requests: req_.results[0].n, unreadDm: dm.results[0].n, beau: beau.results[0].n, admin, muted: !!(mu.results[0] || {}).chat_muted };
 }
 // In study mode: no chatting with friends and no feedback form. Messaging Beau and looking at the leaderboard still work.
-const STUDY_BLOCKED = p => p.startsWith('/api/chat/') || p === '/api/feedback' || p === '/api/survey';
+const STUDY_BLOCKED = p => p.startsWith('/api/chat/') || p === '/api/feedback'; // ⭐ Rate the site still works in study mode
 // ---------- limits per device (IP address, only ever stored as a short hash) ----------
 const ipOf = req => req.headers.get('cf-connecting-ip') || 'local';
 const ipKey = async req => (await sha256('ec-ip:' + ipOf(req))).slice(0, 20);
