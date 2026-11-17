@@ -199,6 +199,7 @@ html.ec-focus-block .brand>p{display:none}
 .ec-rate{position:fixed;top:calc(10px + env(safe-area-inset-top,0px));left:12px;z-index:2400;display:inline-flex;align-items:center;gap:6px;font:inherit;font-weight:700;font-size:.9375rem;min-height:38px;border-radius:999px;padding:4px 14px;border:1.5px solid var(--warn,#7f4c00);background:var(--warn-soft,#fdf0d9);color:var(--ink,#111);cursor:pointer;box-shadow:0 2px 8px rgb(0 0 0 / .08)}
 .ec-rate:hover{filter:brightness(.97)}
 .ec-rate.mini{padding:0;width:38px;justify-content:center;font-size:1.1rem}.ec-rate.mini .t{display:none}
+.ec-rate.abs{position:absolute}
 html.ec-rate-on body{padding-top:48px}
 .ec-rate-pop{position:fixed;inset:0;z-index:2600;display:grid;place-items:center;padding:14px;background:rgb(10 14 30 / .55);overflow-y:auto}
 .ec-rate-box{width:min(100%,520px);max-height:calc(100vh - 28px);overflow-y:auto;background:var(--card,#fff);color:var(--ink,#111);border-radius:18px;padding:20px;display:flex;flex-direction:column;gap:12px;box-shadow:0 20px 50px rgb(0 0 0 / .3)}
@@ -261,6 +262,7 @@ html.ec-rate-on body{padding-top:48px}
     const b = mk('button', 'ec-rate'); b.type = 'button'; b.id = 'ecRateBtn'; b.onclick = open; b.setAttribute('aria-label', 'Rate the site');
     b.append(document.createTextNode('⭐'), mk('span', 't', ' Rate the site'));
     document.body.appendChild(b); document.documentElement.classList.add('ec-rate-on');
+    if (location.pathname.startsWith('/admin')) { b.classList.add('abs'); return; } // admin: stays at the top so it never covers the section buttons
     // when you scroll down it shrinks to just ⭐, so it doesn't cover the tabs
     const sz = () => b.classList.toggle('mini', window.scrollY > 60); window.addEventListener('scroll', sz, { passive: true }); sz();
   };

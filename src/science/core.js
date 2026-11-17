@@ -326,6 +326,7 @@ function checkAnswer(Q, input) {
         if (!g) return { ok: false, msg: 'Write it like: magnesium + oxygen → magnesium oxide (use → or ->).', bad: true };
         const R = sameTerms(g.r, Q.ans.r), P = sameTerms(g.p, Q.ans.p);
         if (R && P) return { ok: true };
+        if (g.r.includes('air') && sameTerms(g.r.map(x => x === 'air' ? 'oxygen' : x), Q.ans.r) && P) return { ok: false, bad: true, msg: 'Nearly! Write <b>oxygen</b> instead of air: it’s the oxygen in the air that reacts.' };
         if (sameTerms(g.r, Q.ans.p) && sameTerms(g.p, Q.ans.r)) return { ok: false, msg: 'Your sides are swapped: reactants go on the left of the arrow, products on the right.' };
         if (R) return { ok: false, msg: 'Your reactants are right; check the products.' };
         if (P) return { ok: false, msg: 'Your products are right; check the reactants.' };
@@ -508,10 +509,11 @@ function normTerm(t) {
   t = t.replace(/\b(solid|liquid|gases|gas|gaseous|aqueous|solution|dissolved|metal|powder|vapour|vapor|molecules?|the|some|a|an|in|of)\b/g, ' ').replace(/[^a-z ]/g, ' ').replace(/\s+/g, ' ').trim();
   return t;
 }
-function splitTerms(side) { return String(side).split(/\+|,|;|\band\b|&/i).map(normTerm).filter(Boolean); }
+const ENERGY_TERM = /^(?:energy|heat|light|sound|heat energy|light energy|thermal energy|chemical energy|heat light|light heat)$/;
+function splitTerms(side) { return String(side).split(/\+|,|;|\band\b|&/i).map(normTerm).filter(Boolean).filter(t => !ENERGY_TERM.test(t)); }
 function parseWordEq(raw) {
   const s = String(raw).replace(/[−–—]/g, '-');
-  const parts = s.split(/→|⟶|-+>|=+>|=|\bgives\b|\bproduces\b|\bmakes\b|\bforms\b|\byields\b/i);
+  const parts = s.split(/→|⟶|-+>|=+>|=|>|\b(?:gives?|produces?|makes?|forms?|yields?|becomes?|turns? into|react(?:s)? to (?:form|make|produce))\b/i);
   if (parts.length !== 2) return null;
   const r = splitTerms(parts[0]), p = splitTerms(parts[1]);
   if (!r.length || !p.length) return null;
@@ -522,7 +524,8 @@ function sameTerms(got, expected) {
   const exp = expected.map(e => (Array.isArray(e) ? e : [e]).map(normTerm));
   if (got.length !== exp.length) return false;
   const used = new Array(got.length).fill(false);
-  return exp.every(alts => { const i = got.findIndex((g, k) => !used[k] && alts.includes(g)); if (i < 0) return false; used[i] = true; return true; });
+  const ns = x => x.replace(/ /g, '');
+  return exp.every(alts => { const i = got.findIndex((g, k) => !used[k] && (alts.includes(g) || alts.some(a => ns(a) === ns(g)))); if (i < 0) return false; used[i] = true; return true; });
 }
 const eqText = (r, p) => r.map(x => Array.isArray(x) ? x[0] : x).join(' + ') + ' → ' + p.map(x => Array.isArray(x) ? x[0] : x).join(' + ');
 

@@ -393,7 +393,7 @@ gen('exoEndoFacts', 'C6', 'Exothermic and endothermic', () => {
 });
 
 /* ---------- C7 combustion ---------- */
-const FUELS = [['methane', ['methane', 'natural gas']], ['propane', ['propane']], ['butane', ['butane']], ['candle wax', ['wax', 'candle wax', 'paraffin wax']], ['petrol (octane)', ['petrol', 'octane']], ['ethanol', ['ethanol']], ['natural gas', ['natural gas', 'methane']], ['methanol', ['methanol']], ['hexane', ['hexane']], ['kerosene', ['kerosene', 'paraffin']], ['diesel', ['diesel']], ['glucose', ['glucose']], ['pentane', ['pentane']], ['LPG (liquefied petroleum gas)', ['lpg', 'liquefied petroleum gas', 'propane', 'butane']]];
+const FUELS = [['methane', ['methane', 'natural gas']], ['propane', ['propane']], ['butane', ['butane']], ['candle wax', ['wax', 'candle wax', 'paraffin wax', 'paraffin', 'candle']], ['petrol (octane)', ['petrol', 'octane']], ['ethanol', ['ethanol']], ['natural gas', ['natural gas', 'methane']], ['methanol', ['methanol']], ['hexane', ['hexane']], ['kerosene', ['kerosene', 'paraffin']], ['diesel', ['diesel']], ['glucose', ['glucose']], ['pentane', ['pentane']], ['LPG (liquefied petroleum gas)', ['lpg', 'liquefied petroleum gas', 'propane', 'butane']]];
 gen('combEq', 'C7', 'Combustion word equation', () => {
   const r = Math.random();
   if (r < 0.12) return { type: 'eq', q: '<b>Carbon</b> (charcoal) burns completely in oxygen. Write the word equation.', ans: { r: [['carbon', 'charcoal'], 'oxygen'], p: ['carbon dioxide'] }, ansText: 'carbon + oxygen → carbon dioxide', hint: 'Carbon contains no hydrogen, so no water is made.', sol: ['<b>carbon + oxygen → carbon dioxide</b>', 'There is no hydrogen in carbon, so there is no water product.'] };
