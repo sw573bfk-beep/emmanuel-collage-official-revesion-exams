@@ -5,7 +5,7 @@
 // s = { correct, answered, streak, hours, exams: [{n, p, lim}], explorer, booklet, friends, points,
 //       weekRank, allRank, mathsCorrect, sciCorrect, tester, teacher, role, owner }
 
-const R = (id, k, v, name, need, test) => ({ id, k, v, name, need, test });
+const R = (id, k, v, name, need, test, special) => ({ id, k, v, name, need, test, special: !!special });
 const ge = (have, n) => [Math.min(have || 0, n), n];
 const flag = b => [b ? 1 : 0, 1];
 const top = (rank, n) => [rank && rank <= n ? 1 : 0, 1];
@@ -66,7 +66,9 @@ export const REWARDS = [
   R('t_tester', 't', 'Official Tester', 'Official Tester', 'Official testers only', s => flag(s.tester)),
   R('t_teacher', 't', 'Teacher', 'Teacher', 'Teachers only', s => flag(s.teacher)),
   R('t_admin', 't', 'Admin', 'Admin', 'Admins only', s => flag(s.role)),
-  R('t_owner', 't', 'Owner', 'Owner', 'Beau only', s => flag(s.owner))
+  R('t_owner', 't', 'Owner', 'Owner', 'Beau only', s => flag(s.owner)),
+  // ✨ special titles Beau gives to one person: hidden from everyone who hasn't been given them
+  R('t_tizz', 't', 'Tizz Boy', 'Tizz Boy', 'A special title from Beau', () => [0, 1], true)
 ];
 const BY_ID = Object.fromEntries(REWARDS.map(r => [r.id, r]));
 export const FREE = new Set(REWARDS.filter(r => r.need === 'Free').map(r => r.id));
@@ -78,7 +80,7 @@ export const savedRewards = json => new Set((parse(json, []) || []).filter(id =>
 
 // every reward with its progress. kept = what this person has unlocked before (stays unlocked).
 export function rewardStatus(s, kept) {
-  return REWARDS.map(r => {
+  return REWARDS.filter(r => !r.special || (kept && kept.has(r.id))).map(r => {
     let [have, need] = r.test(s); const earned = have >= need || (kept && kept.has(r.id));
     if (earned) have = need;
     return { id: r.id, k: r.k, v: r.v, name: r.name, need: r.need, have, needN: need, earned };
