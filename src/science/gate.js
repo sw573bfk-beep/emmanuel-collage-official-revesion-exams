@@ -31,6 +31,7 @@
       if (r.status === 401) { location.replace('/?next=science'); return; }
       if (!r.ok) throw new Error('save');
       status('Saved');
+      if (!keepalive) r.json().then(j => { if (j && j.rewards && window.ecRewardCheck) window.ecRewardCheck(); }).catch(() => {}); // 🎉 a reward just unlocked
     } catch (e) { dirty = true; status('Not saved yet, retrying'); clearTimeout(timer); timer = setTimeout(save, 8000); }
     finally { saving = false; if (dirty && !timer) timer = setTimeout(save, 1500); }
   }

@@ -75,6 +75,36 @@
     nb.hidden = !n; nb.textContent = n > 99 ? '99+' : n; a.setAttribute('aria-label', (j.me.admin ? 'Admin dashboard' : 'My profile') + (n ? ', ' + n + ' new' : ''));
   };
   window.ecProfileCheck = profile;
+  // 🎉 "New reward" pop-up: one at a time, a few seconds each, then they're marked as seen
+  let rewardShowing = false;
+  const rewardPop = async () => {
+    if (rewardShowing) return; const j = await window.ecLive(); if (!j || !j.rewards || !j.rewards.length) return;
+    rewardShowing = true;
+    try { await fetch('/api/rewards/seen', { method: 'POST', credentials: 'same-origin', headers: { 'content-type': 'application/json' }, body: '{}' }); } catch (e) { /* offline */ }
+    if (!document.getElementById('ecRewardCss')) { const st = document.createElement('style'); st.id = 'ecRewardCss';
+      st.textContent = '.ec-reward{position:fixed;left:50%;bottom:calc(18px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:2550;width:min(400px,calc(100vw - 24px));display:flex;align-items:center;gap:12px;background:var(--card,#fff);color:var(--ink,#111);border:2.5px solid #e0a800;border-radius:16px;padding:12px 14px;box-shadow:0 12px 34px rgb(0 0 0 / .28);animation:ecRwIn .35s ease-out}'
+        + '.ec-reward .pic{flex:none;width:46px;height:46px;border-radius:50%;display:grid;place-items:center;font-size:1.7rem;background:var(--card-2,#f3f5f9)}.ec-reward .tx{flex:1;min-width:0}.ec-reward b{display:block;font-size:1rem}.ec-reward span{font-size:.9375rem;color:var(--muted,#555)}'
+        + '.ec-reward button{flex:none;border:0;background:none;color:var(--ink,#111);font-size:1.2rem;cursor:pointer;width:36px;height:36px;border-radius:10px}@keyframes ecRwIn{from{opacity:0;transform:translate(-50%,20px)}to{opacity:1;transform:translateX(-50%)}}@media (prefers-reduced-motion:reduce){.ec-reward{animation:none}}';
+      document.head.appendChild(st); }
+    const KIND = { a: 'profile picture', f: 'frame', t: 'title' }, FR = { bronze: '🥉', silver: '🥈', gold: '🥇', diamond: '💎', fire: '🔥', rainbow: '🌈' };
+    for (const r of j.rewards.slice(0, 5)) {
+      await new Promise(done => {
+        const box = document.createElement('div'); box.className = 'ec-reward'; box.setAttribute('role', 'status');
+        const pic = document.createElement('span'); pic.className = 'pic'; pic.textContent = r.k === 'a' ? r.v : r.k === 'f' ? (FR[r.v] || '⭕') : '🏷️';
+        const tx = document.createElement('div'); tx.className = 'tx';
+        const b = document.createElement('b'); b.textContent = '🎉 New ' + KIND[r.k] + ': ' + r.name;
+        const w = document.createElement('span'); w.textContent = 'Why: ' + r.why.charAt(0).toLowerCase() + r.why.slice(1);
+        tx.append(b, w);
+        const x = document.createElement('button'); x.type = 'button'; x.textContent = '✕'; x.setAttribute('aria-label', 'Close');
+        box.append(pic, tx, x); document.body.appendChild(box);
+        const end = () => { clearTimeout(tm); box.remove(); setTimeout(done, 300); }; const tm = setTimeout(end, 6000); x.onclick = end;
+      });
+    }
+    rewardShowing = false;
+  };
+  window.ecRewardCheck = () => window.ecLive(true).then(rewardPop);
+  const startRewards = () => { if (location.pathname.startsWith('/admin')) return; rewardPop(); setInterval(() => { if (document.visibilityState === 'visible') rewardPop(); }, 60000); };
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', startRewards); else startRewards();
   const startProfile = () => { profile(); setInterval(() => { if (document.visibilityState === 'visible') profile(); }, 60000); };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', startProfile); else startProfile();
   // "not an official school site" + privacy link at the bottom of every page

@@ -40,7 +40,7 @@ import { handleCommunity, handleCommunityAdmin, addPoints, logBlocked, FAKE_NOTE
 import { TOPICS as MATHS_TOPICS } from './gen/maths-game.js';
 import { TOPICS as SCI_TOPICS } from './gen/sci-game.js';
 import { handleGames } from './games.js';
-import { rewardStatus, keepIds, canUse, lookView, lookIds, savedRewards } from './rewards.js';
+import { rewardStatus, keepIds, canUse, lookView, lookIds, savedRewards, rewardPopup } from './rewards.js';
 
 const HTML = 'text/html; charset=utf-8';
 const PAGES = {
@@ -296,9 +296,41 @@ async function startSession(env, userId, url, slot = 0, days = SESSION_DAYS) {
 }
 async function currentUser(req, env, slot = slotOf(req)) {
   const token = getCookie(req, sidName(slot)); if (!token || !/^[0-9a-f]{64}$/.test(token)) return null;
-  const row = await env.DB.prepare('SELECT u.id, u.username, u.prev_name, u.role, u.tester, u.teacher, u.focus_until, u.look, s.expires_at FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token_hash = ?').bind(await sha256(token)).first();
+  const row = await env.DB.prepare('SELECT u.id, u.username, u.prev_name, u.role, u.tester, u.teacher, u.focus_until, u.look, u.rewards_new, s.expires_at FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token_hash = ?').bind(await sha256(token)).first();
   if (!row || row.expires_at < now()) return null;
-  return { id: row.id, username: row.username, prevName: row.prev_name || null, role: row.role || null, tester: !!row.tester, teacher: !!row.teacher, focus_until: row.focus_until || 0, look: row.look || null, tokenHash: await sha256(token) };
+  return { id: row.id, username: row.username, prevName: row.prev_name || null, role: row.role || null, tester: !!row.tester, teacher: !!row.teacher, focus_until: row.focus_until || 0, look: row.look || null, rewardsNew: row.rewards_new || null, tokenHash: await sha256(token) };
+}
+// 🎉 look for newly unlocked rewards (at most every 90 seconds per person): after saving answers and while studying.
+// Same numbers as the profile, minus leaderboard ranks (those unlock when the profile or leaderboard is opened).
+// The very first check for someone just records what they already have, without pop-ups.
+async function checkRewards(env, user) {
+  if (isAdmin(user, env)) return;
+  const t = now(), me = user.id;
+  const u = await env.DB.prepare('SELECT rewards, rewards_at, rewards_new FROM users WHERE id = ?').bind(me).first();
+  if (!u || t - (u.rewards_at || 0) < 90) return;
+  const [days, prog, pts, fr] = await env.DB.batch([
+    env.DB.prepare('SELECT day, SUM(seconds) AS s FROM daily WHERE user_id = ? GROUP BY day ORDER BY day DESC LIMIT 400').bind(me),
+    env.DB.prepare("SELECT subject, data FROM progress WHERE user_id = ? AND subject IN ('maths', 'science')").bind(me),
+    env.DB.prepare('SELECT SUM(correct) AS c, SUM(booklet) AS b, SUM(qpts) AS q FROM points_daily WHERE user_id = ?').bind(me),
+    env.DB.prepare("SELECT COUNT(*) AS n FROM dm_threads WHERE status = 'active' AND (a = ?1 OR b = ?1)").bind(me)
+  ]);
+  const D = Object.fromEntries(days.results.map(r => [r.day, r.s || 0])), today = dayKey(t), back = n => dayKey(t - n * 86400);
+  let streak = 0; for (let i = (D[today] || 0) >= 60 ? 0 : 1; i < 400 && (D[back(i)] || 0) >= 60; i++) streak++;
+  const secs = days.results.reduce((a, r) => a + (r.s || 0), 0);
+  const st = { answered: 0, correct: 0, booklet: 0, exams: [], tried: { maths: new Set(), science: new Set() }, by: {} };
+  prog.results.forEach(r => { let d = {}; try { d = JSON.parse(r.data); } catch { d = {}; } const m = mathsStats(d); st.answered += m.answered; st.correct += m.correct; st.booklet += m.bookletDone; st.by[r.subject] = m.correct;
+    (Array.isArray(d.exams) ? d.exams : []).forEach(e => st.exams.push(e)); Object.entries(d.tstats || {}).forEach(([id, x]) => { if (x && x.a > 0 && st.tried[r.subject]) st.tried[r.subject].add(id); }); });
+  const P = pts.results[0] || {};
+  const rs = { correct: P.c || 0, answered: st.answered, streak, hours: secs / 3600, exams: st.exams,
+    explorer: Math.max(st.tried.maths.size / MATHS_TOPICS.length, st.tried.science.size / SCI_TOPICS.length) >= 1, booklet: st.booklet, friends: fr.results[0].n,
+    points: Math.floor(secs / 60) + (P.q || 0) + (P.b || 0), weekRank: 0, allRank: 0, mathsCorrect: st.by.maths || 0, sciCorrect: st.by.science || 0,
+    tester: user.tester, teacher: user.teacher, role: !!staffRole(user, env), owner: false };
+  const kept = savedRewards(u.rewards), keepNow = keepIds(rewardStatus(rs, kept)), fresh = keepNow.filter(id => !kept.has(id));
+  if (!fresh.length) { await env.DB.prepare('UPDATE users SET rewards_at = ? WHERE id = ?').bind(t, me).run(); return false; }
+  let pending = []; try { pending = JSON.parse(u.rewards_new || '[]') || []; } catch { pending = []; }
+  const show = u.rewards == null ? pending : [...new Set([...pending, ...fresh])]; // first check ever: no pop-ups for what they already had
+  await env.DB.prepare('UPDATE users SET rewards = ?, rewards_new = ?, rewards_at = ? WHERE id = ?').bind(JSON.stringify([...new Set([...kept, ...keepNow])]), show.length ? JSON.stringify(show) : null, t, me).run();
+  return show.length > 0;
 }
 async function readJson(req) {
   if (!(req.headers.get('content-type') || '').includes('application/json')) throw new Error('Expected JSON');
@@ -400,6 +432,7 @@ async function handleApi(req, env, url) {
       out.chat = await liveChat(env, user);
       if (out.study.study) { out.chat.requests = 0; out.chat.unreadDm = 0; } // in study mode only Beau's messages count
       out.focus = focusOf(user);
+      if (user.rewardsNew) { try { out.rewards = JSON.parse(user.rewardsNew).map(rewardPopup).filter(Boolean); } catch { out.rewards = []; } }
       if (out.focus.on) { out.chat.requests = 0; out.chat.unreadDm = 0; out.chat.beau = 0; } // 🎯 focus mode: no red numbers at all
       // a "rate the site" reminder: people who've already sent a ⭐ rating don't get it any more
       if (out.notice && out.notice.remind) {
@@ -411,6 +444,8 @@ async function handleApi(req, env, url) {
     return json(out);
   }
   if (!user) return err(401, 'Not logged in');
+  // 🎉 the reward pop-ups have been shown
+  if (path === '/api/rewards/seen' && method === 'POST') { await env.DB.prepare('UPDATE users SET rewards_new = NULL WHERE id = ?').bind(user.id).run(); return json({ ok: true }); }
   // 🎨 choose your picture, frame and title (only from what you've unlocked)
   if (path === '/api/look' && method === 'POST') {
     let b; try { b = await readJson(req); } catch { return err(400, 'Bad request'); }
@@ -535,7 +570,8 @@ async function handleApi(req, env, url) {
       points: lb.all ? lb.all.points : 0, weekRank: lb.week ? lb.week.rank : 0, allRank: lb.all ? lb.all.rank : 0, mathsCorrect: stats.bySubj.maths || 0, sciCorrect: stats.bySubj.science || 0,
       tester: user.tester, teacher: user.teacher, role: !!role_, owner: isAdmin(user, env) };
     const rewards = rewardStatus(rs, kept), keepNow = keepIds(rewards);
-    if (keepNow.some(id => !kept.has(id))) await env.DB.prepare('UPDATE users SET rewards = ? WHERE id = ?').bind(JSON.stringify([...new Set([...kept, ...keepNow])]), me).run();
+    const fresh = keepNow.filter(id => !kept.has(id));
+    if (fresh.length) await env.DB.prepare('UPDATE users SET rewards = ?, rewards_new = ? WHERE id = ?').bind(JSON.stringify([...new Set([...kept, ...keepNow])]), u0.rewards == null ? null : JSON.stringify(fresh), me).run();
     const NOTE = { '[unlock-request]': '🔔 You asked to unlock the booklet', '[unlock-allowed]': '✅ Beau unlocked the booklet', '[unlock-declined]': 'Beau said not yet', '[chat-request]': '🙋 You asked to use Chat', '[chat-allowed]': '✅ Beau let you into Chat', '[chat-declined]': 'Beau said not yet', '[chat-removed]': 'Chat turned off', '[study-request]': '📚 You asked to leave study mode', '[study-allowed]': '✅ Study mode off', '[study-declined]': 'Beau said not yet' };
     const b0 = beau.results[0];
     const tch = await env.DB.prepare('SELECT u.username AS name FROM teacher_students ts JOIN users u ON u.id = ts.teacher_id WHERE ts.student_id = ? ORDER BY u.username').bind(me).all();
@@ -569,6 +605,7 @@ async function handleApi(req, env, url) {
     const stmts = [env.DB.prepare('UPDATE users SET last_seen = ?, last_subject = ?' + (add > 0 ? ', study_clock = ?' : '') + ' WHERE id = ?').bind(...(add > 0 ? [t, subject, t, user.id] : [t, subject, user.id]))];
     if (add > 0) stmts.push(env.DB.prepare('INSERT INTO daily (user_id, day, subject, seconds) VALUES (?, ?, ?, ?) ON CONFLICT(user_id, day, subject) DO UPDATE SET seconds = seconds + excluded.seconds').bind(user.id, dayKey(t), subject, add));
     await env.DB.batch(stmts);
+    if (add > 0) await checkRewards(env, user); // study time can unlock rewards too
     return json({ ok: true, counted: add });
   }
 
@@ -760,7 +797,8 @@ async function handleApi(req, env, url) {
       }
       if (writes.length) await env.DB.batch(writes);
       await addPoints(env, user.id, { correct: 0, bookletRight: 0 }, { correct: credited, bookletRight: 0 }, Math.max(0, now_.bookletRight - best), qpts);
-      return json({ ok: true, updated_at: t });
+      const newRewards = await checkRewards(env, user);
+      return json({ ok: true, updated_at: t, rewards: !!newRewards });
     }
   }
 

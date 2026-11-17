@@ -100,4 +100,12 @@ export function lookView(json) {
   const out = { a: a && a.k === 'a' ? a.v : null, f: f && f.k === 'f' && f.v !== 'none' ? f.v : null, t: t && t.k === 't' && t.v ? t.v : null };
   return out.a || out.f || out.t ? out : null;
 }
+// 🎉 what the pop-up says: "You got 50 answers right."
+const PAST = [[/^Get /, 'You got '], [/^Study /, 'You studied '], [/^Answer /, 'You answered '], [/^Finish /, 'You finished '], [/^Score /, 'You scored '], [/^Practise /, 'You practised '],
+  [/^Mark /, 'You marked '], [/^Make /, 'You made '], [/^Have /, 'You have '], [/^Be /, 'You were '], [/^Earn /, 'You earned ']];
+export function rewardPopup(id) {
+  const r = BY_ID[id]; if (!r) return null;
+  let why = r.need; for (const [re, to] of PAST) if (re.test(why)) { why = why.replace(re, to); break; }
+  return { id, k: r.k, v: r.v, name: r.name, why: why.replace(/^You were be /, 'You were ') + '.' };
+}
 export const lookIds = json => { const o = parse(json, null); return o && typeof o === 'object' ? { a: o.a || 'a_smile', f: o.f || 'f_none', t: o.t || 't_none' } : { a: null, f: 'f_none', t: 't_none' }; };
