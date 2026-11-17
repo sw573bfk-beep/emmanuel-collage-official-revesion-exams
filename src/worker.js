@@ -225,6 +225,7 @@ async function cfUsage(env) {
 }
 const PBKDF2_ITERATIONS = 100000; // the maximum Workers allows
 const SUBJECTS = new Set(['maths', 'science', 'english']);
+const TOPIC_DAY_MAX = 25; // right answers per topic per day that earn leaderboard points
 const MAX_PROGRESS_BYTES = 256 * 1024;
 // Names: 2–30 characters, letters, numbers, spaces and ' . _ - (so real names like "Sam O'Neil" work).
 const USERNAME_RE = /^[A-Za-z0-9][A-Za-z0-9 '._-]{1,29}$/;
@@ -726,7 +727,7 @@ async function handleApi(req, env, url) {
       if (!body || typeof body.data !== 'object' || Array.isArray(body.data)) return err(400, 'Bad request');
       const text = JSON.stringify(body.data); if (text.length > MAX_PROGRESS_BYTES) return err(413, 'Progress is too large');
       const t = now();
-      const old = await env.DB.prepare('SELECT data FROM progress WHERE user_id = ? AND subject = ?').bind(user.id, subject).first();
+      const old = await env.DB.prepare('SELECT data, updated_at FROM progress WHERE user_id = ? AND subject = ?').bind(user.id, subject).first();
       let before = null; try { before = old ? JSON.parse(old.data) : null; } catch { before = null; }
       await env.DB.prepare('INSERT INTO progress (user_id, subject, data, updated_at) VALUES (?, ?, ?, ?) ON CONFLICT(user_id, subject) DO UPDATE SET data = excluded.data, updated_at = excluded.updated_at').bind(user.id, subject, text, t).run();
       if (subject === 'english') return json({ ok: true, updated_at: t }); // English: quiz, flashcards and drafts (points come from study time)
@@ -735,7 +736,27 @@ async function handleApi(req, env, url) {
       const bb = await env.DB.prepare('SELECT best FROM booklet_best WHERE user_id = ? AND subject = ?').bind(user.id, subject).first();
       const best = bb ? bb.best : was.bookletRight;
       if (!bb || now_.bookletRight > best) await env.DB.prepare('INSERT INTO booklet_best (user_id, subject, best) VALUES (?, ?, ?) ON CONFLICT(user_id, subject) DO UPDATE SET best = MAX(best, excluded.best)').bind(user.id, subject, Math.max(best, now_.bookletRight)).run();
-      await addPoints(env, user.id, was, now_, Math.max(0, now_.bookletRight - best));
+      // right answers that earn points: per topic, only answers beyond the most ever saved for that topic (so nothing
+      // counts twice), at most 25 per topic per day, and no faster than about one every 3 seconds since the last save
+      const day = dayKey(t), tsNow = (body.data && body.data.tstats) || {};
+      const [bestRows, dayRows] = await env.DB.batch([
+        env.DB.prepare('SELECT topic, best FROM topic_best WHERE user_id = ? AND subject = ?').bind(user.id, subject),
+        env.DB.prepare('SELECT topic, n FROM topic_daily WHERE user_id = ? AND day = ? AND subject = ?').bind(user.id, day, subject)
+      ]);
+      const BEST = Object.fromEntries(bestRows.results.map(r => [r.topic, r.best])), DAY = Object.fromEntries(dayRows.results.map(r => [r.topic, r.n]));
+      const tsBefore = (before && before.tstats) || {};
+      let budget = old ? Math.min(100, Math.ceil((t - (old.updated_at || 0)) / 3) + 2) : 20;
+      const writes = []; let credited = 0;
+      for (const [topic, st] of Object.entries(tsNow)) {
+        if (!/^[A-Za-z0-9]{1,6}$/.test(topic) || !st) continue;
+        const c = Math.max(0, Math.floor(+st.c || 0)), top = Math.max(BEST[topic] ?? 0, Math.floor(+((tsBefore[topic] || {}).c) || 0));
+        if (c <= top) continue;
+        const give = Math.max(0, Math.min(c - top, TOPIC_DAY_MAX - (DAY[topic] || 0), budget));
+        writes.push(env.DB.prepare('INSERT INTO topic_best (user_id, subject, topic, best) VALUES (?, ?, ?, ?) ON CONFLICT(user_id, subject, topic) DO UPDATE SET best = MAX(best, excluded.best)').bind(user.id, subject, topic, c));
+        if (give > 0) { credited += give; budget -= give; writes.push(env.DB.prepare('INSERT INTO topic_daily (user_id, day, subject, topic, n) VALUES (?, ?, ?, ?, ?) ON CONFLICT(user_id, day, subject, topic) DO UPDATE SET n = n + excluded.n').bind(user.id, day, subject, topic, give)); }
+      }
+      if (writes.length) await env.DB.batch(writes);
+      await addPoints(env, user.id, { correct: 0, bookletRight: 0 }, { correct: credited, bookletRight: 0 }, Math.max(0, now_.bookletRight - best));
       return json({ ok: true, updated_at: t });
     }
   }
