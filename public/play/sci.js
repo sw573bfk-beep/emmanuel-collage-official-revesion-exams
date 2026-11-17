@@ -1583,6 +1583,32 @@ function pickPractice(tid, diff, type) {
 }
 function makeLong(id) { const L = LONG[id]; const q = L.fn(); q.type = 'long'; q.gen = id; q.topic = L.t; q.gname = L.name; q.diff = L.d; return q; }
 
+// 🔍 Long responses: the site checks the answer for key words from each marking point, so leaderboard points can't be
+// earned by typing anything and ticking every box. Key words come from the marking point itself (no lists to keep).
+const KW_SKIP = new Set('says,say,states,state,stated,gives,give,given,mentions,mention,uses,use,using,correct,correctly,explains,explain,explained,links,link,identifies,identify,writes,write,shows,show,describes,describe,includes,include,names,name,with,that,this,from,they,their,them,there,then,than,what,when,which,where,into,onto,your,about,piece,example,examples,specific,like,also,only,just,each,both,does,doesn,have,been,being,were,will,would,should,could,because,reason,reasons,answer,answers,form,forms,point,points,number,numbers,result,mark,marks,given,first,second,other,another,same,more,most,less,very,usually,easily,still,some,such,well,make,makes,made,sets,set,deals,deal,dealt,following,clear,clearly,good,right,whole,part,changes,change,happens,happen,instead,before,after,while,whether,either,neither,makes,need,needs,must,can,cannot,can’t,isn,isn’t,not,the,and,for,are,its,it’s,was,has,had,how,why,who,all,any,one,two,too,use'.split(','));
+const kwNorm = t => String(t).toLowerCase().replace(/<[^>]*>/g, ' ').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&amp;/g, '&').replace(/−/g, '-').replace(/[’']/g, '');
+const kwStem = w => w.length > 6 ? w.slice(0, 6) : w;
+const KW_SHORT = new Set(['sss', 'sas', 'asa', 'aas', 'rhs', 'acid', 'salt', 'rust', 'heat', 'gas']); // short words that matter
+function kwOf(point) {
+  const t = kwNorm(point).replace(/\(e\.g\.[^)]*\)/g, ' '); // examples in brackets are optional
+  const words = (t.match(/[a-z]+|-?\d+(?:\.\d+)?/g) || []).filter(w => /\d/.test(w) || (w.length >= 4 && !KW_SKIP.has(w)));
+  const syms = (t.match(/[<>≤≥]/g) || []);
+  return [...new Set(words.map(w => /\d/.test(w) ? w : kwStem(w)))].concat([...new Set(syms)]);
+}
+// the key words of the model answer that aren't already in the question (so copying the question doesn't count)
+function kwTerms(model, question) {
+  const qset = new Set(kwOf(question)), seen = new Set(), out = [];
+  const raw = kwNorm(model).replace(/\(e\.g\.[^)]*\)/g, ' ').match(/[a-z]+|-?\d+(?:\.\d+)?|[<>≤≥]/g) || [];
+  raw.forEach(w => { const ok = /\d|[<>≤≥]/.test(w) || KW_SHORT.has(w) || (w.length >= 4 && !KW_SKIP.has(w)); if (!ok) return; const k = /\d|[<>≤≥]/.test(w) ? w : kwStem(w); if (qset.has(k) || seen.has(k)) return; seen.add(k); out.push({ k, w }); });
+  return out;
+}
+// which of those key words the answer uses
+function kwMatch(answer, terms) {
+  const a = kwNorm(answer), aw = new Set((a.match(/[a-z]+/g) || []).map(kwStem)), an = new Set((a.match(/-?\d+(?:\.\d+)?/g) || []));
+  const hit = k => /^-?\d/.test(k) ? an.has(k) || an.has(k.replace(/^-/, '')) : /^[<>≤≥]$/.test(k) ? a.includes(k) || (k === '≥' && a.includes('>=')) || (k === '≤' && a.includes('<=')) : aw.has(k);
+  return terms.map(t => hit(t.k));
+}
+const kwWords = t => (String(t).match(/[A-Za-z0-9]+/g) || []).length;
 // Long response: write, then compare with the model answer and tick off the marking points.
 function longCard(Q, opts = {}) {
   const el = h('<div class="qcard"></div>');
@@ -1601,7 +1627,13 @@ function longCard(Q, opts = {}) {
       const got = $$('input:checked', pts).length, tot = Q.points.length; const ok = got / tot >= 0.6;
       $$('input', pts).forEach(x => x.disabled = true); $('[data-done]', mark).disabled = true;
       $('.lr-score', mark).innerHTML = '<div class="fb ' + (ok ? 'good' : 'bad') + '"><b>' + got + ' / ' + tot + ' marks.</b> ' + (ok ? 'Nice work.' : 'Compare your answer with the model answer and see what was missing.') + '</div>';
-      el.dataset.done = '1'; if (opts.onAnswer) opts.onAnswer(ok, false);
+      // leaderboard points come from the site's key-word check, not the ticks
+      const terms = kwTerms(Q.model, Q.q), found = kwMatch(ta.value, terms), nf = found.filter(Boolean).length, nt = terms.length, wc = kwWords(ta.value);
+      const need = nt >= 3 ? Math.max(2, Math.ceil(nt * 0.4)) : Math.min(nt, 1); // few key words in the model answer: ask for fewer
+      const earns = wc >= (nt ? 12 : 15) && nf >= need;
+      const missed = terms.filter((t, i) => !found[i]).map(t => t.w).slice(0, 8);
+      $('.lr-score', mark).insertAdjacentHTML('beforeend', '<div class="fb ' + (earns ? 'good' : 'info') + '">🔍 <b>Your answer uses ' + nf + ' of the ' + nt + ' key words in the model answer.</b> ' + (earns ? '✅ That earns leaderboard points.' : wc < 12 ? 'Write at least 12 words to earn leaderboard points.' : 'Use more of the key words to earn leaderboard points.') + (missed.length && !earns ? '<br><span class="small">Key words to try: ' + missed.map(esc).join(', ') + '</span>' : '') + '</div>');
+      el.dataset.done = '1'; if (opts.onAnswer) opts.onAnswer(earns, false);
     };
   };
   return { el, focus: () => ta.focus() };
