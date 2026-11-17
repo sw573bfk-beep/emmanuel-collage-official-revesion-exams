@@ -79,6 +79,9 @@ const SECURITY_HEADERS = { 'x-content-type-options': 'nosniff', 'referrer-policy
 const fp = t => { let h = 2166136261; for (let i = 0; i < t.length; i++) h = Math.imul(h ^ t.charCodeAt(i), 16777619); return (h >>> 0).toString(36); };
 const SHARED = ['/acct.js', '/theme.js', '/msg.js', '/help.js', '/tabbar.js', '/notice.js', '/study.js', '/site.css', '/theme.css'];
 const VER = Object.fromEntries(SHARED.map(f => [f, fp(PAGES[f][0])]));
+// theme.js loads notice.js and study.js, so its own fingerprint must change when they change too.
+// (Otherwise browsers keep an old theme.js for a week and it keeps loading the old study.js.)
+VER['/theme.js'] = fp(PAGES['/theme.js'][0] + VER['/notice.js'] + VER['/study.js']);
 const SHARED_RE = /(["'])\/(acct|theme|msg|help|tabbar|notice|study)\.js(?:\?v=[^"']*)?\1|(["'])\/(site|theme)\.css(?:\?v=[^"']*)?\3/g;
 const versioned = html => html.replace(SHARED_RE, (m, q1, js, q2, css) => js ? q1 + '/' + js + '.js?v=' + VER['/' + js + '.js'] + q1 : q2 + '/' + css + '.css?v=' + VER['/' + css + '.css'] + q2);
 const BODY = {};

@@ -191,16 +191,15 @@ html.ec-focus-block .brand>p{display:none}
 })();
 
 /* ⭐ Rate the site: a button at the top left of every page (when logged in). Stars plus four short questions
-   and "anything else". Beau reads them in Admin → ⭐ Site ratings. Shown everywhere (study mode too), hidden only in someone's own focus mode. */
+   and "anything else". Beau reads them in Admin → ⭐ Site ratings. Always shown, on every page, for every account (study mode and focus mode too). */
 (() => {
   if (window.ecRate) return; window.ecRate = true;
   const css = document.createElement('style');
   css.textContent = `
-.ec-rate{position:absolute;top:calc(10px + env(safe-area-inset-top,0px));left:12px;z-index:20;display:inline-flex;align-items:center;gap:6px;font:inherit;font-weight:700;font-size:.9375rem;min-height:38px;border-radius:999px;padding:4px 14px;border:1.5px solid var(--warn,#7f4c00);background:var(--warn-soft,#fdf0d9);color:var(--ink,#111);cursor:pointer;box-shadow:0 2px 8px rgb(0 0 0 / .08)}
+.ec-rate{position:fixed;top:calc(10px + env(safe-area-inset-top,0px));left:12px;z-index:2400;display:inline-flex;align-items:center;gap:6px;font:inherit;font-weight:700;font-size:.9375rem;min-height:38px;border-radius:999px;padding:4px 14px;border:1.5px solid var(--warn,#7f4c00);background:var(--warn-soft,#fdf0d9);color:var(--ink,#111);cursor:pointer;box-shadow:0 2px 8px rgb(0 0 0 / .08)}
 .ec-rate:hover{filter:brightness(.97)}
+.ec-rate.mini{padding:0;width:38px;justify-content:center;font-size:1.1rem}.ec-rate.mini .t{display:none}
 html.ec-rate-on body{padding-top:48px}
-html.ec-focus .ec-rate{display:none}
-html.ec-focus.ec-rate-on body{padding-top:0}
 .ec-rate-pop{position:fixed;inset:0;z-index:2600;display:grid;place-items:center;padding:14px;background:rgb(10 14 30 / .55);overflow-y:auto}
 .ec-rate-box{width:min(100%,520px);max-height:calc(100vh - 28px);overflow-y:auto;background:var(--card,#fff);color:var(--ink,#111);border-radius:18px;padding:20px;display:flex;flex-direction:column;gap:12px;box-shadow:0 20px 50px rgb(0 0 0 / .3)}
 .ec-rate-box h2{margin:0;font-size:1.35rem}.ec-rate-box p{margin:0}
@@ -235,16 +234,20 @@ html.ec-focus.ec-rate-on body{padding-top:0}
       send.disabled = true; msg.style.color = ''; msg.textContent = 'Sending…';
       const body = { stars }; QS.forEach(([k]) => { body[k] = areas[k].value; });
       let ok = false, j = {}; try { const r = await fetch('/api/survey', { method: 'POST', credentials: 'same-origin', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }); ok = r.ok; j = await r.json(); } catch (err) { j = { error: 'Can’t reach the server. Check your connection.' }; }
-      if (!ok) { msg.style.color = 'var(--pen,#b3261e)'; msg.textContent = j.error || 'Couldn’t send it.'; send.disabled = false; return; }
+      if (!ok) { msg.style.color = 'var(--pen,#b3261e)'; msg.textContent = j.error === 'Not logged in' ? 'Log in first, then you can rate the site.' : (j.error || 'Couldn’t send it.'); send.disabled = false; return; }
       box.replaceChildren(mk('h2', '', '🎉 Thank you!'), mk('p', '', 'Beau will read your answers. Thanks for helping make EC Revisions better.'));
       const done = mk('button', 'btn', 'Close'); done.type = 'button'; done.onclick = close; box.appendChild(done); done.focus();
     };
     document.body.appendChild(pop); sr.firstChild.focus();
   }
-  const go = async () => {
-    const j = window.ecLive ? await window.ecLive() : null; if (!j || !j.me || document.getElementById('ecRateBtn')) return;
-    const b = mk('button', 'ec-rate', '⭐ Rate the site'); b.type = 'button'; b.id = 'ecRateBtn'; b.onclick = open;
+  // shown straight away on every page (no waiting for the server); sending needs you to be logged in
+  const go = () => {
+    if (document.getElementById('ecRateBtn')) return;
+    const b = mk('button', 'ec-rate'); b.type = 'button'; b.id = 'ecRateBtn'; b.onclick = open; b.setAttribute('aria-label', 'Rate the site');
+    b.append(document.createTextNode('⭐'), mk('span', 't', ' Rate the site'));
     document.body.appendChild(b); document.documentElement.classList.add('ec-rate-on');
+    // when you scroll down it shrinks to just ⭐, so it doesn't cover the tabs
+    const sz = () => b.classList.toggle('mini', window.scrollY > 60); window.addEventListener('scroll', sz, { passive: true }); sz();
   };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', go); else go();
 })();
