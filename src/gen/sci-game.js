@@ -742,14 +742,22 @@ gen('obsClassify', 'C2', 'Analyse observations and justify', () => {
     ['A good justification names the type of change <b>and</b> uses the specific observations from this experiment as evidence.', right], 'Check both parts: the type of change, and evidence from <i>these</i> observations.');
 });
 gen('obsVsOpinion', 'C2', 'Observation, inference or opinion?', () => {
-  const s = { what: pick(['Students added a metal to an acid in a beaker.', 'Students mixed two solutions in a beaker.', 'Students added a powder to a solution in a test tube.', 'Students dropped a tablet into a beaker of water.']) }, t0 = rnd(18, 24), dT = rnd(3, 14), up = Math.random() < 0.5, t1 = up ? t0 + dT : t0 - dT, secs = rnd(3, 12) * 10;
-  const OBS = ['The temperature ' + (up ? 'rose' : 'fell') + ' from ' + t0 + ' °C to ' + t1 + ' °C in ' + secs + ' seconds.', 'Bubbles formed for about ' + secs + ' seconds.', 'The ' + pick(['solution', 'mixture', 'liquid']) + ' changed from ' + pick(['blue to colourless', 'clear to cloudy white', 'green to black', 'colourless to yellow']) + '.'];
-  const INF = ['A new substance must have formed.', 'The gas was probably carbon dioxide.', 'The reaction must be ' + (up ? 'exothermic' : 'endothermic') + '.', 'The atoms were rearranged.'];
+  // each setup knows which gas it would make, so the inferences are good chemistry
+  // realistic setups: what each really does (gas, warmer or colder, what you'd see)
+  const s = pick([{ what: 'Students added magnesium to hydrochloric acid in a beaker.', gas: 'hydrogen', up: true, see: 'The magnesium got smaller until it disappeared.' },
+    { what: 'Students mixed two solutions in a beaker.', gas: null, up: null, see: 'The mixture changed from ' + pick(['blue to colourless', 'clear to cloudy white', 'colourless to yellow']) + '.' },
+    { what: 'Students added a white carbonate powder to an acid in a test tube.', gas: 'carbon dioxide', up: null, see: 'The white powder disappeared.' },
+    { what: 'Students dropped a fizzy (effervescent) tablet into a beaker of water.', gas: 'carbon dioxide', up: false, see: 'The tablet got smaller until it was gone.' }]);
+  const t0 = rnd(18, 24), up = s.up ?? Math.random() < 0.5, dT = s.gas === 'carbon dioxide' ? rnd(1, 4) : rnd(3, 14), t1 = up ? t0 + dT : t0 - dT, secs = rnd(3, 12) * 10;
+  const OBS = ['The temperature ' + (up ? 'rose' : 'fell') + ' from ' + t0 + ' °C to ' + t1 + ' °C in ' + secs + ' seconds.', (s.gas ? 'Bubbles formed for about ' + secs + ' seconds.' : 'A solid formed and sank to the bottom.'), s.see];
+  // inferences: conclusions from the evidence, so they say "probably" (nobody can see them directly)
+  const INF = ['A new substance has probably formed.', 'The reaction is probably ' + (up ? 'exothermic' : 'endothermic') + '.', 'The atoms were probably rearranged into new substances.'].concat(s.gas ? ['The gas was probably ' + s.gas + '.'] : []);
   const OPI = ['The reaction was really impressive.', 'It was the best experiment we have done.', 'The colour looked nice.', 'I think chemistry is fun.'];
-  const VAG = ['It got ' + (up ? 'a bit hotter' : 'a bit colder') + '.', 'The temperature changed heaps.', 'Some stuff happened in the beaker.', 'It bubbled a lot.'];
+  const VAG = ['It got ' + (up ? 'a bit hotter' : 'a bit colder') + '.', 'The temperature changed heaps.', 'Some stuff happened in the beaker.', s.gas ? 'It bubbled a lot.' : 'It went a different colour.'];
   const ask = rnd(0, 3);
   if (ask === 0) return mcqFrom(s.what + ' Which is a <b>scientific observation</b>?', pick(OBS), INF.concat(OPI), 'An observation is something you directly see, hear, smell, feel or measure. Inferences are conclusions; opinions are feelings.', 'Could you see or measure it directly?');
-  if (ask === 1) return mcqFrom(s.what + ' Which statement is an <b>inference</b> (a conclusion), not an observation?', pick(INF), OBS.concat([pick(OPI)]), 'An inference explains the observations (e.g. “a new substance formed”). The others are things you directly saw or measured, or an opinion.', 'Which one did nobody actually see?');
+  // only observations as the wrong answers, so exactly one answer is a conclusion
+  if (ask === 1) return mcqFrom(s.what + ' Which statement is an <b>inference</b> (a conclusion), not an observation?', pick(INF), OBS, 'An inference is a conclusion you work out from the evidence: you can’t see it happen directly, so it usually says “probably”. The other three are observations: things you directly saw or measured.', 'Which one could nobody actually see or measure?');
   if (ask === 2) return mcqFrom(s.what + ' Which observation is recorded most <b>accurately</b>?', OBS[0], VAG.concat([pick(OPI)]), 'Accurate observations include measurements with numbers and units.', 'Look for numbers and units.');
   return mcqFrom(s.what + ' Which is an <b>opinion</b>, not scientific evidence?', pick(OPI), OBS.concat([pick(INF)]), 'Opinions are feelings or judgements; they can’t be used as scientific evidence.', 'Which one depends on what someone likes?');
 });
