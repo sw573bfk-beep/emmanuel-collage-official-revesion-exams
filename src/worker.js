@@ -635,8 +635,16 @@ async function handleApi(req, env, url) {
     return new Response(bytes, { headers: { 'content-type': 'image/webp', 'cache-control': 'private, max-age=2592000', 'x-content-type-options': 'nosniff' } });
   }
 
+  // ⭐ Rate the site: only accounts with 10+ minutes of study time (so people have actually tried the site)
+  const SURVEY_MINS = 10;
+  const studyMins = async () => Math.floor((((await env.DB.prepare('SELECT SUM(seconds) AS s FROM daily WHERE user_id = ?').bind(user.id).first()) || {}).s || 0) / 60);
+  if (path === '/api/survey' && method === 'GET') {
+    const mins = await studyMins(), ok = isAdmin(user, env) || mins >= SURVEY_MINS;
+    return json({ ok, mins, need: SURVEY_MINS });
+  }
   // ⭐ Rate the site: stars plus five short answers, filtered like everything else
   if (path === '/api/survey' && method === 'POST') {
+    if (!isAdmin(user, env)) { const mins = await studyMins(); if (mins < SURVEY_MINS) return err(403, 'You need ' + SURVEY_MINS + ' minutes of study time to rate the site. You have ' + mins + ' so far.'); }
     let b; try { b = await readJson(req); } catch { return err(400, 'Bad request'); }
     const stars = Math.floor(+b.stars || 0); if (stars < 1 || stars > 5) return err(400, 'Pick 1 to 5 stars first.');
     const F = [['liked', 'what you liked'], ['disliked', 'what you didn’t like'], ['add_idea', 'what you would add'], ['control', 'what you would do in control'], ['other', 'anything else']];

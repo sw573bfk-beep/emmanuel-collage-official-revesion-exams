@@ -213,7 +213,20 @@ html.ec-rate-on body{padding-top:48px}
   document.head.appendChild(css);
   const mk = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; };
   const QS = [['liked', '👍 What did you like?'], ['disliked', '👎 What didn’t you like?'], ['add_idea', '💡 What would you add?'], ['control', '🎮 If you were in control, what would you do?'], ['other', '📝 Anything else? (optional)']];
-  function open() {
+  // only accounts with 10+ minutes of study time can rate: check first, and explain if not yet
+  async function open() {
+    let c = null; try { const r = await fetch('/api/survey', { credentials: 'same-origin', cache: 'no-store' }); c = r.status === 401 ? { login: true } : r.ok ? await r.json() : null; } catch (e) { c = null; }
+    if (c && (c.login || !c.ok)) {
+      const pop = mk('div', 'ec-rate-pop'), box = mk('div', 'ec-rate-box'); box.setAttribute('role', 'dialog'); box.setAttribute('aria-modal', 'true');
+      const left = c.login ? 0 : Math.max(1, c.need - c.mins);
+      box.append(mk('h2', '', c.login ? '⭐ Log in first' : '⏱️ Study a little first'),
+        mk('p', '', c.login ? 'Log in to rate EC Revisions.' : 'You can rate the site once you’ve studied for ' + c.need + ' minutes, so you know what it’s like. You’ve done ' + c.mins + ' minute' + (c.mins === 1 ? '' : 's') + ': just ' + left + ' more to go!'));
+      if (!c.login) { const bar = mk('div'); bar.style.cssText = 'height:10px;border-radius:99px;background:var(--line,#e2e8f2);overflow:hidden'; const f = mk('i'); f.style.cssText = 'display:block;height:100%;background:#e0a800;width:' + Math.min(100, Math.round(c.mins / c.need * 100)) + '%'; bar.appendChild(f); box.appendChild(bar); }
+      const row = mk('div', 'ec-rate-row'), x = mk('button', 'btn', 'OK'); x.type = 'button'; row.appendChild(x); box.appendChild(row);
+      const close = () => { pop.remove(); document.removeEventListener('keydown', esc); }; const esc = e => { if (e.key === 'Escape') close(); };
+      x.onclick = close; pop.onclick = e => { if (e.target === pop) close(); }; document.addEventListener('keydown', esc);
+      pop.appendChild(box); document.body.appendChild(pop); x.focus(); return;
+    }
     const pop = mk('div', 'ec-rate-pop'), box = mk('form', 'ec-rate-box'); box.noValidate = true; box.setAttribute('role', 'dialog'); box.setAttribute('aria-modal', 'true'); box.setAttribute('aria-label', 'Rate the site');
     box.append(mk('h2', '', '⭐ Rate EC Revisions'), mk('p', 'small', 'Tell Beau what you think. Only Beau reads these. Answer as many as you like.'));
     let stars = 0; const sr = mk('div', 'ec-rate-stars'); sr.setAttribute('role', 'radiogroup'); sr.setAttribute('aria-label', 'Your rating out of 5 stars');
