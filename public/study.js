@@ -214,6 +214,7 @@ html.ec-rate-on body{padding-top:48px}
   const mk = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; };
   const QS = [['liked', '👍 What did you like?'], ['disliked', '👎 What didn’t you like?'], ['add_idea', '💡 What would you add?'], ['control', '🎮 If you were in control, what would you do?'], ['other', '📝 Anything else? (optional)']];
   // only accounts with 10+ minutes of study time can rate: check first, and explain if not yet
+  window.ecRateOpen = () => open();
   async function open() {
     let c = null; try { const r = await fetch('/api/survey', { credentials: 'same-origin', cache: 'no-store' }); c = r.status === 401 ? { login: true } : r.ok ? await r.json() : null; } catch (e) { c = null; }
     if (c && (c.login || !c.ok)) {
@@ -248,6 +249,7 @@ html.ec-rate-on body{padding-top:48px}
       const body = { stars }; QS.forEach(([k]) => { body[k] = areas[k].value; });
       let ok = false, j = {}; try { const r = await fetch('/api/survey', { method: 'POST', credentials: 'same-origin', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }); ok = r.ok; j = await r.json(); } catch (err) { j = { error: 'Can’t reach the server. Check your connection.' }; }
       if (!ok) { msg.style.color = 'var(--pen,#b3261e)'; msg.textContent = j.error === 'Not logged in' ? 'Log in first, then you can rate the site.' : (j.error || 'Couldn’t send it.'); send.disabled = false; return; }
+      try { window.dispatchEvent(new Event('ec-rated')); } catch (e2) { /* old browser */ }
       box.replaceChildren(mk('h2', '', '🎉 Thank you!'), mk('p', '', 'Beau will read your answers. Thanks for helping make EC Revisions better.'));
       const done = mk('button', 'btn', 'Close'); done.type = 'button'; done.onclick = close; box.appendChild(done); done.focus();
     };

@@ -199,6 +199,7 @@ details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
           <div class="row" id="bcTimes"><button type="button" class="chip" data-s="30">30 sec</button><button type="button" class="chip on" data-s="60">1 min</button><button type="button" class="chip" data-s="300">5 min</button><button type="button" class="chip" data-s="900">15 min</button><button type="button" class="chip" data-s="3600">1 hour</button><button type="button" class="chip" data-s="custom">Custom…</button></div>
           <div class="bc-custom" id="bcCustom" hidden><label class="sr" for="bcNum">How long</label><input type="number" id="bcNum" min="1" max="1440" value="10" inputmode="numeric"><label class="sr" for="bcUnit">Unit</label><select id="bcUnit"><option value="1">seconds</option><option value="60" selected>minutes</option><option value="3600">hours</option></select></div>
         </div>
+        <label class="row" style="gap:8px;align-items:flex-start;font-weight:500"><input type="checkbox" id="bcRemind" style="width:auto;margin-top:4px"> <span>🔁 <b>Keep reminding people who haven’t rated the site</b>: it pops up again every hour for them (even after ✕), with a ⭐ Rate now button, and stops once they’ve sent a rating.</span></label>
         <div class="row" style="align-items:center"><button class="btn" type="submit" id="bcSend">📣 Send to everyone on now</button><span class="small muted" id="bcOn"></span></div>
         <div id="bcOut" role="status"></div>
       </form>
@@ -910,7 +911,7 @@ details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
     if (!(seconds >= 5 && seconds <= 86400)) return bad('Pick a time between 5 seconds and 24 hours.');
     if (bcLive && !confirm('A pop-up is showing right now. Replace it with this one?')) return;
     $('#bcSend').disabled = true;
-    const r = await api('/api/admin/broadcast', 'POST', { body, seconds }); $('#bcSend').disabled = false;
+    const r = await api('/api/admin/broadcast', 'POST', { body, seconds, remind: $('#bcRemind').checked }); $('#bcSend').disabled = false;
     if (!r.ok) return bad(r.data.error || 'Couldn’t send it.');
     $('#bcText').value = ''; $('#bcText').oninput();
     out.appendChild(mk('div', 'msg good', 'Sent! It’s popping up for everyone on now, for ' + bcLen(seconds) + '.'));

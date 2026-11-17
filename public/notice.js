@@ -9,11 +9,14 @@
   let skew = 0, shown = null, box = null, tick = null;
   const closed = () => (ls('ec-notice-closed') || '').split(',').filter(Boolean);
   const close = id => { ls('ec-notice-closed', [id].concat(closed()).slice(0, 20).join(',')); hide(); };
+  // 🔁 "rate the site" reminders come back an hour after you close them (until you've rated the site)
+  const snoozed = id => { const at = +ls('ec-notice-snooze-' + id) || 0; return Date.now() - at < 3600000; };
+  const snooze = id => { ls('ec-notice-snooze-' + id, String(Date.now())); hide(); };
   const serverNow = () => Date.now() / 1000 + skew;
 
   const css = document.createElement('style');
   css.textContent = `
-.ec-notice{position:fixed;z-index:2000;left:50%;top:calc(12px + env(safe-area-inset-top,0px));transform:translateX(-50%);width:min(560px,calc(100vw - 24px));
+.ec-notice{position:fixed;z-index:2500;left:50%;top:calc(12px + env(safe-area-inset-top,0px));transform:translateX(-50%);width:min(560px,calc(100vw - 24px));
   background:var(--card,#fff);color:var(--ink,#1b1b1b);border:2.5px solid var(--accent,#2453d6);border-radius:16px;box-shadow:0 14px 40px rgb(0 0 0 / .28);
   padding:14px 14px 0 18px;display:flex;flex-direction:column;gap:6px;overflow:hidden;animation:ecNoticeIn .35s ease-out;font-family:inherit}
 .ec-notice .ec-n-top{display:flex;align-items:center;gap:10px}
@@ -36,12 +39,14 @@
     box = document.createElement('div'); box.className = 'ec-notice'; box.setAttribute('role', 'alert'); box.setAttribute('aria-live', 'assertive');
     const top = document.createElement('div'); top.className = 'ec-n-top';
     const t = document.createElement('span'); t.className = 'ec-n-ttl'; t.textContent = '📣 Message from Beau';
-    const x = document.createElement('button'); x.type = 'button'; x.className = 'ec-n-x'; x.textContent = '✕'; x.setAttribute('aria-label', 'Close this message'); x.onclick = () => close(n.id);
+    const x = document.createElement('button'); x.type = 'button'; x.className = 'ec-n-x'; x.textContent = '✕'; x.setAttribute('aria-label', 'Close this message'); x.onclick = () => (n.rate ? snooze(n.id) : close(n.id));
     top.append(t, x);
     const b = document.createElement('div'); b.className = 'ec-n-body'; b.textContent = n.body;
     const l = document.createElement('div'); l.className = 'ec-n-left';
     const bar = document.createElement('div'); bar.className = 'ec-n-bar'; const fill = document.createElement('i'); bar.appendChild(fill);
-    box.append(top, b, l, bar); document.body.appendChild(box);
+    box.append(top, b);
+    if (n.rate) { const row = document.createElement('div'); row.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap;align-items:center;padding-bottom:4px'; const go = document.createElement('button'); go.type = 'button'; go.className = 'btn sm'; go.textContent = '⭐ Rate now'; go.onclick = () => { snooze(n.id); if (window.ecRateOpen) window.ecRateOpen(); }; const sm = document.createElement('span'); sm.style.cssText = 'font-size:.8125rem;color:var(--muted,#555)'; sm.textContent = 'This comes back every hour until you’ve rated the site.'; row.append(go, sm); box.appendChild(row); }
+    box.append(l, bar); document.body.appendChild(box);
     const total = Math.max(1, n.ends - n.at);
     const step = () => {
       const r = n.ends - serverNow(); if (r <= 0) return hide();
@@ -54,10 +59,11 @@
     const j = window.ecLive ? await window.ecLive(force) : null; if (!j) return;
     skew = j.now - Date.now() / 1000;
     const n = j.notice;
-    if (!n || closed().includes(String(n.id))) { if (shown) hide(); return; } // latecomers see it too, until they close it
+    if (!n || (n.rate ? snoozed(n.id) : closed().includes(String(n.id)))) { if (shown) hide(); return; } // latecomers see it too, until they close it
     show(n);
   }
   const go = () => { check(); setInterval(() => { if (document.visibilityState === 'visible') check(); }, 60000); document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') check(); }); };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', go); else go();
   window.ecNoticeCheck = () => check(true);
+  window.addEventListener('ec-rated', () => { if (shown && shown.rate) hide(); }); // they just rated the site
 })();

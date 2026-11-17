@@ -110,8 +110,8 @@ async function lastUnlockNote(env, userId) {
 let noticeCache = { at: 0, v: null };
 async function liveNotice(env, fresh) {
   const t = now(); if (!fresh && Date.now() - noticeCache.at < 4000) return noticeCache.v && noticeCache.v.ends > t ? noticeCache.v : null;
-  const r = await env.DB.prepare('SELECT id, body, created_at, ends_at FROM broadcasts WHERE ends_at > ? ORDER BY id DESC LIMIT 1').bind(t).first();
-  noticeCache = { at: Date.now(), v: r ? { id: r.id, body: r.body, at: r.created_at, ends: r.ends_at } : null };
+  const r = await env.DB.prepare('SELECT id, body, created_at, ends_at, remind FROM broadcasts WHERE ends_at > ? ORDER BY id DESC LIMIT 1').bind(t).first();
+  noticeCache = { at: Date.now(), v: r ? { id: r.id, body: r.body, at: r.created_at, ends: r.ends_at, remind: !!r.remind } : null };
   return noticeCache.v;
 }
 // Study mode. The site-wide switch is cached for a few seconds (every request checks it).
@@ -400,6 +400,12 @@ async function handleApi(req, env, url) {
       if (out.study.study) { out.chat.requests = 0; out.chat.unreadDm = 0; } // in study mode only Beau's messages count
       out.focus = focusOf(user);
       if (out.focus.on) { out.chat.requests = 0; out.chat.unreadDm = 0; out.chat.beau = 0; } // 🎯 focus mode: no red numbers at all
+      // a "rate the site" reminder: people who've already sent a ⭐ rating don't get it any more
+      if (out.notice && out.notice.remind) {
+        const [done, mins] = await env.DB.batch([env.DB.prepare('SELECT 1 AS d FROM surveys WHERE user_id = ? LIMIT 1').bind(user.id), env.DB.prepare('SELECT SUM(seconds) AS s FROM daily WHERE user_id = ?').bind(user.id)]);
+        // already rated: no more reminders. Under 10 minutes of study (can't rate yet): a normal pop-up, shown once.
+        out.notice = done.results.length ? null : (mins.results[0].s || 0) >= 600 || isAdmin(user, env) ? { ...out.notice, rate: true } : out.notice;
+      }
     }
     return json(out);
   }
@@ -1086,13 +1092,13 @@ async function handleAdmin(req, env, path, method, me, role = 'owner') {
   }
   if (path === '/api/admin/broadcast' && method === 'POST') {
     let b; try { b = await readJson(req); } catch { return err(400, 'Bad request'); }
-    const text = String(b.body || '').replace(/\r\n?/g, '\n').trim(), secs = Math.round(+b.seconds || 0);
+    const text = String(b.body || '').replace(/\r\n?/g, '\n').trim(), secs = Math.round(+b.seconds || 0), remind = b.remind ? 1 : 0;
     if (!text) return err(400, 'Type a message first.'); if (text.length > 300) return err(400, 'Keep it to 300 characters so it fits in the pop-up.');
     if (!(secs >= 5 && secs <= 86400)) return err(400, 'Pick a time between 5 seconds and 24 hours.');
     const fr = checkText(text); if (!fr.ok) { await logBlocked(env, me.id, 'message everyone', fr.why, text); return err(422, fr.message); }
     await env.DB.batch([
       env.DB.prepare('UPDATE broadcasts SET ends_at = ?, stopped_at = ? WHERE ends_at > ?').bind(t, t, t),
-      env.DB.prepare('INSERT INTO broadcasts (body, created_at, ends_at) VALUES (?, ?, ?)').bind(text, t, t + secs)
+      env.DB.prepare('INSERT INTO broadcasts (body, created_at, ends_at, remind) VALUES (?, ?, ?, ?)').bind(text, t, t + secs, remind)
     ]);
     return json({ ok: true, live: await liveNotice(env, true) }, 201);
   }
