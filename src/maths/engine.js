@@ -832,9 +832,19 @@ const TRI_NAMES = [['A', 'B', 'C'], ['D', 'E', 'F'], ['P', 'Q', 'R'], ['X', 'Y',
 function randTri(lim = 5) {
   for (;;) { const p = [[rnd(-lim, lim), rnd(-lim, lim)], [rnd(-lim, lim), rnd(-lim, lim)], [rnd(-lim, lim), rnd(-lim, lim)]]; const area = Math.abs((p[1][0] - p[0][0]) * (p[2][1] - p[0][1]) - (p[2][0] - p[0][0]) * (p[1][1] - p[0][1])); if (area >= 4) return p; }
 }
+// a compact triangle on ONE side of the mirror line, so the reflection lands clearly on the other side
+function triOneSide(L) {
+  for (;;) {
+    const s = pick([1, -1]), a = rnd(-5, 1), P = [0, 1, 2].map(() => [rnd(a, a + 4), s * rnd(1, 5)]);
+    const area = Math.abs((P[1][0] - P[0][0]) * (P[2][1] - P[0][1]) - (P[2][0] - P[0][0]) * (P[1][1] - P[0][1]));
+    if (area < 4) continue;
+    return L.t === 'y-axis' ? P.map(([x, y]) => [y, x]) : P; // for the y-axis, the triangle sits left or right of it
+  }
+}
 gen('reflectShape', '10A', 'Reflect a triangle', () => {
-  const nm = pick(TRI_NAMES), P = randTri(5), L = pick([{ t: 'x-axis' }, { t: 'y-axis' }]); const R = P.map(p => reflectPt(p, L));
-  return { type: 'coord', q: 'Triangle ' + nm.join('') + ' has ' + nm.map((n, i) => n + ptStr(P[i])).join(', ') + '. Reflect it in the <b>' + lineName(L) + '</b>. Write the coordinates of ' + nm.map(n => n + '′').join(', ') + ' in order.', fig: gridSVG({ xmin: -6, xmax: 6, ymin: -6, ymax: 6, polys: [{ pts: P, labels: nm }], size: 260 }),
+  const nm = pick(TRI_NAMES), L = pick([{ t: 'x-axis' }, { t: 'y-axis' }]), P = triOneSide(L); const R = P.map(p => reflectPt(p, L));
+  const side = L.t === 'x-axis' ? (P[0][1] > 0 ? 'above' : 'below') : (P[0][0] > 0 ? 'right of' : 'left of'), other = { above: 'below', below: 'above', 'right of': 'left of', 'left of': 'right of' }[side];
+  return { type: 'coord', q: 'Triangle ' + nm.join('') + ' has corners ' + nm.map((n, i) => n + ptStr(P[i])).join(', ') + '. It is ' + side + ' the <b>' + lineName(L) + '</b> (the dashed mirror line).<br>Reflect (flip) the triangle in the ' + lineName(L) + ' so it lands ' + other + ' it. Write the new corners ' + nm.map(n => n + '′').join(', ') + ' in that order, e.g. (1, 2), (3, 4), (5, 6).', fig: gridSVG({ xmin: -6, xmax: 6, ymin: -6, ymax: 6, mirrors: [L], polys: [{ pts: P, labels: nm }], size: 260 }),
     ans: R, ansText: nm.map((n, i) => n + '′' + ptStr(R[i])).join(', '), hint: reflectRule(L), sol: [reflectRule(L), nm.map((n, i) => n + ptStr(P[i]) + ' → ' + n + '′' + ptStr(R[i])).join('<br>'), gridSVG({ xmin: -6, xmax: 6, ymin: -6, ymax: 6, mirrors: [L], polys: [{ pts: P, labels: nm }, { pts: R, labels: nm.map(n => n + '′'), cls: 'b' }], size: 260 })] };
 });
 gen('reflectWhich', '10A', 'Identify the mirror line', () => {
