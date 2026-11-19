@@ -1,6 +1,6 @@
 // Student chats (1-on-1 chats between friends that start with a friend request), the leaderboard,
 // and Beau's moderation tools. Every student message goes through the strict filter in filter.js.
-import { checkText, checkPieces } from './filter.js';
+import { checkText, checkPieces, checkOwner } from './filter.js';
 import { lookView } from './rewards.js';
 
 const MAX_LEN = 2000;
@@ -27,11 +27,12 @@ export async function logBlocked(env, userId, place, why, text) {
 async function vet(env, user, place, text) {
   if (!text) return err(400, 'Type a message first.');
   if (text.length > MAX_LEN) return err(400, 'Messages can be up to ' + MAX_LEN + ' characters.');
-  if (FAKE_NOTE.test(text)) return err(400, 'That message can’t be sent. Type it a different way.');
+  const owner = isAdmin(user, env); // Beau: no word filter
+  if (!owner && FAKE_NOTE.test(text)) return err(400, 'That message can’t be sent. Type it a different way.');
   const u = await env.DB.prepare('SELECT chat_muted FROM users WHERE id = ?').bind(user.id).first();
   if (u && u.chat_muted) return err(403, 'Beau has paused chatting on your account. You can still message Beau in the ✉️ Beau tab.');
-  let r = checkText(text);
-  if (r.ok) { // words sent a letter or two at a time across several messages
+  let r = owner ? checkOwner(text) : checkText(text);
+  if (r.ok && !owner) { // words sent a letter or two at a time across several messages
     const rec = await env.DB.prepare('SELECT body FROM dm_messages WHERE user_id = ? AND created_at > ? ORDER BY id DESC LIMIT 8').bind(user.id, now() - 180).all();
     r = checkPieces(rec.results.map(x => x.body).reverse(), text);
   }

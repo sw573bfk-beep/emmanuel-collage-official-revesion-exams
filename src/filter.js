@@ -150,6 +150,14 @@ const MATHS_NEAR = new RegExp([
 
 // The same word and personal-detail checks, without the allowed-characters rule (for the site's own question text)
 export function checkWords(text) { return checkText(text, true); }
+// Beau's own messages: no word or character filter. Only personal details (phone, address, socials) are still stopped,
+// because a post from Beau can reach every student on the site.
+export function checkOwner(text) {
+  const plain = String(text || '').normalize('NFKC').replace(/[​-‏⁠-⁤﻿­]/g, '');
+  if (CONTACT.some(re => re.test(plain))) return { ok: false, why: 'personal', message: FILTER_CONTACT_MSG };
+  if ((plain.match(NUMBER_WORDS) || []).length >= 6) return { ok: false, why: 'personal', message: FILTER_CONTACT_MSG };
+  return { ok: true };
+}
 export function checkText(text, anyChars) {
   const raw = String(text || '');
   if (!anyChars && !ALLOWED_CHARS.test(raw.replace(SAFE_EMOJI_RE, ''))) return { ok: false, why: 'words', message: FILTER_CHARS_MSG };
