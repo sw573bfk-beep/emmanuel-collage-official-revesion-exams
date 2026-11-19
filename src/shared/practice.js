@@ -184,3 +184,21 @@ function reportMistakeBtn(Q) {
   };
   return b;
 }
+
+// 🔢 Tests: a row of question numbers in the timer bar (filled in once answered). Tap one to jump to that question.
+function examJump(bar, cards) {
+  const row = h('<div class="qjump" role="navigation" aria-label="Jump to a question"></div>');
+  cards.forEach((c, i) => { const b = h('<button type="button" class="qj" aria-label="Go to question ' + (i + 1) + '">' + (i + 1) + '</button>'); b.onclick = () => qjGo(c.el); row.appendChild(b); });
+  bar.appendChild(row);
+  return { paint: () => cards.forEach((c, i) => { const on = c.answered(); row.children[i].classList.toggle('done', on); row.children[i].setAttribute('aria-label', 'Go to question ' + (i + 1) + (on ? ' (answered)' : ' (not answered yet)')); }) };
+}
+// …and after submitting: ✓ / ✗ for every question, tap to jump straight to it
+function examResultJump(cards, res) {
+  const box = h('<div class="stack" style="gap:6px"><b>Tap a question to see it</b><div class="qjump res" role="navigation" aria-label="Jump to a question"></div></div>'), row = $('.qjump', box);
+  cards.forEach((c, i) => { const b = h('<button type="button" class="qj ' + (res[i] ? 'ok' : 'no') + '" aria-label="Question ' + (i + 1) + (res[i] ? ', right' : ', wrong') + '">' + (i + 1) + ' ' + (res[i] ? '✓' : '✗') + '</button>'); b.onclick = () => qjGo(c.el); row.appendChild(b); });
+  return box;
+}
+function qjGo(el) {
+  const card = el.closest('.card') || el; card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  card.classList.remove('qj-flash'); void card.offsetWidth; card.classList.add('qj-flash');
+}

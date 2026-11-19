@@ -248,3 +248,15 @@ input[readonly]{background:var(--card-2)}
 .view:not(#v-booklet) .fb.answer-shown{border-width:2px}
 .view:not(#v-booklet) details.ex[open] .sol{margin-top:10px}
 @media (max-width:560px){.view:not(#v-booklet) .sol{padding:14px 14px 16px}.view:not(#v-booklet) .steps li{grid-template-columns:26px 1fr;gap:4px 10px}.view:not(#v-booklet) .steps li::before{width:24px;height:24px}}
+
+/* 🔢 tests: question number row (jump to a question) */
+.qjump{flex-basis:100%;display:flex;gap:5px;overflow-x:auto;padding:2px 0 4px;scrollbar-width:thin}
+.qjump.res{flex-wrap:wrap;overflow:visible}
+.qjump .qj{flex:none;min-width:36px;height:36px;padding:0 8px;border-radius:10px;border:1.5px solid var(--rule,#ccd);background:var(--card,#fff);color:var(--ink,#1b1b1b);font:inherit;font-size:.875rem;font-weight:700;cursor:pointer}
+.qjump .qj.done{background:var(--accent,#2453d6);border-color:var(--accent,#2453d6);color:#fff}
+.qjump .qj.ok{border-color:var(--good,#1a7f37);color:var(--good,#1a7f37)}
+.qjump .qj.no{border-color:var(--pen,#b3261e);color:var(--pen,#b3261e)}
+.qjump .qj:hover,.qjump .qj:focus-visible{outline:2px solid var(--accent,#2453d6);outline-offset:1px}
+.qj-flash{animation:qjFlash 1.2s ease-out}
+@keyframes qjFlash{0%{box-shadow:0 0 0 4px var(--accent,#2453d6)}100%{box-shadow:0 0 0 0 transparent}}
+@media (prefers-reduced-motion:reduce){.qj-flash{animation:none}}

@@ -202,7 +202,14 @@
       const L = d.leaderboard, lb = $('#lbStats'); lb.replaceChildren(
         stat(L.week ? '#' + L.week.rank : '—', L.week ? L.week.points + ' points this week' : 'no points this week yet'),
         stat(L.all ? '#' + L.all.rank : '—', L.all ? L.all.points + ' points all time' : 'no points yet'));
+      if (!$('#lbHide')) { // 🙈 hide me from the leaderboard
+        const b = el('button', 'btn quiet sm', ''); b.id = 'lbHide'; b.type = 'button'; b.style.alignSelf = 'flex-start'; const note = el('p', 'small muted', ''); note.id = 'lbHideNote'; note.style.margin = '0';
+        b.onclick = async () => { b.disabled = true; const r = await fetch('/api/leaderboard/hide', { method: 'POST', credentials: 'same-origin', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ hidden: b.dataset.h !== '1' }) }); const j = await r.json().catch(() => ({})); b.disabled = false; if (r.ok) paintHide(!!j.hidden); };
+        $('#lbCard').append(b, note);
+      }
+      paintHide(!!L.hidden);
     } else $('#lbCard').hidden = true;
+    function paintHide(on) { const b = $('#lbHide'), n = $('#lbHideNote'); if (!b) return; b.dataset.h = on ? '1' : '0'; b.textContent = on ? '👀 Show me on the leaderboard' : '🙈 Hide me from the leaderboard'; n.textContent = on ? 'You’re hidden: nobody else can see you or your points on the leaderboard.' : 'Hiding means other people won’t see your name or points on the leaderboard.'; }
     $('#frN').textContent = d.friends; $('#frN').nextElementSibling.textContent = d.friends === 1 ? 'friend' : 'friends'; $('#frCard').hidden = !!d.study;
     // topics, weakest first
     const tl = $('#topics'); tl.replaceChildren();

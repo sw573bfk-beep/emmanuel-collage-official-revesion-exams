@@ -53,7 +53,7 @@ export async function leaderboard(env, me, range, admin) {
   const t = now(); const dow = new Date((t + QLD) * 1000).getUTCDay();
   const from = range === 'all' ? '0000-00-00' : dayKey(t - ((dow + 6) % 7) * 86400); // Monday (Queensland time)
   const [people, mins, pts] = await env.DB.batch([
-    env.DB.prepare('SELECT id, username, in_stats, look FROM users'),
+    env.DB.prepare('SELECT id, username, in_stats, look, lb_hidden FROM users'),
     env.DB.prepare('SELECT user_id, SUM(seconds) AS s FROM daily WHERE day >= ? GROUP BY user_id').bind(from),
     env.DB.prepare('SELECT user_id, SUM(correct) AS c, SUM(booklet) AS b, SUM(qpts) AS q FROM points_daily WHERE day >= ? GROUP BY user_id').bind(from)
   ]);
@@ -61,17 +61,17 @@ export async function leaderboard(env, me, range, admin) {
   const adminName = String(env.ADMIN_USERNAME || '').toLowerCase();
   const rows = people.results.filter(u => u.in_stats && u.username.toLowerCase() !== adminName).map(u => {
     const minutes = Math.floor((M[u.id] || 0) / 60), correct = (P[u.id] || {}).c || 0, booklet = (P[u.id] || {}).b || 0, qpts = (P[u.id] || {}).q || 0;
-    return { id: u.id, name: u.username, look: lookView(u.look), minutes, correct, booklet, qpts, points: minutes + qpts + booklet }; // right answers: 1-5 points each by difficulty
-  }).filter(r => r.points > 0).sort((a, b) => b.points - a.points || b.minutes - a.minutes || a.name.localeCompare(b.name));
+    return { id: u.id, name: u.username, look: lookView(u.look), minutes, correct, booklet, qpts, points: minutes + qpts + booklet, hidden: !!u.lb_hidden }; // right answers: 1-5 points each by difficulty
+  }).filter(r => r.points > 0 && (!r.hidden || r.id === me || admin)).sort((a, b) => b.points - a.points || b.minutes - a.minutes || a.name.localeCompare(b.name));
   let rank = 0, prev = null;
   rows.forEach((r, i) => { if (r.points !== prev) { rank = i + 1; prev = r.points; } r.rank = rank; });
   const mine = rows.find(r => r.id === me);
   const meUser = people.results.find(u => u.id === me);
   return {
     range, from, total: rows.length,
-    top: rows.slice(0, 50).map(r => ({ rank: r.rank, id: r.id, name: r.name, look: r.look, points: r.points, minutes: r.minutes, correct: r.correct, booklet: r.booklet, me: r.id === me })),
+    top: rows.slice(0, 50).map(r => ({ rank: r.rank, id: r.id, name: r.name, look: r.look, points: r.points, minutes: r.minutes, correct: r.correct, booklet: r.booklet, me: r.id === me, hidden: r.hidden })),
     me: mine ? { rank: mine.rank, points: mine.points, minutes: mine.minutes, correct: mine.correct, booklet: mine.booklet } : null,
-    leftOut: !meUser || !meUser.in_stats || admin, admin
+    leftOut: !meUser || !meUser.in_stats || admin, admin, meHidden: !!(meUser && meUser.lb_hidden)
   };
 }
 

@@ -90,6 +90,13 @@ dialog.card-dlg::backdrop{background:rgb(10 14 30 / .5)}
       [['Points', d.me.points], ['Minutes', d.me.minutes], ['Correct', d.me.correct], ['Booklet', d.me.booklet]].forEach(([l, v]) => { const x = el('div'); x.appendChild(el('b', '', String(v))); x.appendChild(el('span', 'small muted', l)); pts.appendChild(x); });
       mine.append(left, pts);
     }
+    if (!d.leftOut) { // 🙈 hide me from the leaderboard
+      const hb = el('div', 'small muted'); hb.style.cssText = 'flex-basis:100%;display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-top:6px';
+      const btn = el('button', 'btn quiet sm', d.meHidden ? '👀 Show me on the leaderboard' : '🙈 Hide me from the leaderboard'); btn.type = 'button';
+      btn.onclick = async () => { btn.disabled = true; await fetch('/api/leaderboard/hide', { method: 'POST', credentials: 'same-origin', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ hidden: !d.meHidden }) }); load(); };
+      hb.append(btn, el('span', '', d.meHidden ? 'You’re hidden: nobody else can see you or your points here. Only you can see your place.' : 'Hiding means other people won’t see your name or points here. You’ll still see your own place.'));
+      mine.appendChild(hb);
+    }
     const tb = $('#rows'); tb.innerHTML = '';
     if (!d.top.length) { const tr = el('tr'); const td = el('td', 'muted', 'No points yet ' + when + '. Be the first!'); td.colSpan = 7; tr.appendChild(td); tb.appendChild(tr); }
     d.top.forEach(p => {
@@ -98,7 +105,7 @@ dialog.card-dlg::backdrop{background:rgb(10 14 30 / .5)}
       const rk = el('td'); if (medal) rk.appendChild(el('span', 'medal', medal + ' ')); rk.appendChild(document.createTextNode(p.rank)); tr.appendChild(rk);
       const nt = el('td'), who = el('button', 'who'); who.type = 'button'; who.title = 'See ' + p.name + '’s profile card';
       const av = el('span', 'av'); av.setAttribute('aria-hidden', 'true'); if (window.ecAv) window.ecAv(av, p.look, p.name);
-      const nm = el('span', 'nm'); nm.appendChild(el('b', '', p.name + (p.me ? ' (you)' : ''))); const tt = window.ecTitle && window.ecTitle(p.look); if (tt) nm.appendChild(tt);
+      const nm = el('span', 'nm'); nm.appendChild(el('b', '', p.name + (p.me ? ' (you)' : '') + (p.hidden ? (p.me ? ' 🙈 hidden' : ' 🙈') : ''))); const tt = window.ecTitle && window.ecTitle(p.look); if (tt) nm.appendChild(tt);
       who.append(av, nm); who.onclick = () => showCard(p); nt.appendChild(who); tr.appendChild(nt);
       [p.points, p.minutes, p.correct, p.booklet].forEach(v => tr.appendChild(el('td', 'num', String(v))));
       const c = el('td');

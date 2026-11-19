@@ -42,6 +42,18 @@ function questionCard(Q, opts = {}) {
     ansEl.appendChild(keypad(input, Q.type));
     if (!exam) { const cf = h('<button type="button" class="btn confirm-btn">Confirm</button>'); cf.onclick = doCheck; ansEl.appendChild(h('<div class="confirm-row"></div>')).appendChild(cf); }
   }
+  // ⏎ Enter: confirms a picked multiple-choice answer; once a question is answered, Enter goes to the next question
+  if (!exam) el.addEventListener('keydown', e => {
+    if (e.key !== 'Enter' || e.shiftKey) return;
+    const t = e.target, ch = t.closest && t.closest('.choice');
+    if (el.dataset.done) {
+      if (!(t === el || ch || (t.matches && t.matches('input.ans')))) return; // Enter on links/buttons does their own thing
+      let p = el.parentElement; while (p && !p.querySelector('[data-next]')) p = p.parentElement;
+      const nb = p && p.querySelector('[data-next]'); if (nb && !nb.disabled && nb.offsetParent) { e.preventDefault(); e.stopPropagation(); nb.click(); }
+      return;
+    }
+    if (ch && Q.type === 'mcq' && sel !== null && $$('.choice', el).indexOf(ch) === sel) { e.preventDefault(); doCheck(); }
+  }, true);
   if (!exam) {
     const tools = h('<div class="row"></div>');
     if (Q.hint) { const hb = h('<button type="button" class="btn ghost sm">Hint</button>'); hb.onclick = () => { if (!$('.hintbox', fb)) fb.prepend(h('<div class="fb info hintbox"><b>Hint:</b> ' + Q.hint + '</div>')); }; tools.appendChild(hb); }
@@ -61,6 +73,7 @@ function questionCard(Q, opts = {}) {
     if (el.dataset.done) return r; el.dataset.done = '1'; $('.tmp', fb)?.remove(); $('.confirm-row', el)?.remove();
     if (r.empty) r = { ok: false, msg: 'No answer given.' };
     if (Q.type === 'mcq') $$('.choice', el).forEach((b, i) => { b.disabled = true; if (i === Q.ans) b.classList.add('right'); else if (i === sel) b.classList.add('wrong'); });
+    if (!exam && Q.type === 'mcq' && (!document.activeElement || document.activeElement === document.body || el.contains(document.activeElement))) { el.tabIndex = -1; el.style.outline = 'none'; el.focus({ preventScroll: true }); } // so Enter can go to the next question
     if (input) input.readOnly = true;
     const msg = r.ok ? '<b>Correct!</b>' + (tries > 1 ? ' (second try)' : '') : (r.gaveUp ? '<b>Answer:</b> ' : '<b>Not this time.</b> ' + (r.msg ? esc(r.msg) + ' ' : '') + 'Answer: ') + (r.ok ? '' : '<span class="m">' + esc(Q.ansText) + '</span>');
     fb.appendChild(h('<div class="fb ' + (r.ok ? 'good' : r.gaveUp ? 'info answer-shown' : 'bad') + '">' + msg + '</div>'));
@@ -462,8 +475,9 @@ RENDER.exam = () => {
     const bar = h('<div class="exam-bar"><div><span class="timer" id="exClock">' + (mins ? Math.floor(mins * 60 / 60) + ':' + String(Math.round(mins * 60) % 60).padStart(2, '0') : '∞') + '</span> <span class="small muted" id="exProg">0/' + n + ' answered</span></div><div class="row"><button type="button" class="btn quiet sm" id="exQuit">Quit</button><button type="button" class="btn" id="exSub">Submit exam</button></div></div>');
     v.appendChild(bar);
     const cards = []; const list = h('<div class="stack"></div>'); v.appendChild(list);
-    const prog = () => { $('#exProg', bar).textContent = cards.filter(c => c.answered()).length + '/' + n + ' answered'; };
+    let jump = null; const prog = () => { $('#exProg', bar).textContent = cards.filter(c => c.answered()).length + '/' + n + ' answered'; if (jump) jump.paint(); };
     Qs.forEach((Q, i) => { const c = questionCard(Q, { mode: 'exam', num: i + 1, onChange: prog }); cards.push(c); const w = h('<div class="card"></div>'); w.appendChild(c.el); list.appendChild(w); });
+    jump = examJump(bar, cards); jump.paint();
     const bottom = h('<div class="row"><button type="button" class="btn">Submit exam</button></div>'); list.appendChild(bottom);
     const start = Date.now(); let left = mins * 60;
     const deadline = start + mins * 60000; // use the clock, so the timer stays right even if the tab is in the background
@@ -485,6 +499,7 @@ RENDER.exam = () => {
       $$('[data-p]', sum).forEach(b => b.onclick = () => openPractice(b.dataset.p));
       $('#exAgain', sum).onclick = () => RENDER.exam();
       if (weak.length) $('#exWeakAgain', sum).onclick = () => runExam(weak, Math.max(10, weak.length * 3), mins);
+      sum.appendChild(examResultJump(cards, res));
       v.prepend(sum); window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   }

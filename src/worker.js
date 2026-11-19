@@ -465,7 +465,18 @@ async function handleApi(req, env, url) {
     await env.DB.prepare('UPDATE users SET look = ? WHERE id = ?').bind(JSON.stringify(next), user.id).run();
     return json({ ok: true, look: next, view: lookView(JSON.stringify(next)) });
   }
+  // 🙈 hide or show yourself on the leaderboard
+  if (path === '/api/leaderboard/hide' && method === 'POST') {
+    let b; try { b = await readJson(req); } catch { return err(400, 'Bad request'); }
+    await env.DB.prepare('UPDATE users SET lb_hidden = ? WHERE id = ?').bind(b.hidden ? 1 : 0, user.id).run();
+    return json({ ok: true, hidden: !!b.hidden });
+  }
   // someone's public card (from the leaderboard): their name, look and unlocked rewards. No stats.
+  const cardHidden = path.match(/^\/api\/card\/(\d+)$/);
+  if (cardHidden && method === 'GET' && +cardHidden[1] !== user.id && !isAdmin(user, env)) {
+    const hu = await env.DB.prepare('SELECT lb_hidden FROM users WHERE id = ?').bind(+cardHidden[1]).first();
+    if (hu && hu.lb_hidden) return err(404, 'Not found');
+  }
   const cardM = path.match(/^\/api\/card\/(\d+)$/);
   if (cardM && method === 'GET') {
     const r = await env.DB.prepare('SELECT username, look, rewards FROM users WHERE id = ?').bind(+cardM[1]).first(); if (!r) return err(404, 'No such person');
@@ -567,7 +578,7 @@ async function handleApi(req, env, url) {
       B('🤝', 'Friendly', 'Make a friend', fr.results[0].n, 1)
     ];
     if (user.tester) badges.push(B('🧪', 'Official tester', 'Helped test EC Revisions', 1, 1));
-    const lb = { week: (await leaderboard(env, me, 'week', isAdmin(user, env))).me, all: (await leaderboard(env, me, 'all', isAdmin(user, env))).me };
+    const lbW = await leaderboard(env, me, 'week', isAdmin(user, env)), lb = { week: lbW.me, all: (await leaderboard(env, me, 'all', isAdmin(user, env))).me, hidden: lbW.meHidden };
     // 🎨 rewards: worked out from the same numbers, and anything unlocked before stays unlocked
     const role_ = staffRole(user, env), u0 = u.results[0], kept = savedRewards(u0.rewards);
     const rs = { correct: lb.all ? lb.all.correct : stats.correct, answered: stats.answered, streak, hours, exams: stats.exams,
