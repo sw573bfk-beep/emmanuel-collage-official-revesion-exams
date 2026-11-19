@@ -326,7 +326,8 @@ function checkAnswer(Q, input) {
         const g = parseWordEq(raw);
         if (!g) return { ok: false, msg: 'Write it like: magnesium + oxygen → magnesium oxide (use → or ->).', bad: true };
         const R = sameTerms(g.r, Q.ans.r), P = sameTerms(g.p, Q.ans.p);
-        if (R && P) return { ok: true };
+        const H2O = /hydrogen\s*(?:mon)?oxide/i.test(raw) ? 'Hydrogen oxide is water (H₂O) ✓. In word equations we normally just write <b>water</b>.' : '';
+        if (R && P) return H2O ? { ok: true, msg: H2O } : { ok: true };
         const fr = sameTerms(g.r, Q.ans.r, true), fp = sameTerms(g.p, Q.ans.p, true); // small spelling slips still count
         if (fr && fp) return { ok: true, msg: 'Watch the spelling: <b>' + esc(fr.slips.concat(fp.slips).join(', ')) + '</b>.' };
         if (g.r.includes('air') && sameTerms(g.r.map(x => x === 'air' ? 'oxygen' : x), Q.ans.r) && P) return { ok: false, bad: true, msg: 'Nearly! Write <b>oxygen</b> instead of air: it’s the oxygen in the air that reacts.' };
@@ -506,7 +507,7 @@ const primes = n => '′'.repeat(n);
 
 
 /* ================= science: word equations ================= */
-const TERM_SYN = [[/sulph/g, 'sulf'], [/aluminum/g, 'aluminium'], [/\bsteam\b/g, 'water'], [/\bh2o\b/g, 'water'], [/\bco2\b/g, 'carbon dioxide'], [/\bo2\b/g, 'oxygen'], [/\bh2\b/g, 'hydrogen'], [/\bsoot\b/g, 'carbon'], [/\bethanoic\b/g, 'acetic']];
+const TERM_SYN = [[/sulph/g, 'sulf'], [/aluminum/g, 'aluminium'], [/\bsteam\b/g, 'water'], [/\bh2o\b/g, 'water'], [/\b(?:di ?)?hydrogen (?:mon)?oxide\b/g, 'water'], [/\bco2\b/g, 'carbon dioxide'], [/\bo2\b/g, 'oxygen'], [/\bh2\b/g, 'hydrogen'], [/\bsoot\b/g, 'carbon'], [/\bethanoic\b/g, 'acetic']];
 function normTerm(t) {
   t = String(t).toLowerCase().replace(/\(.*?\)/g, ' ');
   TERM_SYN.forEach(([a, b]) => { t = t.replace(a, b); });
