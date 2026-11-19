@@ -1083,9 +1083,19 @@ gen('corrNails', 'C8', 'Which nail rusts?', () => {
 const METAL_OX = [['iron', [['iron oxide', 'rust']], 'rusts (forms flaky orange-brown iron oxide)'], ['zinc', ['zinc oxide'], 'slowly forms a dull white layer'], ['copper', [['copper oxide', 'copper carbonate']], 'slowly turns dull brown, then green'], ['aluminium', ['aluminium oxide'], 'forms a thin protective oxide layer'], ['magnesium', ['magnesium oxide'], 'slowly goes dull and white'], ['silver', [['silver oxide', 'silver sulfide']], 'tarnishes and goes dark']];
 gen('corrEq', 'C8', 'Corrosion word equations', () => {
   const r = Math.random();
-  if (r < 0.3) return { type: 'eq', q: 'Rust is <b>hydrated iron oxide</b>. Write the word equation for iron rusting, including both of the substances it needs.', ans: { r: ['iron', 'oxygen', 'water'], p: [['hydrated iron oxide', 'rust', 'iron oxide']] }, ansText: 'iron + oxygen + water → hydrated iron oxide', hint: 'Rusting needs two things from the surroundings.', sol: ['<b>iron + oxygen + water → hydrated iron oxide (rust)</b>'] };
-  const [m, prod, note] = pick(METAL_OX.slice(0, 5));
-  return { type: 'eq', q: cap(m) + ' ' + note + ' when it reacts with <b>oxygen</b> in the air. Write the word equation for this reaction with oxygen.', ans: { r: [m, 'oxygen'], p: prod }, ansText: m + ' + oxygen → ' + first(prod[0]), hint: 'Metal + oxygen → metal oxide.', sol: ['<b>' + m + ' + oxygen → ' + first(prod[0]) + '</b>'] };
+  if (r < 0.3) return { type: 'eq', q: 'Rust is <b>hydrated iron oxide</b>. Write the word equation for iron rusting, including both of the substances it needs.', ans: { r: ['iron', 'oxygen', 'water'], p: [['hydrated iron oxide', 'rust', 'iron oxide']] }, ansText: 'iron + oxygen + water → hydrated iron oxide', hint: 'Rusting needs two things from the surroundings: one from the air and one that makes things wet. Both go on the left with the iron.', sol: ['<b>Step 1: what reacts?</b> Iron needs <b>oxygen</b> (from the air) and <b>water</b> to rust. All three go on the left: iron + oxygen + water.', '<b>Step 2: what is made?</b> Rust, which is <b>hydrated iron oxide</b> (“hydrated” means it has water locked into it).', '<b>Step 3: put it together:</b> <b>iron + oxygen + water → hydrated iron oxide</b>', '💡 Take away either the oxygen or the water and iron won’t rust. That’s how paint, oil and grease protect it.'] };
+  const [m, prod, note] = pick(METAL_OX.slice(0, 5)); const ox = first(prod[0]);
+  const FACT = { iron: 'Rust is flaky, so it falls off and lets the iron underneath keep rusting. That’s why iron needs paint, oil or a zinc coating.',
+    zinc: 'The zinc oxide layer sticks to the zinc and protects it. That’s why steel is coated in zinc (galvanised) to stop it rusting.',
+    copper: 'Copper goes dull brown, then slowly green over many years: the Statue of Liberty is copper turned green.',
+    aluminium: 'The aluminium oxide layer is thin and tough and seals the metal, so aluminium hardly corrodes, which is why it’s used for drink cans and window frames.',
+    magnesium: 'The dull white layer is magnesium oxide. Scratch it off and the shiny metal underneath shows again.' };
+  return { type: 'eq', q: cap(m) + ' ' + note + ' when it reacts with <b>oxygen</b> in the air. Write the word equation for this reaction with oxygen.', ans: { r: [m, 'oxygen'], p: prod }, ansText: m + ' + oxygen → ' + ox,
+    hint: 'A metal reacting with oxygen makes a <b>metal oxide</b>. Write what reacts on the left of the arrow and the new substance on the right: ___ + ___ → ___',
+    sol: ['<b>Step 1: what reacts?</b> The metal (<b>' + m + '</b>) and <b>oxygen</b> from the air. These go on the left of the arrow, joined by +.',
+      '<b>Step 2: what is made?</b> Metal + oxygen always makes a metal oxide, so ' + m + ' makes <b>' + ox + '</b>. ' + (m === 'iron' ? 'The orange-brown rust is the iron oxide.' : 'The layer you can see on the metal is the ' + ox + '.') + ' It goes on the right of the arrow.',
+      '<b>Step 3: put it together:</b> <b>' + m + ' + oxygen → ' + ox + '</b>',
+      '💡 ' + FACT[m] + ' (Write <b>oxygen</b>, not air: it’s only the oxygen in the air that reacts.)'] };
 });
 
 /* ---------- C9 mixed exam skills ---------- */
