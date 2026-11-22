@@ -1310,8 +1310,9 @@ export default {
     }
     if (req.method !== 'GET' && req.method !== 'HEAD') return new Response('Method not allowed', { status: 405 });
     if (url.pathname === '/admin/base' || url.pathname.startsWith('/admin/base/')) { // 🏰 Study Base: Beau only while it's being tested
-      const u = await currentUser(req, env);
-      if (!isAdmin(u, env)) return Response.redirect(url.origin + '/', 302);
+      let owner = false; // Beau may be logged in on any of the account slots (the account switcher), so check them all
+      for (let s = 0; s < MAX_SLOTS && !owner; s++) owner = isAdmin(await currentUser(req, env, s), env);
+      if (!owner) return Response.redirect(url.origin + '/', 302);
       if (url.pathname !== '/admin/base/') return Response.redirect(url.origin + '/admin/base/', 302);
       return new Response(versioned(baseHtml), { headers: { 'content-type': HTML, 'cache-control': 'no-store', ...SECURITY_HEADERS } });
     }
