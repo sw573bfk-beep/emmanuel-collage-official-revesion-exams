@@ -67,6 +67,9 @@
 .cz-tabs{display:flex;gap:6px;flex-wrap:wrap}
 .cz-tabs button{font:inherit;font-weight:600;border:1.5px solid var(--rule);background:var(--card);color:var(--ink);border-radius:999px;padding:6px 14px;cursor:pointer}
 .cz-tabs button.on{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.slots{display:flex;align-items:center;gap:8px;flex-wrap:wrap;border:1.5px solid var(--rule);border-radius:14px;padding:10px 12px;background:var(--card-2)}
+.slot{font:inherit;border:2px solid var(--rule);background:var(--card);color:var(--ink);border-radius:999px;padding:7px 14px;cursor:pointer;min-height:40px}
+.slot.on{border-color:var(--accent);background:var(--accent-soft);box-shadow:0 0 0 2px var(--accent)}
 .cz-sec{display:flex;flex-direction:column;gap:10px;border-top:1.5px solid var(--rule);padding-top:14px}
 .cz-sec:first-child{border-top:0;padding-top:0}
 .cz-sec h3{margin:0;font-size:1.1rem;display:flex;align-items:center;gap:8px;flex-wrap:wrap}.cz-sec h3 .cnt{font:600 .8125rem var(--f-body);color:var(--muted)}
@@ -276,25 +279,38 @@
     return box;
   }
   function itemBtn(d, x) {
-    const it = el('button', 'cz-item' + (d.look[x.k] === x.id ? ' sel' : '')); it.type = 'button'; it.disabled = !x.earned;
+    const inSlot = x.k === 't' ? (d.look.t === x.id ? 1 : d.look.t2 === x.id ? 2 : 0) : (d.look[x.k] === x.id ? 1 : 0);
+    const it = el('button', 'cz-item' + (inSlot ? ' sel' : '')); it.type = 'button'; it.disabled = !x.earned;
     const pic = el('span', 'pic');
     if (x.k === 'a') pic.textContent = x.v;
     else if (x.k === 'f') { const me = d.rewards.find(r => r.id === d.look.a); pic.textContent = me ? me.v : '🙂'; pic.classList.add('ec-lk'); if (x.v !== 'none') pic.classList.add('ec-fr-' + x.v); }
     else { const t = window.ecTitle({ t: x.v || 'No title', tr: x.rar, ti: x.ic, tn: x.rar ? (dropN(d, x.id) || 0) : 0 }); pic.replaceChildren(t); pic.style.cssText = 'width:auto;height:auto;border-radius:0;background:none;font-size:1rem;min-height:46px'; t.style.marginLeft = '0'; }
-    it.append(pic, el('b', '', x.k === 't' && !x.v ? 'No title' : x.name), el('span', '', x.earned ? (d.look[x.k] === x.id ? '✅ Wearing this' : x.need === 'Free' ? 'Free' : '🔓 ' + x.need) : '🔒 ' + x.need));
+    it.append(pic, el('b', '', x.k === 't' && !x.v ? 'No title' : x.name), el('span', '', x.earned ? (inSlot ? (x.k === 't' ? '✅ Title ' + inSlot : '✅ Wearing this') : x.need === 'Free' ? 'Free' : '🔓 ' + x.need) : '🔒 ' + x.need));
     if (!x.earned && x.needN > 1) { const pb = el('div', 'pb'), f = el('i'); f.style.width = Math.round(x.have / x.needN * 100) + '%'; pb.appendChild(f); it.append(pb, el('span', '', nf(x.have) + ' / ' + nf(x.needN))); }
-    it.setAttribute('aria-pressed', d.look[x.k] === x.id ? 'true' : 'false');
-    it.onclick = () => wear(d, x.k, x.id);
+    it.setAttribute('aria-pressed', inSlot ? 'true' : 'false');
+    it.onclick = () => wear(d, x.k === 't' ? slotKey() : x.k, x.id);
     return it;
   }
+  // 🏷️🏷️ you can wear 2 titles: pick which slot you're choosing for, then tap a title
+  let tSlot = 1;
+  const tName = (d, id) => { const r = d.rewards.find(x => x.id === id); return r && r.v ? r.name : 'None'; };
+  function slotPicker(d) {
+    const box = el('div', 'slots'); box.appendChild(el('span', 'small muted', 'You can wear 2 titles. Choosing for:'));
+    [[1, 't'], [2, 't2']].forEach(([n, k]) => { const b = el('button', 'slot' + (tSlot === n ? ' on' : '')); b.type = 'button'; b.setAttribute('aria-pressed', String(tSlot === n));
+      b.append(el('b', '', 'Title ' + n + ': '), el('span', '', tName(d, d.look[k]))); b.onclick = () => { tSlot = n; drawCz(d); }; box.appendChild(b); });
+    if (d.look.t2) { const clr = el('button', 'btn quiet sm', 'Remove title 2'); clr.type = 'button'; clr.onclick = () => wear(d, 't2', 't_none'); box.appendChild(clr); }
+    return box;
+  }
+  const slotKey = () => tSlot === 2 ? 't2' : 't';
   const dropN = (d, id) => { const x = d.drops && d.drops.list.find(y => y.id === id); return x ? x.n : 0; };
   function drawCz(d) {
     czData = d; const real = d.rewards.filter(x => x.need !== 'Free' && x.g !== 'old'), got = real.filter(x => x.earned).length;
     $('#czCount').textContent = got + ' of ' + real.length + ' unlocked';
     document.querySelectorAll('.cz-tabs button').forEach(b => { b.classList.toggle('on', b.dataset.k === czTab); b.onclick = () => { czTab = b.dataset.k; drawCz(czData); }; });
     const g = $('#czGrid'); g.replaceChildren(); g.className = 'stack'; g.style.gap = '16px';
+    if (czTab === 'd' || czTab === 't') g.appendChild(slotPicker(d));
     if (czTab === 'd') return drawDrops(d, g);
-    const TRACK = { 'f:right': [d.track.correct, 'questions right', 'more right'], 'a:streak': [d.track.best, (d.track.best === 1 ? 'day' : 'days') + ' best streak', 'more days in a row'], 'a:days': [d.track.days, (d.track.days === 1 ? 'day' : 'days') + ' studied', 'more days'] };
+    const TRACK = { 'f:right': [d.track.correct, 'questions right', 'more right'], 'a:streak': [d.track.best, (d.track.best === 1 ? 'day' : 'days') + ' best streak', 'more days in a row'], 'a:days': [d.track.days, (d.track.days === 1 ? 'day' : 'days') + ' studied', 'more days'], 't:mins': [d.track.minutes || 0, 'minutes on EC Revisions', 'more minutes'] };
     (d.groups[czTab] || []).forEach(([gid, gname]) => {
       const items = d.rewards.filter(x => x.k === czTab && x.g === gid); if (!items.length) return;
       const sec = el('section', 'cz-sec'), h = el('h3', '', gname); h.appendChild(el('span', 'cnt', items.filter(x => x.earned).length + ' / ' + items.length)); sec.appendChild(h);
@@ -320,10 +336,10 @@
       if (R.id !== 'rare') sh.appendChild(el('span', 'small muted', 'Any ' + R.name + ' drop also unlocks a picture and an animated frame: ' + ({ epic: '🔮 Crystal Ball + Void', leg: '🌌 Galaxy + Supernova', ins: '🌀 Singularity + Prismatic' })[R.id] + '.'));
       const grid = el('div', 'cz-grid');
       D.list.filter(x => x.rar === R.id).forEach(x => {
-        const own = x.n > 0, b = el('button', 'dr' + (own ? '' : ' lock') + (d.look.t === x.id ? ' sel' : '')); b.type = 'button'; b.disabled = !own;
-        b.append(el('span', 'ic', own ? x.ic : '❔'), el('b', '', x.name || '???'), el('span', '', own ? (d.look.t === x.id ? '✅ Wearing this' : 'Tap to wear') : 'Not pulled yet'),
+        const own = x.n > 0, slot = d.look.t === x.id ? 1 : d.look.t2 === x.id ? 2 : 0, b = el('button', 'dr' + (own ? '' : ' lock') + (slot ? ' sel' : '')); b.type = 'button'; b.disabled = !own;
+        b.append(el('span', 'ic', own ? x.ic : '❔'), el('b', '', x.name || '???'), el('span', '', own ? (slot ? '✅ Title ' + slot : 'Tap to wear as title ' + tSlot) : 'Not pulled yet'),
           el('span', '', x.people ? 'Pulled by ' + x.people + (x.people === 1 ? ' person' : ' people') : 'Nobody has pulled this yet'));
-        if (own) { b.appendChild(el('span', 'n', '×' + nf(x.n))); b.onclick = () => wear(d, 't', x.id); }
+        if (own) { b.appendChild(el('span', 'n', '×' + nf(x.n))); b.onclick = () => wear(d, slotKey(), x.id); }
         grid.appendChild(b);
       });
       sh.appendChild(grid); g.appendChild(sh);

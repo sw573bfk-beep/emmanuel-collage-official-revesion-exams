@@ -78,6 +78,7 @@
     + '.ec-title.r-ins{background:linear-gradient(90deg,#ff3b3b,#ffb300,#3cff6b,#2fd0ff,#d23bff,#ff3b3b);background-size:300% 100%;color:#fff;text-shadow:0 1px 2px rgb(0 0 0 / .6);animation:ecShim 3s linear infinite}'
     + '@keyframes ecShim{to{background-position:-200% 0}}@media (prefers-reduced-motion:reduce){.ec-title.r-leg,.ec-title.r-ins{animation:none}}'
     + ':root[data-theme="dark"] .ec-title.r-rare{background:#1e3a8a;color:#bfdbfe}@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .ec-title.r-rare{background:#1e3a8a;color:#bfdbfe}}'
+    + '.ec-titles{display:inline-flex;flex-wrap:wrap;gap:4px 0;align-items:center;margin-left:6px;vertical-align:middle}.ec-titles .ec-title{margin-left:0}'
     + '.ec-title{display:inline-block;font-size:.75rem;font-weight:700;letter-spacing:.02em;color:var(--accent,#2453d6);background:var(--accent-soft,#e8eefc);border-radius:999px;padding:1px 8px;margin-left:6px;white-space:nowrap;vertical-align:middle}';
   document.head.appendChild(lookCss);
   window.ecAv = (span, look, name) => {
@@ -88,7 +89,8 @@
     if (look && look.f) span.classList.add('ec-fr-' + look.f);
     return span;
   };
-  window.ecTitle = look => { if (!look || !look.t) return null; const s = document.createElement('span'); s.className = 'ec-title' + (look.tr ? ' r-' + look.tr : ''); s.textContent = (look.ti ? look.ti + ' ' : '') + look.t + (look.tn > 1 ? ' ×' + look.tn : ''); if (look.tr) s.title = ({ rare: 'RARE drop (1 in 100)', epic: 'EPIC drop (1 in 1,000)', leg: 'LEGENDARY drop (1 in 10,000)', ins: 'INSANE drop (1 in 100,000)' })[look.tr] + (look.tn > 1 ? ', pulled ' + look.tn + ' times' : ''); return s; };
+  window.ecTitle = look => { if (!look || !look.t) return null; const one = pill(look); if (!look.t2) return one; const w = document.createElement('span'); w.className = 'ec-titles'; const two = pill(look.t2); two.style.marginLeft = '4px'; w.append(one, two); return w; }; // 🏷️🏷️ up to 2 titles
+  const pill = look => { const s = document.createElement('span'); s.className = 'ec-title' + (look.tr ? ' r-' + look.tr : ''); s.textContent = (look.ti ? look.ti + ' ' : '') + look.t + (look.tn > 1 ? ' ×' + look.tn : ''); if (look.tr) s.title = ({ rare: 'RARE drop (1 in 100)', epic: 'EPIC drop (1 in 1,000)', leg: 'LEGENDARY drop (1 in 10,000)', ins: 'INSANE drop (1 in 100,000)' })[look.tr] + (look.tn > 1 ? ', pulled ' + look.tn + ' times' : ''); return s; };
   // 🍞 a small note at the bottom of the screen
   window.ecToast = (text, ms = 3500) => { const d = document.createElement('div'); d.setAttribute('role', 'status'); d.textContent = text; d.style.cssText = 'position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:2600;background:var(--ink,#111);color:var(--card,#fff);border-radius:12px;padding:10px 16px;font-weight:600;box-shadow:0 8px 24px rgb(0 0 0 / .25);max-width:calc(100vw - 24px)'; document.body.appendChild(d); setTimeout(() => d.remove(), ms); };
   // 🎲 LUCKY DROP pop-up. RARE: a card at the bottom. EPIC and rarer: the whole screen, with a burst.

@@ -491,16 +491,21 @@ async function handleApi(req, env, url) {
     let b; try { b = await readJson(req); } catch { return err(400, 'Bad request'); }
     const row = await env.DB.prepare('SELECT rewards, look FROM users WHERE id = ?').bind(user.id).first();
     const kept = savedRewards(row.rewards), flags = { tester: user.tester, teacher: user.teacher, role: !!staffRole(user, env), owner: isAdmin(user, env) };
-    if ([b.a, b.f, b.t].some(x => /^[aft]_x_/.test(String(x || '')))) { // 🎲 drop rewards: check the drops table too
+    if ([b.a, b.f, b.t, b.t2].some(x => /^[aft]_x_/.test(String(x || '')))) { // 🎲 drop rewards: check the drops table too
       for (const x of (await env.DB.prepare('SELECT id FROM drops WHERE user_id = ? AND n > 0').bind(user.id).all()).results) { const r = rewardById(x.id); if (r) { kept.add(x.id); (DROP_UNLOCKS[r.rar] || []).forEach(i => kept.add(i)); } }
     }
     const cur = lookIds(row.look), next = { ...cur };
-    for (const [k, pre] of [['a', 'a_'], ['f', 'f_'], ['t', 't_']]) {
+    for (const [k, pre] of [['a', 'a_'], ['f', 'f_'], ['t', 't_'], ['t2', 't_']]) {
       if (b[k] == null) continue; const id = String(b[k]);
       if (!id.startsWith(pre) || !canUse(id, kept, flags)) return err(403, 'You haven’t unlocked that yet.');
       next[k] = id;
     }
-    delete next.tn; if (next.t && next.t.startsWith('t_x_')) { const d = await env.DB.prepare('SELECT n FROM drops WHERE user_id = ? AND id = ?').bind(user.id, next.t).first(); if (d && d.n > 1) next.tn = d.n; }
+    // 🏷️🏷️ two titles: the slot you just set wins if they're the same; "no title" in slot 2 clears it
+    if (b.t != null && next.t2 === next.t) delete next.t2;
+    if (b.t2 != null && next.t2 === next.t) next.t = 't_none';
+    if (next.t2 === 't_none') delete next.t2;
+    delete next.tn; delete next.tn2;
+    for (const [k, nk] of [['t', 'tn'], ['t2', 'tn2']]) if (next[k] && next[k].startsWith('t_x_')) { const d = await env.DB.prepare('SELECT n FROM drops WHERE user_id = ? AND id = ?').bind(user.id, next[k]).first(); if (d && d.n > 1) next[nk] = d.n; }
     await env.DB.prepare('UPDATE users SET look = ? WHERE id = ?').bind(JSON.stringify(next), user.id).run();
     return json({ ok: true, look: next, view: lookView(JSON.stringify(next)) });
   }
@@ -634,7 +639,7 @@ async function handleApi(req, env, url) {
     const NOTE = { '[unlock-request]': '🔔 You asked to unlock the booklet', '[unlock-allowed]': '✅ Beau unlocked the booklet', '[unlock-declined]': 'Beau said not yet', '[chat-request]': '🙋 You asked to use Chat', '[chat-allowed]': '✅ Beau let you into Chat', '[chat-declined]': 'Beau said not yet', '[chat-removed]': 'Chat turned off', '[study-request]': '📚 You asked to leave study mode', '[study-allowed]': '✅ Study mode off', '[study-declined]': 'Beau said not yet' };
     const b0 = beau.results[0];
     const tch = await env.DB.prepare('SELECT u.username AS name FROM teacher_students ts JOIN users u ON u.id = ts.teacher_id WHERE ts.student_id = ? ORDER BY u.username').bind(me).all();
-    return json({ now: t, name: u.results[0].username, joined: u.results[0].created_at, rewards, groups: GROUPS, track: { correct: rs.correct, best: rs.best, days: rs.days }, drops: DS, look: lookIds(u0.look), lookView: lookView(u0.look), study, teacher: user.teacher, teachers: tch.results.map(x => x.name), role: staffRole(user, env), roleName: ROLE_NAME[staffRole(user, env)] || null, tester: user.tester, booklet: await hasUnlock(env, user, 'theory'),
+    return json({ now: t, name: u.results[0].username, joined: u.results[0].created_at, rewards, groups: GROUPS, track: { correct: rs.correct, best: rs.best, days: rs.days, minutes: Math.floor(rs.hours * 60) }, drops: DS, look: lookIds(u0.look), lookView: lookView(u0.look), study, teacher: user.teacher, teachers: tch.results.map(x => x.name), role: staffRole(user, env), roleName: ROLE_NAME[staffRole(user, env)] || null, tester: user.tester, booklet: await hasUnlock(env, user, 'theory'),
       time: { today: D[today] || 0, week: Array.from({ length: 7 }, (_, i) => D[back(i)] || 0).reduce((a, x) => a + x, 0), all: all.results[0].s || 0, last14, streak },
       leaderboard: lb, topics, friends: fr.results[0].n, badges: badges.concat(lb && lb.week && lb.week.rank <= 3 ? [B('🏆', 'Podium', 'Top 3 on this week’s leaderboard', 1, 1)] : []),
       messages: { beau: { last: b0 ? (NOTE[b0.body] || b0.body) : null, mine: b0 ? !b0.from_admin : false, at: b0 ? b0.created_at : null, unread: beauN.results[0].n },

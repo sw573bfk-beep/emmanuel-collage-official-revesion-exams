@@ -46,7 +46,7 @@ export async function roll(env, user, n, kind = 'answer', force = null) {
     if (!seen.has(d.id)) { seen.add(d.id); out.drops.push({ id: d.id, name: d.name, ic: d.ic, rar: d.rar, rarName: R.name, odds: R.odds, n: have[d.id] || 1, unlocks }); }
   }
   const upd = ['rewards = ?'], args = [JSON.stringify([...kept])];
-  if (look && look.t && have[look.t]) { look.tn = have[look.t]; upd.push('look = ?'); args.push(JSON.stringify(look)); }
+  if (look && ((look.t && have[look.t]) || (look.t2 && have[look.t2]))) { if (have[look.t]) look.tn = have[look.t]; if (have[look.t2]) look.tn2 = have[look.t2]; upd.push('look = ?'); args.push(JSON.stringify(look)); }
   await env.DB.prepare('UPDATE users SET ' + upd.join(', ') + ' WHERE id = ?').bind(...args, uid).run();
   // 📰 only the INSANE one goes in the News
   for (const d of out.drops.filter(x => x.rar === 'ins'))

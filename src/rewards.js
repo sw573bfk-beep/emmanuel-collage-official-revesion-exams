@@ -21,7 +21,7 @@ const tests = (s, f) => s.exams.filter(f).length;
 export const GROUPS = {
   a: [['free', '🆓 Free'], ['streak', '🔥 Best streak'], ['days', '📅 Days studied'], ['drop', '🎲 Lucky drops'], ['role', '⭐ Special'], ['old', '🏛️ Retired (yours forever)']],
   f: [['free', '🆓 Free'], ['right', '✅ Questions right'], ['drop', '🎲 Lucky drops'], ['old', '🏛️ Retired (yours forever)']],
-  t: [['free', '🆓 Free'], ['subj', '📚 Subjects'], ['test', '📝 Tests'], ['time', '⏱️ Study time and streaks'], ['social', '🏆 Friends and leaderboard'], ['grind', '⚡ Daily challenges and rolls'], ['drop', '🎲 Lucky drops'], ['role', '⭐ Special'], ['gift', '🎁 Gifts from Beau'], ['old', '🏛️ Retired (yours forever)']]
+  t: [['free', '🆓 Free'], ['subj', '📚 Subjects'], ['mins', '⏱️ Minutes on EC Revisions'], ['test', '📝 Tests'], ['time', '🔥 Streaks'], ['social', '🏆 Friends and leaderboard'], ['grind', '⚡ Daily challenges and rolls'], ['drop', '🎲 Lucky drops'], ['role', '⭐ Special'], ['gift', '🎁 Gifts from Beau'], ['old', '🏛️ Retired (yours forever)']]
 };
 
 export const REWARDS = [
@@ -82,11 +82,10 @@ export const REWARDS = [
   R('t_speed', 't', 'Speedrunner', 'Speedrunner', 'Finish a speedrun (5 minutes or less)', s => ge(tests(s, e => e.lim > 0 && e.lim <= 5), 1), { g: 'test' }),
   R('t_ace', 't', 'Top of the Class', 'Top of the Class', 'Score 90% or more on a test of 10+ questions', s => ge(tests(s, e => (e.n || 0) >= 10 && (e.p || 0) >= 90), 1), { g: 'test' }),
   R('t_perfect', 't', 'Perfectionist', 'Perfectionist', 'Score 100% on a test of 10+ questions', s => ge(tests(s, e => (e.n || 0) >= 10 && (e.p || 0) >= 100), 1), { g: 'test' }),
-  R('t_hour', 't', 'Getting Started', 'Getting Started', 'Study for 1 hour in total', s => ge(hrs(s), 1), { g: 'time' }),
-  R('t_book', 't', 'Bookworm', 'Bookworm', 'Study for 5 hours in total', s => ge(hrs(s), 5), { g: 'time' }),
-  R('t_ded', 't', 'Dedicated', 'Dedicated', 'Study for 10 hours in total', s => ge(hrs(s), 10), { g: 'time' }),
-  R('t_scholar', 't', 'Scholar', 'Scholar', 'Study for 25 hours in total', s => ge(hrs(s), 25), { g: 'time' }),
-  R('t_prof', 't', 'Professor', 'Professor', 'Study for 50 hours in total', s => ge(hrs(s), 50), { g: 'time' }),
+  // ⏱️ minutes on EC Revisions (study time: while Maths, Science or English is open and you're active)
+  ...[[10, 't_m10', 'Just Visiting'], [30, 't_m30', 'Warming Up'], [60, 't_hour', 'Getting Started'], [120, 't_m120', 'Regular'], [300, 't_book', 'Bookworm'], [600, 't_ded', 'Dedicated'],
+    [1000, 't_m1000', 'Thousand Club'], [1500, 't_scholar', 'Scholar'], [3000, 't_prof', 'Professor'], [5000, 't_m5000', 'Mastermind'], [7500, 't_m7500', 'Study Machine'], [10000, 't_m10000', '10,000 Minutes']]
+    .map(([n, id, name]) => R(id, 't', name, name, 'Spend ' + n.toLocaleString('en-AU') + ' minutes studying on EC Revisions', s => ge(Math.floor(s.hours * 60), n), { g: 'mins' })),
   R('t_streak', 't', 'Streak Legend', 'Streak Legend', 'Study 14 days in a row', s => ge(s.best, 14), { g: 'time' }),
   R('t_unstop', 't', 'Unstoppable', 'Unstoppable', 'Study 30 days in a row', s => ge(s.best, 30), { g: 'time' }),
   R('t_friend', 't', 'Friendly', 'Friendly', 'Make a friend', s => ge(s.friends, 1), { g: 'social' }),
@@ -144,9 +143,12 @@ export function canUse(id, kept, roleFlags) {
 // what other people see: { a: '🍕', f: 'gold', t: 'Equation Master' } (or null if they haven't chosen anything)
 export function lookView(json) {
   const o = parse(json, null); if (!o || typeof o !== 'object') return null;
-  const a = BY_ID[o.a], f = BY_ID[o.f], t = BY_ID[o.t];
-  const out = { a: a && a.k === 'a' ? a.v : null, f: f && f.k === 'f' && f.v !== 'none' ? f.v : null, t: t && t.k === 't' && t.v ? t.v : null };
-  if (out.t && t.rar) { out.tr = t.rar; out.ti = t.ic; if (o.tn > 1) out.tn = Math.min(+o.tn || 0, 99999); } // 🎲 lucky drop titles: rarity colour and pull count
+  const a = BY_ID[o.a], f = BY_ID[o.f];
+  // a title as others see it (🎲 lucky drop titles add their rarity colour and pull count)
+  const tv = (id, n) => { const t = BY_ID[id]; if (!t || t.k !== 't' || !t.v) return null; const x = { t: t.v }; if (t.rar) { x.tr = t.rar; x.ti = t.ic; if (n > 1) x.tn = Math.min(+n || 0, 99999); } return x; };
+  let t1 = tv(o.t, o.tn), t2 = tv(o.t2, o.tn2); if (!t1 && t2) { t1 = t2; t2 = null; }
+  const out = { a: a && a.k === 'a' ? a.v : null, f: f && f.k === 'f' && f.v !== 'none' ? f.v : null, ...(t1 || { t: null }) };
+  if (t2) out.t2 = t2; // 🏷️🏷️ a second title
   return out.a || out.f || out.t ? out : null;
 }
 // 🎉 what the pop-up says: "You got 50 answers right."
@@ -157,7 +159,7 @@ export function rewardPopup(id) {
   let why = r.need; for (const [re, to] of PAST) if (re.test(why)) { why = why.replace(re, to); break; }
   return { id, k: r.k, v: r.v, name: r.name, why: why.replace(/^You were be /, 'You were ') + '.' };
 }
-export const lookIds = json => { const o = parse(json, null); return o && typeof o === 'object' ? { a: o.a || 'a_smile', f: o.f || 'f_none', t: o.t || 't_none', ...(o.tn ? { tn: o.tn } : {}) } : { a: null, f: 'f_none', t: 't_none' }; };
+export const lookIds = json => { const o = parse(json, null); return o && typeof o === 'object' ? { a: o.a || 'a_smile', f: o.f || 'f_none', t: o.t || 't_none', ...(o.tn ? { tn: o.tn } : {}), ...(o.t2 ? { t2: o.t2 } : {}), ...(o.tn2 ? { tn2: o.tn2 } : {}) } : { a: null, f: 'f_none', t: 't_none' }; };
 export const rewardById = id => BY_ID[id] || null;
 
 // 🔥 best streak ever and days studied, from { 'YYYY-MM-DD': seconds }
