@@ -1,6 +1,6 @@
 // 🕹️ Arcade: just-for-fun games on the same site. Nothing here touches points, study time, rewards or stats.
-// Sky Jumper: everyone gets the same level each day (seeded by the date). Scores are checked against real time
-// (a run must be started first, and you can't climb faster than the game allows), then saved as your best today.
+// 🏂 Peak Rider: 3 snowboard tracks, each with its own leaderboard (all time and this week). Scores are checked against
+// real time: a run must be started first, can't be faster than the track allows, and can't score faster than tricks can.
 import { lookView } from './rewards.js';
 
 const QLD = 10 * 3600;
@@ -8,7 +8,8 @@ const now = () => Math.floor(Date.now() / 1000);
 const dayKey = t => new Date((t + QLD) * 1000).toISOString().slice(0, 10);
 const json = (d, s = 200) => new Response(JSON.stringify(d), { status: s, headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' } });
 const err = (s, m) => json({ error: m }, s);
-const GAMES = { sky: { maxRate: 115, slack: 300, maxScore: 1000000 } }; // metres per second at most (springs and balloons included), plus a little slack
+// per track: the fewest seconds a run can take (track length at top speed) and the most points a second can earn
+const GAMES = { t1: { minSecs: 14, maxRate: 6000, slack: 20000, maxScore: 5000000 }, t2: { minSecs: 18, maxRate: 6000, slack: 20000, maxScore: 5000000 }, t3: { minSecs: 22, maxRate: 6000, slack: 20000, maxScore: 5000000 } };
 const DAILY_STARTS = 400;
 
 async function body(req) { const t = await req.text(); if (t.length > 2000) throw new Error('too big'); return JSON.parse(t || '{}'); }
@@ -39,17 +40,16 @@ export async function handleArcade(req, env, url, user) {
     if (!run) return err(404, 'That game wasn’t found. Start a new one.');
     await env.DB.prepare('DELETE FROM arcade_runs WHERE token = ?').bind(token).run();
     const G = GAMES[run.game], secs = Math.max(0, t - run.started_at), score = Math.floor(+b.score || 0);
-    let ok = score >= 0 && score <= G.maxScore && score <= G.maxRate * (secs + 2) + G.slack;
-    if (run.day !== today) ok = false; // played across midnight: the level changed
+    const ok = score >= 0 && score <= G.maxScore && score <= G.maxRate * (secs + 2) + G.slack && secs + 2 >= G.minSecs && b.finished === true;
     if (ok && score > 0) await env.DB.prepare(`INSERT INTO arcade_scores (user_id, game, day, best, plays, at) VALUES (?1, ?2, ?3, ?4, 1, ?5)
       ON CONFLICT(user_id, game, day) DO UPDATE SET plays = plays + 1, best = MAX(best, excluded.best), at = CASE WHEN excluded.best > best THEN excluded.at ELSE at END`).bind(uid, run.game, today, score, t).run();
-    const [d, w] = [await board(env, run.game, today, today, uid), await board(env, run.game, monday(t), today, uid)];
-    return json({ saved: ok && score > 0, score, today: d.me, week: w.me });
+    const [a, w] = [await board(env, run.game, '2000-01-01', today, uid), await board(env, run.game, monday(t), today, uid)];
+    return json({ saved: ok && score > 0, score, all: a.me, week: w.me });
   }
   if (path === '/api/arcade/board' && method === 'GET') {
-    const game = String(url.searchParams.get('game') || 'sky'); if (!GAMES[game]) return err(400, 'No such game');
-    const [d, w] = [await board(env, game, today, today, uid), await board(env, game, monday(t), today, uid)];
-    return json({ seed: today, today: d, week: w, resetIn: Math.floor(Date.parse(today + 'T00:00:00Z') / 1000) - QLD + 86400 - t });
+    const out = {}; // every track: all-time and this week
+    for (const g of Object.keys(GAMES)) out[g] = { all: await board(env, g, '2000-01-01', today, uid), week: await board(env, g, monday(t), today, uid) };
+    return json(out);
   }
   return null;
 }

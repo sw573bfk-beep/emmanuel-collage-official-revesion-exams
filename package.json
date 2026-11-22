@@ -9,6 +9,7 @@
     "deploy": "wrangler d1 migrations apply ec-revisions-db --remote && wrangler deploy"
   },
   "devDependencies": {
+    "three": "^0.170.0",
     "wrangler": "^4.40.0"
   }
 }
