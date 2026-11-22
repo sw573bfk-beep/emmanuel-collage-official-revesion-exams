@@ -133,6 +133,8 @@ h2.grp:first-child{margin-top:0}
 .amenu .all{color:var(--muted);font-weight:500}
 .badge{display:inline-grid;place-items:center;min-width:22px;height:22px;padding:0 6px;border-radius:999px;background:var(--pen);color:var(--card);font-size:.8125rem;font-weight:700;line-height:1}
 .badge[hidden]{display:none}
+.perm-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,250px),1fr));gap:6px;margin:4px 0 8px}.perm-grid[hidden]{display:none}
+.perm-pick{display:flex;gap:8px;align-items:center;border:1.5px solid var(--rule);border-radius:10px;padding:8px 10px;cursor:pointer;font-size:.9rem}.perm-pick input{width:18px;height:18px}
 .sec{gap:14px;scroll-margin-top:64px}
 .sec-head{display:flex;align-items:center;gap:10px;flex-wrap:wrap;justify-content:space-between}
 .sec-tog{font:inherit;color:inherit;background:none;border:0;padding:4px 0;display:flex;align-items:center;gap:10px;cursor:pointer;text-align:left;min-height:44px}
@@ -477,21 +479,26 @@ h2.grp:first-child{margin-top:0}
     if (!rows.length) { const tr = document.createElement('tr'); const td = cell(tr, data.users.length ? 'No names match.' : 'No accounts yet. Share the link and they will appear here.'); td.colSpan = COLS.length; tb.appendChild(tr); }
   }
   // Top tier and Basic admins: a smaller dashboard with chat moderation, study mode and feedback only
-  let ROLE = 'owner', staffReady = false;
+  let ROLE = 'owner', staffReady = false, PERMS = { has: () => true }, PERM_NAMES = {};
+  // which permission each dashboard section needs (sections not listed are Beau's alone)
+  const SEC_PERM = { overview: ['people'], stats: ['people'], people: ['people'], broadcast: ['broadcast'], ratings: ['ratings'], problems: ['ratings'], examsAdmin: ['exams'], classReports: ['exams'],
+    chats: ['chats'], study: ['studyOn', 'studyOff'], feedback: ['feedback'], newsAdmin: ['news'], moderate: ['chatDelete', 'chatApprove', 'studyOn', 'studyOff'], arcadeAdmin: ['*'] };
   async function loadStaff(d) {
-    ROLE = d.role; data = { now: d.now, users: [], staff: true };
+    ROLE = d.role; PERMS = new Set(d.perms || []); PERM_NAMES = d.permNames || PERM_NAMES; data = d.users ? d : { now: d.now, users: [], staff: true };
     if (!staffReady) {
       staffReady = true;
-      document.querySelector('.head h1').textContent = 'EC Revisions ' + (ROLE === 'top' ? '⭐ Top tier admin' : '🛡️ Basic admin');
-      ['overview', 'broadcast', 'people', 'codes', 'security', 'ratings', 'problems', 'examsAdmin', 'classReports', 'yearAdmin', 'laptops', 'usage', 'stats'].forEach(id => { if (SEC[id]) { SEC[id].sec.hidden = true; SEC[id].mb.hidden = true; } });
-      SEC.moderate.sec.hidden = false; SEC.moderate.mb.hidden = false; tidyGroups(); setOpen('moderate', true, true);
+      document.querySelector('.head h1').textContent = 'EC Revisions ' + (ROLE === 'top' ? '⭐ Top tier admin' : '🛠️ Admin');
+      Object.keys(SEC).forEach(id => { const need = SEC_PERM[id], ok = need && (need[0] === '*' || need.some(x => PERMS.has(x))); SEC[id].sec.hidden = !ok; SEC[id].mb.hidden = !ok; });
+      tidyGroups(); if (!SEC.moderate.sec.hidden) setOpen('moderate', true, true);
       const mt = document.querySelector('#chatTabs [data-c="messages"]'); if (mt) mt.hidden = true;
-      pickChatTab('access');
-      const note = mk('p', 'small muted'); note.textContent = ROLE === 'top' ? 'You can restrict and approve: approve or say no to chats, pause chatting, study mode on and off, delete and restore messages.' : 'You can restrict: say no to or end chats, pause chatting, put people in study mode and delete messages. Only Beau or a Top tier admin can undo these.';
+      if (PERMS.has('chats')) pickChatTab('access');
+      const note = mk('p', 'small muted'); note.textContent = 'Beau has let you: ' + ([...PERMS].map(k => PERM_NAMES[k] || k).join(' · ') || 'nothing yet') + '.';
       document.querySelector('.head > div').appendChild(note);
     }
     $('#dash').hidden = false; $('#amenu').hidden = false; if (!load.hashed) { load.hashed = true; fromHash(); }
-    await Promise.all([loadChats(), loadStudy(), loadFeedback()]); drawModerate();
+    if (d.users) drawNumbers(); // 👥 view-only numbers
+    await Promise.all([PERMS.has('chats') ? loadChats() : null, PERMS.has('studyOn') || PERMS.has('studyOff') ? loadStudy() : null, PERMS.has('feedback') ? loadFeedback() : null, PERMS.has('ratings') ? loadRatings() : null, PERMS.has('broadcast') ? loadBroadcast() : null]);
+    if (studyData) drawModerate();
     $('#updated').textContent = 'Updated ' + new Date().toLocaleTimeString('en-AU', { timeZone: TZ, hour: 'numeric', minute: '2-digit' }) + '. Refreshes every 30 seconds.';
   }
   async function load() {
@@ -502,9 +509,15 @@ h2.grp:first-child{margin-top:0}
     if (r.status === 403) { $('#denied').hidden = false; $('#updated').textContent = ''; return; }
     if (!r.ok) { $('#updated').textContent = 'Couldn’t load. Retrying in 30 seconds.'; return; }
     if (r.data.staff) return loadStaff(r.data);
-    ROLE = 'owner';
+    ROLE = 'owner'; PERMS = { has: () => true }; if (r.data.permNames) PERM_NAMES = r.data.permNames;
     data = r.data; const T = data.totals;
     $('#dash').hidden = false; $('#amenu').hidden = false; if (!load.hashed) { load.hashed = true; fromHash(); }
+    drawNumbers();
+    loadCodes(); loadFeedback(); loadRatings(); loadConvs(); loadChats(); loadBroadcast(); loadStudy(); loadSecurity(); loadUsage(); loadLaptops();
+    $('#updated').textContent = 'Updated ' + new Date().toLocaleTimeString('en-AU', { timeZone: TZ, hour: 'numeric', minute: '2-digit' }) + ' (Queensland time). Refreshes every 30 seconds.';
+  }
+  function drawNumbers() {
+    const T = data.totals;
     $('#tOnline').textContent = T.online; $('#tUsers').textContent = T.users; $('#tUsersL').textContent = 'accounts (' + T.signupsToday + ' new today, ' + T.signupsWeek + ' this week)' + (T.leftOut ? ' · ' + T.leftOut + ' left out of stats' : '');
     $('#tToday').textContent = T.activeToday; $('#tWeek').textContent = T.activeWeek; $('#tTimeToday').textContent = dur(T.secondsToday); $('#tTimeWeek').textContent = dur(T.secondsWeek); $('#tTimeAll').textContent = dur(T.secondsAll); $('#tQs').textContent = T.questions; $('#tSciQs').textContent = T.scienceQuestions; $('#tFb').textContent = T.feedbackNew; $('#tFbL').textContent = 'new feedback (' + T.feedback + ' total)'; $('#tCodes').textContent = T.codesUsed + '/' + T.codesTotal; $('#tCodesL').textContent = 'unlock codes used (' + T.unlocked + ' accounts unlocked)';
     const on = data.users.filter(u => u.online && u.inStats); const ol = $('#onlineList'); ol.replaceChildren();
@@ -514,8 +527,7 @@ h2.grp:first-child{margin-top:0}
     $('#tFb').closest('.tile').classList.toggle('alert', T.feedbackNew > 0); setBadge('feedback', T.feedbackNew);
     const dt = $('#dayTable'); dt.replaceChildren(); const hr = document.createElement('tr'); ['Day', 'People', 'Minutes', 'New accounts'].forEach(h => { const th = document.createElement('th'); th.textContent = h; hr.appendChild(th); }); dt.appendChild(hr);
     data.days.slice().reverse().forEach(d => { const tr = document.createElement('tr'); [dayLabel(d.day), d.people, Math.round(d.seconds / 60), d.signups].forEach(v => cell(tr, v)); dt.appendChild(tr); });
-    drawTable(); loadCodes(); loadFeedback(); loadRatings(); loadConvs(); loadChats(); loadBroadcast(); loadStudy(); loadSecurity(); loadUsage(); loadLaptops();
-    $('#updated').textContent = 'Updated ' + new Date().toLocaleTimeString('en-AU', { timeZone: TZ, hour: 'numeric', minute: '2-digit' }) + ' (Queensland time). Refreshes every 30 seconds.';
+    drawTable();
   }
   function drawCharts() {
     barChart($('#chMin'), data.days, d => Math.round(d.seconds / 60), v => v + ' min', 'Minutes');
@@ -549,8 +561,17 @@ h2.grp:first-child{margin-top:0}
         const row = (label, sub, ctl) => { const r = mk('div', 'perm-row'), l = mk('div', 'l'); l.append(mk('b', '', label), mk('span', '', sub)); r.append(l, ctl); pm.appendChild(r); };
         const seg = (opts, cur, onPick) => { const s = mk('div', 'seg'); opts.forEach(([v, t]) => { const b = mk('button', v === cur ? 'on' : '', t); b.type = 'button'; b.onclick = async () => { if (v === cur) return; const ok = await onPick(v); if (ok) { cur = v; [...s.children].forEach(x => x.classList.toggle('on', x === b)); } }; s.appendChild(b); }); return s; };
         const setRole = async (body, done) => { const rr = await api('/api/admin/role', 'POST', Object.assign({ id: u.id }, body)); pmMsg.textContent = rr.ok ? '✅ ' + done : (rr.data.error || 'Couldn’t change it.'); if (rr.ok) load(); return rr.ok; };
-        row('Admin level', 'Top tier: chat moderation, study mode on/off, feedback. Basic: the same, but can’t approve anything or let people out of study mode (they can only say no, or turn study mode on).',
-          seg([[null, 'None'], ['basic', '🛡️ Basic'], ['top', '⭐ Top tier']], u.role || null, async v => { if (v && !confirm('Make ' + u.name + ' a ' + (v === 'top' ? 'Top tier' : 'Basic') + ' admin? They’ll be able to read and moderate chats.')) return false; const ok = await setRole({ role: v }, u.name + (v ? ' is now a ' + (v === 'top' ? '⭐ Top tier' : '🛡️ Basic') + ' admin.' : ' is no longer an admin.')); if (ok) u.role = v; return ok; }));
+        const permBox = mk('div', 'perm-grid'); permBox.hidden = u.role !== 'custom';
+        const drawPerms = () => { permBox.replaceChildren(); const have = new Set(u.perms || []);
+          Object.entries(PERM_NAMES).forEach(([k, label]) => { const lab = mk('label', 'perm-pick'), cb = document.createElement('input'); cb.type = 'checkbox'; cb.checked = have.has(k);
+            cb.onchange = async () => { const next = new Set(u.perms || []); cb.checked ? next.add(k) : next.delete(k); const rr = await api('/api/admin/role', 'POST', { id: u.id, perms: [...next] }); if (rr.ok) { u.perms = [...next]; pmMsg.textContent = '✅ Saved: ' + u.name + ' can ' + (u.perms.length ? u.perms.map(x => (PERM_NAMES[x] || x).replace(/^\S+\s/, '').toLowerCase()).join(', ') : 'do nothing yet') + '.'; } else { cb.checked = !cb.checked; pmMsg.textContent = rr.data.error || 'Couldn’t save.'; } };
+            lab.append(cb, mk('span', '', label)); permBox.appendChild(lab); }); };
+        drawPerms();
+        row('Admin level', '⭐ Top tier: chats, approving, study mode on and off, feedback, news and names (always the same). 🛠️ Admin: only what you tick below.',
+          seg([[null, 'None'], ['custom', '🛠️ Admin'], ['top', '⭐ Top tier']], u.role === 'basic' ? 'custom' : u.role || null, async v => { if (v && !confirm('Make ' + u.name + (v === 'top' ? ' a ⭐ Top tier admin? They’ll be able to read and moderate chats.' : ' an 🛠️ Admin? You then tick exactly what they can do (they start with nothing).'))) return false;
+            const body = { role: v }; if (v === 'custom') body.perms = u.role === 'custom' ? (u.perms || []) : [];
+            const ok = await setRole(body, u.name + (v ? ' is now ' + (v === 'top' ? 'a ⭐ Top tier admin.' : 'an 🛠️ Admin: tick what they can do below.') : ' is no longer an admin.')); if (ok) { u.role = v; if (v === 'custom') u.perms = body.perms; permBox.hidden = v !== 'custom'; drawPerms(); } return ok; }));
+        pm.appendChild(permBox);
         row('🧪 Official tester', 'Shows the tester banner on their profile, plus tester rewards.',
           seg([[false, 'No'], [true, 'Yes']], !!u.tester, async v => { const ok = await setRole({ tester: v }, v ? u.name + ' is now an Official tester.' : 'Tester banner removed.'); if (ok) u.tester = v; return ok; }));
         row('👩‍🏫 Teacher', 'Can add students to a class and see their study time and scores. Left off the leaderboard. Turning it off deletes their class list.',
@@ -567,7 +588,7 @@ h2.grp:first-child{margin-top:0}
         pm.appendChild(pmMsg); b.appendChild(pm);
       }
       // ✏️ change their name (Beau and Top tier admins)
-      if (ROLE !== 'basic') {
+      if (PERMS.has('names')) {
         const rn = document.createElement('div'); rn.className = 'row'; rn.style.alignItems = 'flex-end';
         rn.innerHTML = '<label class="f" style="flex:1 1 220px">✏️ Change their name<input type="text" id="rnIn" maxlength="30" autocomplete="off"></label><button class="btn quiet" type="button" id="rnBtn">Change name</button>';
         const rnMsg = document.createElement('p'); rnMsg.className = 'small'; rnMsg.setAttribute('role', 'status');
@@ -742,7 +763,7 @@ h2.grp:first-child{margin-top:0}
     return d;
   }
   function btn(text, fn, cls) { const b = mk('button', 'btn ' + (cls || 'quiet') + ' sm', text); b.type = 'button'; b.onclick = fn; return b; }
-  const hideBtn = (kind, id, hidden) => hidden && ROLE === 'basic' ? mk('span', 'small muted', 'deleted') : btn(hidden ? 'Restore' : 'Delete', async () => { await api('/api/admin/chat/hide', 'POST', { kind, id, hidden: !hidden }); await loadChats(); if (chatThread) openChatThread(chatThread); }, hidden ? 'quiet' : 'danger');
+  const hideBtn = (kind, id, hidden) => !PERMS.has(hidden ? 'chatApprove' : 'chatDelete') ? mk('span', 'small muted', hidden ? 'deleted' : '') : btn(hidden ? 'Restore' : 'Delete', async () => { await api('/api/admin/chat/hide', 'POST', { kind, id, hidden: !hidden }); await loadChats(); if (chatThread) openChatThread(chatThread); }, hidden ? 'quiet' : 'danger');
   async function openChatThread(t) {
     chatThread = t; const box = $('#chatBody'); box.replaceChildren(mk('p', 'muted small', 'Loading…'));
     const r = await api('/api/admin/chat/dm/' + t.id); if (!r.ok) return;
@@ -754,7 +775,7 @@ h2.grp:first-child{margin-top:0}
   function drawChats() {
     if (!chatData) return;
     const ml = $('#mutedList'); ml.replaceChildren();
-    if (chatData.muted.length && ROLE !== 'basic') { ml.appendChild(mk('span', 'small muted', 'Chatting paused for:')); chatData.muted.forEach(u => ml.appendChild(btn(u.name + ' · Allow again', async () => { await api('/api/admin/chat/mute', 'POST', { id: u.id, muted: false }); load(); }))); }
+    if (chatData.muted.length && PERMS.has('chatApprove')) { ml.appendChild(mk('span', 'small muted', 'Chatting paused for:')); chatData.muted.forEach(u => ml.appendChild(btn(u.name + ' · Allow again', async () => { await api('/api/admin/chat/mute', 'POST', { id: u.id, muted: false }); load(); }))); }
     if (chatTab === 'messages') return;
     if (chatThread) return openChatThread(chatThread);
     const box = $('#chatBody'); box.replaceChildren();
@@ -764,7 +785,7 @@ h2.grp:first-child{margin-top:0}
       const waitP = chatData.threads.filter(x => x.status === 'approval'), liveP = chatData.threads.filter(x => x.status === 'active');
       box.appendChild(mk('h3', '', '🙋 Waiting for you (' + waitP.length + ')'));
       if (!waitP.length) none('No chats waiting. When two students both agree to be friends, the pair shows up here.');
-      waitP.forEach(t => box.appendChild(line([mk('span', 'pill warn', 'both agreed'), t.a_name + ' and ' + t.b_name, fmtC(t.updated_at)], '', false, (ROLE === 'basic' ? [] : [btn('✅ Approve chat', pair(t, 'allow'), 'go')]).concat([btn('Not now', pair(t, 'refuse'))]))));
+      waitP.forEach(t => box.appendChild(line([mk('span', 'pill warn', 'both agreed'), t.a_name + ' and ' + t.b_name, fmtC(t.updated_at)], '', false, (!PERMS.has('chatApprove') ? [] : [btn('✅ Approve chat', pair(t, 'allow'), 'go')]).concat([btn('Not now', pair(t, 'refuse'))]))));
       const dd = mk('details'); dd.open = true; dd.appendChild(mk('summary', '', '💬 Chats you approved (' + liveP.length + ')')); const w = mk('div', 'chatlog'); w.style.marginTop = '8px';
       liveP.forEach(t => w.appendChild(line([t.a_name + ' and ' + t.b_name, t.n + ' messages', fmtC(t.updated_at)], '', false, [btn('Read', () => { pickChatTab('dms'); openChatThread(t); }), btn('End chat', pair(t, 'end'), 'danger')])));
       if (!liveP.length) w.appendChild(mk('p', 'muted small', 'None yet.')); dd.appendChild(w); box.appendChild(dd);
@@ -933,7 +954,7 @@ h2.grp:first-child{margin-top:0}
     const tm = x => new Date(x * 1000).toLocaleString('en-AU', { timeZone: TZ, weekday: 'short', hour: 'numeric', minute: '2-digit' });
     const how = (d.siteBy === 'schedule' ? 'automatically' : 'by the switch') + (d.since ? ' since ' + tm(d.since) : '') + (d.next ? ' · next automatic time: ' + (d.next.on ? 'on' : 'off') + ' ' + tm(d.next.at) : '');
     const st = mk('div', 'st'); st.append(mk('b', '', (d.site ? '📚 Study mode is ON for everyone' : 'Study mode for everyone is off')), mk('span', 'small', how), mk('span', 'small muted', d.site ? 'Every student (and every new account) is in study mode, except anyone you let out below.' : 'Only the people you put in study mode below are in it. Turn this on to put every student in study mode at once.'));
-    if (d.site && ROLE === 'basic') sw.disabled = true;
+    if (!PERMS.has(d.site ? 'studyOff' : 'studyOn')) sw.disabled = true;
     sw.onclick = async () => { if (!d.site && !confirm('Turn on study mode for everyone now? (Not you or Top tier admins.) It stays on until you turn it off or the next automatic time.')) return; sw.disabled = true; await api('/api/admin/study-all', 'POST', { on: !d.site }); loadStudy(); };
     all.append(sw, st);
     // ⏰ automatic times (Beau only)
@@ -958,9 +979,9 @@ h2.grp:first-child{margin-top:0}
     setBadge('study', pend.length);
     box.appendChild(mk('h3', '', '🙋 Asking to leave study mode (' + pend.length + ')'));
     if (!pend.length) box.appendChild(mk('p', 'muted small', 'Nobody is asking right now.'));
-    pend.forEach(u => box.appendChild(line([mk('span', 'pill warn', 'asked'), u.name, 'asked ' + fmtC(u.req)], '', false, (ROLE === 'basic' ? [] : [btn('✅ Turn off study mode', () => setStudy(u, false), 'go')]).concat([btn('Not now', () => setStudy(u, true))]))));
+    pend.forEach(u => box.appendChild(line([mk('span', 'pill warn', 'asked'), u.name, 'asked ' + fmtC(u.req)], '', false, (!PERMS.has('studyOff') ? [] : [btn('✅ Turn off study mode', () => setStudy(u, false), 'go')]).concat([btn('Not now', () => setStudy(u, true))]))));
     const group = (title, list, mkBtn, open) => { const dd = mk('details'); dd.open = open; dd.appendChild(mk('summary', '', title + ' (' + list.length + ')')); const w = mk('div', 'chatlog'); w.style.marginTop = '8px'; list.forEach(u => w.appendChild(line([u.name, 'last on ' + (u.seen ? ago(u.seen) : 'never')], '', false, [mkBtn(u)]))); if (!list.length) w.appendChild(mk('p', 'muted small', studyQ ? 'No names match.' : 'Nobody.')); dd.appendChild(w); box.appendChild(dd); };
-    group('📚 In study mode', inS, u => ROLE === 'basic' ? mk('span', 'small muted', 'in study mode') : btn('Turn off for ' + u.name.split(' ')[0], () => setStudy(u, false)), !!studyQ || inS.length <= 15);
+    group('📚 In study mode', inS, u => !PERMS.has('studyOff') ? mk('span', 'small muted', 'in study mode') : btn('Turn off for ' + u.name.split(' ')[0], () => setStudy(u, false)), !!studyQ || inS.length <= 15);
     group('Not in study mode', out, u => btn('Put in study mode', () => setStudy(u, true)), !!studyQ);
     box.querySelectorAll('.cl .body').forEach(b => { if (!b.textContent) b.remove(); });
   }
@@ -1024,13 +1045,14 @@ h2.grp:first-child{margin-top:0}
     const t = $('#codesTable'); t.replaceChildren(); const hr = document.createElement('tr'); ['Code', 'Status', 'Used by', 'When'].forEach(x => { const th = document.createElement('th'); th.textContent = x; hr.appendChild(th); }); t.appendChild(hr);
     list.forEach(c => { const tr = document.createElement('tr'); const code = cell(tr, c.code); code.style.fontFamily = 'var(--f-mono)'; code.style.fontWeight = '600'; code.style.letterSpacing = '.12em'; cell(tr, c.redeemed_at ? 'used' : 'unused'); cell(tr, c.redeemed_at ? (c.redeemed_name || '(deleted account)') : '—'); cell(tr, c.redeemed_at ? when(c.redeemed_at) : '—'); if (c.redeemed_at) tr.style.color = 'var(--muted)'; t.appendChild(tr); });
     if (!list.length) { const tr = document.createElement('tr'); cell(tr, 'No codes of this kind yet. Press “Make 5 more”.').colSpan = 4; t.appendChild(tr); }
+    if (r.data.permNames) PERM_NAMES = r.data.permNames;
     const rp = $('#rolePeople'); rp.replaceChildren();
     if (!r.data.people.length) rp.appendChild(mk('p', 'muted small', 'Nobody yet.'));
     r.data.people.forEach(u => {
-      const acts = []; if (u.role) acts.push(btn('Remove ' + (u.role === 'top' ? 'Top tier' : 'Basic') + ' admin', async () => { if (!confirm('Take away ' + u.name + '’s admin level?')) return; await api('/api/admin/role', 'POST', { id: u.id, role: null }); loadCodes(); }, 'danger'));
+      const acts = []; if (u.role) acts.push(btn('Remove ' + (u.role === 'top' ? 'Top tier admin' : 'admin'), async () => { if (!confirm('Take away ' + u.name + '’s admin level?')) return; await api('/api/admin/role', 'POST', { id: u.id, role: null }); loadCodes(); }, 'danger'));
       if (u.tester) acts.push(btn('Remove tester banner', async () => { await api('/api/admin/role', 'POST', { id: u.id, tester: false }); loadCodes(); }));
       if (u.teacher) acts.push(btn('Remove teacher', async () => { if (!confirm('Take away ' + u.name + '’s teacher account? Their class list is deleted.')) return; await api('/api/admin/role', 'POST', { id: u.id, teacher: false }); loadCodes(); }, 'danger'));
-      rp.appendChild(line([u.name, [u.role === 'top' ? '⭐ Top tier admin' : u.role === 'basic' ? '🛡️ Basic admin' : '', u.tester ? '🧪 Official tester' : '', u.teacher ? '👩‍🏫 Teacher' : ''].filter(Boolean).join(' · ')], '', false, acts));
+      rp.appendChild(line([u.name, [u.role === 'top' ? '⭐ Top tier admin' : u.role === 'custom' ? '🛠️ Admin: ' + ((() => { try { return JSON.parse(u.perms || '[]'); } catch (e) { return []; } })().map(k => (PERM_NAMES[k] || k).replace(/^\S+\s/, '')).join(', ') || 'no permissions yet') : '', u.tester ? '🧪 Official tester' : '', u.teacher ? '👩‍🏫 Teacher' : ''].filter(Boolean).join(' · ')], '', false, acts));
     });
     rp.querySelectorAll('.cl .body').forEach(b => { if (!b.textContent) b.remove(); });
   }
@@ -1039,17 +1061,17 @@ h2.grp:first-child{margin-top:0}
   /* ---------- moderate a student (Top tier and Basic admins) ---------- */
   let modQ = '';
   function drawModerate() {
-    if (!studyData) return; const top = ROLE !== 'basic', box = $('#modList'); box.replaceChildren();
-    $('#modHelp').textContent = top ? 'Pause or allow chatting, and put people into or take them out of study mode.' : 'You can pause chatting and put people into study mode. Only Beau or a Top tier admin can undo these.';
+    if (!studyData) return; const top = PERMS.has('chatApprove') && PERMS.has('studyOff'), box = $('#modList'); box.replaceChildren();
+    $('#modHelp').textContent = top ? 'Pause or allow chatting, and put people into or take them out of study mode.' : 'You can do what Beau has let you: the buttons you don’t see need a permission you don’t have.';
     const list = studyData.people.filter(u => modQ && u.name.toLowerCase().includes(modQ)).slice(0, 30);
     if (!modQ) box.appendChild(mk('p', 'muted small', 'Type a name to find a student.'));
     else if (!list.length) box.appendChild(mk('p', 'muted small', 'No names match.'));
     list.forEach(u => {
       const acts = [];
       if (!u.muted) acts.push(btn('Pause chatting', async () => { await api('/api/admin/chat/mute', 'POST', { id: u.id, muted: true }); await loadStudy(); drawModerate(); }, 'danger'));
-      else if (top) acts.push(btn('Let them chat again', async () => { await api('/api/admin/chat/mute', 'POST', { id: u.id, muted: false }); await loadStudy(); drawModerate(); }));
+      else if (PERMS.has('chatApprove')) acts.push(btn('Let them chat again', async () => { await api('/api/admin/chat/mute', 'POST', { id: u.id, muted: false }); await loadStudy(); drawModerate(); }));
       if (!u.study) acts.push(btn('Put in study mode', async () => { await api('/api/admin/study', 'POST', { id: u.id, on: true }); await loadStudy(); drawModerate(); }));
-      else if (top) acts.push(btn('Take out of study mode', async () => { await api('/api/admin/study', 'POST', { id: u.id, on: false }); await loadStudy(); drawModerate(); }));
+      else if (PERMS.has('studyOff')) acts.push(btn('Take out of study mode', async () => { await api('/api/admin/study', 'POST', { id: u.id, on: false }); await loadStudy(); drawModerate(); }));
       box.appendChild(line([u.name, [u.muted ? '⏸ chatting paused' : '', u.study ? '📚 in study mode' : ''].filter(Boolean).join(' · ') || 'no limits'], '', false, acts));
     });
     box.querySelectorAll('.cl .body').forEach(b => { if (!b.textContent) b.remove(); });

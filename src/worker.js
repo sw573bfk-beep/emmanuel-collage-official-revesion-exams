@@ -286,9 +286,24 @@ const cleanName = s => String(s || '').normalize('NFKC').replace(/\s+/g, ' ').tr
 const QLD_OFFSET = 10 * 3600; // Queensland is UTC+10 all year
 const dayKey = t => new Date((t + QLD_OFFSET) * 1000).toISOString().slice(0, 10);
 const deviceOf = req => { const ua = req.headers.get('user-agent') || ''; return /iPad|Tablet/i.test(ua) ? 'tablet' : /Mobi|Android|iPhone/i.test(ua) ? 'phone' : 'computer'; };
-// Dashboard access: 'owner' (Beau), 'top' (Top tier admin) or 'basic' (Basic admin), from the codes below. Otherwise null.
-const staffRole = (user, env) => !user ? null : isAdmin(user, env) ? 'owner' : user.role === 'top' || user.role === 'basic' ? user.role : null;
-const ROLE_NAME = { owner: 'Owner', top: 'Top tier admin', basic: 'Basic admin' };
+// Dashboard access: 'owner' (Beau), 'top' (Top tier admin) or 'custom' (an admin with the permissions Beau ticked). Otherwise null.
+const staffRole = (user, env) => !user ? null : isAdmin(user, env) ? 'owner' : user.role === 'top' || user.role === 'custom' ? user.role : null;
+const ROLE_NAME = { owner: 'Owner', top: 'Top tier admin', custom: 'Admin' };
+// 🛠️ everything Beau can let an admin do
+const PERMS = {
+  chats: '💬 See chats and reports', chatDelete: '🗑️ Delete messages and pause chatting', chatApprove: '✅ Approve chats, restore messages and unpause chatting',
+  studyOn: '📚 Turn study mode on', studyOff: '📚 Turn study mode off', feedback: '📝 See and sort feedback', news: '📰 Post news', names: '✏️ Change people’s names',
+  exams: '📅 Exam dates and 🖨️ class reports', ratings: '⭐ Site ratings and 🧩 problem questions', broadcast: '📣 Message everyone', people: '👥 See everyone and the stats (view only)'
+};
+const TOP_PERMS = ['chats', 'chatDelete', 'chatApprove', 'studyOn', 'studyOff', 'feedback', 'news', 'names']; // Top tier admin: exactly what it always was
+const BASIC_PERMS = ['chats', 'chatDelete', 'studyOn', 'feedback', 'news']; // what an old Basic admin could do
+const cleanPerms = list => [...new Set((Array.isArray(list) ? list : []).map(String).filter(p => PERMS[p]))];
+function permSet(user, env) {
+  const role = staffRole(user, env); if (!role) return new Set();
+  if (role === 'owner') return new Set(Object.keys(PERMS));
+  if (role === 'top') return new Set(TOP_PERMS);
+  let list = []; try { list = JSON.parse(user.perms || '[]'); } catch { list = []; } return new Set(cleanPerms(list));
+}
 const isAdmin = (user, env) => !!user && user.username.toLowerCase() === String(env.ADMIN_USERNAME || '').toLowerCase();
 
 const enc = new TextEncoder();
@@ -338,9 +353,9 @@ async function startSession(env, userId, url, slot = 0, days = SESSION_DAYS) {
 }
 async function currentUser(req, env, slot = slotOf(req)) {
   const token = getCookie(req, sidName(slot)); if (!token || !/^[0-9a-f]{64}$/.test(token)) return null;
-  const row = await env.DB.prepare('SELECT u.id, u.username, u.prev_name, u.role, u.tester, u.teacher, u.focus_until, u.look, u.rewards_new, u.news_seen, u.home_chips, s.expires_at FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token_hash = ?').bind(await sha256(token)).first();
+  const row = await env.DB.prepare('SELECT u.id, u.username, u.prev_name, u.role, u.perms, u.tester, u.teacher, u.focus_until, u.look, u.rewards_new, u.news_seen, u.home_chips, s.expires_at FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token_hash = ?').bind(await sha256(token)).first();
   if (!row || row.expires_at < now()) return null;
-  return { id: row.id, username: row.username, prevName: row.prev_name || null, role: row.role || null, tester: !!row.tester, teacher: !!row.teacher, focus_until: row.focus_until || 0, look: row.look || null, rewardsNew: row.rewards_new || null, newsSeen: row.news_seen || 0, homeChips: row.home_chips || null, tokenHash: await sha256(token) };
+  return { id: row.id, username: row.username, prevName: row.prev_name || null, role: row.role || null, perms: row.perms || null, tester: !!row.tester, teacher: !!row.teacher, focus_until: row.focus_until || 0, look: row.look || null, rewardsNew: row.rewards_new || null, newsSeen: row.news_seen || 0, homeChips: row.home_chips || null, tokenHash: await sha256(token) };
 }
 // 🎉 look for newly unlocked rewards (at most every 90 seconds per person): after saving answers and while studying.
 // Same numbers as the profile, minus leaderboard ranks (those unlock when the profile or leaderboard is opened).
@@ -460,7 +475,7 @@ async function handleApi(req, env, url) {
     if (!isAdmin(user, env)) await seenOn(env, user.id, deviceOf_(req));
     const [rows, yr] = await env.DB.batch([env.DB.prepare('SELECT subject, updated_at FROM progress WHERE user_id = ?').bind(user.id), env.DB.prepare("SELECT value FROM settings WHERE key = 'year'")]);
     const year = (() => { const v = yr.results[0] && +yr.results[0].value; return v >= 7 && v <= 12 ? v : 8; })();
-    return json({ year, username: user.username, prevName: user.prevName, admin: isAdmin(user, env), role: staffRole(user, env), tester: user.tester, teacher: user.teacher, homeChips: (() => { try { return user.homeChips ? JSON.parse(user.homeChips) : null; } catch { return null; } })(), subjects: Object.fromEntries(rows.results.map(r => [r.subject, r.updated_at])) });
+    return json({ year, username: user.username, prevName: user.prevName, admin: isAdmin(user, env), role: staffRole(user, env), perms: [...permSet(user, env)], tester: user.tester, teacher: user.teacher, homeChips: (() => { try { return user.homeChips ? JSON.parse(user.homeChips) : null; } catch { return null; } })(), subjects: Object.fromEntries(rows.results.map(r => [r.subject, r.updated_at])) });
   }
   if (path === '/api/logout' && method === 'POST') {
     if (user) await env.DB.prepare('DELETE FROM sessions WHERE token_hash = ?').bind(user.tokenHash).run();
@@ -558,7 +573,7 @@ async function handleApi(req, env, url) {
   }
   // 👩‍🏫 Teachers: their class (students they added) with each student's study time and scores. Never messages.
   if (path.startsWith('/api/teacher/')) {
-    if (!user.teacher && !isAdmin(user, env)) return err(403, 'Only teachers can see this. Ask Beau for a Teacher code.');
+    if (!user.teacher && !isAdmin(user, env) && !permSet(user, env).has('exams')) return err(403, 'Only teachers can see this. Ask Beau for a Teacher code.');
     return handleTeacher(req, env, url, user);
   }
   // 🚩 Report a mistake on a question (works in study mode too): goes to Beau's Feedback with the question attached
@@ -823,7 +838,7 @@ async function handleApi(req, env, url) {
   if (path.startsWith('/api/admin/')) {
     const role = staffRole(user, env);
     if (!role) return err(403, 'Only the site admin can see this.');
-    return handleAdmin(req, env, path, method, user, role);
+    return handleAdmin(req, env, path, method, user, role, permSet(user, env));
   }
 
   const m = path.match(/^\/api\/progress\/([a-z]+)$/);
@@ -924,20 +939,21 @@ async function hasUnlock(env, user, feature) {
 // 5-character codes from letters and numbers that can't be mixed up (no 0/O, 1/I/L), typed in any case
 const CODE_CHARS = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
 function newCode() { const b = crypto.getRandomValues(new Uint8Array(5)); return Array.from(b, x => CODE_CHARS[x % CODE_CHARS.length]).join(''); }
-const CODE_TYPES = { theory: '📘 Science booklet', top: '⭐ Top tier admin', basic: '🛡️ Basic admin', tester: '🧪 Official tester', teacher: '👩‍🏫 Teacher' };
+const CODE_TYPES = { theory: '📘 Science booklet', top: '⭐ Top tier admin', basic: '🛠️ Admin (basic permissions)', tester: '🧪 Official tester', teacher: '👩‍🏫 Teacher' };
 // What a code does. Codes are only used up if they actually give you something new.
 async function useCode(env, user, row, t) {
   const f = row.feature, owner = isAdmin(user, env);
   if (f === 'theory' && await hasUnlock(env, user, 'theory')) return { error: 'You already have the completed booklet, so this code wasn’t used. Give it to someone else.' };
   if ((f === 'top' || f === 'basic') && owner) return { error: 'You’re the owner already.' };
   if (f === 'top' && user.role === 'top') return { error: 'You’re already a Top tier admin, so this code wasn’t used.' };
-  if (f === 'basic' && (user.role === 'top' || user.role === 'basic')) return { error: 'You already have ' + (user.role === 'top' ? 'Top tier' : 'Basic') + ' admin, so this code wasn’t used.' };
+  if (f === 'basic' && (user.role === 'top' || user.role === 'custom')) return { error: 'You’re already an admin, so this code wasn’t used.' };
   if (f === 'tester' && user.tester) return { error: 'You’re already an Official tester, so this code wasn’t used.' };
   if (f === 'teacher' && user.teacher) return { error: 'You’re already a teacher, so this code wasn’t used.' };
   const claim = await env.DB.prepare('UPDATE codes SET redeemed_by = ?, redeemed_at = ? WHERE code = ? AND redeemed_by IS NULL').bind(user.id, t, row.code).run();
   if (!claim.meta.changes) return { error: 'That code has already been used.' };
   if (f === 'theory') await env.DB.prepare("INSERT OR IGNORE INTO unlocks (user_id, feature, unlocked_at, code) VALUES (?, 'theory', ?, ?)").bind(user.id, t, row.code).run();
-  if (f === 'top' || f === 'basic') await env.DB.prepare('UPDATE users SET role = ? WHERE id = ?').bind(f, user.id).run();
+  if (f === 'top') await env.DB.prepare('UPDATE users SET role = ?, perms = NULL WHERE id = ?').bind('top', user.id).run();
+  if (f === 'basic') await env.DB.prepare("UPDATE users SET role = 'custom', perms = ? WHERE id = ?").bind(JSON.stringify(BASIC_PERMS), user.id).run();
   if (f === 'tester') await env.DB.prepare('UPDATE users SET tester = 1 WHERE id = ?').bind(user.id).run();
   if (f === 'teacher') await env.DB.prepare('UPDATE users SET teacher = 1, in_stats = 0 WHERE id = ?').bind(user.id).run(); // teachers aren't on the leaderboard
   return { message: { theory: '📘 The completed Science booklet is unlocked! Open Science → Booklet.', top: '⭐ You’re now a Top tier admin. Open the dashboard from your profile.', basic: '🛡️ You’re now a Basic admin. Open the dashboard from your profile.', tester: '🧪 You’re now an Official tester! Check out your profile banner.', teacher: '👩‍🏫 You’re now a teacher. Open “My class” from your profile to add your students.' }[f] };
@@ -977,7 +993,7 @@ async function handleTeacher(req, env, url, user) {
     let tid = me, tname = user.username, viewing = false;
     const want = +url.searchParams.get('teacher') || 0;
     if (want && want !== me) { // 🖨️ Beau opening a teacher's class report
-      if (!isAdmin(user, env)) return err(403, 'You can only see your own class.');
+      if (!isAdmin(user, env) && !permSet(user, env).has('exams')) return err(403, 'You can only see your own class.');
       const tu = await env.DB.prepare('SELECT id, username FROM users WHERE id = ? AND teacher = 1').bind(want).first();
       if (!tu) return err(404, 'That teacher isn’t there any more.');
       tid = tu.id; tname = tu.username; viewing = true;
@@ -1027,13 +1043,19 @@ async function handleTeacher(req, env, url, user) {
   return err(404, 'Not found');
 }
 
-async function handleAdmin(req, env, path, method, me, role = 'owner') {
+// which permission each admin page needs (anything not listed here is Beau's alone)
+const NEEDS = [[/^\/api\/admin\/chat\//, 'chats'], [/^\/api\/admin\/(study|study-all)$/, ['studyOn', 'studyOff']], [/^\/api\/admin\/(feedback|feedback-status)$/, 'feedback'], [/^\/api\/admin\/news(\/|$)/, 'news'],
+  [/^\/api\/admin\/rename$/, 'names'], [/^\/api\/admin\/exams$/, 'exams'], [/^\/api\/admin\/(surveys|survey-delete|problems)$/, 'ratings'], [/^\/api\/admin\/broadcast(\/stop)?$/, 'broadcast'],
+  [/^\/api\/admin\/(insights|student-search|student\/\d+|user\/\d+)$/, 'people', 'GET']];
+async function handleAdmin(req, env, path, method, me, role = 'owner', P = new Set()) {
   const t = now(), today = dayKey(t), url = new URL(req.url);
-  // Helpers (Top tier and Basic admins) only get chat moderation, study mode and feedback. Everything else is Beau's.
   const owner = role === 'owner';
-  if (!owner && !/^\/api\/admin\/(overview|chat\/|study|study-all|feedback|feedback-status|news)$/.test(path) && !path.startsWith('/api/admin/chat/')) return err(403, 'Only Beau can do this.');
-  if (!owner && path === '/api/admin/overview') return json({ now: t, role, roleName: ROLE_NAME[role], staff: true });
-  const cma = await handleCommunityAdmin(req, env, url, role); if (cma) return cma;
+  if (!owner) {
+    const meta = { staff: true, role, roleName: ROLE_NAME[role], perms: [...P], permNames: PERMS };
+    if (path === '/api/admin/overview' && !P.has('people')) return json({ now: t, ...meta });
+    if (path !== '/api/admin/overview') { const n = NEEDS.find(([re]) => re.test(path)); const need = n && [].concat(n[1]); if (!n || !need.some(x => P.has(x)) || (n[2] && method !== n[2])) return err(403, 'You don’t have permission to do that. Ask Beau.'); }
+  }
+  const cma = await handleCommunityAdmin(req, env, url, role, P); if (cma) return cma;
   const nwa = await handleNewsAdmin(req, env, url, me, role); if (nwa) return nwa; // 📰 any admin level can post news
   const ina = await handleInsightsAdmin(req, env, url); if (ina) return ina; // 📈 Beau only (helpers are stopped above)
   // 📌 Beau's home-screen shortcuts: who's on, new feedback and unread messages (small and quick)
@@ -1048,7 +1070,7 @@ async function handleAdmin(req, env, path, method, me, role = 'owner') {
   if (path === '/api/admin/overview' && method === 'GET') {
     const since30 = dayKey(t - 29 * 86400), since7 = dayKey(t - 6 * 86400);
     const [users, perUser, perUser7, today_, visits, daily, signups, progress, sciProgress, unlockRows, codeCount, fbCount] = await env.DB.batch([
-      env.DB.prepare('SELECT id, username, created_at, last_login, login_count, last_seen, last_subject, in_stats, chat_muted, chat_access, chat_req, role, tester, teacher FROM users ORDER BY last_seen DESC'),
+      env.DB.prepare('SELECT id, username, created_at, last_login, login_count, last_seen, last_subject, in_stats, chat_muted, chat_access, chat_req, role, perms, tester, teacher FROM users ORDER BY last_seen DESC'),
       env.DB.prepare('SELECT user_id, SUM(seconds) AS s FROM daily GROUP BY user_id'),
       env.DB.prepare('SELECT user_id, SUM(seconds) AS s FROM daily WHERE day >= ? GROUP BY user_id').bind(since7),
       env.DB.prepare('SELECT user_id, SUM(seconds) AS s FROM daily WHERE day = ? GROUP BY user_id').bind(today),
@@ -1071,7 +1093,7 @@ async function handleAdmin(req, env, path, method, me, role = 'owner') {
       let sdata = null; try { sdata = spr[u.id] ? JSON.parse(spr[u.id].data) : null; } catch { /* bad row */ }
       return { id: u.id, name: u.username, joined: u.created_at, lastLogin: u.last_login, logins: u.login_count, lastSeen: u.last_seen, lastSubject: u.last_subject,
         online: t - u.last_seen <= 120 && !!u.last_subject, totalSeconds: (all[u.id] || {}).s || 0, weekSeconds: (wk[u.id] || {}).s || 0, todaySeconds: (td[u.id] || {}).s || 0,
-        visits: (vs[u.id] || {}).n || 0, device: (vs[u.id] || {}).device || null, maths: mathsStats(data), science: mathsStats(sdata), unlocked: unlockRows.results.some(r => r.user_id === u.id), inStats: !left.has(u.id), chatMuted: !!u.chat_muted, chatAccess: !!u.chat_access, chatReq: !!u.chat_req, role: u.role || null, tester: !!u.tester, teacher: !!u.teacher, admin: u.username.toLowerCase() === String(env.ADMIN_USERNAME || '').toLowerCase() };
+        visits: (vs[u.id] || {}).n || 0, device: (vs[u.id] || {}).device || null, maths: mathsStats(data), science: mathsStats(sdata), unlocked: unlockRows.results.some(r => r.user_id === u.id), inStats: !left.has(u.id), chatMuted: !!u.chat_muted, chatAccess: !!u.chat_access, chatReq: !!u.chat_req, role: u.role || null, perms: (() => { try { return u.perms ? JSON.parse(u.perms) : []; } catch { return []; } })(), tester: !!u.tester, teacher: !!u.teacher, admin: u.username.toLowerCase() === String(env.ADMIN_USERNAME || '').toLowerCase() };
     });
     const signupDays = {}; signups.results.forEach(r => { const d = dayKey(r.created_at); signupDays[d] = (signupDays[d] || 0) + 1; });
     const counted = daily.results.filter(r => !left.has(r.user_id));
@@ -1079,7 +1101,7 @@ async function handleAdmin(req, env, path, method, me, role = 'owner') {
     const inc = list.filter(u => u.inStats);
     const sum = (arr, k) => arr.reduce((a, x) => a + (x[k] || 0), 0);
     return json({
-      now: t, today,
+      now: t, today, permNames: PERMS, ...(owner ? {} : { staff: true, role, roleName: ROLE_NAME[role], perms: [...P] }),
       totals: { users: inc.length, leftOut: list.length - inc.length, online: inc.filter(u => u.online).length, activeToday: inc.filter(u => u.todaySeconds > 0).length, activeWeek: inc.filter(u => u.weekSeconds > 0).length,
         signupsToday: signupDays[today] || 0, signupsWeek: days.slice(-7).reduce((a, d) => a + d.signups, 0), secondsToday: sum(inc, 'todaySeconds'), secondsWeek: sum(inc, 'weekSeconds'), secondsAll: sum(inc, 'totalSeconds'),
         questions: inc.reduce((a, u) => a + u.maths.answered, 0), scienceQuestions: inc.reduce((a, u) => a + u.science.answered, 0),
@@ -1094,16 +1116,17 @@ async function handleAdmin(req, env, path, method, me, role = 'owner') {
   if (path === '/api/admin/codes' && method === 'GET') {
     const [rows, staff] = await env.DB.batch([
       env.DB.prepare("SELECT c.code, c.feature, c.created_at, c.redeemed_at, u.username AS redeemed_name FROM codes c LEFT JOIN users u ON u.id = c.redeemed_by ORDER BY c.feature, c.redeemed_at IS NOT NULL, c.redeemed_at DESC, c.created_at, c.code"),
-      env.DB.prepare("SELECT id, username AS name, role, tester, teacher FROM users WHERE role IS NOT NULL OR tester = 1 OR teacher = 1 ORDER BY username COLLATE NOCASE")
+      env.DB.prepare("SELECT id, username AS name, role, perms, tester, teacher FROM users WHERE role IS NOT NULL OR tester = 1 OR teacher = 1 ORDER BY username COLLATE NOCASE")
     ]);
-    return json({ codes: rows.results, types: CODE_TYPES, people: staff.results });
+    return json({ codes: rows.results, types: CODE_TYPES, people: staff.results, permNames: PERMS });
   }
   if (path === '/api/admin/role' && method === 'POST') {
     let b; try { b = await readJson(req); } catch { return err(400, 'Bad request'); }
     const id = +b.id || 0, set = [];
     const who = await env.DB.prepare('SELECT username FROM users WHERE id = ?').bind(id).first(); if (!who) return err(404, 'No such user');
     if (who.username.toLowerCase() === String(env.ADMIN_USERNAME || '').toLowerCase()) return err(400, 'That’s the owner account.');
-    if ('role' in b) set.push(env.DB.prepare('UPDATE users SET role = ? WHERE id = ?').bind(b.role === 'top' || b.role === 'basic' ? b.role : null, id));
+    if ('role' in b) { const r = b.role === 'top' || b.role === 'custom' ? b.role : null; set.push(env.DB.prepare('UPDATE users SET role = ?, perms = ? WHERE id = ?').bind(r, r === 'custom' ? JSON.stringify(cleanPerms(b.perms ?? BASIC_PERMS)) : null, id)); }
+    else if ('perms' in b) set.push(env.DB.prepare("UPDATE users SET perms = ? WHERE id = ? AND role = 'custom'").bind(JSON.stringify(cleanPerms(b.perms)), id));
     if ('tester' in b) set.push(env.DB.prepare('UPDATE users SET tester = ? WHERE id = ?').bind(b.tester ? 1 : 0, id));
     if ('teacher' in b) { set.push(env.DB.prepare('UPDATE users SET teacher = ? WHERE id = ?').bind(b.teacher ? 1 : 0, id)); if (!b.teacher) set.push(env.DB.prepare('DELETE FROM teacher_students WHERE teacher_id = ?').bind(id)); }
     if (set.length) await env.DB.batch(set);
@@ -1214,7 +1237,7 @@ async function handleAdmin(req, env, path, method, me, role = 'owner') {
   if (path === '/api/admin/study-all' && method === 'POST') {
     let b; try { b = await readJson(req); } catch { return err(400, 'Bad request'); }
     const on = !!b.on;
-    if (!on && role === 'basic') return err(403, 'Only Beau or a Top tier admin can turn study mode off.');
+    if (!P.has(on ? 'studyOn' : 'studyOff')) return err(403, 'You don’t have permission to turn study mode ' + (on ? 'on' : 'off') + '. Ask Beau.');
     // the switch wins until the next automatic time; turning it on puts back anyone Beau had let out
     await env.DB.batch([env.DB.prepare("INSERT INTO settings (key, value) VALUES ('study_all', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value").bind(on ? '1' : '0'),
       env.DB.prepare("INSERT INTO settings (key, value) VALUES ('study_all_at', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value").bind(String(t))]);
@@ -1233,7 +1256,7 @@ async function handleAdmin(req, env, path, method, me, role = 'owner') {
   if (path === '/api/admin/study' && method === 'POST') {
     let b; try { b = await readJson(req); } catch { return err(400, 'Bad request'); }
     const id = +b.id || 0, u = await env.DB.prepare('SELECT study_req FROM users WHERE id = ?').bind(id).first(); if (!u) return err(404, 'No such user');
-    if (!b.on && role === 'basic') return err(403, 'Only Beau or a Top tier admin can take someone out of study mode.');
+    if (!P.has(b.on ? 'studyOn' : 'studyOff')) return err(403, 'You don’t have permission to ' + (b.on ? 'put someone into' : 'take someone out of') + ' study mode. Ask Beau.');
     const on = !!b.on, stmts = [on ? env.DB.prepare('UPDATE users SET study_mode = 1, study_free = 0, study_req = NULL WHERE id = ?').bind(id) : env.DB.prepare('UPDATE users SET study_mode = 0, study_free = 1, study_free_at = ?, study_req = NULL WHERE id = ?').bind(t, id)];
     if (u.study_req) stmts.push(env.DB.prepare('INSERT INTO messages (user_id, from_admin, body, created_at) VALUES (?, 1, ?, ?)').bind(id, on ? '[study-declined]' : '[study-allowed]', t),
       env.DB.prepare("UPDATE messages SET read_at = ? WHERE user_id = ? AND from_admin = 0 AND read_at IS NULL AND body = '[study-request]'").bind(t, id));
@@ -1290,7 +1313,7 @@ async function handleAdmin(req, env, path, method, me, role = 'owner') {
   const id = +body.id; if (!Number.isInteger(id)) return err(400, 'Bad request');
   // ✏️ change someone's name (Beau and Top tier admins). Their old name still works for logging in.
   if (path === '/api/admin/rename') {
-    if (role === 'basic') return err(403, 'Only Beau or a Top tier admin can change names.');
+    if (!P.has('names')) return err(403, 'You don’t have permission to change names. Ask Beau.');
     const u = await env.DB.prepare('SELECT id, username FROM users WHERE id = ?').bind(id).first(); if (!u) return err(404, 'No such user');
     if (u.username.toLowerCase() === String(env.ADMIN_USERNAME || '').toLowerCase()) return err(400, 'The owner account’s name can’t be changed here.');
     const name = cleanName(body.name);

@@ -282,8 +282,8 @@ export async function handleCommunity(req, env, url, user) {
 }
 
 /* ---------- Beau's moderation (dashboard) ---------- */
-export async function handleCommunityAdmin(req, env, url, role = 'owner') {
-  const top = role === 'owner' || role === 'top'; // Basic admins can only restrict: no approving, unpausing or restoring
+export async function handleCommunityAdmin(req, env, url, role = 'owner', P = null) {
+  const can = p => role === 'owner' || (P ? P.has(p) : role === 'top'), top = can('chatApprove'); // approving, unpausing and restoring need ✅; deleting and pausing need 🗑️
   const path = url.pathname, method = req.method;
   if (!path.startsWith('/api/admin/chat/')) return null;
   if (path === '/api/admin/chat/overview' && method === 'GET') {
@@ -311,7 +311,8 @@ export async function handleCommunityAdmin(req, env, url, role = 'owner') {
   if (method !== 'POST') return err(404, 'Not found');
   let b; try { b = await body(req); } catch { return err(400, 'Bad request'); }
   if (path === '/api/admin/chat/hide') {
-    if (!b.hidden && !top) return err(403, 'Only Beau or a Top tier admin can restore a message.');
+    if (!b.hidden && !top) return err(403, 'You don’t have permission to restore messages. Ask Beau.');
+    if (b.hidden && !can('chatDelete')) return err(403, 'You don’t have permission to delete messages. Ask Beau.');
     const table = b.kind === 'dm' ? 'dm_messages' : 'group_messages';
     await env.DB.prepare('UPDATE ' + table + ' SET hidden = ? WHERE id = ?').bind(b.hidden ? 1 : 0, +b.id || 0).run();
     return json({ ok: true });
@@ -332,13 +333,15 @@ export async function handleCommunityAdmin(req, env, url, role = 'owner') {
   // a chat between two students: approve it, say not now, or end it
   if (path === '/api/admin/chat/pair') {
     const th = await env.DB.prepare('SELECT id, status FROM dm_threads WHERE id = ?').bind(+b.id || 0).first(); if (!th) return err(404, 'That chat isn’t there.');
-    if (b.action === 'allow' && !top) return err(403, 'Only Beau or a Top tier admin can approve a chat.');
+    if (b.action === 'allow' && !top) return err(403, 'You don’t have permission to approve chats. Ask Beau.');
+    if (b.action !== 'allow' && !can('chatDelete')) return err(403, 'You don’t have permission to end chats. Ask Beau.');
     const to = b.action === 'allow' ? 'active' : b.action === 'end' ? 'ended' : 'refused';
     await env.DB.prepare('UPDATE dm_threads SET status = ?, updated_at = ? WHERE id = ?').bind(to, now(), th.id).run();
     return json({ ok: true, status: to });
   }
   if (path === '/api/admin/chat/mute') {
-    if (!b.muted && !top) return err(403, 'Only Beau or a Top tier admin can let someone chat again.');
+    if (!b.muted && !top) return err(403, 'You don’t have permission to let someone chat again. Ask Beau.');
+    if (b.muted && !can('chatDelete')) return err(403, 'You don’t have permission to pause chatting. Ask Beau.');
     await env.DB.prepare('UPDATE users SET chat_muted = ? WHERE id = ?').bind(b.muted ? 1 : 0, +b.id || 0).run();
     return json({ ok: true });
   }
