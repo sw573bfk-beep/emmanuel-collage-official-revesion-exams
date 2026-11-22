@@ -1,6 +1,6 @@
 // ⚡ Neon Rush: an endless hoverboard run inside a 360° tunnel (just for fun: never touches points, study time or stats).
 // Ride all the way round the tube; the camera rolls with you so you always feel upright. S teleports you to the
-// opposite side. Three worlds (Retro, Woods, Ocean tube) change the look only. Built for high frame rates: one shader
+// opposite side. Three worlds (Retro, Woods, Basic) change the look only. Built for high frame rates: one shader
 // draws the whole tunnel wall, and everything else is reused (no shadow maps, no post-processing).
 import * as THREE from '/arcade/three.min.js?v=0170';
 const $ = s => document.querySelector(s);
@@ -36,8 +36,8 @@ const WORLDS = {
     pal: { block: 0x241a44, blockE: 0x8a4dff, edge: 0xff3fd8, edge2: 0x20e3ff, barrier: 0xff7a1a, gate: 0x1b1238, gateE: 0x20e3ff, pod: 0x161030, podE: 0x20e3ff, spin: 0xffd23f, trail: 0x20e3ff } },
   woods: { name: 'Woods', desc: 'A glowing forest tunnel at dusk', card: 'linear-gradient(160deg,#0d2010,#3d7a2e 60%,#ffcf6b)', fog: 0x0e1a0c, hemi: [0xd8f0a0, 0x1a120a, 1.5], end: 0xffc46b,
     pal: { block: 0x3b2a1c, blockE: 0x6b4a2a, edge: 0x9cff5a, edge2: 0xffcf6b, barrier: 0x6b3f1e, gate: 0x2a1c10, gateE: 0x9cff5a, pod: 0x2b3a1a, podE: 0xffcf6b, spin: 0xffcf6b, trail: 0xbfff7a } },
-  ocean: { name: 'Ocean tube', desc: 'A glass tube deep under the sea', card: 'linear-gradient(160deg,#021a3a,#0b6fb0 60%,#7df9ff)', fog: 0x05345e, hemi: [0xbfefff, 0x0a2a4a, 1.6], end: 0x7df9ff,
-    pal: { block: 0x1d3e5c, blockE: 0x2a7ab0, edge: 0xffffff, edge2: 0x7df9ff, barrier: 0xff9a3d, gate: 0x173450, gateE: 0x7df9ff, pod: 0x0f2a44, podE: 0xffd23f, spin: 0xff5a7a, trail: 0x7df9ff } }
+  basic: { name: 'Basic', desc: 'Plain grey walls, simple bright shapes', card: 'linear-gradient(160deg,#5b616b,#9aa1ab 60%,#e84a3c)', fog: 0xb4bac3, hemi: [0xffffff, 0x8a8f98, 1.8], end: 0xffffff,
+    pal: { block: 0xe84a3c, blockE: 0xe84a3c, edge: 0x2b2f36, edge2: 0x2b2f36, barrier: 0xff9f1a, gate: 0x2f7de1, gateE: 0x1d4f94, pod: 0x2fb85a, podE: 0x1b7a3a, spin: 0xffd23f, trail: 0x2f7de1 } }
 };
 let world = ls('nr-world', 'retro'); if (!WORLDS[world]) world = 'retro';
 scene.fog = new THREE.Fog(0x000000, 40, 175);
@@ -69,38 +69,30 @@ const wallMat = new THREE.ShaderMaterial({ side: THREE.BackSide, transparent: tr
         float slit = smoothstep(0.93, 1.0, sin(s * 0.55 + sin(th * 3.0) * 0.8)); c += vec3(1.0,0.8,0.4) * slit * 0.22; // shafts of light every few metres
         vec2 gc = vec2(u / (C / 24.0), s / 2.2); float glow = step(0.9, h21(vec2(mod(floor(gc.x), 24.0), floor(gc.y)))) * smoothstep(0.35, 0.0, length(fract(gc) - 0.5)); c += vec3(0.6,1.0,0.4) * glow * 1.3; // glowing fungi
         float wl = smoothstep(0.455, 0.49, abs(fract(u / (C / 6.0)) - 0.5)) * step(0.6, fract(sm / 3.5)); c += vec3(1.0) * wl * 0.8; // white lights rushing past
-      } else { // OCEAN: a glass tube: frames, caustics, see-through
-        vec2 g = vec2(u / (C / 12.0), s / 3.0); vec2 f = abs(fract(g) - 0.5); float fr = smoothstep(0.47, 0.5, max(f.x, f.y));
-        float ca = pow(abs(sin(th * 4.0 + sin(s * 0.3 + time) * 1.5) * sin(s * 0.5 + cos(th * 2.0 - time * 0.8))), 3.0);
-        float up = smoothstep(0.3, -1.0, cos(th));
-        c = vec3(0.10,0.45,0.70) * (0.55 + up * 0.6) + vec3(0.6,0.95,1.0) * ca * 0.35 + vec3(0.85,0.97,1.0) * fr * 0.9;
-        a = 0.28 + fr * 0.6 + ca * 0.15;
-        float dots = smoothstep(0.18, 0.0, length(vec2(fract(u / (C / 12.0)) - 0.5, (fract(sm / 1.8) - 0.5) * 1.6))) * step(0.5, fract(u / (C / 6.0))); c += vec3(1.0) * dots * 1.4; a = max(a, dots); // running lights
+      } else { // BASIC: plain grey panels, soft shading, white lights rushing past
+        vec2 g = vec2(u / (C / 12.0), s / 4.0); vec2 f = abs(fract(g) - 0.5); float seam = smoothstep(0.47, 0.5, max(f.x, f.y));
+        c = vec3(0.56,0.58,0.62) * (0.82 + 0.18 * smoothstep(1.0, -1.0, cos(th))) - seam * 0.12;
+        float wl = smoothstep(0.455, 0.49, abs(fract(u / (C / 8.0)) - 0.5)) * step(0.6, fract(sm / 3.0)); c = mix(c, vec3(1.0), wl * 0.9);
       }
-      float fog = smoothstep(30.0, 170.0, vD); gl_FragColor = vec4(mix(c, fogc, fog), mode > 1.5 ? mix(a, 1.0, fog) : 1.0); }` });
+      float fog = smoothstep(30.0, 170.0, vD); gl_FragColor = vec4(mix(c, fogc, fog), 1.0); }` });
 const wallGeo = new THREE.CylinderGeometry(RAD, RAD, LEN, 112, 1, true); wallGeo.rotateX(Math.PI / 2); wallGeo.translate(0, 0, -LEN / 2 + 20);
 const wall = new THREE.Mesh(wallGeo, wallMat); wall.renderOrder = 5; scene.add(wall);
 // the glow at the end of the tunnel
 const endGlow = new THREE.Sprite(glowMat(0xffffff, 0.9)); endGlow.scale.set(26, 26, 1); endGlow.position.set(0, 0, -168); scene.add(endGlow);
 // decorations for each world
-const deco = { retro: new THREE.Group(), woods: new THREE.Group(), ocean: new THREE.Group() }; Object.values(deco).forEach(g => scene.add(g));
+const deco = { retro: new THREE.Group(), woods: new THREE.Group(), basic: new THREE.Group() }; Object.values(deco).forEach(g => scene.add(g));
 const RINGS = 22, RSP = 8;
 function ringSet(group, geo, mat, colors) { const m = new THREE.InstancedMesh(geo, mat, RINGS); if (colors) for (let i = 0; i < RINGS; i++) m.setColorAt(i, new THREE.Color(colors[i % colors.length])); m.frustumCulled = false; group.add(m); return m; }
 const retroRings = ringSet(deco.retro, new THREE.TorusGeometry(RAD - 0.04, 0.05, 6, 120), new THREE.MeshBasicMaterial({ color: 0xffffff }), [0xff3fd8, 0x20e3ff]);
 const woodRings = ringSet(deco.woods, new THREE.TorusGeometry(RAD - 0.15, 0.32, 8, 80), lambert(0x4a3020, { e: 0x1a0d05, ei: 1 }));
-const oceanRings = ringSet(deco.ocean, new THREE.TorusGeometry(RAD + 0.02, 0.13, 8, 96), lambert(0xc7d6e0, { e: 0x30607a, ei: 0.6 }));
-// 🐟 fish outside the ocean tube, ✨ fireflies in the woods, 🫧 bubbles
-const FISH = 70, fishGeo = (() => { const b = new THREE.SphereGeometry(0.5, 10, 8); b.scale(0.45, 0.55, 1.2); return b; })();
-const fish = new THREE.InstancedMesh(fishGeo, lambert(0xffffff, { e: 0x103050, ei: 0.4 }), FISH); fish.frustumCulled = false; deco.ocean.add(fish);
-const fishData = []; const fishCols = [0xffa13d, 0xffe14d, 0x7df9ff, 0xff6a8a, 0xb0f0ff, 0xfff4d0];
-for (let i = 0; i < FISH; i++) { fishData.push({ th: R0() * TAU, r: RAD + 1.5 + R0() * 18, z: -R0() * 200, sp: 2 + R0() * 6, wob: R0() * 6, s: 0.5 + R0() * 1.4 }); fish.setColorAt(i, new THREE.Color(fishCols[i % fishCols.length])); }
+const basicRings = ringSet(deco.basic, new THREE.TorusGeometry(RAD - 0.03, 0.06, 6, 112), basic(0x8b919a));
+// ✨ fireflies in the woods, sparkles in retro
 const ptsMat = (color, size, add = true) => new THREE.ShaderMaterial({ transparent: true, depthWrite: false, blending: add ? THREE.AdditiveBlending : THREE.NormalBlending, uniforms: { map: { value: DOT }, color: { value: new THREE.Color(color) }, size: { value: size } },
   vertexShader: 'attribute float alpha; varying float vA; uniform float size; void main(){ vA = alpha; vec4 mv = modelViewMatrix * vec4(position,1.0); gl_PointSize = size * 300.0 / -mv.z; gl_Position = projectionMatrix * mv; }',
   fragmentShader: 'uniform sampler2D map; uniform vec3 color; varying float vA; void main(){ gl_FragColor = vec4(color, texture2D(map, gl_PointCoord).a * vA); }' });
 function floaters(group, n, color, size, rmin, rmax) { const pos = new Float32Array(n * 3), al = new Float32Array(n), ph = new Float32Array(n); for (let i = 0; i < n; i++) { const th = R0() * TAU, r = rmin + R0() * (rmax - rmin); pos[i * 3] = Math.sin(th) * r; pos[i * 3 + 1] = -Math.cos(th) * r; pos[i * 3 + 2] = -R0() * 190; ph[i] = R0() * 10; }
   const g = new THREE.BufferGeometry(); g.setAttribute('position', new THREE.BufferAttribute(pos, 3)); g.setAttribute('alpha', new THREE.BufferAttribute(al, 1)); const p = new THREE.Points(g, ptsMat(color, size)); p.frustumCulled = false; group.add(p); return { p, pos, al, ph, n }; }
 const fireflies = floaters(deco.woods, 220, 0xffe46b, 0.28, 0.5, RAD - 0.6);
-const bubbles = floaters(deco.ocean, 260, 0xcff8ff, 0.18, 0.3, RAD + 10);
 const sparkle = floaters(deco.retro, 160, 0xff9af0, 0.16, 0.5, RAD - 0.3);
 // leaf clusters on the woods rings
 const leafMat = new THREE.SpriteMaterial({ map: DOT, color: 0x5fae3a, transparent: true, opacity: 0.85, depthWrite: false }), leaves = [];
@@ -170,7 +162,7 @@ function addPup(kind, th, z) { let it = pupItems.find(p => !p.on && p.kind === k
 
 function applyWorld() {
   const W = WORLDS[world], P = W.pal; scene.fog.color.set(W.fog); scene.background = new THREE.Color(W.fog); wallMat.uniforms.fogc.value.set(W.fog); wallMat.uniforms.mode.value = world === 'retro' ? 0 : world === 'woods' ? 1 : 2;
-  hemi.color.set(W.hemi[0]); hemi.groundColor.set(W.hemi[1]); hemi.intensity = W.hemi[2]; endGlow.material.color.set(W.end); endGlow.material.opacity = world === 'ocean' ? 0.6 : 0.9;
+  hemi.color.set(W.hemi[0]); hemi.groundColor.set(W.hemi[1]); hemi.intensity = W.hemi[2]; endGlow.material.color.set(W.end); endGlow.material.opacity = world === 'basic' ? 0.5 : 0.9;
   Object.entries(deco).forEach(([k, g]) => { g.visible = k === world; });
   OM.block.color.set(P.block); OM.block.emissive.set(P.blockE); OM.block.emissiveIntensity = 0.25; OM.blockE.color.set(P.edge); OM.edge2.color.set(P.edge2); OM.barrier.color.set(P.barrier); OM.barrier.emissive.set(P.barrier); OM.barrier.emissiveIntensity = 0.3; OM.barrierTop.color.set(P.edge2);
   OM.gate.color.set(P.gate); OM.gate.emissive.set(P.gateE); OM.gate.emissiveIntensity = 0.12; OM.gateE.color.set(P.gateE); OM.pod.color.set(P.pod); OM.podE.color.set(P.podE); OM.spin.color.set(P.spin); OM.spin.emissive.set(P.spin);
@@ -188,7 +180,8 @@ function resetRun() {
   for (let i = 0; i < 16; i++) addCoin(i * 0.4, 0.9, -40 - i * 5); // a spiral of coins to get you started: ride up the wall!
 }
 const V_BASE = 45, K_RATE = 0.35, M_RATE = 0.25; // m/s, per second, m/s per second
-const speedAt = t => Math.min(160, V_BASE * (1 - Math.exp(-K_RATE * t)) + M_RATE * t); // Speed(t) = V_base(1 - e^(-kt)) + mt: launches from a standstill, then never stops speeding up
+const SLOW = 0.85; // everything 15% slower than the first version
+const speedAt = t => SLOW * Math.min(160, V_BASE * (1 - Math.exp(-K_RATE * t)) + M_RATE * t); // Speed(t) = V_base(1 - e^(-kt)) + mt: launches from a standstill, then never stops speeding up
 function toast(t, col) { const e = $('#toast'); e.textContent = t; e.style.color = col || '#fff'; e.classList.add('show'); clearTimeout(toast.t); toast.t = setTimeout(() => e.classList.remove('show'), 1100); }
 // ✨ one set of obstacles, always with a way through (and sometimes the quickest way is to teleport)
 function spawnRow(z) {
@@ -233,12 +226,14 @@ function step(dt) {
     const steer = (keys.right ? 1 : 0) - (keys.left ? 1 : 0), lat = Math.min(40, 6 + S.v * 0.32), acc = 50 + S.v * 2.2; // m/s and m/s per second, round the tube
     S.w += clamp(steer * lat - S.w, -acc * dt, acc * dt); S.th += S.w / RAD * dt;
     if (S.jumpBuf > 0) S.jumpBuf -= dt; if (S.tpCool > 0) S.tpCool -= dt;
-    if (S.h <= 0 && S.jumpBuf > 0 && !S.tp) { S.vh = 8.2; S.h = 0.001; S.jumpBuf = 0; S.airT = 0; S.flip = 0; S.squash = -0.35; burst(onWall(S.th, 0.2, 0.4, V2), 12, 3); }
+    // 🦘 the faster you go, the better you jump: you pop up quicker (jb) and a bit higher (ja), so a tap always clears a block
+    const jb = 1 + S.v / 90, ja = 1 + S.v / 300;
+    if (S.h <= 0 && S.jumpBuf > 0 && !S.tp) { S.vh = 11.4 * jb * Math.sqrt(ja); S.h = 0.001; S.jumpBuf = 0; S.airT = 0; S.flip = 0; S.squash = -0.35; burst(onWall(S.th, 0.2, 0.4, V2), 12, 3); }
     if (S.h > 0 || S.vh > 0) { S.airT += dt;
-      const hold = keys.up && S.vh > 0 && S.airT < 0.42; // keep holding W: you float up higher
-      S.vh -= (hold ? 13 : S.vh > 0 ? 34 : 42) * dt; S.h += S.vh * dt;
-      if (hold && S.airT > 0.16) S.big = true; if (S.big) S.flip = Math.min(TAU, S.flip + dt * 9.5); // a big jump gets a 360 spin
-      if (S.h <= 0) { S.h = 0; const hard = -S.vh; S.vh = 0; S.big = false; S.flip = 0; S.squash = clamp(hard / 30, 0.15, 0.45); S.thump = clamp(hard / 40, 0.1, 0.35); burst(onWall(S.th, 0.1, 0.2, V2), 16 + Math.round(hard), 4); } }
+      const hold = keys.up && S.vh > 0 && S.airT < 0.3 / jb; // keep holding W: you float up higher
+      S.vh -= (hold ? 18 : S.vh > 0 ? 34 : 42) * jb * jb * dt; S.h += S.vh * dt;
+      if (hold && S.airT > 0.12 / jb) S.big = true; if (S.big) S.flip = Math.min(TAU, S.flip + dt * 11 * jb); // a big jump gets a 360 spin
+      if (S.h <= 0) { S.h = 0; const hard = -S.vh; S.vh = 0; S.big = false; S.flip = 0; S.squash = clamp(hard / 30 / jb, 0.15, 0.45); S.thump = clamp(hard / 40 / jb, 0.1, 0.35); burst(onWall(S.th, 0.1, 0.2, V2), 16 + Math.min(30, Math.round(hard / jb)), 4); } }
     if (S.tp) { S.tp.t += dt; if (S.tp.t >= S.tp.dur) { S.th = S.tp.from + Math.PI; S.camTh = S.th; S.tp = null; S.squash = 0.3; S.thump = 0.2; burst(onWall(S.th, 0.3, 0, V2), 30, 6); } }
     S.dist += S.v * dt; S.sd += S.v * dt * (S.boost > 0 ? 2 : 1);
     if (S.inv > 0) S.inv -= dt; if (S.magnet > 0) S.magnet -= dt; if (S.boost > 0) { S.boost -= dt; if (S.boost <= 0) S.inv = 1; }
@@ -265,7 +260,7 @@ async function endRun() {
   res.append(el('span', 'tot', 'Score'), el('span', 'tot', nf(sc)));
   $('#newBest').hidden = !(sc > best); $('#endRank').textContent = token ? 'Saving…' : 'Not saved (no connection).'; $('#endOv').hidden = false; $('#againBtn').focus();
   if (token) { const r = await api('/api/arcade/finish', 'POST', { token, score: sc }); token = null;
-    if (r.ok) { if (r.data.saved && sc > best) best = sc; const d = r.data.today, w = r.data.week; $('#endRank').textContent = r.data.saved ? (d ? 'You’re #' + d.rank + ' today' + (w ? ' · #' + w.rank + ' this week' : '') : 'Saved!') : 'That run couldn’t be saved.'; loadBoard(); }
+    if (r.ok) { if (r.data.saved && sc > best) best = sc; const d = r.data.today, w = r.data.all; $('#endRank').textContent = r.data.saved ? (d ? 'You’re #' + d.rank + ' today' + (w ? ' · #' + w.rank + ' of all time' : '') : 'Saved!') : 'That run couldn’t be saved.'; loadBoard(); }
     else $('#endRank').textContent = r.data.error || 'Couldn’t save that run.'; }
 }
 
@@ -302,15 +297,12 @@ function frame(ts) {
   for (const p of pupItems) if (p.on) { p.g.position.copy(onWall(p.th, 1.1 + Math.sin(tAll * 4) * 0.15, p.z, V)); p.g.userData.core.rotation.y += dt * 3; }
   // the world's decorations scroll past
   const ringZ = i => 12 - (((i * RSP + dist) % (RINGS * RSP)) + RINGS * RSP) % (RINGS * RSP);
-  const deco1 = WORLDS[world] && world; for (let i = 0; i < RINGS; i++) { M4.makeTranslation(0, 0, ringZ(i)); if (deco1 === 'retro') retroRings.setMatrixAt(i, M4); else if (deco1 === 'woods') woodRings.setMatrixAt(i, M4); else oceanRings.setMatrixAt(i, M4); }
-  (world === 'retro' ? retroRings : world === 'woods' ? woodRings : oceanRings).instanceMatrix.needsUpdate = true;
+  const deco1 = WORLDS[world] && world; for (let i = 0; i < RINGS; i++) { M4.makeTranslation(0, 0, ringZ(i)); if (deco1 === 'retro') retroRings.setMatrixAt(i, M4); else if (deco1 === 'woods') woodRings.setMatrixAt(i, M4); else basicRings.setMatrixAt(i, M4); }
+  (world === 'retro' ? retroRings : world === 'woods' ? woodRings : basicRings).instanceMatrix.needsUpdate = true;
   if (world === 'woods') for (const sp of leaves) { sp.position.copy(onWall(sp.userData.th, 0.5, ringZ(sp.userData.i), V)); }
-  const F = world === 'retro' ? sparkle : world === 'woods' ? fireflies : bubbles;
-  for (let i = 0; i < F.n; i++) { F.pos[i * 3 + 2] += mv * (world === 'ocean' ? 1 : 0.95); if (world === 'ocean') F.pos[i * 3 + 1] += dt * 0.8; if (F.pos[i * 3 + 2] > 10) F.pos[i * 3 + 2] -= 200; F.al[i] = world === 'woods' ? 0.4 + 0.6 * Math.max(0, Math.sin(tAll * 2 + F.ph[i])) : world === 'ocean' ? 0.55 : 0.35 + 0.3 * Math.sin(tAll * 5 + F.ph[i]); }
-  F.p.geometry.attributes.position.needsUpdate = true; F.p.geometry.attributes.alpha.needsUpdate = true;
-  if (world === 'ocean') for (let i = 0; i < FISH; i++) { const f = fishData[i]; f.z += mv * 0.92 - f.sp * dt; if (f.z > 20) f.z -= 220; if (f.z < -200) f.z += 220; const th = f.th + Math.sin(tAll * 0.3 + f.wob) * 0.1;
-    Q.setFromAxisAngle(YA, Math.sin(tAll * 3 + f.wob) * 0.25); M4.compose(V.set(Math.sin(th) * f.r, -Math.cos(th) * f.r + Math.sin(tAll + f.wob), f.z), Q, V2.set(f.s, f.s, f.s)); fish.setMatrixAt(i, M4); }
-  if (world === 'ocean') fish.instanceMatrix.needsUpdate = true;
+  const F = world === 'retro' ? sparkle : world === 'woods' ? fireflies : null;
+  if (F) { for (let i = 0; i < F.n; i++) { F.pos[i * 3 + 2] += mv * 0.95; if (F.pos[i * 3 + 2] > 10) F.pos[i * 3 + 2] -= 200; F.al[i] = world === 'woods' ? 0.4 + 0.6 * Math.max(0, Math.sin(tAll * 2 + F.ph[i])) : 0.35 + 0.3 * Math.sin(tAll * 5 + F.ph[i]); }
+  F.p.geometry.attributes.position.needsUpdate = true; F.p.geometry.attributes.alpha.needsUpdate = true; }
   for (let i = 0; i < WL; i++) { const w = wlData[i]; w.z += mv; if (w.z > 10) { w.z -= 185; w.th = R0() * TAU; } Q.setFromAxisAngle(ZA, w.th); M4.compose(onWall(w.th, 0.03, w.z, V), Q, SC); wallLamps.setMatrixAt(i, M4); } wallLamps.instanceMatrix.needsUpdate = true;
   // speed lines
   slMat.opacity = clamp((S.v - 20) / 40, 0.12, 0.55) * (S.running ? 1 : 0); for (let i = 0; i < SL; i++) { const p = slPos[i]; p.z += S.v * dt * 1.7; if (p.z > 8) { p.z -= 90; p.th = R0() * TAU; p.r = 1.5 + R0() * (RAD - 2); } M4.makeTranslation(Math.sin(p.th) * p.r, -Math.cos(p.th) * p.r, p.z); speedLines.setMatrixAt(i, M4); } speedLines.instanceMatrix.needsUpdate = true;
@@ -360,7 +352,7 @@ let B = null, range = 'today';
 async function loadBoard() { const r = await api('/api/arcade/board?game=neon'); if (!r.ok) return; B = r.data; if (B.today.me) best = Math.max(best, B.today.me.best); drawBoard(); $('#bestLine').textContent = best ? 'Your best today: ' + nf(best) : (B.today.top[0] ? '🥇 Today’s best: ' + B.today.top[0].name + ' with ' + nf(B.today.top[0].best) : 'Nobody has run today yet. Be the first!'); }
 function drawBoard() {
   const box = $('#lb'); box.replaceChildren(); const D = B && B[range]; if (!D) return;
-  if (!D.top.length) box.appendChild(el('p', 'small muted', range === 'today' ? 'Nobody has run today yet. Be the first!' : 'Nobody has run this week yet.'));
+  if (!D.top.length) box.appendChild(el('p', 'small muted', range === 'today' ? 'Nobody has run today yet. Be the first!' : 'Nobody has run yet. Be the first!'));
   D.top.forEach(x => { const row = el('div', 'row' + (x.me ? ' me' : '')), av = el('span', 'av'); if (window.ecAv) window.ecAv(av, x.look, x.name); else av.textContent = x.name[0];
     const nm = el('span', 'nm', x.name), tt = window.ecTitle && window.ecTitle(x.look); if (tt) nm.appendChild(tt);
     row.append(el('span', 'rk', ['🥇', '🥈', '🥉'][x.rank - 1] || String(x.rank)), av, nm, el('span', 'sc', nf(x.best))); box.appendChild(row); });

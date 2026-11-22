@@ -13,7 +13,6 @@ const GAMES = { neon: { maxRate: 900, slack: 3000, maxScore: 20000000 } }; // (s
 const DAILY_STARTS = 600;
 
 async function body(req) { const t = await req.text(); if (t.length > 2000) throw new Error('too big'); return JSON.parse(t || '{}'); }
-function monday(t) { const dow = new Date((t + QLD) * 1000).getUTCDay(); return dayKey(t - ((dow + 6) % 7) * 86400); }
 
 async function board(env, game, from, to, me) {
   const rows = (await env.DB.prepare(`SELECT s.user_id AS id, u.username AS name, u.look, MAX(s.best) AS best FROM arcade_scores s JOIN users u ON u.id = s.user_id
@@ -44,12 +43,12 @@ export async function handleArcade(req, env, url, user) {
     const ok = score > 0 && score <= G.maxScore && score <= G.maxRate * (secs + 2) + G.slack;
     if (ok) await env.DB.prepare(`INSERT INTO arcade_scores (user_id, game, day, best, plays, at) VALUES (?1, ?2, ?3, ?4, 1, ?5)
       ON CONFLICT(user_id, game, day) DO UPDATE SET plays = plays + 1, best = MAX(best, excluded.best), at = CASE WHEN excluded.best > best THEN excluded.at ELSE at END`).bind(uid, run.game, today, score, t).run();
-    const [d, w] = [await board(env, run.game, today, today, uid), await board(env, run.game, monday(t), today, uid)];
-    return json({ saved: ok, score, today: d.me, week: w.me });
+    const [d, w] = [await board(env, run.game, today, today, uid), await board(env, run.game, '0000-00-00', today, uid)];
+    return json({ saved: ok, score, today: d.me, all: w.me });
   }
   if (path === '/api/arcade/board' && method === 'GET') {
     const game = String(url.searchParams.get('game') || 'neon'); if (!GAMES[game]) return err(400, 'No such game');
-    return json({ today: await board(env, game, today, today, uid), week: await board(env, game, monday(t), today, uid) });
+    return json({ today: await board(env, game, today, today, uid), all: await board(env, game, '0000-00-00', today, uid) }); // 🏆 today and all time
   }
   return null;
 }
