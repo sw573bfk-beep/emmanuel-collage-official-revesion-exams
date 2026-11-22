@@ -229,8 +229,9 @@ function step(dt) {
   if (S.dead) { S.deathT += dt; S.v *= Math.exp(-dt * 6); if (S.deathT > 0.9 && S.running) endRun(); }
   else {
     S.t += dt; S.v = speedAt(S.t) * (S.boost > 0 ? 1.4 : 1);
-    const steer = (keys.right ? 1 : 0) - (keys.left ? 1 : 0), lat = 10 + S.v * 0.08; // m/s round the tube
-    S.w += clamp(steer * lat - S.w, -80 * dt, 80 * dt); S.th += S.w / RAD * dt;
+    // the faster you go, the faster you move round the tube (and the snappier it turns)
+    const steer = (keys.right ? 1 : 0) - (keys.left ? 1 : 0), lat = Math.min(40, 6 + S.v * 0.32), acc = 50 + S.v * 2.2; // m/s and m/s per second, round the tube
+    S.w += clamp(steer * lat - S.w, -acc * dt, acc * dt); S.th += S.w / RAD * dt;
     if (S.jumpBuf > 0) S.jumpBuf -= dt; if (S.tpCool > 0) S.tpCool -= dt;
     if (S.h <= 0 && S.jumpBuf > 0 && !S.tp) { S.vh = 8.2; S.h = 0.001; S.jumpBuf = 0; S.airT = 0; S.flip = 0; S.squash = -0.35; burst(onWall(S.th, 0.2, 0.4, V2), 12, 3); }
     if (S.h > 0 || S.vh > 0) { S.airT += dt;
