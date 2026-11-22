@@ -1965,6 +1965,7 @@ const RENDER = {}; const rendered = {};
 function show(view, force) {
   if (ALIAS[view]) { const tgt = typeof ALIAS[view] === 'function' ? ALIAS[view]() : ALIAS[view]; rendered[tgt] = false; location.replace('#' + tgt); return; }
   if (!VIEWS.includes(view)) view = 'home';
+  try { localStorage.setItem('ec-last:science', view); } catch (e) { /* storage blocked */ }
   $$('main > .view').forEach(s => { s.hidden = s.id !== 'v-' + view; });
   $$('#tabs a').forEach(a => { const on = a.dataset.v === view; a.classList.toggle('on', on); if (on) { a.setAttribute('aria-current', 'page'); a.scrollIntoView({ block: 'nearest', inline: 'nearest' }); } else a.removeAttribute('aria-current'); });
   if (!rendered[view] || force || view === 'home') { RENDER[view](); rendered[view] = true; }
@@ -2755,5 +2756,7 @@ RENDER.booklet = () => {
 
 /* ================= theme + boot ================= */
 // /maths/#practice-7I (from the profile) opens Practice on that topic
-const boot = () => { const pm = /^practice-([A-Za-z0-9]+)$/.exec(location.hash.slice(1)); if (pm && typeof openPractice === 'function') { openPractice(pm[1]); return; } show(location.hash.slice(1) || 'home'); };
+const boot = () => { const pm = /^practice-([A-Za-z0-9]+)$/.exec(location.hash.slice(1)); if (pm && typeof openPractice === 'function') { openPractice(pm[1]); return; } let last = ''; try { last = localStorage.getItem('ec-last:science') || ''; } catch (e) { /* storage blocked */ }
+  if (!location.hash && last && last !== 'home' && last !== 'skill' && VIEWS.includes(last)) { location.hash = last; return; } // ↩️ pick up where you left off
+  show(location.hash.slice(1) || 'home'); };
 if (window.claude && window.claude.hot && window.claude.hot.ready) window.claude.hot.ready(boot); else boot();

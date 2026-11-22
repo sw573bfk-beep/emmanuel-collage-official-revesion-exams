@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-build="1795327415">
+<html lang="en" data-build="1795327729">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
@@ -411,7 +411,7 @@ html,body{overflow-anchor:none} /* answering a question never slides the page */
 .q-nav .btn:disabled{opacity:.45;cursor:not-allowed}
 </style>
 <style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}[hidden]{display:none!important}.top-tools{flex-wrap:wrap;justify-content:flex-end}.acct{display:flex;flex-direction:column;align-items:flex-end;line-height:1.2}.acct-name{font-weight:600}</style>
-<link rel="stylesheet" href="/theme.css?v=1795327415">
+<link rel="stylesheet" href="/theme.css?v=1795327729">
 </head>
 <body>
 <header class="top">
@@ -463,12 +463,12 @@ html,body{overflow-anchor:none} /* answering a question never slides the page */
 // Runs before the science app: checks you are logged in, loads your saved progress from the
 // server into this browser, then starts the app and saves changes back automatically.
 (async function gate() {
-  const P = window.ecAcct ? ecAcct.prefix('s') : 'y8s:', LOCAL_ONLY = new Set(['theme', 'seen']);
+  const P = window.ecAcct ? ecAcct.prefix('s') : 'y8s:', LOCAL_ONLY = new Set(['theme', 'seen', '__who']);
   const status = t => { const el = document.getElementById('syncStatus'); if (el) el.textContent = t; };
   const ours = k => k.startsWith(P) && !LOCAL_ONLY.has(k.slice(P.length));
   const clearLocal = () => { try { Object.keys(localStorage).filter(ours).forEach(k => localStorage.removeItem(k)); } catch (e) { /* storage blocked */ } };
   const home = document.getElementById('v-home');
-  let me;
+  let me, offline = false;
   try {
     const r = await fetch('/api/me', { credentials: 'same-origin' });
     if (r.status === 401) { location.replace('/?next=science'); return; }
@@ -480,10 +480,17 @@ html,body{overflow-anchor:none} /* answering a question never slides the page */
     clearLocal(); // start from this account's saved progress, not whoever used this browser before
     Object.entries(data || {}).forEach(([k, v]) => { if (!LOCAL_ONLY.has(k)) try { localStorage.setItem(P + k, JSON.stringify(v)); } catch (e) { /* storage blocked */ } });
   } catch (e) {
-    home.innerHTML = '<div class="card stack"><h2>Can’t reach the server</h2><p>Your progress couldn’t be loaded. Check your internet connection, then reload the page.</p><p><button class="btn" type="button" onclick="location.reload()">Reload</button></p></div>';
-    return;
+    // 📡 no internet: if this browser already has this account's progress, open from that and save when back online
+    let who = null; try { who = JSON.parse(localStorage.getItem(P + '__who')); } catch (x) { who = null; }
+    if (e instanceof TypeError && who) { me = { username: who }; offline = true; }
+    else {
+      home.innerHTML = '<div class="card stack"><h2>Can’t reach the server</h2><p>Your progress couldn’t be loaded. Check your internet connection, then reload the page.</p><p><button class="btn" type="button" onclick="location.reload()">Reload</button></p></div>';
+      return;
+    }
   }
+  if (!offline) { try { localStorage.setItem(P + '__who', JSON.stringify(me.username)); } catch (x) { /* storage blocked */ } }
   document.getElementById('acctName').textContent = me.username;
+  if (offline) { setTimeout(() => status('📡 Offline: saves when you’re back online'), 50); window.addEventListener('online', () => { if (dirty) save(); }); }
   let timer = null, dirty = false, saving = false;
   const collect = () => { const o = {}; try { Object.keys(localStorage).filter(ours).forEach(k => { o[k.slice(P.length)] = JSON.parse(localStorage.getItem(k)); }); } catch (e) { /* storage blocked */ } return o; };
   async function save(keepalive) {

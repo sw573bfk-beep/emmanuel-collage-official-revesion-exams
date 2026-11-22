@@ -104,6 +104,14 @@ export async function handleInsights(req, env, url, user) {
     const rows = (await env.DB.prepare('SELECT id, at, subject, topic, gen, gname, ok, q, given, correct FROM answers WHERE user_id = ? AND at > ? ORDER BY id DESC LIMIT 3000').bind(uid, t - 60 * 86400).all()).results;
     return json({ now: t, ...mistakesOf(rows) });
   }
+  // 📅 upcoming exams for you (everyone's, plus your class's)
+  if (path === '/api/exams' && method === 'GET') {
+    const [s, cl] = await env.DB.batch([env.DB.prepare("SELECT value FROM settings WHERE key = 'exams'"), env.DB.prepare('SELECT teacher_id FROM teacher_students WHERE student_id = ?').bind(uid)]);
+    let list = []; try { list = s.results[0] ? JSON.parse(s.results[0].value) : []; } catch { list = []; }
+    const mine = new Set(cl.results.map(r => r.teacher_id)), today = dayKey(t), d0 = Date.parse(today + 'T00:00:00Z');
+    const out = list.filter(e => e.date >= today && (!e.cls || mine.has(e.cls))).map(e => ({ ...e, days: Math.round((Date.parse(e.date + 'T00:00:00Z') - d0) / 86400000) })).sort((a, b) => a.date.localeCompare(b.date));
+    return json({ exams: out });
+  }
   // 🎯 weekly goals: minutes and/or questions this week (Monday to Sunday, Queensland time)
   if (path === '/api/goals') {
     if (method === 'POST') {
@@ -188,6 +196,25 @@ export async function handleInsightsAdmin(req, env, url) {
       topics: topics.results.slice(0, 8).map(tp), hardest: hard.results.map(tp),
       study: { today: one(studyToday), week: one(studyWeek), medianWeek: median, topWeek: ps.length ? ps[ps.length - 1] : 0, threePlusDays: one(multiDay).n || 0 },
       people: one(lastSeen), newAccounts: newAcc.results, challenge: one(chToday), ratings: one(ratings), feedbackOpen: one(fbOpen).n || 0, pointsWeek: one(pointsWeek).q || 0, chatToday: one(chatToday).n || 0 });
+  }
+  // 📅 exam dates (Beau)
+  if (path === '/api/admin/exams') {
+    const getList = async () => { const s = await env.DB.prepare("SELECT value FROM settings WHERE key = 'exams'").first(); try { return s ? JSON.parse(s.value) : []; } catch { return []; } };
+    let list = await getList();
+    if (req.method === 'POST') {
+      let b; try { b = await body(req); } catch { return err(400, 'Bad request'); }
+      if (b.action === 'delete') list = list.filter(e => e.id !== b.id);
+      else {
+        const subject = ['maths', 'science', 'english', 'humanities'].includes(b.subject) ? b.subject : null, date = String(b.date || '');
+        if (!subject || !/^\d{4}-\d{2}-\d{2}$/.test(date)) return err(400, 'Pick a subject and a date.');
+        const label = String(b.label || '').replace(/\s+/g, ' ').trim().slice(0, 60) || ({ maths: 'Maths', science: 'Science', english: 'English', humanities: 'Humanities' })[subject] + ' exam';
+        list.push({ id: Math.random().toString(36).slice(2, 10), subject, date, label, cls: Number.isInteger(b.cls) && b.cls > 0 ? b.cls : 0 });
+        list = list.filter(e => e.date >= dayKey(t - 30 * 86400)).sort((a, b2) => a.date.localeCompare(b2.date)).slice(0, 40);
+      }
+      await env.DB.prepare("INSERT INTO settings (key, value) VALUES ('exams', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value").bind(JSON.stringify(list)).run();
+    }
+    const cls = await env.DB.prepare('SELECT u.id, u.username, COUNT(ts.student_id) AS n FROM users u LEFT JOIN teacher_students ts ON ts.teacher_id = u.id WHERE u.teacher = 1 GROUP BY u.id ORDER BY u.username').all();
+    return json({ today: dayKey(t), list, classes: cls.results.map(c => ({ id: c.id, name: c.username + '’s class', students: c.n })) });
   }
   if (path === '/api/admin/problems') {
     const since = t - 60 * 86400;

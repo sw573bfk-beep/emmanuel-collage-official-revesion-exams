@@ -125,6 +125,8 @@
     const dk = menuItem(isDark() ? '☀️' : '🌙', isDark() ? 'Light mode' : 'Dark mode', () => { const t = isDark() ? 'light' : 'dark'; apply(t); try { localStorage.setItem(KEY, t); } catch (e) { /* storage blocked */ } const b = document.querySelector('.theme-btn'); if (b) label(b); dk.querySelector('.ic').textContent = isDark() ? '☀️' : '🌙'; dk.lastChild.textContent = isDark() ? 'Light mode' : 'Dark mode'; });
     m.appendChild(dk);
     const inst = menuItem('📲', 'Install the app', () => { closeMenu(); installApp(); }); inst.id = 'ecMenuInstall'; inst.hidden = standalone() || !(window.ecInstallPrompt || isIOS()); m.appendChild(inst);
+    const mp = menuItem('🔔', '', () => { const on = !popsOn(); try { localStorage.setItem('ec-msgpop', on ? 'on' : 'off'); } catch (e) { /* storage blocked */ } mp.lastChild.textContent = 'Message pop-ups: ' + (on ? 'On' : 'Off'); });
+    mp.lastChild.textContent = 'Message pop-ups: ' + (popsOn() ? 'On' : 'Off'); m.appendChild(mp);
     m.appendChild(menuItem('🔁', 'Switch account', () => { closeMenu(); if (window.ecSwitchAccounts) window.ecSwitchAccounts(); else location.href = '/?switch=1'; }));
     const out = menuItem('🚪', 'Log out', () => { closeMenu(); if (window.ecLogout) window.ecLogout(); else location.href = '/?logout=1'; }); out.classList.add('out'); m.appendChild(out);
     return m;
@@ -147,6 +149,22 @@
     T.forEach(([ic, l, href, on]) => { const a = mkEl('a', on(path) ? 'on' : ''); a.href = href; if (on(path)) a.setAttribute('aria-current', 'page'); a.append(mkEl('span', 'ic', ic), mkEl('span', '', l)); if (l === 'Chat') { const nb = mkEl('span', 'nb'); nb.hidden = true; nb.id = 'ecTabChatN'; a.appendChild(nb); } nav.appendChild(a); });
     document.body.appendChild(nav); root.classList.add('ec-has-tabs');
   }
+  // 💬 "new message" pop-ups (switch them off in the menu). Not on the Chat page, not in Focus mode; in study mode only Beau's.
+  const popsOn = () => { try { return localStorage.getItem('ec-msgpop') !== 'off'; } catch (e) { return true; } };
+  function msgPop(j) {
+    const L = j.chat && j.chat.latest; if (!L || !popsOn() || location.pathname.startsWith('/chat') || root.classList.contains('ec-focus')) return;
+    const study = j.study && j.study.study; if (study && !L.beau) return;
+    let seen = ''; try { seen = localStorage.getItem('ec-msgpop-seen') || ''; } catch (e) { /* storage blocked */ }
+    if (seen === L.key) return; try { localStorage.setItem('ec-msgpop-seen', L.key); } catch (e) { /* storage blocked */ }
+    if (!document.getElementById('ecPopCss')) { const st = document.createElement('style'); st.id = 'ecPopCss'; st.textContent = '.ec-mpop{position:fixed;top:calc(64px + env(safe-area-inset-top,0px));right:14px;z-index:2450;width:min(320px,calc(100vw - 28px));display:flex;align-items:center;gap:10px;background:var(--card,#fff);color:var(--ink,#111);border:2px solid var(--accent,#2453d6);border-radius:14px;padding:10px 12px;box-shadow:0 12px 30px rgb(0 0 0 / .22);animation:ecMp .3s ease-out}.ec-mpop .tx{flex:1;min-width:0;font-weight:600}.ec-mpop a{flex:none}.ec-mpop button{flex:none;border:0;background:none;color:var(--ink,#111);font-size:1.1rem;cursor:pointer;width:32px;height:32px;border-radius:8px}@keyframes ecMp{from{opacity:0;transform:translateY(-8px)}}@media (prefers-reduced-motion:reduce){.ec-mpop{animation:none}}'; document.head.appendChild(st); }
+    const old = document.querySelector('.ec-mpop'); if (old) old.remove();
+    const box = mkEl('div', 'ec-mpop'); box.setAttribute('role', 'status');
+    const who = L.name && !study ? L.name + (L.beau ? ' and Beau' : '') : 'Beau';
+    const go = mkEl('a', 'btn sm', 'Open'); go.href = L.name && !study ? '/chat/?thread=' + L.thread : '/chat/?tab=beau';
+    const x = mkEl('button', '', '✕'); x.type = 'button'; x.setAttribute('aria-label', 'Close'); x.onclick = () => box.remove();
+    box.append(mkEl('span', '', L.name && !study ? '💬' : '✉️'), mkEl('span', 'tx', 'New message from ' + who), go, x);
+    document.body.appendChild(box); setTimeout(() => box.remove(), 12000);
+  }
   const profile = async () => {
     const path = location.pathname; if (path.startsWith('/admin')) return;
     const j = await window.ecLive(); if (!j || !j.me) return;
@@ -168,6 +186,7 @@
     nb.hidden = !n; nb.textContent = n > 99 ? '99+' : n; a.setAttribute('aria-label', (SUBJECT_PAGE ? (j.me.admin ? 'Admin dashboard' : 'My profile') : 'Menu') + (n ? ', ' + n + ' new' : ''));
     const nd = document.querySelector('#ecNews .dot'), fresh = !!(j.news && j.news.latest > j.news.seen) && !location.pathname.startsWith('/news');
     if (nd) { nd.hidden = !fresh; document.getElementById('ecNews').setAttribute('aria-label', fresh ? 'News: something new' : 'News'); }
+    msgPop(j);
     for (const id of ['ecMenuChatN', 'ecTabChatN']) { const x = document.getElementById(id); if (x) { x.hidden = !n; x.textContent = n > 99 ? '99+' : n; } }
   };
   window.ecProfileCheck = profile;

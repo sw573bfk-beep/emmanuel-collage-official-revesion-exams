@@ -195,7 +195,17 @@ async function liveChat(env, user) {
     env.DB.prepare('SELECT chat_muted FROM users WHERE id = ?').bind(me)
   ]);
   await env.DB.prepare('UPDATE users SET last_seen = ?1 WHERE id = ?2 AND (last_seen IS NULL OR last_seen < ?1 - 60)').bind(now(), me).run();
-  return { requests: req_.results[0].n, unreadDm: dm.results[0].n, beau: beau.results[0].n, admin, muted: !!(mu.results[0] || {}).chat_muted };
+  // 💬 the newest unread message (for the "new message" pop-up): who it's from and where to open it
+  let latest = null;
+  if (!admin && (dm.results[0].n || beau.results[0].n)) {
+    const [d1, b1] = await env.DB.batch([
+      env.DB.prepare("SELECT m.id, m.thread_id AS thread, u.username AS name FROM dm_messages m JOIN dm_threads t ON t.id = m.thread_id JOIN users u ON u.id = m.user_id WHERE t.status = 'active' AND (t.a = ?1 OR t.b = ?1) AND m.user_id != ?1 AND m.hidden = 0 AND m.id > (CASE WHEN t.a = ?1 THEN t.a_read ELSE t.b_read END) ORDER BY m.id DESC LIMIT 1").bind(me),
+      env.DB.prepare('SELECT id FROM messages WHERE user_id = ? AND from_admin = 1 AND read_at IS NULL ORDER BY id DESC LIMIT 1').bind(me)
+    ]);
+    const d = d1.results[0], b = b1.results[0];
+    if (d || b) latest = { key: (d ? 'd' + d.id : '') + (b ? 'b' + b.id : ''), name: d ? d.name : null, thread: d ? d.thread : null, beau: !!b };
+  }
+  return { requests: req_.results[0].n, unreadDm: dm.results[0].n, beau: beau.results[0].n, admin, muted: !!(mu.results[0] || {}).chat_muted, latest };
 }
 // In study mode: no chatting with friends and no feedback form. Messaging Beau and looking at the leaderboard still work.
 const STUDY_BLOCKED = p => p.startsWith('/api/chat/') || p === '/api/feedback'; // ⭐ Rate the site still works in study mode

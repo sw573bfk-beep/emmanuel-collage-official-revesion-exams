@@ -71,6 +71,9 @@ a.chip{text-decoration:none}a.chip:hover{border-color:var(--accent);color:var(--
 .tile .nb{min-width:24px;height:24px;padding:0 7px;border-radius:999px;background:var(--pen,#b3261e);color:var(--card,#fff);font-size:.8125rem;font-weight:700;display:inline-grid;place-items:center}
 .tile .nb[hidden]{display:none}
 .welcome{border:2px solid var(--accent);background:var(--accent-soft)}
+.exams{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+.exams .ex{display:inline-flex;align-items:center;gap:8px;border-radius:12px;padding:8px 14px;font-size:.9375rem;font-weight:600;background:var(--pen-soft,#fdecea);color:var(--pen,#b3261e);border:1.5px solid var(--pen,#b3261e)}
+.exams .ex.far{background:var(--card);color:var(--ink);border-color:var(--rule)}
 .revisit{border:2px solid var(--warn,#b26a00)}
 .rv-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:10px}
 .rv{display:flex;flex-direction:column;gap:6px;border:1.5px solid var(--rule);border-radius:12px;padding:12px 14px}
@@ -87,6 +90,7 @@ a.chip{text-decoration:none}a.chip:hover{border-color:var(--accent);color:var(--
   <div class="top">
     <div class="brand"><span class="mark" id="mark">year 8 · week 7</span><h1 id="title">EC Revisions</h1><p id="tagline">Year 8 Maths, Science and English exam revision. Make a free account so your progress is saved and follows you to any device.</p>
       <div class="today" id="today" hidden aria-label="Your numbers and shortcuts"></div>
+      <div class="exams" id="examLine" hidden></div>
       <section class="card stack chip-edit" id="goalEdit" hidden aria-label="Your weekly goal">
         <div class="row" style="justify-content:space-between;align-items:center"><b>🎯 Your goal for this week</b><span class="small muted">Monday to Sunday</span></div>
         <div><span class="small muted">Minutes of study</span><div class="row ce-row" id="geMin"></div></div>
@@ -291,6 +295,14 @@ a.chip{text-decoration:none}a.chip:hover{border-color:var(--accent);color:var(--
     const j = window.ecLive ? await window.ecLive() : null, c = j && j.chat;
     if (c) { const n = c.admin ? c.beau : c.requests + c.unreadDm + c.beau; DATA.chatN = n; $('#chatN').hidden = !n; $('#chatN').textContent = n > 99 ? '99+' : n; $('#chatLine').textContent = n ? n + ' new — tap to read.' : 'Your friends, and a private chat with Beau.'; }
     await drawChips();
+    try { // 📅 exam countdown (dates set by Beau, for everyone or for your class)
+      const ex = await api('/api/exams');
+      if (ex.ok && ex.data.exams.length) {
+        const box = $('#examLine'); box.replaceChildren();
+        ex.data.exams.filter(e => e.days <= 60).slice(0, 3).forEach(e => { const d = document.createElement('span'); d.className = 'ex' + (e.days > 14 ? ' far' : ''); const when = new Date(e.date + 'T00:00:00').toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' }); d.textContent = '📅 ' + e.label + (e.days === 0 ? ' is today! Good luck!' : e.days === 1 ? ' is tomorrow (' + when + ')' : ' in ' + e.days + ' days (' + when + ')'); box.appendChild(d); });
+        box.hidden = !box.children.length;
+      }
+    } catch (e) { /* offline */ }
     try { // 🔁 Revisit today
       const rv = await api('/api/revisit');
       if (rv.ok && rv.data.topics.length) {

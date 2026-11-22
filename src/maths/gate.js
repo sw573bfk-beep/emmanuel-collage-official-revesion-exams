@@ -1,12 +1,12 @@
 // Runs before the maths app: checks you are logged in, loads your saved progress from the
 // server into this browser, then starts the app and saves changes back automatically.
 (async function gate() {
-  const P = window.ecAcct ? ecAcct.prefix('m') : 'y8m:', LOCAL_ONLY = new Set(['theme', 'seen']);
+  const P = window.ecAcct ? ecAcct.prefix('m') : 'y8m:', LOCAL_ONLY = new Set(['theme', 'seen', '__who']);
   const status = t => { const el = document.getElementById('syncStatus'); if (el) el.textContent = t; };
   const ours = k => k.startsWith(P) && !LOCAL_ONLY.has(k.slice(P.length));
   const clearLocal = () => { try { Object.keys(localStorage).filter(ours).forEach(k => localStorage.removeItem(k)); } catch (e) { /* storage blocked */ } };
   const home = document.getElementById('v-home');
-  let me;
+  let me, offline = false;
   try {
     const r = await fetch('/api/me', { credentials: 'same-origin' });
     if (r.status === 401) { location.replace('/?next=maths'); return; }
@@ -18,10 +18,17 @@
     clearLocal(); // start from this account's saved progress, not whoever used this browser before
     Object.entries(data || {}).forEach(([k, v]) => { if (!LOCAL_ONLY.has(k)) try { localStorage.setItem(P + k, JSON.stringify(v)); } catch (e) { /* storage blocked */ } });
   } catch (e) {
-    home.innerHTML = '<div class="card stack"><h2>Can’t reach the server</h2><p>Your progress couldn’t be loaded. Check your internet connection, then reload the page.</p><p><button class="btn" type="button" onclick="location.reload()">Reload</button></p></div>';
-    return;
+    // 📡 no internet: if this browser already has this account's progress, open from that and save when back online
+    let who = null; try { who = JSON.parse(localStorage.getItem(P + '__who')); } catch (x) { who = null; }
+    if (e instanceof TypeError && who) { me = { username: who }; offline = true; }
+    else {
+      home.innerHTML = '<div class="card stack"><h2>Can’t reach the server</h2><p>Your progress couldn’t be loaded. Check your internet connection, then reload the page.</p><p><button class="btn" type="button" onclick="location.reload()">Reload</button></p></div>';
+      return;
+    }
   }
+  if (!offline) { try { localStorage.setItem(P + '__who', JSON.stringify(me.username)); } catch (x) { /* storage blocked */ } }
   document.getElementById('acctName').textContent = me.username;
+  if (offline) { setTimeout(() => status('📡 Offline: saves when you’re back online'), 50); window.addEventListener('online', () => { if (dirty) save(); }); }
   let timer = null, dirty = false, saving = false;
   const collect = () => { const o = {}; try { Object.keys(localStorage).filter(ours).forEach(k => { o[k.slice(P.length)] = JSON.parse(localStorage.getItem(k)); }); } catch (e) { /* storage blocked */ } return o; };
   async function save(keepalive) {

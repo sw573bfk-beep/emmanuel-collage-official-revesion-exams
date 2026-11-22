@@ -372,6 +372,7 @@ select.pick{font:inherit;padding:9px 10px;border-radius:10px;border:2px solid va
     if (v === 'write' || v === 'quiz' || v === 'cards') VIEWS[v]();
     const on = document.querySelector('#etabs a.on'); if (on) on.scrollIntoView({ block: 'nearest', inline: 'nearest' });
     if (location.hash !== '#' + v) history.replaceState(null, '', '#' + v);
+    try { localStorage.setItem('ec-last:english', v); } catch (e) { /* storage blocked */ }
   }
   $('#etabs').addEventListener('click', e => { const a = e.target.closest('a'); if (!a) return; e.preventDefault(); show(a.dataset.v); window.scrollTo({ top: 0 }); });
   window.addEventListener('hashchange', () => show(location.hash.slice(1)));
@@ -395,10 +396,17 @@ select.pick{font:inherit;padding:9px 10px;border-radius:10px;border:2px solid va
       if (!c.ok) throw new Error('server');
       D = c.data;
       const pr = await api('/api/progress/english'); if (pr.ok && pr.data.data) P = Object.assign({ eq: {}, ef: {}, ew: {} }, pr.data.data);
-    } catch (e) { $('#loading').textContent = 'Can’t reach the server. Check your internet connection, then reload the page.'; return; }
+      try { localStorage.setItem('ec-english-data', JSON.stringify(D)); localStorage.setItem('ec-english-who', JSON.stringify(me.data.username)); } catch (x) { /* storage blocked */ }
+    } catch (e) {
+      // 📡 no internet: read from the copy kept in this browser (changes save next time you're online)
+      let cached = null, who = null; try { cached = JSON.parse(localStorage.getItem('ec-english-data')); who = JSON.parse(localStorage.getItem('ec-english-who')); } catch (x) { cached = null; }
+      if (!(e instanceof TypeError) || !cached) { $('#loading').textContent = 'Can’t reach the server. Check your internet connection, then reload the page.'; return; }
+      D = cached; $('#acctName').textContent = (who || '') + ' · 📡 offline';
+    }
     $('#loading').hidden = true; $('#lockView').hidden = true; $('#app').hidden = false; status('Saved');
     overview(); characters(); ideas(); map();
-    show(location.hash.slice(1) || 'overview');
+    let last = ''; try { last = localStorage.getItem('ec-last:english') || ''; } catch (e) { /* storage blocked */ }
+    show(location.hash.slice(1) || last || 'overview'); // ↩️ pick up where you left off
     if (!window.ecEngBeat) { window.ecEngBeat = true; heartbeat(); } // study time only counts once English is open
   }
   start();
