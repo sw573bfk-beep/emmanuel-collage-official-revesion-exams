@@ -53,26 +53,92 @@
     return span;
   };
   window.ecTitle = look => { if (!look || !look.t) return null; const s = document.createElement('span'); s.className = 'ec-title'; s.textContent = look.t; return s; };
-  // 👤 Profile button, top right of every page once you're logged in (with a red number for new messages)
+  // 👤 Profile button, top right of every page once you're logged in (with a red number for new messages).
+  // On Maths, Science and English it's a plain link to your profile (those pages have their own buttons).
+  // Everywhere else it opens a menu with everything else, and phones also get a bottom tab bar.
+  const SUBJECT_PAGE = /^\/(maths|science|english)(\/|$)/.test(location.pathname);
+  const profileCss = () => {
+    if (document.getElementById('ecProfCss')) return;
+    const st = document.createElement('style'); st.id = 'ecProfCss';
+    st.textContent = '.ec-prof{display:inline-flex;align-items:center;gap:8px;font:inherit;font-weight:600;font-size:.9375rem;color:var(--ink,#111);background:var(--card,#fff);border:1.5px solid var(--rule,#ccc);border-radius:999px;padding:4px 12px 4px 4px;min-height:40px;text-decoration:none;white-space:nowrap;cursor:pointer}'
+      + '.ec-prof:hover,.ec-prof[aria-expanded="true"]{border-color:var(--accent,#2453d6)}.ec-prof .av{width:30px;height:30px;border-radius:50%;background:var(--accent,#2453d6);color:var(--accent-ink,#fff);display:grid;place-items:center;font-weight:800}'
+      + '.ec-prof .nb{display:inline-grid;place-items:center;min-width:20px;height:20px;padding:0 5px;border-radius:999px;background:var(--pen,#b3261e);color:var(--card,#fff);font-size:.8125rem;font-weight:700}.ec-prof .nb[hidden]{display:none}'
+      + '.ec-prof .car{font-size:.75rem;color:var(--muted,#555)}'
+      + '.ec-prof.float{position:absolute;top:calc(12px + env(safe-area-inset-top,0px));right:14px;z-index:20}@media (max-width:560px){.ec-prof .nm{display:none}.ec-prof{padding-right:8px}}'
+      + '.ec-menu{position:absolute;top:calc(60px + env(safe-area-inset-top,0px));right:14px;z-index:2450;width:min(290px,calc(100vw - 28px));background:var(--card,#fff);color:var(--ink,#111);border:1.5px solid var(--rule,#ccc);border-radius:16px;box-shadow:0 16px 40px rgb(0 0 0 / .22);padding:8px;display:flex;flex-direction:column;gap:2px}'
+      + '.ec-menu[hidden]{display:none}.ec-menu .hd{display:flex;align-items:center;gap:10px;padding:8px 10px 10px;border-bottom:1px solid var(--rule,#ddd);margin-bottom:4px}.ec-menu .hd .av{width:36px;height:36px;border-radius:50%;background:var(--accent,#2453d6);color:var(--accent-ink,#fff);display:grid;place-items:center;font-weight:800;flex:none}'
+      + '.ec-menu .hd b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.ec-menu .hd small{color:var(--muted,#555)}'
+      + '.ec-menu .it{display:flex;align-items:center;gap:10px;width:100%;text-align:left;font:inherit;font-size:1rem;font-weight:600;color:var(--ink,#111);background:none;border:0;border-radius:10px;padding:10px 12px;min-height:44px;text-decoration:none;cursor:pointer}'
+      + '.ec-menu .it:hover,.ec-menu .it:focus-visible{background:var(--accent-soft,#e8eefc);outline:none}.ec-menu .it .ic{width:24px;text-align:center;flex:none}.ec-menu .it .nb{margin-left:auto;min-width:22px;height:22px;padding:0 6px;border-radius:999px;background:var(--pen,#b3261e);color:var(--card,#fff);font-size:.8125rem;font-weight:700;display:inline-grid;place-items:center}'
+      + '.ec-menu .it[hidden]{display:none}.ec-menu .it.out{color:var(--pen,#b3261e)}.ec-menu hr{border:0;border-top:1px solid var(--rule,#ddd);margin:4px 6px}'
+      + 'html.ec-menu-on .theme-btn.float{display:none}'
+      + '.ec-tabs{display:none}@media (max-width:700px){html.ec-has-tabs body{padding-bottom:calc(66px + env(safe-area-inset-bottom,0px))}'
+      + '.ec-tabs{display:grid;grid-template-columns:repeat(4,1fr);position:fixed;left:0;right:0;bottom:0;z-index:950;background:var(--card,#fff);border-top:1.5px solid var(--rule,#ddd);padding:4px 4px calc(4px + env(safe-area-inset-bottom,0px));box-shadow:0 -4px 16px rgb(0 0 0 / .08)}'
+      + '.ec-tabs a{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;min-height:52px;border-radius:12px;text-decoration:none;color:var(--muted,#555);font-size:.75rem;font-weight:700}'
+      + '.ec-tabs a .ic{font-size:1.35rem;line-height:1.1}.ec-tabs a.on{color:var(--accent,#2453d6);background:var(--accent-soft,#e8eefc)}'
+      + '.ec-tabs a .nb{position:absolute;top:3px;left:calc(50% + 6px);min-width:18px;height:18px;padding:0 5px;border-radius:999px;background:var(--pen,#b3261e);color:var(--card,#fff);font-size:.6875rem;display:grid;place-items:center}.ec-tabs a .nb[hidden]{display:none}'
+      + 'html.ec-has-tabs #ecHelpBtn{bottom:calc(74px + env(safe-area-inset-bottom,0px))}html.ec-has-tabs .ec-reward{bottom:calc(78px + env(safe-area-inset-bottom,0px))}}';
+    document.head.appendChild(st);
+  };
+  const mkEl = (tag, cls, txt) => { const e = document.createElement(tag); if (cls) e.className = cls; if (txt != null) e.textContent = txt; return e; };
+  function menuItem(ic, label, act, extra) {
+    const it = typeof act === 'string' ? mkEl('a', 'it') : mkEl('button', 'it'); if (typeof act === 'string') it.href = act; else { it.type = 'button'; it.onclick = act; }
+    it.setAttribute('role', 'menuitem'); it.append(mkEl('span', 'ic', ic), mkEl('span', '', label)); if (extra) it.appendChild(extra); return it;
+  }
+  function buildMenu(j) {
+    const path = location.pathname, home = path === '/' || path === '/index.html', admin = !!j.me.admin, staff = admin || !!j.me.role;
+    const m = mkEl('div', 'ec-menu'); m.id = 'ecMenu'; m.setAttribute('role', 'menu'); m.hidden = true;
+    const hd = mkEl('div', 'hd'), av = mkEl('span', 'av'); window.ecAv(av, j.me.look, j.me.name); const who = mkEl('div'); who.append(mkEl('b', '', j.me.name), mkEl('small', '', admin ? 'Admin' : j.me.role ? 'Helper admin' : 'Logged in')); hd.append(av, who); m.appendChild(hd);
+    if (!home) m.appendChild(menuItem('🏠', 'Home (subjects)', '/'));
+    if (!admin) m.appendChild(menuItem('👤', 'My profile', '/me/'));
+    if (staff) m.appendChild(menuItem('🛠️', 'Admin dashboard', '/admin/'));
+    m.appendChild(menuItem('🏆', 'Leaderboard', '/leaderboard/'));
+    const cn = mkEl('span', 'nb'); cn.hidden = true; cn.id = 'ecMenuChatN'; m.appendChild(menuItem('💬', 'Chat', '/chat/', cn));
+    m.appendChild(menuItem('🎮', 'Play with friends', '/play/'));
+    m.appendChild(menuItem('💡', 'Feedback', '/feedback/'));
+    m.appendChild(mkEl('hr'));
+    const fo = menuItem('🎯', 'Focus mode', () => { closeMenu(); const f = document.getElementById('ecFocusBtn'); if (f) f.click(); }); fo.id = 'ecMenuFocus'; fo.hidden = true; m.appendChild(fo);
+    const dk = menuItem(isDark() ? '☀️' : '🌙', isDark() ? 'Light mode' : 'Dark mode', () => { const t = isDark() ? 'light' : 'dark'; apply(t); try { localStorage.setItem(KEY, t); } catch (e) { /* storage blocked */ } const b = document.querySelector('.theme-btn'); if (b) label(b); dk.querySelector('.ic').textContent = isDark() ? '☀️' : '🌙'; dk.lastChild.textContent = isDark() ? 'Light mode' : 'Dark mode'; });
+    m.appendChild(dk);
+    m.appendChild(menuItem('🔁', 'Switch account', () => { closeMenu(); if (window.ecSwitchAccounts) window.ecSwitchAccounts(); else location.href = '/?switch=1'; }));
+    const out = menuItem('🚪', 'Log out', () => { closeMenu(); if (window.ecLogout) window.ecLogout(); else location.href = '/?logout=1'; }); out.classList.add('out'); m.appendChild(out);
+    return m;
+  }
+  function closeMenu() { const m = document.getElementById('ecMenu'), b = document.getElementById('ecProfile'); if (m) m.hidden = true; if (b) b.setAttribute('aria-expanded', 'false'); }
+  function toggleMenu(e) {
+    e.preventDefault(); const m = document.getElementById('ecMenu'), b = document.getElementById('ecProfile'); if (!m) return;
+    m.hidden = !m.hidden; b.setAttribute('aria-expanded', String(!m.hidden));
+    if (!m.hidden) { const fo = document.getElementById('ecMenuFocus'); if (fo) fo.hidden = !document.getElementById('ecFocusBtn'); const r = b.getBoundingClientRect(); m.style.top = (r.bottom + window.scrollY + 8) + 'px'; const f = m.querySelector('.it'); if (f) f.focus(); }
+  }
+  document.addEventListener('click', e => { const m = document.getElementById('ecMenu'); if (m && !m.hidden && !m.contains(e.target) && !e.target.closest('#ecProfile')) closeMenu(); });
+  document.addEventListener('keydown', e => {
+    const m = document.getElementById('ecMenu'); if (!m || m.hidden) return;
+    if (e.key === 'Escape') { closeMenu(); document.getElementById('ecProfile').focus(); return; }
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') { e.preventDefault(); const its = [...m.querySelectorAll('.it')], i = its.indexOf(document.activeElement); its[(i + (e.key === 'ArrowDown' ? 1 : its.length - 1)) % its.length].focus(); }
+  });
+  function buildTabs(j) {
+    const path = location.pathname, admin = !!j.me.admin, nav = mkEl('nav', 'ec-tabs'); nav.id = 'ecTabs'; nav.setAttribute('aria-label', 'Main');
+    const T = [['🏠', 'Home', '/', p => p === '/' || p === '/index.html'], ['🏆', 'Leaderboard', '/leaderboard/', p => p.startsWith('/leaderboard')], ['💬', 'Chat', '/chat/', p => p.startsWith('/chat')], [admin ? '🛠️' : '👤', admin ? 'Admin' : 'Me', admin ? '/admin/' : '/me/', p => p.startsWith('/me') || p.startsWith('/admin')]];
+    T.forEach(([ic, l, href, on]) => { const a = mkEl('a', on(path) ? 'on' : ''); a.href = href; if (on(path)) a.setAttribute('aria-current', 'page'); a.append(mkEl('span', 'ic', ic), mkEl('span', '', l)); if (l === 'Chat') { const nb = mkEl('span', 'nb'); nb.hidden = true; nb.id = 'ecTabChatN'; a.appendChild(nb); } nav.appendChild(a); });
+    document.body.appendChild(nav); root.classList.add('ec-has-tabs');
+  }
   const profile = async () => {
-    const path = location.pathname; if (path.startsWith('/admin') || path.startsWith('/me')) return;
+    const path = location.pathname; if (path.startsWith('/admin')) return;
     const j = await window.ecLive(); if (!j || !j.me) return;
+    profileCss();
     if (!document.getElementById('ecProfile')) {
-      const st = document.createElement('style');
-      st.textContent = '.ec-prof{display:inline-flex;align-items:center;gap:8px;font:inherit;font-weight:600;font-size:.9375rem;color:var(--ink,#111);background:var(--card,#fff);border:1.5px solid var(--rule,#ccc);border-radius:999px;padding:4px 12px 4px 4px;min-height:40px;text-decoration:none;white-space:nowrap}'
-        + '.ec-prof:hover{border-color:var(--accent,#2453d6)}.ec-prof .av{width:30px;height:30px;border-radius:50%;background:var(--accent,#2453d6);color:var(--accent-ink,#fff);display:grid;place-items:center;font-weight:800}'
-        + '.ec-prof .nb{display:inline-grid;place-items:center;min-width:20px;height:20px;padding:0 5px;border-radius:999px;background:var(--pen,#b3261e);color:var(--card,#fff);font-size:.8125rem;font-weight:700}.ec-prof .nb[hidden]{display:none}'
-        + '.ec-prof.float{position:absolute;top:calc(12px + env(safe-area-inset-top,0px));right:14px;z-index:20}@media (max-width:560px){.ec-prof .nm{display:none}.ec-prof{padding-right:8px}}';
-      document.head.appendChild(st);
-      const a = document.createElement('a'); a.id = 'ecProfile'; a.className = 'ec-prof';
       const sub = path.startsWith('/maths') ? '?from=maths' : path.startsWith('/science') ? '?from=science' : '';
-      a.href = j.me.admin ? '/admin/' : '/me/' + sub; a.title = j.me.admin ? 'Admin dashboard' : 'My profile: stats, friends and messages';
-      a.innerHTML = '<span class="av" aria-hidden="true"></span><span class="nm"></span><span class="nb" hidden></span>';
-      window.ecAv(a.querySelector('.av'), j.me.look, j.me.name); a.querySelector('.nm').textContent = j.me.admin ? 'Dashboard' : 'Profile';
+      const a = document.createElement(SUBJECT_PAGE ? 'a' : 'button'); a.id = 'ecProfile'; a.className = 'ec-prof';
+      if (SUBJECT_PAGE) { a.href = j.me.admin ? '/admin/' : '/me/' + sub; a.title = j.me.admin ? 'Admin dashboard' : 'My profile: stats, friends and messages'; }
+      else { a.type = 'button'; a.setAttribute('aria-haspopup', 'menu'); a.setAttribute('aria-expanded', 'false'); a.setAttribute('aria-controls', 'ecMenu'); a.title = 'Menu: profile, leaderboard, chat and more'; a.onclick = toggleMenu; }
+      a.innerHTML = '<span class="av" aria-hidden="true"></span><span class="nm"></span><span class="nb" hidden></span>' + (SUBJECT_PAGE ? '' : '<span class="car" aria-hidden="true">▾</span>');
+      window.ecAv(a.querySelector('.av'), j.me.look, j.me.name); a.querySelector('.nm').textContent = SUBJECT_PAGE ? (j.me.admin ? 'Dashboard' : 'Profile') : 'Menu';
       a.classList.add('float'); document.body.appendChild(a); // always the top right corner of the page
+      if (!SUBJECT_PAGE) { document.body.appendChild(buildMenu(j)); root.classList.add('ec-menu-on'); buildTabs(j); }
     }
     const a = document.getElementById('ecProfile'), c = j.chat, n = c ? (c.admin ? c.beau : c.requests + c.unreadDm + c.beau) : 0, nb = a.querySelector('.nb');
-    nb.hidden = !n; nb.textContent = n > 99 ? '99+' : n; a.setAttribute('aria-label', (j.me.admin ? 'Admin dashboard' : 'My profile') + (n ? ', ' + n + ' new' : ''));
+    nb.hidden = !n; nb.textContent = n > 99 ? '99+' : n; a.setAttribute('aria-label', (SUBJECT_PAGE ? (j.me.admin ? 'Admin dashboard' : 'My profile') : 'Menu') + (n ? ', ' + n + ' new' : ''));
+    for (const id of ['ecMenuChatN', 'ecTabChatN']) { const x = document.getElementById(id); if (x) { x.hidden = !n; x.textContent = n > 99 ? '99+' : n; } }
   };
   window.ecProfileCheck = profile;
   // 🎉 "New reward" pop-up: one at a time, a few seconds each, then they're marked as seen

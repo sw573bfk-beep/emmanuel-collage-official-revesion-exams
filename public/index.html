@@ -34,6 +34,37 @@ details.acct[open] summary{margin-bottom:12px}
 .accts .pill{font-size:.875rem;font-weight:600;background:var(--accent-soft);color:var(--accent);border-radius:999px;padding:2px 10px}
 .still{border:1px solid var(--line);border-radius:12px;padding:10px 14px;display:flex;flex-wrap:wrap;gap:8px;align-items:center}
 .acct-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,260px),1fr));gap:18px}
+/* the logged-in home page */
+#whoBox{display:none!important} /* its buttons now live in the menu under your picture (top right) */
+#pickView{gap:26px}
+main.wrap>.top{background:none;border:0}
+.top .brand h1.hi{font-size:clamp(1.9rem,5vw,2.6rem)}
+.today{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
+.today .chip{display:inline-flex;align-items:center;gap:6px;background:var(--card,#fff);border:1.5px solid var(--rule);border-radius:999px;padding:6px 14px;font-size:.9375rem;color:var(--muted)}
+.today .chip b{color:var(--ink);font-variant-numeric:tabular-nums}
+.subject.card{padding:0;gap:0;border-top:0!important}
+.subject .shead{display:flex;align-items:center;gap:14px;padding:18px 20px;color:#fff}
+.subject.maths .shead{background:linear-gradient(135deg,var(--accent),#5b86ea)}
+.subject.science .shead{background:linear-gradient(135deg,var(--sci),#22a37f)}
+.subject.english .shead{background:linear-gradient(135deg,#6b3fc4,#9a6ce6)}
+.subject .sic{flex:none;width:60px;height:60px;border-radius:18px;background:rgb(255 255 255 / .2);display:grid;place-items:center;font-size:2.2rem;line-height:1}
+.subject .shead h2{color:#fff;margin:0;line-height:1.1}
+.subject .shead .glyph{background:rgb(255 255 255 / .22)!important;color:#fff!important;font-size:.8125rem}
+.subject .sbody{padding:18px 20px 22px;display:flex;flex-direction:column;gap:14px;flex:1}
+.subject .sbody .btn{margin-top:auto;font-size:1.05rem;padding:12px 16px}
+.subject .last{margin:0}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr));gap:16px}
+.tile{display:flex;align-items:center;gap:14px;text-decoration:none;color:var(--ink);transition:border-color .15s}
+.tile:hover{border-color:var(--accent)}
+.tile .tic{flex:none;width:48px;height:48px;border-radius:14px;background:var(--accent-soft);display:grid;place-items:center;font-size:1.6rem}
+.tile .tx{flex:1;min-width:0;display:flex;flex-direction:column}
+.tile .go{font-size:1.3rem;color:var(--muted)}
+.tile .nb{min-width:24px;height:24px;padding:0 7px;border-radius:999px;background:var(--pen,#b3261e);color:var(--card,#fff);font-size:.8125rem;font-weight:700;display:inline-grid;place-items:center}
+.tile .nb[hidden]{display:none}
+.welcome{border:2px solid var(--accent);background:var(--accent-soft)}
+.welcome h3{margin:0;font-size:1.3rem}
+.welcome ol{margin:0;padding-left:1.3em;display:flex;flex-direction:column;gap:8px;font-size:1.02rem}
+@media (max-width:560px){main.wrap>.top>.brand{flex:1 1 100%}.today{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.today .chip{flex-direction:column;gap:0;border-radius:14px;padding:8px 6px;font-size:.8125rem;text-align:center;line-height:1.3}.today .chip b{font-size:.9375rem}}
 </style>
 <script src="/theme.js"></script>
 <link rel="stylesheet" href="/theme.css?v=1">
@@ -41,7 +72,8 @@ details.acct[open] summary{margin-bottom:12px}
 <body>
 <main class="wrap">
   <div class="top">
-    <div class="brand"><span class="mark">year 8 · week 7</span><h1>EC Revisions</h1><p id="tagline">Year 8 Maths, Science and English exam revision. Make a free account so your progress is saved and follows you to any device.</p></div>
+    <div class="brand"><span class="mark" id="mark">year 8 · week 7</span><h1 id="title">EC Revisions</h1><p id="tagline">Year 8 Maths, Science and English exam revision. Make a free account so your progress is saved and follows you to any device.</p>
+      <div class="today" id="today" hidden aria-label="Your studying"><span class="chip">🔥 <b id="tStreak">0 days</b> streak</span><span class="chip">⏱ <b id="tMin">0 min</b> today</span><span class="chip">🏆 <b id="tRank">—</b> this week</span></div></div>
     <div class="row" id="whoBox" hidden><span class="muted small">Logged in as <b id="who"></b></span><button class="btn quiet sm" type="button" id="switchBtn" aria-expanded="false" aria-controls="acctsCard">Switch account</button><a class="btn quiet sm" href="/leaderboard/">🏆 Leaderboard</a><a class="btn quiet sm" href="/chat/" data-chat>💬 Chat</a><a class="btn quiet sm" href="/feedback/">Feedback</a><button class="btn quiet sm" type="button" id="logout">Log out</button></div>
   </div>
 
@@ -82,69 +114,50 @@ details.acct[open] summary{margin-bottom:12px}
       <ul class="accts" id="acctList"></ul>
       <div class="row"><button class="btn quiet" type="button" id="addAcct">+ Add another account</button></div>
     </div>
-    <a class="card row" id="adminCard" href="/admin/" hidden style="justify-content:space-between;text-decoration:none;color:var(--ink);border-color:var(--accent)"><span><span class="eyebrow">Admin</span><br><b>Open the dashboard</b> <span class="muted small">See who is using EC Revisions, for how long, and who is online now.</span></span><span class="btn">Dashboard →</span></a>
-    <h2 style="font-size:1.6rem">What do you want to study, <span id="who2"></span>?</h2>
+    <section class="card stack welcome" id="welcome" hidden>
+      <h3>👋 Welcome to EC Revisions!</h3>
+      <ol>
+        <li><b>Pick a subject</b> below: Maths, Science or English.</li>
+        <li><b>Read the notes, then practise.</b> Every right answer earns leaderboard points, and your progress saves by itself.</li>
+        <li><b>Tap your picture</b> in the top right for your profile, the leaderboard, chat, feedback and settings.</li>
+      </ol>
+      <button class="btn" type="button" id="welcomeOk" style="align-self:flex-start">Got it, let’s go</button>
+    </section>
+    <h2 style="font-size:1.6rem;margin:0">What do you want to study?</h2>
     <div class="subjects">
       <article class="card subject maths">
-        <span class="glyph">y = mx + c</span>
-        <h2>Maths</h2>
+        <div class="shead"><span class="sic" aria-hidden="true">📐</span><div><span class="glyph">y = mx + c</span><h2>Maths</h2></div></div>
+        <div class="sbody">
         <p class="muted">Week 7 exam revision: notes, unlimited practice, the full revision booklet with answers, exam mode and a step-by-step solver.</p>
         <ul><li>Inequalities and linear equations</li><li>Linear relations (9A–9H)</li><li>Transformations, congruence and similarity</li><li>Decimals and percentages</li></ul>
-        <p class="small muted" id="mathsLast"></p>
+        <p class="small muted last" id="mathsLast"></p>
         <a class="btn" href="/maths/">Study Maths →</a>
+        </div>
       </article>
       <article class="card subject science">
-        <span class="glyph">H₂O</span>
-        <h2>Science</h2>
+        <div class="shead"><span class="sic" aria-hidden="true">🧪</span><div><span class="glyph">H₂O</span><h2>Science</h2></div></div>
+        <div class="sbody">
         <p class="muted">Chemistry exam revision: physical and chemical change, reactions, word equations, conservation of mass, exothermic and endothermic, combustion and corrosion.</p>
         <ul><li>Quick notes for every checklist section</li><li>Practice questions and workbook questions</li><li>The salts graph task</li><li>Completed theory booklet (unlock code needed)</li></ul>
-        <p class="small muted" id="sciLast"></p>
+        <p class="small muted last" id="sciLast"></p>
         <a class="btn sci" href="/science/">Study Science →</a>
+        </div>
       </article>
       <article class="card subject english">
-        <span class="glyph">“ ”</span>
-        <h2>English</h2>
+        <div class="shead"><span class="sic" aria-hidden="true">📖</span><div><span class="glyph">“ ”</span><h2>English</h2></div></div>
+        <div class="sbody">
         <p class="muted">The Invention of Hugo Cabret: setting, climax, characters, the big ideas and full example answers for every gap.</p>
         <ul><li>5 characters, 3 gaps each, with notes</li><li>3 Year 8 example answers per gap: short, medium and long (200, 300, 400 words)</li><li>Quiz, flashcards and write-a-gap practice</li><li>Open to everyone, no code needed</li></ul>
-        <p class="small" style="margin:0;color:var(--warn)">⚠️ English is not perfect and could be wrong. Check it against your book.</p>
-        <p class="small muted" id="engLast"></p>
+        <p class="small muted" style="margin:0" title="English is not perfect and could be wrong">ⓘ English could have mistakes: check it against your book.</p>
+        <p class="small muted last" id="engLast"></p>
         <a class="btn eng" href="/english/">Study English →</a>
+        </div>
       </article>
     </div>
-    <a class="card row" href="/feedback/" style="justify-content:space-between;text-decoration:none;color:var(--ink)"><span><b>Got feedback?</b> <span class="muted small">Found a mistake or have an idea? Tell Beau.</span></span><span class="btn quiet sm">Send feedback →</span></a>
-    <div class="row" style="gap:14px;align-items:stretch">
-      <a class="card row" href="/leaderboard/" style="flex:1 1 260px;justify-content:space-between;text-decoration:none;color:var(--ink)"><span><b>🏆 Leaderboard</b> <span class="muted small">Earn points by studying. See the top 50 and your place.</span></span><span class="btn quiet sm">Open →</span></a>
-      <a class="card row" href="/play/" style="flex:1 1 260px;justify-content:space-between;text-decoration:none;color:var(--ink)"><span><b>🎮 Play with friends</b> <span class="muted small">A live quiz game with a code. Three game modes.</span></span><span class="btn quiet sm">Play →</span></a>
-      <a class="card row" href="/chat/" data-chat style="flex:1 1 260px;justify-content:space-between;text-decoration:none;color:var(--ink)"><span><b>💬 Chat</b> <span class="muted small">1-on-1 chats with friends, and a private chat with Beau.</span></span><span class="btn quiet sm">Open →</span></a>
+    <div class="tiles ec-hide-study" id="homeTiles">
+      <a class="card tile" href="/leaderboard/"><span class="tic" aria-hidden="true">🏆</span><span class="tx"><b>Leaderboard</b><span class="small muted" id="lbLine">See the top studiers and your place.</span></span><span class="go" aria-hidden="true">→</span></a>
+      <a class="card tile" href="/chat/" data-chat><span class="tic" aria-hidden="true">💬</span><span class="tx"><b>Chat</b><span class="small muted" id="chatLine">Your friends, and a private chat with Beau.</span></span><span class="nb" id="chatN" hidden></span><span class="go" aria-hidden="true">→</span></a>
     </div>
-    <section class="card stack ec-hide-study" id="friendsCard" hidden>
-      <div class="row" style="justify-content:space-between;align-items:center"><h3 style="margin:0">👥 Friends</h3><a class="btn quiet sm" href="/chat/">Open Chat →</a></div>
-      <p class="small muted" style="margin:0">Search for a friend and send a request. When you <b>both</b> agree and Beau approves it, you can chat. <b>Beau can read every chat.</b></p>
-      <label class="sr" for="frFind">Search for a friend by name</label>
-      <input id="frFind" type="search" autocomplete="off" placeholder="🔍 Search for a friend by name…">
-      <div id="frFound" class="fr-list" aria-live="polite"></div>
-      <div id="frOut" role="status"></div>
-      <div id="frList" class="fr-list"></div>
-    </section>
-    <details class="card acct">
-      <summary>Account settings</summary>
-      <div class="acct-grid">
-        <form id="pwForm" class="stack" novalidate>
-          <b>Change password</b>
-          <label class="f">Current password<input id="pwCur" type="password" autocomplete="current-password"></label>
-          <label class="f">New password (8+ characters)<input id="pwNew" type="password" autocomplete="new-password"></label>
-          <div id="pwMsg" class="msg" role="status" hidden></div>
-          <button class="btn quiet" type="submit">Change password</button>
-        </form>
-        <form id="delForm" class="stack" novalidate>
-          <b>Delete account</b>
-          <p class="small muted">Deletes your account and all saved progress. This can’t be undone.</p>
-          <label class="f">Password<input id="delPw" type="password" autocomplete="current-password"></label>
-          <div id="delMsg" class="msg bad" role="alert" hidden></div>
-          <button class="btn danger" type="submit" id="delBtn">Delete my account</button>
-        </form>
-      </div>
-    </details>
   </section>
 
   <p id="loading" class="muted">Loading…</p>
@@ -208,8 +221,9 @@ details.acct[open] summary{margin-bottom:12px}
   function picked(me) {
     if (['maths', 'science', 'english', 'feedback', 'message', 'chat', 'leaderboard', 'play', 'me', 'teacher'].includes(next)) { location.replace('/' + next + '/'); return; }
     if (next === 'admin' && me.admin) { location.replace('/admin/'); return; }
-    $('#adminCard').hidden = !(me.admin || me.role);
-    $('#who').textContent = me.username; $('#who2').textContent = me.username;
+    $('#who').textContent = me.username;
+    $('#mark').textContent = 'EC Revisions · Year 8'; $('#title').textContent = 'Hi, ' + me.username.split(' ')[0] + ' 👋'; $('#title').classList.add('hi'); $('#tagline').hidden = true;
+    homeExtras(me);
     const t = me.subjects && me.subjects.maths;
     $('#mathsLast').textContent = t ? 'Last saved ' + new Date(t * 1000).toLocaleString('en-AU', { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }) : 'Not started yet';
     const ts = me.subjects && me.subjects.science;
@@ -217,6 +231,31 @@ details.acct[open] summary{margin-bottom:12px}
     const te = me.subjects && me.subjects.english;
     $('#engLast').textContent = te ? 'Last saved ' + new Date(te * 1000).toLocaleString('en-AU', { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }) : 'Not started yet';
     show('pick'); if (window.ecMsgCheck) window.ecMsgCheck(); if (window.ecStudyCheck) window.ecStudyCheck(); if (window.ecLive && window.ecProfileCheck) window.ecLive(true).then(() => window.ecProfileCheck());
+  }
+  // 👤 the menu under your picture (theme.js) calls these on this page
+  function openAccounts() { const c = $('#acctsCard'); c.hidden = false; $('#switchBtn').setAttribute('aria-expanded', 'true'); refreshAccounts(); c.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); }
+  window.ecSwitchAccounts = openAccounts; window.ecLogout = () => $('#logout').click();
+  const fmtMin = s => { const m = Math.floor(s / 60); return m >= 60 ? Math.floor(m / 60) + ' h ' + (m % 60) + ' min' : m + ' min'; };
+  // the "today" strip, the Leaderboard and Chat tiles, and the welcome for brand-new students
+  async function homeExtras(me) {
+    const p = new URLSearchParams(location.search);
+    if (p.get('switch')) { history.replaceState(null, '', '/'); openAccounts(); }
+    if (p.get('logout')) { history.replaceState(null, '', '/'); setTimeout(() => window.ecLogout(), 50); }
+    const wk = 'ec-welcome:' + me.username.toLowerCase(); let seen = true; try { seen = !!localStorage.getItem(wk); } catch (e) { /* storage blocked */ }
+    const started = me.subjects && Object.keys(me.subjects).length;
+    if (!seen && !started && !me.admin) $('#welcome').hidden = false;
+    $('#welcomeOk').onclick = () => { $('#welcome').hidden = true; try { localStorage.setItem(wk, '1'); } catch (e) { /* storage blocked */ } };
+    try {
+      const r = await api('/api/profile');
+      if (r.ok) {
+        const d = r.data, t = d.time || {}, w = d.leaderboard && d.leaderboard.week;
+        $('#tStreak').textContent = (t.streak || 0) + (t.streak === 1 ? ' day' : ' days'); $('#tMin').textContent = fmtMin(t.today || 0);
+        $('#tRank').textContent = w ? '#' + w.rank + ' · ' + w.points + ' pts' : '—'; $('#today').hidden = false;
+        $('#lbLine').textContent = w ? 'You’re #' + w.rank + ' this week with ' + w.points + ' points.' : 'Study to get on the board this week.';
+      }
+    } catch (e) { /* offline */ }
+    const j = window.ecLive ? await window.ecLive() : null, c = j && j.chat;
+    if (c) { const n = c.admin ? c.beau : c.requests + c.unreadDm + c.beau; $('#chatN').hidden = !n; $('#chatN').textContent = n > 99 ? '99+' : n; $('#chatLine').textContent = n ? n + ' new — tap to read.' : 'Your friends, and a private chat with Beau.'; }
   }
   $('#switchBtn').onclick = () => { const c = $('#acctsCard'); c.hidden = !c.hidden; $('#switchBtn').setAttribute('aria-expanded', !c.hidden); if (!c.hidden) { refreshAccounts(); c.scrollIntoView({ block: 'nearest' }); } };
   $('#addAcct').onclick = addAccount;
@@ -260,77 +299,10 @@ details.acct[open] summary{margin-bottom:12px}
     await refreshAccounts();
     setMode('login'); fillSaved(); show('auth');
   };
-  $('#pwForm').onsubmit = async e => {
-    e.preventDefault(); const m = $('#pwMsg');
-    const r = await api('/api/password', 'POST', { current: $('#pwCur').value, next: $('#pwNew').value });
-    m.className = 'msg ' + (r.ok ? 'good' : 'bad'); m.textContent = r.ok ? 'Password changed. Other devices have been logged out.' : (r.data.error || 'Couldn’t change the password.'); m.hidden = false;
-    if (r.ok) { try { if (localStorage.getItem(LK.p) !== null) saveLogin($('#who').textContent, $('#pwNew').value); } catch (e2) { /* storage blocked */ } $('#pwCur').value = ''; $('#pwNew').value = ''; }
-  };
-  let armed = false;
-  $('#delForm').onsubmit = async e => {
-    e.preventDefault(); const m = $('#delMsg'); m.hidden = true;
-    if (!armed) { armed = true; $('#delBtn').textContent = 'Tap again to delete everything'; setTimeout(() => { armed = false; $('#delBtn').textContent = 'Delete my account'; }, 5000); return; }
-    const r = await api('/api/delete-account', 'POST', { password: $('#delPw').value });
-    if (!r.ok) { m.textContent = r.data.error || 'Couldn’t delete the account.'; m.hidden = false; return; }
-    clearProgress(); saveLogin(null);
-    $('#username').value = ''; $('#password').value = '';
-    await refreshAccounts(); setMode('login'); show('auth');
-  };
   (async () => {
     try { const me = await api('/api/me'); refreshAccounts(); if (me.ok) return picked(me.data); } catch (e) { /* offline: show the form */ }
     setMode('login'); show('auth');
   })();
-})();
-</script>
-<style>
-#friendsCard .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
-.fr-list{display:flex;flex-direction:column;gap:8px}
-.fr-row{display:flex;align-items:center;justify-content:space-between;gap:10px;border:1.5px solid var(--rule);border-radius:12px;padding:10px 14px;flex-wrap:wrap}
-.fr-row .fr-t{display:flex;flex-direction:column;min-width:0}
-.fr-row .fr-a{display:flex;gap:6px;flex-wrap:wrap}
-</style>
-<script>
-/* 👥 Friends on the home page: search, requests and friends, with the same rules as Chat */
-(function () {
-  const card = document.getElementById('friendsCard'), pick = document.getElementById('pickView'); if (!card || !pick) return;
-  const q = s => card.querySelector(s);
-  const el = (t, c, x) => { const e = document.createElement(t); if (c) e.className = c; if (x != null) e.textContent = x; return e; };
-  const api = async (p, m = 'GET', b) => { const r = await fetch(p, { method: m, credentials: 'same-origin', headers: b ? { 'content-type': 'application/json' } : {}, body: b ? JSON.stringify(b) : undefined }); let j = {}; try { j = await r.json(); } catch (e) { /* empty */ } return { ok: r.ok, status: r.status, data: j }; };
-  const btn = (txt, cls, fn) => { const b = el('button', 'btn sm ' + (cls || ''), txt); b.type = 'button'; b.onclick = fn; return b; };
-  const link = (txt, href) => { const a = el('a', 'btn sm', txt); a.href = href; return a; };
-  const row = (name, sub, acts, look) => { const d = el('div', 'fr-row'), t = el('span', 'fr-t'); const nb = el('b', '', (look && look.a ? look.a + ' ' : '') + name); const tt = look && window.ecTitle && window.ecTitle(look); if (tt) nb.appendChild(tt); t.append(nb); if (sub) t.append(el('span', 'small muted', sub)); const a = el('span', 'fr-a'); acts.forEach(x => a.append(x)); d.append(t, a); return d; };
-  const say = (t, good) => { const o = q('#frOut'); o.replaceChildren(); if (t) o.append(el('div', 'msg ' + (good ? 'good' : 'bad'), t)); };
-  async function list() {
-    const s = await api('/api/chat/summary'); if (!s.ok || s.data.admin) { card.hidden = true; return; }
-    const r = await api('/api/chat/threads'); if (!r.ok) { card.hidden = true; return; }
-    card.hidden = false; const box = q('#frList'); box.replaceChildren();
-    const T = r.data.threads;
-    T.filter(t => t.status === 'pending' && !t.byMe).forEach(t => box.append(row(t.name, 'wants to be your friend', [
-      btn('Accept', '', async () => { await api('/api/chat/respond', 'POST', { id: t.id, accept: true }); say('Accepted! Beau will check the chat, then you can talk.', true); list(); }),
-      btn('Decline', 'quiet', async () => { await api('/api/chat/respond', 'POST', { id: t.id, accept: false }); list(); })])));
-    T.filter(t => t.status === 'active').forEach(t => box.append(row(t.name, t.online ? '● online now' : 'friend', [link('💬 Chat', '/chat/?thread=' + t.id)], t.look)));
-    T.filter(t => t.status === 'approval').forEach(t => box.append(row(t.name, '⏳ waiting for Beau to approve', [])));
-    T.filter(t => t.status === 'pending' && t.byMe).forEach(t => box.append(row(t.name, 'request sent', [])));
-    if (!T.length) box.append(el('p', 'small muted', 'No friends yet. Search for someone above.'));
-  }
-  let tm = null, seq = 0;
-  async function search() {
-    const term = q('#frFind').value.trim(), f = q('#frFound'), my = ++seq; if (!term) { f.replaceChildren(); return; }
-    const r = await api('/api/chat/people?q=' + encodeURIComponent(term)); if (!r.ok || my !== seq) return;
-    f.replaceChildren(); if (!r.data.people.length) f.append(el('p', 'small muted', 'No students found with “' + term + '”.'));
-    r.data.people.forEach(p => {
-      const acts = [];
-      if (p.state === 'friend') acts.push(link('💬 Chat', '/chat/?thread=' + p.thread));
-      else if (p.state === 'waiting') acts.push(el('span', 'small muted', '⏳ waiting for Beau'));
-      else if (p.state === 'sent') acts.push(el('span', 'small muted', 'request sent'));
-      else if (p.state === 'incoming') acts.push(btn('Accept', '', async () => { await api('/api/chat/respond', 'POST', { id: p.thread, accept: true }); say('Accepted! Beau will check the chat, then you can talk.', true); search(); list(); }));
-      else acts.push(btn('➕ Add friend', '', async () => { const x = await api('/api/chat/request', 'POST', { id: p.id }); if (!x.ok) return say(x.data.error || 'Couldn’t send it.'); say(x.data.status === 'approval' ? 'You both asked! Beau will check the chat, then you can talk.' : 'Request sent to ' + p.name + '. Once they accept and Beau approves, you can chat.', true); search(); list(); }));
-      f.append(row(p.name, p.subject ? 'Studies ' + p.subject : 'Student', acts));
-    });
-  }
-  q('#frFind').oninput = () => { clearTimeout(tm); say(''); tm = setTimeout(search, 250); };
-  const go = () => { if (!pick.hidden) list(); };
-  new MutationObserver(go).observe(pick, { attributes: true, attributeFilter: ['hidden'] }); go();
 })();
 </script>
 <script src="/msg.js" defer></script>

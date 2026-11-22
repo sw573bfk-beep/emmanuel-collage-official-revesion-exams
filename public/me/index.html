@@ -124,6 +124,25 @@
         <p class="small muted" style="margin:0">Your practice scores, weakest first. Tap <b>Practise</b> to work on a topic.</p>
         <div class="list" id="topics"></div>
       </div>
+      <details class="card stack" id="acctSettings">
+        <summary style="cursor:pointer;font-weight:700;font-size:1.1rem">⚙️ Account settings</summary>
+        <div class="grid2" style="margin-top:12px">
+          <form id="pwForm" class="stack" novalidate>
+            <b>Change password</b>
+            <label class="f">Current password<input id="pwCur" type="password" autocomplete="current-password"></label>
+            <label class="f">New password (8+ characters)<input id="pwNew" type="password" autocomplete="new-password"></label>
+            <div id="pwMsg" class="msg" role="status" hidden></div>
+            <button class="btn quiet" type="submit" style="align-self:flex-start">Change password</button>
+          </form>
+          <form id="delForm" class="stack" novalidate>
+            <b>Delete account</b>
+            <p class="small muted" style="margin:0">Deletes your account and all saved progress. This can’t be undone.</p>
+            <label class="f">Password<input id="delPw" type="password" autocomplete="current-password"></label>
+            <div id="delMsg" class="msg bad" role="alert" hidden></div>
+            <button class="btn danger" type="submit" id="delBtn" style="align-self:flex-start">Delete my account</button>
+          </form>
+        </div>
+      </details>
     </section>
 
     <section id="viewMsg" class="stack" hidden>
@@ -242,6 +261,29 @@
   };
   load();
   setInterval(() => { if (document.visibilityState === 'visible') load(); }, 60000);
+})();
+</script>
+<script>
+/* ⚙️ Account settings (moved here from the home page): change password, delete account */
+(function () {
+  const $ = s => document.querySelector(s), LK = { u: 'ec:username', p: 'ec:password' };
+  const post = async (path, body) => { const r = await fetch(path, { method: 'POST', credentials: 'same-origin', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }); let d = {}; try { d = await r.json(); } catch (e) { /* empty */ } return { ok: r.ok, data: d }; };
+  $('#pwForm').onsubmit = async e => {
+    e.preventDefault(); const m = $('#pwMsg');
+    const r = await post('/api/password', { current: $('#pwCur').value, next: $('#pwNew').value });
+    m.className = 'msg ' + (r.ok ? 'good' : 'bad'); m.textContent = r.ok ? 'Password changed. Other devices have been logged out.' : (r.data.error || 'Couldn’t change the password.'); m.hidden = false;
+    if (r.ok) { try { if (localStorage.getItem(LK.p) !== null) localStorage.setItem(LK.p, $('#pwNew').value); } catch (e2) { /* storage blocked */ } $('#pwCur').value = ''; $('#pwNew').value = ''; }
+  };
+  let armed = false;
+  $('#delForm').onsubmit = async e => {
+    e.preventDefault(); const m = $('#delMsg'); m.hidden = true;
+    if (!armed) { armed = true; $('#delBtn').textContent = 'Tap again to delete everything'; setTimeout(() => { armed = false; $('#delBtn').textContent = 'Delete my account'; }, 5000); return; }
+    const r = await post('/api/delete-account', { password: $('#delPw').value });
+    if (!r.ok) { m.textContent = r.data.error || 'Couldn’t delete the account.'; m.hidden = false; return; }
+    const pre = window.ecAcct ? [ecAcct.prefix('m'), ecAcct.prefix('s')] : ['y8m:', 'y8s:'];
+    try { Object.keys(localStorage).filter(k => pre.some(x => k.startsWith(x)) && !/:theme$/.test(k)).forEach(k => localStorage.removeItem(k)); localStorage.removeItem(LK.u); localStorage.removeItem(LK.p); } catch (e2) { /* storage blocked */ }
+    location.replace('/');
+  };
 })();
 </script>
 <script src="/help.js" defer></script>

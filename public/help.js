@@ -7,7 +7,7 @@
   const label = el => el && (el.closest('label') || el);
 
   // the 👤 Profile button, top right of every page
-  const profileStep = { h: '👤 Your profile', t: 'Tap your initial in the top right corner for your profile: study time, streak, leaderboard place, scores by topic (weakest first, with <b>Practise this</b>) and all your <b>messages</b>. A red number means something new. Only you can see your profile.', sel: '#ecProfile' };
+  const profileStep = { h: '👤 Your profile', t: 'Tap your picture in the top right corner for your profile (on pages with a menu, choose <b>My profile</b>): study time, streak, leaderboard place, scores by topic (weakest first, with <b>Practise this</b>) and all your <b>messages</b>. A red number means something new. Only you can see your profile.', sel: '#ecProfile' };
   // things that work the same on every page
   const everywhere = [
     { h: '💤 Sleep mode', t: 'If you don’t touch the page for 10 minutes, a Sleep mode screen appears and your study time stops counting (so nobody can leave a tab open overnight for points). Tap <b>I’m back, keep studying</b> to carry on.' },
@@ -37,13 +37,9 @@
       steps: [
         { h: 'Make an account', t: 'New here? Tap <b>Create account</b>. Please use your real name. Already have one? Just log in. Your progress is saved to your account.', sel: '#authCard' },
         { h: 'Pick a subject', t: 'Once you’re logged in, pick <b>Maths</b>, <b>Science</b> or <b>English</b> to start studying. English is The Invention of Hugo Cabret.', sel: ['#pickView .card:has(a[href="/maths/"])', '#pickView a[href="/maths/"]'] },
-        { h: 'More than one account', t: 'Tap <b>Switch account</b> to add another account or swap between them. Each tab can use a different account, so you can be logged into two at once.', sel: '#switchBtn' },
-        { h: 'Send feedback', t: 'Found a mistake or have an idea? Tell Beau here.', sel: ['#pickView a.card[href="/feedback/"]', '#whoBox a[href="/feedback/"]'] },
-        profileStep,
-        { h: 'Leaderboard and Chat', t: 'See the top 50 studiers and your place. <b>💬 Chat</b> has 1-on-1 chats with your friends, and <b>✉️ Beau</b>, a private chat with Beau. Beau can read every chat, and messages are strictly filtered.', sel: ['#whoBox a[data-chat]', '#pickView a[href="/leaderboard/"]'] },
-        { h: '👥 Friends', t: 'Search for a friend by name and tap <b>Add friend</b>. When you <b>both</b> agree and Beau approves it, a <b>💬 Chat</b> button appears next to them.', sel: '#friendsCard' },
-        { h: 'Play with friends', t: 'Make a live quiz game and share the 6-digit code. Pick <b>Speed Quiz</b> (fast right answers score more), <b>Treasure Chests</b> (open a chest after each right answer) or <b>Parkour Run</b> (right answers give energy to run the course).', sel: '#pickView a[href="/play/"]' },
-        { h: 'Account settings', t: 'Change your password or delete your account here.', sel: '#pickView details.acct' },
+        { h: 'Your day so far', t: 'Your <b>streak</b> (days in a row), <b>minutes studied today</b> and your <b>place this week</b>.', sel: '#today' },
+        { h: 'Leaderboard and Chat', t: 'See the top studiers and your place. <b>💬 Chat</b> has 1-on-1 chats with your friends (find friends there too), and a private chat with Beau. Beau can read every chat.', sel: '#homeTiles' },
+        { h: 'Your menu', t: 'Tap <b>your picture</b> (top right) for everything else: <b>My profile</b>, Leaderboard, Chat, <b>Play with friends</b>, <b>Feedback</b>, Focus mode, dark mode, <b>Switch account</b> and Log out. On a phone there are also tabs along the bottom.', sel: '#ecProfile' },
         helpStep
       ],
       extra: [
@@ -201,6 +197,7 @@
   /* ---------- styles ---------- */
   const css = `
 #ecHelpBtn{position:fixed;right:14px;bottom:14px;z-index:900;display:inline-flex;align-items:center;gap:6px;min-height:40px;font:600 .9375rem/1.2 var(--f-body,system-ui,sans-serif);color:var(--accent-ink,#fff);background:var(--accent,#2453d6);border:0;border-radius:999px;padding:8px 14px;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,.22)}
+@media (max-width:560px){#ecHelpBtn{width:46px;height:46px;min-height:46px;padding:0;justify-content:center;font-size:1.2rem}#ecHelpBtn span+span{display:none}}
 #ecHelpBtn:hover{filter:brightness(1.08)}#ecHelpBtn:focus-visible{outline:3px solid var(--ink,#111);outline-offset:2px}
 
 .ech-panel{position:fixed;top:0;right:0;bottom:0;width:min(400px,100vw);z-index:1000;background:var(--card,#fff);color:var(--ink,#18202f);box-shadow:-6px 0 30px rgba(0,0,0,.18);display:flex;flex-direction:column;font-family:var(--f-body,system-ui,sans-serif);transform:translateX(100%);transition:transform .25s ease;visibility:hidden}
