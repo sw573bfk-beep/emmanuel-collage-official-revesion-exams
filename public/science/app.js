@@ -1682,6 +1682,27 @@ function typeCan(id) {
   return TYPE_CAN[id];
 }
 // Pick a question for a topic with the chosen level and type. Returns { Q, note } (note explains any fallback).
+// 🎯 smarter practice: each question type you've tried is remembered (right/wrong, last 6 results).
+// Types you get wrong come up much more, ones you've never tried come up a fair bit, and mastered ones less.
+let GST = null;
+const gstats = () => GST || (GST = (typeof store !== 'undefined' && store.get('gstats', {})) || {});
+function noteGen(Q, ok) {
+  if (!Q || !Q.gen || typeof store === 'undefined') return;
+  const g = gstats()[Q.gen] || (gstats()[Q.gen] = { a: 0, c: 0, r: '' });
+  g.a++; if (ok) g.c++; g.r = (g.r + (ok ? '1' : '0')).slice(-6); store.set('gstats', gstats());
+}
+function genWeight(id) {
+  const g = gstats()[id];
+  if (!g || !g.a) return 1.6; // never tried
+  const acc = g.c / g.a, run = ((g.r || '').match(/1+$/) || [''])[0].length;
+  if (run >= 3 && acc >= 0.8) return 0.35; // mastered: now and then, to keep it fresh
+  return 0.6 + 2.4 * (1 - acc) + ((g.r || '').endsWith('0') ? 1 : 0); // weak, or just got one wrong
+}
+function pickWeak(list) {
+  const w = list.map(genWeight), tot = w.reduce((a, b) => a + b, 0); let r = Math.random() * tot;
+  for (let i = 0; i < list.length; i++) { r -= w[i]; if (r <= 0) return list[i]; }
+  return list[list.length - 1];
+}
 function pickPractice(tid, diff, type) {
   if (type === 'long') {
     const pool = (LONG_GENS[tid] || []);
@@ -1696,7 +1717,7 @@ function pickPractice(tid, diff, type) {
     const ok = gens.filter(id => d === 'any' || diffOf(id) === d);
     if (!ok.length) continue;
     for (let i = 0; i < 40; i++) {
-      const id = pick(ok);
+      const id = pickWeak(ok);
       if (type !== 'any') { const can = typeCan(id); if (type === 'mcq' && !can.has('mcq') && !can.has('mcq?')) continue; if (type === 'short' && !can.has('short') && !can.has('short?')) continue; }
       let Q = makeQ(id);
       if (type === 'mcq') Q = asMCQ(Q); else if (type === 'short') Q = asShort(Q);
@@ -1835,7 +1856,7 @@ function logAns(topic, ok, Q) {
   if (!Q || !Q.gen) return;
   try { fetch('/api/answer', { method: 'POST', credentials: 'same-origin', keepalive: true, headers: { 'content-type': 'application/json' }, body: JSON.stringify({ subject: 'science', topic: String(topic), gen: Q.gen, gname: Q.gname || '', diff: Q.diff || (typeof diffOf === 'function' ? diffOf(Q.gen) : 'm'), ok: !!ok, type: Q.type, q: String(Q.q || '').slice(0, 1500), given: Q._given == null ? '' : String(Q._given).slice(0, 400), correct: String(Q.ansText || '').slice(0, 400) }) }).catch(() => {}); } catch (e) { /* offline */ }
 }
-function record(topic, ok, Q) { logAns(topic, ok, Q); const s = tstats[topic] || (tstats[topic] = { a: 0, c: 0 }); s.a++; if (ok) { s.c++; s.p = (s.p || 0) + qPoints(Q); } store.set('tstats', tstats); if (ok) planTick('right', topic); }
+function record(topic, ok, Q) { logAns(topic, ok, Q); noteGen(Q, ok); const s = tstats[topic] || (tstats[topic] = { a: 0, c: 0 }); s.a++; if (ok) { s.c++; s.p = (s.p || 0) + qPoints(Q); } store.set('tstats', tstats); if (ok) planTick('right', topic); }
 /* ---------- today's plan (Home) ---------- */
 const todayKey = () => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
 function pickFocus() {

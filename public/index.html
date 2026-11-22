@@ -71,6 +71,10 @@ a.chip{text-decoration:none}a.chip:hover{border-color:var(--accent);color:var(--
 .tile .nb{min-width:24px;height:24px;padding:0 7px;border-radius:999px;background:var(--pen,#b3261e);color:var(--card,#fff);font-size:.8125rem;font-weight:700;display:inline-grid;place-items:center}
 .tile .nb[hidden]{display:none}
 .welcome{border:2px solid var(--accent);background:var(--accent-soft)}
+.revisit{border:2px solid var(--warn,#b26a00)}
+.rv-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr));gap:10px}
+.rv{display:flex;flex-direction:column;gap:6px;border:1.5px solid var(--rule);border-radius:12px;padding:12px 14px}
+.rv .k{font-size:.875rem;color:var(--muted)}
 .welcome h3{margin:0;font-size:1.3rem}
 .welcome ol{margin:0;padding-left:1.3em;display:flex;flex-direction:column;gap:8px;font-size:1.02rem}
 @media (max-width:560px){main.wrap>.top>.brand{flex:1 1 100%}.today{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.today .chip{flex-direction:column;gap:0;border-radius:14px;padding:8px 6px;font-size:.8125rem;text-align:center;line-height:1.3}.today .chip b{font-size:.9375rem}}
@@ -137,6 +141,10 @@ a.chip{text-decoration:none}a.chip:hover{border-color:var(--accent);color:var(--
         <li><b>Tap your picture</b> in the top right for your profile, the leaderboard, chat, feedback and settings.</li>
       </ol>
       <button class="btn" type="button" id="welcomeOk" style="align-self:flex-start">Got it, let’s go</button>
+    </section>
+    <section class="card stack revisit" id="revisit" hidden>
+      <div class="row" style="justify-content:space-between;align-items:center"><h3 style="margin:0">🔁 Revisit today</h3><span class="small muted">Questions you got wrong a while ago. Revisiting them is how they stick.</span></div>
+      <div class="rv-list" id="rvList"></div>
     </section>
     <h2 style="font-size:1.6rem;margin:0">What do you want to study?</h2>
     <div class="subjects">
@@ -277,6 +285,14 @@ a.chip{text-decoration:none}a.chip:hover{border-color:var(--accent);color:var(--
     const j = window.ecLive ? await window.ecLive() : null, c = j && j.chat;
     if (c) { const n = c.admin ? c.beau : c.requests + c.unreadDm + c.beau; DATA.chatN = n; $('#chatN').hidden = !n; $('#chatN').textContent = n > 99 ? '99+' : n; $('#chatLine').textContent = n ? n + ' new — tap to read.' : 'Your friends, and a private chat with Beau.'; }
     await drawChips();
+    try { // 🔁 Revisit today
+      const rv = await api('/api/revisit');
+      if (rv.ok && rv.data.topics.length) {
+        const box = $('#rvList'); box.replaceChildren();
+        rv.data.topics.forEach(x => { const c = document.createElement('div'); c.className = 'rv'; const b = document.createElement('b'); b.textContent = (x.subject === 'maths' ? '📐 ' : '🧪 ') + x.topicName; const k = document.createElement('span'); k.className = 'k'; k.textContent = x.n + (x.n === 1 ? ' question type' : ' question types') + ' to fix' + (x.kinds.length ? ': ' + x.kinds.join(', ') : ''); const a = document.createElement('a'); a.className = 'btn sm'; a.href = '/' + x.subject + '/#practice-' + x.topic; a.textContent = 'Practise →'; a.style.alignSelf = 'flex-start'; c.append(b, k, a); box.appendChild(c); });
+        $('#revisit').hidden = false;
+      }
+    } catch (e) { /* offline */ }
   }
   // 🏠 your numbers and shortcuts (saved on your account; tap ✏️ Edit to add or remove)
   const DEFAULT_CHIPS = ['streak', 'today', 'week'];

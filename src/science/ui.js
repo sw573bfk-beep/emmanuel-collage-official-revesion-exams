@@ -11,7 +11,7 @@ function logAns(topic, ok, Q) {
   if (!Q || !Q.gen) return;
   try { fetch('/api/answer', { method: 'POST', credentials: 'same-origin', keepalive: true, headers: { 'content-type': 'application/json' }, body: JSON.stringify({ subject: 'science', topic: String(topic), gen: Q.gen, gname: Q.gname || '', diff: Q.diff || (typeof diffOf === 'function' ? diffOf(Q.gen) : 'm'), ok: !!ok, type: Q.type, q: String(Q.q || '').slice(0, 1500), given: Q._given == null ? '' : String(Q._given).slice(0, 400), correct: String(Q.ansText || '').slice(0, 400) }) }).catch(() => {}); } catch (e) { /* offline */ }
 }
-function record(topic, ok, Q) { logAns(topic, ok, Q); const s = tstats[topic] || (tstats[topic] = { a: 0, c: 0 }); s.a++; if (ok) { s.c++; s.p = (s.p || 0) + qPoints(Q); } store.set('tstats', tstats); if (ok) planTick('right', topic); }
+function record(topic, ok, Q) { logAns(topic, ok, Q); noteGen(Q, ok); const s = tstats[topic] || (tstats[topic] = { a: 0, c: 0 }); s.a++; if (ok) { s.c++; s.p = (s.p || 0) + qPoints(Q); } store.set('tstats', tstats); if (ok) planTick('right', topic); }
 /* ---------- today's plan (Home) ---------- */
 const todayKey = () => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
 function pickFocus() {

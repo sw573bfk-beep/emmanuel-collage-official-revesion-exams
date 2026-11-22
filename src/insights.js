@@ -104,6 +104,13 @@ export async function handleInsights(req, env, url, user) {
     const rows = (await env.DB.prepare('SELECT id, at, subject, topic, gen, gname, ok, q, given, correct FROM answers WHERE user_id = ? AND at > ? ORDER BY id DESC LIMIT 3000').bind(uid, t - 60 * 86400).all()).results;
     return json({ now: t, ...mistakesOf(rows) });
   }
+  // 🔁 Revisit today: up to 3 topics with mistakes made 1+ days ago that you haven't got right since (oldest first)
+  if (path === '/api/revisit' && method === 'GET') {
+    const rows = (await env.DB.prepare('SELECT id, at, subject, topic, gen, gname, ok, q, given, correct FROM answers WHERE user_id = ? AND at > ? ORDER BY id DESC LIMIT 3000').bind(uid, t - 45 * 86400).all()).results;
+    const due = mistakesOf(rows).todo.filter(m => t - m.at >= 20 * 3600), T = {};
+    due.forEach(m => { const k = m.subject + ':' + m.topic, x = T[k] || (T[k] = { subject: m.subject, topic: m.topic, topicName: m.topicName, n: 0, oldest: m.at, kinds: [] }); x.n++; x.oldest = Math.min(x.oldest, m.at); if (m.gname && x.kinds.length < 3 && !x.kinds.includes(m.gname)) x.kinds.push(m.gname); });
+    return json({ now: t, topics: Object.values(T).sort((a, b) => a.oldest - b.oldest).slice(0, 3) });
+  }
   // 🎯 the daily challenge
   if (path === '/api/challenge' && method === 'GET') {
     const day = dayKey(t), qs = challengeQs(day);
