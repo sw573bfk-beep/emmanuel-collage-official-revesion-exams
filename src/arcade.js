@@ -9,7 +9,7 @@ const dayKey = t => new Date((t + QLD) * 1000).toISOString().slice(0, 10);
 const json = (d, s = 200) => new Response(JSON.stringify(d), { status: s, headers: { 'content-type': 'application/json; charset=utf-8', 'cache-control': 'no-store' } });
 const err = (s, m) => json({ error: m }, s);
 // the most points a second of running can earn (top speed with a boost, plus a coin every few metres), plus a little slack
-const GAMES = { neon: { maxRate: 450, slack: 3000, maxScore: 10000000 } };
+const GAMES = { neon: { maxRate: 900, slack: 3000, maxScore: 20000000 } }; // (speed keeps climbing for as long as you survive)
 const DAILY_STARTS = 600;
 
 async function body(req) { const t = await req.text(); if (t.length > 2000) throw new Error('too big'); return JSON.parse(t || '{}'); }

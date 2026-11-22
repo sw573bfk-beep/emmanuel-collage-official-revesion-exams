@@ -51,7 +51,7 @@ const wallMat = new THREE.ShaderMaterial({ side: THREE.BackSide, transparent: tr
     float h21(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7))) * 43758.5453); }
     float n2(vec2 p){ vec2 i = floor(p), f = fract(p); f = f*f*(3.0-2.0*f); return mix(mix(h21(i), h21(i+vec2(1,0)), f.x), mix(h21(i+vec2(0,1)), h21(i+vec2(1,1)), f.x), f.y); }
     float fbm(vec2 p){ float a = 0.5, s = 0.0; for (int i = 0; i < 4; i++){ s += a * n2(p); p *= 2.03; a *= 0.5; } return s; }
-    void main(){ float th = atan(vP.x, -vP.y); float u = th * R; float s = vP.z, sm = vP.z - dist; vec3 c; float a = 1.0; float C = 6.2831853 * R, t01 = (th + 3.14159265) / 6.2831853; // s: the tunnel (still), sm: the white lights (moving)
+    void main(){ float th = atan(vP.x, -vP.y); float u = th * R; float s = vP.z - dist, sm = s; vec3 c; float a = 1.0; float C = 6.2831853 * R, t01 = (th + 3.14159265) / 6.2831853; // s: the tunnel (still), sm: the white lights (moving)
       if (mode < 0.5) { // RETRO: dark tube, glowing grid, pink/cyan bands
         vec2 g = vec2(u / (C / 16.0), s / 2.4); vec2 f = abs(fract(g) - 0.5); float l = smoothstep(0.46, 0.5, max(f.x, f.y));
         vec3 lc = mix(vec3(1.0,0.25,0.85), vec3(0.13,0.89,1.0), 0.5 + 0.5 * sin(th));
@@ -147,11 +147,11 @@ function sector(a0, a1, rIn, rOut, depth) { // a slice of a ring (angles measure
 const pools = {}, active = [];
 function makeObs(type, arg) {
   const g = new THREE.Group(); const o = { type, g, arg, th: 0, z: 0, vz: 0, spin: 0, w: 0, h: 0, d: 0.6, smashed: false };
-  if (type === 'block') { const m = new THREE.Mesh(new THREE.BoxGeometry(2.4, 2.4, 2.4), OM.block); m.position.y = -RAD + 1.2; const e1 = new THREE.Mesh(new THREE.BoxGeometry(2.48, 0.08, 2.48), OM.blockE); e1.position.y = -RAD + 2.4; const e2 = new THREE.Mesh(new THREE.BoxGeometry(2.46, 0.05, 2.46), OM.edge2); e2.position.y = -RAD + 1.2; g.add(m, e1, e2); o.w = 2.4; o.h = 2.4; o.d = 2.4; }
-  else if (type === 'barrier') { const wa = arg; g.add(new THREE.Mesh(sector(-wa / 2, wa / 2, RAD - 0.85, RAD, 0.5), OM.barrier)); const t = new THREE.Mesh(sector(-wa / 2, wa / 2, RAD - 0.9, RAD - 0.82, 0.56), OM.barrierTop); g.add(t); o.w = wa * RAD; o.h = 0.85; o.d = 0.5; o.arc = wa; }
-  else if (type === 'gate') { const gh = arg; g.add(new THREE.Mesh(sector(gh, TAU - gh, RAD - 2.6, RAD, 0.7), OM.gate)); g.add(new THREE.Mesh(sector(gh, TAU - gh, RAD - 2.66, RAD - 2.56, 0.76), OM.gateE)); o.gap = gh; o.h = 2.6; o.d = 0.7; }
-  else if (type === 'pod') { const m = new THREE.Mesh(new THREE.BoxGeometry(2.0, 1.2, 3.6), OM.pod); m.position.y = -RAD + 0.75; const st = new THREE.Mesh(new THREE.BoxGeometry(2.04, 0.08, 3.64), OM.podE); st.position.y = -RAD + 0.5; g.add(m, st);
-    for (const s of [-0.6, 0.6]) { const hl = new THREE.Sprite(glowMat(0xfff4d0, 1)); hl.scale.set(1.3, 1.3, 1); hl.position.set(s, -RAD + 0.8, 1.85); g.add(hl); } o.w = 2.0; o.h = 1.6; o.d = 3.6; }
+  if (type === 'block') { const m = new THREE.Mesh(new THREE.BoxGeometry(2.4, 1.5, 2.4), OM.block); m.position.y = -RAD + 0.75; const e1 = new THREE.Mesh(new THREE.BoxGeometry(2.48, 0.08, 2.48), OM.blockE); e1.position.y = -RAD + 1.5; const e2 = new THREE.Mesh(new THREE.BoxGeometry(2.46, 0.05, 2.46), OM.edge2); e2.position.y = -RAD + 0.75; g.add(m, e1, e2); o.w = 2.4; o.h = 1.5; o.d = 2.4; }
+  else if (type === 'barrier') { const wa = arg; g.add(new THREE.Mesh(sector(-wa / 2, wa / 2, RAD - 0.6, RAD, 0.5), OM.barrier)); const t = new THREE.Mesh(sector(-wa / 2, wa / 2, RAD - 0.65, RAD - 0.57, 0.56), OM.barrierTop); g.add(t); o.w = wa * RAD; o.h = 0.6; o.d = 0.5; o.arc = wa; }
+  else if (type === 'gate') { const gh = arg; g.add(new THREE.Mesh(sector(gh, TAU - gh, RAD - 1.6, RAD, 0.7), OM.gate)); g.add(new THREE.Mesh(sector(gh, TAU - gh, RAD - 1.66, RAD - 1.56, 0.76), OM.gateE)); o.gap = gh; o.h = 1.6; o.d = 0.7; }
+  else if (type === 'pod') { const m = new THREE.Mesh(new THREE.BoxGeometry(2.0, 0.9, 3.6), OM.pod); m.position.y = -RAD + 0.6; const st = new THREE.Mesh(new THREE.BoxGeometry(2.04, 0.08, 3.64), OM.podE); st.position.y = -RAD + 0.5; g.add(m, st);
+    for (const s of [-0.6, 0.6]) { const hl = new THREE.Sprite(glowMat(0xfff4d0, 1)); hl.scale.set(1.3, 1.3, 1); hl.position.set(s, -RAD + 0.6, 1.85); g.add(hl); } o.w = 2.0; o.h = 1.2; o.d = 3.6; }
   else if (type === 'spinner') { const bar = new THREE.Mesh(new THREE.BoxGeometry(0.7, RAD * 2, 0.5), OM.spin); const hub = new THREE.Mesh(new THREE.SphereGeometry(0.6, 16, 12), OM.gateE); g.add(bar, hub); o.w = 0.9; o.h = 99; o.d = 0.5; }
   scene.add(g); return o;
 }
@@ -183,15 +183,16 @@ const S = { running: false, paused: false, dead: false, t: 0, dist: 0, sd: 0, co
 let keys = {}, token = null, best = 0;
 function resetRun() {
   for (const o of active.splice(0)) freeObs(o); coins.forEach(c => { c.on = false; }); pupItems.forEach(p => { p.on = false; p.g.visible = false; });
-  Object.assign(S, { running: true, paused: false, dead: false, t: 0, dist: 0, sd: 0, coins: 0, bonus: 0, v: 22, th: 0, w: 0, h: 0, vh: 0, inv: 0, shield: false, magnet: 0, boost: 0, nextSpawn: 170, nextPup: 450 + R0() * 200, freeTh: 0, deathT: 0, lastMark: 0, shake: 0, jumpBuf: 0, tpCool: 0, camTh: 0, warp: 0, airT: 0, flip: 0, big: false, squash: 0, thump: 0, tp: null });
+  Object.assign(S, { running: true, paused: false, dead: false, t: 0, dist: 0, sd: 0, coins: 0, bonus: 0, v: 0, th: 0, w: 0, h: 0, vh: 0, inv: 0, shield: false, magnet: 0, boost: 0, nextSpawn: 150, nextPup: 450 + R0() * 200, freeTh: 0, deathT: 0, lastMark: 0, shake: 0, jumpBuf: 0, tpCool: 0, camTh: 0, warp: 0, airT: 0, flip: 0, big: false, squash: 0, thump: 0, tp: null });
   keys = {}; trailAl.fill(0); spLife.fill(0);
   for (let i = 0; i < 16; i++) addCoin(i * 0.4, 0.9, -40 - i * 5); // a spiral of coins to get you started: ride up the wall!
 }
-const speedAt = t => 22 + 52 * (1 - Math.exp(-t / 80)); // m/s: about 80 km/h at the start, building fast
+const V_BASE = 45, K_RATE = 0.35, M_RATE = 0.25; // m/s, per second, m/s per second
+const speedAt = t => Math.min(160, V_BASE * (1 - Math.exp(-K_RATE * t)) + M_RATE * t); // Speed(t) = V_base(1 - e^(-kt)) + mt: launches from a standstill, then never stops speeding up
 function toast(t, col) { const e = $('#toast'); e.textContent = t; e.style.color = col || '#fff'; e.classList.add('show'); clearTimeout(toast.t); toast.t = setTimeout(() => e.classList.remove('show'), 1100); }
 // ✨ one set of obstacles, always with a way through (and sometimes the quickest way is to teleport)
 function spawnRow(z) {
-  const d = clamp((S.v - 22) / 52, 0, 1), roll = R0(); let ft = S.freeTh + (R0() - 0.5) * (1.2 + d * 2); S.freeTh = ft;
+  const d = clamp((S.v - 20) / 50, 0, 1), roll = R0(); let ft = S.freeTh + (R0() - 0.5) * (1.2 + d * 2); S.freeTh = ft;
   const coinLine = (th, n, h = 0.9) => { for (let i = 0; i < n; i++) addCoin(th, h, z + 6 - i * 3); };
   const spiral = (th0, n, dir) => { for (let i = 0; i < n; i++) addCoin(th0 + dir * i * 0.22, 0.9, z + 8 - i * 2.4); };
   if (roll < 0.26) { // ▣ blocks around the ring
@@ -243,7 +244,7 @@ function step(dt) {
     const mark = Math.floor(S.dist / 1000); if (mark > S.lastMark) { S.lastMark = mark; toast('🚀 ' + nf(mark * 1000) + ' m!', '#7df9ff'); }
   }
   const move = S.v * dt;
-  S.nextSpawn -= move; if (!S.dead && S.nextSpawn <= 0) { spawnRow(SPAWN_Z); const d = clamp((S.v - 22) / 52, 0, 1); S.nextSpawn = Math.max(20, S.v * lerp(1.25, 0.66, d)); }
+  S.nextSpawn -= move; if (!S.dead && S.nextSpawn <= 0) { spawnRow(SPAWN_Z); const d = clamp((S.v - 20) / 50, 0, 1); S.nextSpawn = Math.max(22, S.v * lerp(1.25, 0.62, d)); }
   S.nextPup -= move; if (!S.dead && S.nextPup <= 0) { S.nextPup = 520 + R0() * 380; const kinds = Object.keys(PU); addPup(kinds[Math.floor(R0() * kinds.length)], S.freeTh, SPAWN_Z + 30); }
   for (let i = active.length - 1; i >= 0; i--) { const o = active[i]; o.z += move + o.vz * dt; if (o.spin) o.g.rotation.z += o.spin * dt; o.g.position.z = o.z;
     if (o.z > 12) { active.splice(i, 1); freeObs(o); continue; }
@@ -299,14 +300,14 @@ function frame(ts) {
   let k = 0; for (const c of coins) { if (!c.on) continue; Q.setFromAxisAngle(ZA, c.th).multiply(Q2.setFromAxisAngle(YA, tAll * 4 + c.z * 0.1)).multiply(new THREE.Quaternion().setFromAxisAngle(XA, Math.PI / 2)); M4.compose(onWall(c.th, c.h, c.z, V), Q, SC); coinMesh.setMatrixAt(k++, M4); } coinMesh.count = k; coinMesh.instanceMatrix.needsUpdate = true;
   for (const p of pupItems) if (p.on) { p.g.position.copy(onWall(p.th, 1.1 + Math.sin(tAll * 4) * 0.15, p.z, V)); p.g.userData.core.rotation.y += dt * 3; }
   // the world's decorations scroll past
-  const ringZ = i => 12 - i * RSP; // the rings are part of the tunnel: they stay still
+  const ringZ = i => 12 - (((i * RSP + dist) % (RINGS * RSP)) + RINGS * RSP) % (RINGS * RSP);
   const deco1 = WORLDS[world] && world; for (let i = 0; i < RINGS; i++) { M4.makeTranslation(0, 0, ringZ(i)); if (deco1 === 'retro') retroRings.setMatrixAt(i, M4); else if (deco1 === 'woods') woodRings.setMatrixAt(i, M4); else oceanRings.setMatrixAt(i, M4); }
   (world === 'retro' ? retroRings : world === 'woods' ? woodRings : oceanRings).instanceMatrix.needsUpdate = true;
   if (world === 'woods') for (const sp of leaves) { sp.position.copy(onWall(sp.userData.th, 0.5, ringZ(sp.userData.i), V)); }
   const F = world === 'retro' ? sparkle : world === 'woods' ? fireflies : bubbles;
-  for (let i = 0; i < F.n; i++) { if (world === 'ocean') { F.pos[i * 3 + 1] += dt * 0.8; if (F.pos[i * 3 + 1] > RAD + 10) F.pos[i * 3 + 1] -= 2 * (RAD + 10); } F.al[i] = world === 'woods' ? 0.4 + 0.6 * Math.max(0, Math.sin(tAll * 2 + F.ph[i])) : world === 'ocean' ? 0.55 : 0.35 + 0.3 * Math.sin(tAll * 5 + F.ph[i]); }
+  for (let i = 0; i < F.n; i++) { F.pos[i * 3 + 2] += mv * (world === 'ocean' ? 1 : 0.95); if (world === 'ocean') F.pos[i * 3 + 1] += dt * 0.8; if (F.pos[i * 3 + 2] > 10) F.pos[i * 3 + 2] -= 200; F.al[i] = world === 'woods' ? 0.4 + 0.6 * Math.max(0, Math.sin(tAll * 2 + F.ph[i])) : world === 'ocean' ? 0.55 : 0.35 + 0.3 * Math.sin(tAll * 5 + F.ph[i]); }
   F.p.geometry.attributes.position.needsUpdate = true; F.p.geometry.attributes.alpha.needsUpdate = true;
-  if (world === 'ocean') for (let i = 0; i < FISH; i++) { const f = fishData[i]; f.z -= f.sp * dt * 0.3; if (f.z > 20) f.z -= 220; if (f.z < -200) f.z += 220; const th = f.th + Math.sin(tAll * 0.3 + f.wob) * 0.1;
+  if (world === 'ocean') for (let i = 0; i < FISH; i++) { const f = fishData[i]; f.z += mv * 0.92 - f.sp * dt; if (f.z > 20) f.z -= 220; if (f.z < -200) f.z += 220; const th = f.th + Math.sin(tAll * 0.3 + f.wob) * 0.1;
     Q.setFromAxisAngle(YA, Math.sin(tAll * 3 + f.wob) * 0.25); M4.compose(V.set(Math.sin(th) * f.r, -Math.cos(th) * f.r + Math.sin(tAll + f.wob), f.z), Q, V2.set(f.s, f.s, f.s)); fish.setMatrixAt(i, M4); }
   if (world === 'ocean') fish.instanceMatrix.needsUpdate = true;
   for (let i = 0; i < WL; i++) { const w = wlData[i]; w.z += mv; if (w.z > 10) { w.z -= 185; w.th = R0() * TAU; } Q.setFromAxisAngle(ZA, w.th); M4.compose(onWall(w.th, 0.03, w.z, V), Q, SC); wallLamps.setMatrixAt(i, M4); } wallLamps.instanceMatrix.needsUpdate = true;
@@ -318,7 +319,7 @@ function frame(ts) {
   if (view === 'first') { camera.position.copy(base).addScaledVector(up, 1.55); camera.position.z = 0.25; } else { camera.position.copy(base).addScaledVector(up, 2.35); camera.position.z = 3.9; }
   if (S.shake > 0) { S.shake -= dt; camera.position.x += (R0() - 0.5) * S.shake; camera.position.y += (R0() - 0.5) * S.shake; }
   camera.up.copy(up); const look = S.tp ? tpPos(S.tp, tk, 0, new THREE.Vector3()).addScaledVector(up, 2.3).setZ(-16) : onWall(S.camTh, S.h * (view === 'first' ? 0.85 : 0.3) + (view === 'first' ? 1.35 : 2.3), -16, new THREE.Vector3()); camera.lookAt(look); // (aimed high so your rider sits low on screen)
-  const fov = 70 + clamp((S.v - 22) / 52, 0, 1) * 20 + (S.boost > 0 ? 6 : 0) + S.warp * 14; if (Math.abs(camera.fov - fov) > 0.05) { camera.fov += (fov - camera.fov) * Math.min(1, dt * 6); camera.updateProjectionMatrix(); }
+  const fov = 68 + clamp(S.v / 70, 0, 1) * 24 + (S.boost > 0 ? 6 : 0) + S.warp * 14; if (Math.abs(camera.fov - fov) > 0.05) { camera.fov += (fov - camera.fov) * Math.min(1, dt * 6); camera.updateProjectionMatrix(); }
   wallMat.uniforms.time.value = tAll; key.position.copy(camera.position);
   if (S.running && ts - lastHud > 90) { lastHud = ts; hud(); }
   renderer.render(scene, camera);
