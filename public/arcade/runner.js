@@ -372,7 +372,6 @@ window.__nr = { S, camera, player, get keys() { return keys; }, press, setView, 
 (async () => {
   const me = await api('/api/me'); if (me.status === 401) { location.replace('/?next=arcade'); return; }
   $('#loading').hidden = true;
-  if (me.ok && !(me.data.tester || me.data.role || me.data.admin)) { $('#testersOnly').hidden = false; return; } // 🧪 official testers and admins only
   const j = window.ecLive ? await window.ecLive() : null;
   if (j && j.study && j.study.study) { $('#closedBox').hidden = false; return; }
   if (!renderer) { $('#noGl').hidden = false; return; }

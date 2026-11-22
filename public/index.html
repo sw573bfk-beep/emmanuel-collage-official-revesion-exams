@@ -64,6 +64,13 @@ a.chip{text-decoration:none}a.chip:hover{border-color:var(--accent);color:var(--
 .subject .sbody{padding:18px 20px 22px;display:flex;flex-direction:column;gap:14px;flex:1}
 .subject .sbody .btn{margin-top:auto;font-size:1.05rem;padding:12px 16px}
 .subject .last{margin:0}
+.newgame{position:relative;display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding:18px 20px;border-radius:18px;text-decoration:none;color:#fff;overflow:hidden;margin-bottom:18px;
+  background:radial-gradient(circle at 85% 20%,rgb(255 63 216 / .55),transparent 45%),radial-gradient(circle at 10% 90%,rgb(32 227 255 / .45),transparent 50%),linear-gradient(135deg,#12002a,#2a0a5e 60%,#0b1e4a);
+  box-shadow:0 10px 30px rgb(80 0 140 / .35),inset 0 0 0 2px rgb(255 255 255 / .12);transition:transform .15s}
+.newgame:hover,.newgame:focus-visible{transform:translateY(-2px)}
+.newgame .ng-tag{font:800 .78rem/1 var(--f-body);letter-spacing:.12em;background:linear-gradient(90deg,#ffd23f,#ff7a1a);color:#1a0a00;border-radius:999px;padding:7px 12px;flex:none}
+.newgame .ng-main{flex:1 1 260px;display:flex;flex-direction:column;gap:4px}.newgame .ng-main b{font:800 1.5rem var(--f-display);text-shadow:0 0 14px rgb(255 63 216 / .7)}.newgame .ng-main span{opacity:.92}
+.newgame .ng-go{flex:none;font-weight:800;background:#20e3ff;color:#06102a;border-radius:12px;padding:10px 16px;box-shadow:0 0 18px rgb(32 227 255 / .6)}
 .tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,280px),1fr));gap:16px}
 .tile{display:flex;align-items:center;gap:14px;text-decoration:none;color:var(--ink);transition:border-color .15s}
 .tile:hover{border-color:var(--accent)}
@@ -160,6 +167,11 @@ a.chip{text-decoration:none}a.chip:hover{border-color:var(--accent);color:var(--
       <div class="row" style="justify-content:space-between;align-items:center"><h3 style="margin:0">🔁 Revisit today</h3><span class="small muted">Questions you got wrong a while ago. Revisiting them is how they stick.</span></div>
       <div class="rv-list" id="rvList"></div>
     </section>
+    <a class="newgame" href="/arcade/" aria-label="New game: Neon Rush, play for fun">
+      <span class="ng-tag">🆕 NEW GAME</span>
+      <span class="ng-main"><b>⚡ Neon Rush</b><span>Play for fun: hoverboard through a 360° tunnel that keeps getting faster. Beat everyone’s score!</span></span>
+      <span class="ng-go">Play →</span>
+    </a>
     <h2 style="font-size:1.6rem;margin:0">What do you want to study?</h2>
     <div class="subjects">
       <article class="card subject maths">
@@ -200,7 +212,6 @@ a.chip{text-decoration:none}a.chip:hover{border-color:var(--accent);color:var(--
     </div>
     <div class="tiles" id="homeTiles">
       <a class="card tile" href="/challenge/" id="chTile"><span class="tic" aria-hidden="true">⚡</span><span class="tx"><b>Daily challenge</b><span class="small muted" id="chLine">5 mixed questions · up to 30 points</span></span><span class="go" aria-hidden="true">→</span></a>
-      <a class="card tile" href="/arcade/" id="arcadeTile" hidden><span class="tic" aria-hidden="true">⚡</span><span class="tx"><b>Arcade: Neon Rush</b><span class="small muted">Just for fun: hoverboard through the neon city. It keeps getting faster. How long can you last?</span></span><span class="go" aria-hidden="true">→</span></a>
       <a class="card tile" href="/leaderboard/"><span class="tic" aria-hidden="true">🏆</span><span class="tx"><b>Leaderboard</b><span class="small muted" id="lbLine">See the top studiers and your place.</span></span><span class="go" aria-hidden="true">→</span></a>
       <a class="card tile ec-hide-study" href="/chat/" data-chat><span class="tic" aria-hidden="true">💬</span><span class="tx"><b>Chat</b><span class="small muted" id="chatLine">Your friends, and a private chat with Beau.</span></span><span class="nb" id="chatN" hidden></span><span class="go" aria-hidden="true">→</span></a>
     </div>
@@ -285,7 +296,6 @@ a.chip{text-decoration:none}a.chip:hover{border-color:var(--accent);color:var(--
   const fmtMin = s => { const m = Math.floor(s / 60); return m >= 60 ? Math.floor(m / 60) + ' h ' + (m % 60) + ' min' : m + ' min'; };
   // the "today" strip, the Leaderboard and Chat tiles, and the welcome for brand-new students
   async function homeExtras(me) {
-    const arcadeOk = !!(me.tester || me.role || me.admin); $('#arcadeTile').hidden = !arcadeOk; if (!arcadeOk) { const i = LINKS.findIndex(x => x[0] === 'arcade'); if (i >= 0) LINKS.splice(i, 1); } // 🧪 Neon Rush: testers and admins only
     const p = new URLSearchParams(location.search);
     if (p.get('switch')) { history.replaceState(null, '', '/'); openAccounts(); }
     if (p.get('logout')) { history.replaceState(null, '', '/'); setTimeout(() => window.ecLogout(), 50); }

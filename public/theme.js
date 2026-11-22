@@ -175,7 +175,7 @@
     m.appendChild(menuItem('🏆', 'Leaderboard', '/leaderboard/'));
     const cn = mkEl('span', 'nb'); cn.hidden = true; cn.id = 'ecMenuChatN'; m.appendChild(menuItem('💬', 'Chat', '/chat/', cn));
     m.appendChild(menuItem('🎮', 'Play with friends', '/play/'));
-    if (j.me.tester || staff) m.appendChild(menuItem('⚡', 'Neon Rush (testing)', '/arcade/')); // 🧪 testers and admins only
+    m.appendChild(menuItem('⚡', 'Neon Rush (game)', '/arcade/'));
     m.appendChild(menuItem('💡', 'Feedback', '/feedback/'));
     m.appendChild(mkEl('hr'));
     const hp = menuItem('❓', 'Help for this page', () => { closeMenu(); if (window.ecHelp) window.ecHelp.open(); }); hp.id = 'ecMenuHelp'; m.appendChild(hp);

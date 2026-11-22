@@ -507,7 +507,7 @@ async function handleApi(req, env, url) {
   // 🎉 the reward pop-ups have been shown
   // 📈 answer log, your stats, My mistakes and the 🎯 daily challenge
   const insight = await handleInsights(req, env, url, user); if (insight) return insight;
-  if (path.startsWith('/api/arcade/')) { if (!(user.tester || staffRole(user, env))) return err(403, 'Neon Rush is still being tested. Only official testers and admins can play it for now.'); const ar = await handleArcade(req, env, url, user); if (ar) return ar; } // 🕹️ just for fun: never touches points or study time
+  if (path.startsWith('/api/arcade/')) { const ar = await handleArcade(req, env, url, user); if (ar) return ar; } // 🕹️ just for fun: never touches points or study time
   const nws = await handleNews(req, env, url, user); if (nws) return nws; // 📰 News and 🏠 home shortcuts
   if (path === '/api/rewards/seen' && method === 'POST') { await env.DB.prepare('UPDATE users SET rewards_new = NULL WHERE id = ?').bind(user.id).run(); return json({ ok: true }); }
   // 🎨 choose your picture, frame and title (only from what you've unlocked)
