@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<script src="/acct.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Sky Jumper · Arcade</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Lexend:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="/site.css">
+<style>
+.wrap{max-width:1040px}
+main > .ec-back{align-self:flex-start}
+.ar-top{display:flex;justify-content:space-between;align-items:flex-end;gap:12px;flex-wrap:wrap}
+.ar-top h1{margin:0;font-size:clamp(1.8rem,5vw,2.6rem)}
+.ar{display:grid;grid-template-columns:auto minmax(260px,1fr);gap:20px;align-items:start}
+@media (max-width:820px){.ar{grid-template-columns:1fr}}
+.stage{position:relative;max-width:100%;justify-self:center;border-radius:18px;overflow:hidden;box-shadow:0 12px 34px rgb(0 0 0 / .25);touch-action:none;user-select:none;-webkit-user-select:none;background:#7cc6ff}
+.stage canvas{display:block}
+.hud{position:absolute;left:0;right:0;top:0;display:flex;justify-content:space-between;padding:10px 12px;pointer-events:none;font:800 1.15rem var(--f-display);color:#fff;text-shadow:0 2px 4px rgb(0 0 0 / .45)}
+.hud small{display:block;font:600 .75rem var(--f-body);opacity:.9}
+.over{position:absolute;inset:0;display:grid;place-items:center;padding:18px;background:rgb(8 14 40 / .55);backdrop-filter:blur(2px)}
+.over[hidden]{display:none}
+.panel{width:100%;max-width:320px;background:var(--card);color:var(--ink);border-radius:18px;padding:20px;text-align:center;display:flex;flex-direction:column;gap:10px;box-shadow:0 10px 30px rgb(0 0 0 / .35)}
+.panel h2{margin:0;font-size:1.7rem}.panel .big{font:800 2.6rem/1 var(--f-display)}
+.panel .btn{justify-content:center;font-size:1.1rem;min-height:48px}
+.keys{font-size:.875rem;color:var(--muted);line-height:1.5}
+.kbd{display:inline-block;border:1.5px solid var(--rule);border-bottom-width:3px;border-radius:6px;padding:0 6px;font:600 .8rem var(--f-mono);background:var(--card-2)}
+.newbest{font-weight:800;color:#b45309;background:#fef3c7;border-radius:999px;padding:4px 12px;align-self:center}
+.banner{position:absolute;left:50%;top:22%;transform:translateX(-50%);background:rgb(0 0 0 / .45);color:#fff;font:700 1rem var(--f-body);padding:8px 14px;border-radius:999px;white-space:nowrap;pointer-events:none;transition:opacity .4s}
+.side{display:flex;flex-direction:column;gap:14px}
+.lbtabs{display:flex;gap:6px}.lbtabs button{font:inherit;font-weight:600;border:1.5px solid var(--rule);background:var(--card);color:var(--ink);border-radius:999px;padding:6px 14px;cursor:pointer}
+.lbtabs button.on{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.lb{display:flex;flex-direction:column;gap:6px;counter-reset:r}
+.lb .row{display:grid;grid-template-columns:34px 36px 1fr auto;gap:8px;align-items:center;border:1.5px solid var(--rule);border-radius:12px;padding:6px 10px;background:var(--card)}
+.lb .row.me{border-color:var(--accent);background:var(--accent-soft)}
+.lb .rk{font:800 1rem var(--f-display);text-align:center}.lb .av{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;background:var(--accent);color:var(--accent-ink);font-weight:800}
+.lb .nm{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}.lb .sc{font:700 1rem var(--f-mono)}
+.pad{display:none;gap:10px}.pad button{flex:1;min-height:56px;font-size:1.6rem;border-radius:14px;border:2px solid var(--rule);background:var(--card);color:var(--ink);touch-action:none}
+@media (pointer:coarse){.pad{display:flex}}
+.closed{text-align:center}
+</style>
+<script src="/theme.js"></script>
+<link rel="stylesheet" href="/theme.css?v=1">
+</head>
+<body>
+<main class="wrap stack">
+  <div class="ar-top"><div><span class="mark">EC Revisions · Arcade</span><h1>🎈 Sky Jumper</h1><p class="muted" style="margin:4px 0 0">Bounce as high as you can. Everyone gets the same sky each day. Just for fun: it doesn’t change your points, study time or anything on your account.</p></div></div>
+  <p id="loading" class="muted">Loading…</p>
+  <div id="closedBox" class="card stack closed" hidden><h2>📚 Study mode is on</h2><p class="muted">The arcade is closed while Beau has study mode on. Come back later!</p><a class="btn" href="/" style="align-self:center">Back to studying</a></div>
+  <div class="ar" id="app" hidden>
+    <div class="stack" style="gap:10px;align-items:center">
+      <div class="stage" id="stage">
+        <canvas id="cv" aria-label="Sky Jumper game. Use the left and right arrow keys to move." role="img"></canvas>
+        <div class="hud" aria-hidden="true"><div><span id="hH">0 m</span><small>height</small></div><div style="text-align:right"><span id="hB">0 m</span><small>your best today</small></div></div>
+        <div class="banner" id="banner" style="opacity:0"></div>
+        <div class="over" id="startOv"><div class="panel">
+          <h2>🎈 Sky Jumper</h2>
+          <p class="small muted" id="skyName" style="margin:0"></p>
+          <p class="keys">Move with <span class="kbd">←</span> <span class="kbd">→</span> (or <span class="kbd">A</span> <span class="kbd">D</span>). On a phone, hold the left or right side of the screen.<br>You bounce by yourself. Don’t fall!</p>
+          <p class="keys" style="margin:0">🟩 normal · 🟦 moving · ☁️ breaks after one bounce · 🟨 spring · 🎈 float up · ⛈️ zaps you</p>
+          <button class="btn" type="button" id="playBtn">▶ Play</button>
+        </div></div>
+        <div class="over" id="endOv" hidden><div class="panel" role="dialog" aria-live="polite">
+          <h2 id="endTitle">You fell!</h2>
+          <div class="big" id="endScore">0 m</div>
+          <span class="newbest" id="newBest" hidden>🎉 New best today!</span>
+          <p class="small muted" id="endRank" style="margin:0"></p>
+          <button class="btn" type="button" id="againBtn">↻ Play again</button>
+          <p class="keys" style="margin:0">or press <span class="kbd">Space</span></p>
+        </div></div>
+        <div class="over" id="pauseOv" hidden><div class="panel"><h2>⏸ Paused</h2><button class="btn" type="button" id="resumeBtn">▶ Keep going</button></div></div>
+      </div>
+      <div class="pad" id="pad"><button type="button" data-d="-1" aria-label="Move left">◀</button><button type="button" data-d="1" aria-label="Move right">▶</button></div>
+    </div>
+    <aside class="side">
+      <section class="card stack">
+        <div class="row" style="justify-content:space-between;align-items:center"><h2 style="margin:0;font-size:1.25rem">🏆 Highest jumpers</h2><div class="lbtabs"><button type="button" data-r="today" class="on">Today</button><button type="button" data-r="week">This week</button></div></div>
+        <p class="small muted" style="margin:0" id="lbNote"></p>
+        <div class="lb" id="lb"></div>
+        <p class="small" id="lbMe" style="margin:0"></p>
+      </section>
+      <section class="card stack" style="gap:6px">
+        <h2 style="margin:0;font-size:1.1rem">🌤️ How high can you go?</h2>
+        <p class="small muted" style="margin:0">🌳 100 m above the trees · 🏢 300 m past the skyscrapers · ☁️ 800 m into the clouds · ✈️ 1,500 m with the planes · 🌌 3,000 m edge of space · 🪐 5,000 m in orbit</p>
+      </section>
+    </aside>
+  </div>
+</main>
+<script>
+(function () {
+  const $ = s => document.querySelector(s);
+  const el = (t, c, x) => { const e = document.createElement(t); if (c) e.className = c; if (x != null) e.textContent = x; return e; };
+  const api = async (p, m = 'GET', b) => { try { const r = await fetch(p, { method: m, credentials: 'same-origin', headers: b ? { 'content-type': 'application/json' } : {}, body: b ? JSON.stringify(b) : undefined }); let j = {}; try { j = await r.json(); } catch (e) { /* empty */ } return { ok: r.ok, status: r.status, data: j }; } catch (e) { return { ok: false, status: 0, data: {} }; } };
+  const fmt = n => Number(n || 0).toLocaleString('en-AU') + ' m';
+
+  /* ---------- the world (400 wide; y goes UP as numbers go down) ---------- */
+  const W = 400, H = 600, G = 1800, JUMP = 900, SPRING = 1500, BALLOON_V = 1000, BALLOON_T = 2.4, MAXVX = 330, ACC = 2600, R = 18;
+  const cv = $('#cv'), ctx = cv.getContext('2d'); let S = 1;
+  function fit() {
+    const maxW = Math.min(480, document.documentElement.clientWidth - 32), maxH = Math.max(380, innerHeight - (matchMedia('(pointer:coarse)').matches ? 110 : 30));
+    const w = Math.floor(Math.min(maxW, maxH * W / H)), h = Math.floor(w * H / W), dpr = Math.min(2, devicePixelRatio || 1);
+    cv.style.width = w + 'px'; cv.style.height = h + 'px'; cv.width = Math.floor(w * dpr); cv.height = Math.floor(h * dpr); S = cv.width / W;
+    if (!running) draw();
+  }
+  // same sky for everyone today: a random number generator seeded by the date
+  function rng(seedStr) { let h = 1779033703 ^ seedStr.length; for (let i = 0; i < seedStr.length; i++) { h = Math.imul(h ^ seedStr.charCodeAt(i), 3432918353); h = h << 13 | h >>> 19; }
+    let a = h >>> 0; return () => { a |= 0; a = a + 0x6D2B79F5 | 0; let t = Math.imul(a ^ a >>> 15, 1 | a); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+
+  let seed = '', rand, plats, items, storms, P, camY, topY, lastY, running = false, paused = false, dead = false, token = null, best = 0, startY, height, dir = 0, keyL = false, keyR = false, padDir = 0, tLast = 0, balloon = 0, look = null, marks, shake = 0;
+  const MARKS = [[100, '🌳 Above the trees!'], [300, '🏢 Past the skyscrapers!'], [800, '☁️ Into the clouds!'], [1500, '✈️ Up with the planes!'], [3000, '🌌 The edge of space!'], [5000, '🪐 You’re in orbit!'], [10000, '🌠 Absolute legend!']];
+  const prog = y => Math.min(1, Math.max(0, (startY - y) / 30000)); // 0 at the start, 1 at 3,000 m
+
+  function addPlat(y) {
+    const p = prog(y), w = 72 - 20 * p, r = rand();
+    let type = 'n';
+    if (r < 0.06) type = 's'; else if (p > 0.08 && r < 0.06 + 0.10 + 0.16 * p) type = 'm'; else if (p > 0.04 && r < 0.06 + 0.10 + 0.16 * p + 0.08 + 0.14 * p) type = 'c';
+    const pl = { x: 10 + rand() * (W - w - 20), y, w, type, vx: type === 'm' ? (rand() < 0.5 ? -1 : 1) * (60 + 90 * p + rand() * 40) : 0, gone: false };
+    plats.push(pl);
+    if (type !== 'c' && rand() < 0.018) items.push({ x: pl.x + pl.w / 2, y: y - 30, kind: 'b', got: false });
+    if (p > 0.26 && rand() < 0.05 + 0.05 * p) storms.push({ x: rand() * (W - 70), y: y - 60 - rand() * 40, w: 70, vx: (rand() < 0.5 ? -1 : 1) * (40 + 50 * p) });
+  }
+  function fill() { while (lastY > camY - H * 1.2) { const p = prog(lastY), gap = Math.min(190, 58 + 120 * p + rand() * (22 + 20 * p)); lastY -= gap; addPlat(lastY); } }
+  function reset() {
+    rand = rng('sky:' + seed); plats = []; items = []; storms = []; startY = 0; camY = -H + 120; lastY = 0; marks = 0; balloon = 0; shake = 0;
+    plats.push({ x: W / 2 - 50, y: 0, w: 100, type: 'n', vx: 0, gone: false }); // the starting ledge
+    P = { x: W / 2, y: -R - 1, vx: 0, vy: -JUMP }; topY = P.y; height = 0; dead = false; fill(); setHud();
+  }
+  function setHud() { $('#hH').textContent = fmt(height); $('#hB').textContent = fmt(Math.max(best, running ? height : 0)); }
+  let bannerT = 0;
+  function banner(t) { const b = $('#banner'); b.textContent = t; b.style.opacity = 1; clearTimeout(bannerT); bannerT = setTimeout(() => { b.style.opacity = 0; }, 2200); }
+
+  function step(dt) {
+    const want = (keyR || padDir > 0 ? 1 : 0) - (keyL || padDir < 0 ? 1 : 0) || dir;
+    const target = want * MAXVX; P.vx += Math.max(-ACC * dt, Math.min(ACC * dt, target - P.vx));
+    P.x += P.vx * dt; if (P.x < -R) P.x += W + 2 * R; if (P.x > W + R) P.x -= W + 2 * R; // wrap around the sides
+    if (balloon > 0) { balloon -= dt; P.vy = -BALLOON_V; } else P.vy += G * dt;
+    const oldY = P.y; P.y += P.vy * dt;
+    if (P.vy > 0 && balloon <= 0) for (const pl of plats) { // landing (only while falling)
+      if (pl.gone) continue;
+      if (oldY + R <= pl.y + 2 && P.y + R >= pl.y && P.x > pl.x - R * 0.6 && P.x < pl.x + pl.w + R * 0.6) {
+        P.y = pl.y - R; P.vy = pl.type === 's' ? -SPRING : -JUMP; if (pl.type === 'c') pl.gone = true; if (pl.type === 's') pl.boing = 0.25; break;
+      }
+    }
+    for (const pl of plats) { if (pl.type === 'm') { pl.x += pl.vx * dt; if (pl.x < 0) { pl.x = 0; pl.vx *= -1; } if (pl.x + pl.w > W) { pl.x = W - pl.w; pl.vx *= -1; } } if (pl.boing) pl.boing = Math.max(0, pl.boing - dt); }
+    for (const it of items) if (!it.got && Math.abs(it.x - P.x) < 26 && Math.abs(it.y - P.y) < 30) { it.got = true; balloon = BALLOON_T; banner('🎈 Float!'); }
+    for (const s of storms) { s.x += s.vx * dt; if (s.x < 0 || s.x + s.w > W) s.vx *= -1;
+      if (balloon <= 0 && P.x > s.x + 6 && P.x < s.x + s.w - 6 && Math.abs(P.y - (s.y + 14)) < 22) { shake = 0.4; return die('⚡ Zapped by a storm!'); } }
+    if (P.y < topY) topY = P.y;
+    camY = Math.min(camY, P.y - H * 0.42);
+    height = Math.max(0, Math.floor((startY - topY) / 10));
+    while (marks < MARKS.length && height >= MARKS[marks][0]) banner(MARKS[marks++][1]);
+    fill(); plats = plats.filter(pl => pl.y < camY + H + 60); items = items.filter(i => i.y < camY + H + 60); storms = storms.filter(s => s.y < camY + H + 80);
+    if (P.y - R > camY + H) return die('You fell!');
+    setHud();
+  }
+
+  /* ---------- drawing ---------- */
+  const SKY = [[0, [124, 198, 255], [214, 240, 255]], [800, [94, 170, 245], [190, 228, 255]], [1500, [255, 150, 110], [255, 214, 160]], [2400, [86, 60, 150], [210, 120, 150]], [3000, [16, 18, 48], [60, 40, 110]], [5000, [2, 2, 12], [14, 10, 40]]];
+  const mix = (a, b, t) => a.map((v, i) => Math.round(v + (b[i] - v) * t));
+  function skyAt(h) { let i = 0; while (i < SKY.length - 1 && h >= SKY[i + 1][0]) i++; if (i === SKY.length - 1) return [SKY[i][1], SKY[i][2]]; const t = (h - SKY[i][0]) / (SKY[i + 1][0] - SKY[i][0]); return [mix(SKY[i][1], SKY[i + 1][1], t), mix(SKY[i][2], SKY[i + 1][2], t)]; }
+  const rgb = c => 'rgb(' + c.join(',') + ')';
+  function rr(x, y, w, h, r) { ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r); ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath(); }
+  function draw() {
+    if (!plats) { ctx.fillStyle = '#7cc6ff'; ctx.fillRect(0, 0, cv.width, cv.height); return; }
+    ctx.setTransform(S, 0, 0, S, 0, 0);
+    const viewH = Math.max(0, (startY - camY) / 10 - H / 10), [top, bot] = skyAt(viewH);
+    const g = ctx.createLinearGradient(0, 0, 0, H); g.addColorStop(0, rgb(top)); g.addColorStop(1, rgb(bot)); ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+    if (viewH > 2200) { ctx.fillStyle = 'rgba(255,255,255,' + Math.min(0.9, (viewH - 2200) / 1500) + ')'; for (let i = 0; i < 60; i++) { const sx = (i * 97) % W, sy = ((i * 173 - camY * 0.05) % H + H) % H; ctx.fillRect(sx, sy, 1.6, 1.6); } }
+    // far-away clouds (slow parallax)
+    if (viewH < 2600) { ctx.fillStyle = 'rgba(255,255,255,0.5)'; for (let i = 0; i < 6; i++) { const cx = (i * 131 + 40) % W, cy = ((i * 211 - camY * 0.3) % (H + 80) + H + 80) % (H + 80) - 40; ctx.beginPath(); ctx.arc(cx, cy, 22, 0, 7); ctx.arc(cx + 24, cy + 4, 18, 0, 7); ctx.arc(cx - 22, cy + 6, 16, 0, 7); ctx.fill(); } }
+    ctx.save(); if (shake > 0) ctx.translate((Math.random() - 0.5) * 8, (Math.random() - 0.5) * 8);
+    ctx.translate(0, -camY);
+    if (camY > -H) { ctx.fillStyle = '#4caf50'; ctx.fillRect(0, 14, W, 400); ctx.fillStyle = '#2e7d32'; for (let x = 0; x < W; x += 50) { ctx.beginPath(); ctx.moveTo(x, 14); ctx.lineTo(x + 25, -26); ctx.lineTo(x + 50, 14); ctx.fill(); } }
+    for (const pl of plats) {
+      if (pl.gone) continue; const y = pl.y + (pl.boing ? 3 : 0);
+      if (pl.type === 'c') { ctx.fillStyle = '#ffffff'; ctx.strokeStyle = '#c9d7e8'; ctx.lineWidth = 1.5; ctx.beginPath(); for (let i = 0; i < 4; i++) ctx.arc(pl.x + 9 + i * (pl.w - 18) / 3, y + 6, 9, 0, 7); ctx.fill(); ctx.stroke(); continue; }
+      ctx.fillStyle = pl.type === 'm' ? '#2f80ed' : pl.type === 's' ? '#8bc34a' : '#43a047'; rr(pl.x, y, pl.w, 12, 6); ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,0.35)'; rr(pl.x + 4, y + 2, pl.w - 8, 3, 2); ctx.fill();
+      if (pl.type === 's') { const sx = pl.x + pl.w / 2 - 12; ctx.fillStyle = '#ffca28'; rr(sx, y - (pl.boing ? 12 : 7), 24, 7, 3); ctx.fill(); ctx.strokeStyle = '#8d6e00'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(sx + 4, y); ctx.lineTo(sx + 20, y - (pl.boing ? 6 : 3)); ctx.stroke(); }
+      if (pl.type === 'm') { ctx.fillStyle = 'rgba(255,255,255,0.85)'; ctx.font = 'bold 10px system-ui'; ctx.textAlign = 'center'; ctx.fillText('◀ ▶', pl.x + pl.w / 2, y + 10); }
+    }
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    for (const it of items) if (!it.got) { ctx.font = '26px system-ui'; ctx.fillText('🎈', it.x, it.y + Math.sin(performance.now() / 300 + it.x) * 3); }
+    for (const s of storms) { ctx.fillStyle = '#5b6474'; ctx.beginPath(); ctx.arc(s.x + 18, s.y + 14, 14, 0, 7); ctx.arc(s.x + 36, s.y + 8, 17, 0, 7); ctx.arc(s.x + 54, s.y + 14, 13, 0, 7); ctx.fill(); ctx.font = '16px system-ui'; ctx.fillText('⚡', s.x + 35, s.y + 30); }
+    // you
+    const tilt = Math.max(-0.35, Math.min(0.35, P.vx / 900));
+    ctx.save(); ctx.translate(P.x, P.y); ctx.rotate(tilt);
+    if (balloon > 0) { ctx.font = '26px system-ui'; ctx.fillText('🎈', 0, -34); ctx.strokeStyle = '#555'; ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(0, -20); ctx.lineTo(0, -R); ctx.stroke(); }
+    ctx.fillStyle = '#ffffff'; ctx.beginPath(); ctx.arc(0, 0, R, 0, 7); ctx.fill(); ctx.lineWidth = 3; ctx.strokeStyle = '#1e3a8a'; ctx.stroke();
+    if (look && look.a) { ctx.font = '24px system-ui'; ctx.fillText(look.a, 0, 2); } else { ctx.fillStyle = '#1e3a8a'; ctx.font = 'bold 18px system-ui'; ctx.fillText(meInitial, 0, 1); }
+    ctx.restore(); ctx.restore();
+  }
+
+  /* ---------- the loop ---------- */
+  function frame(ts) {
+    if (!running) return;
+    if (paused) { tLast = ts; requestAnimationFrame(frame); return; }
+    const dt = Math.min(0.033, (ts - (tLast || ts)) / 1000); tLast = ts;
+    if (shake > 0) shake -= dt;
+    if (!dead) step(dt);
+    draw(); requestAnimationFrame(frame);
+  }
+  async function start() {
+    $('#startOv').hidden = true; $('#endOv').hidden = true; $('#newBest').hidden = true;
+    const r = await api('/api/arcade/start', 'POST', { game: 'sky' });
+    if (r.status === 401) { location.replace('/?next=arcade'); return; }
+    if (r.ok) { token = r.data.token; seed = r.data.seed; } else { token = null; if (!seed) seed = new Date().toISOString().slice(0, 10); if (r.status === 429) banner(r.data.error); }
+    reset(); running = true; paused = false; tLast = 0; requestAnimationFrame(frame);
+    stage.scrollIntoView({ behavior: 'smooth', block: matchMedia('(pointer:coarse)').matches ? 'start' : 'center' }); // the whole game on screen
+  }
+  async function die(why) {
+    if (dead) return; dead = true; const score = height;
+    $('#endTitle').textContent = why; $('#endScore').textContent = fmt(score); $('#endRank').textContent = token ? 'Saving…' : 'Not saved (no connection).';
+    setTimeout(() => { $('#endOv').hidden = false; $('#againBtn').focus(); }, 650);
+    setTimeout(() => { running = false; draw(); }, 700);
+    if (!token) return;
+    const r = await api('/api/arcade/finish', 'POST', { token, score }); token = null;
+    if (r.ok) {
+      const nb = r.data.saved && score > best && score > 0; if (score > best) best = score; $('#newBest').hidden = !nb; setHud();
+      const d = r.data.today; $('#endRank').textContent = d ? 'You’re #' + d.rank + ' today with ' + fmt(d.best) + (r.data.week ? ' · #' + r.data.week.rank + ' this week' : '') : (score ? '' : 'Bounce up to get on the board!');
+      loadBoard();
+    } else $('#endRank').textContent = r.data.error || 'Couldn’t save that one.';
+  }
+
+  /* ---------- controls ---------- */
+  const playing = () => running && !dead && !paused;
+  addEventListener('keydown', e => {
+    const k = e.key;
+    if (k === 'ArrowLeft' || k === 'a' || k === 'A') { keyL = true; if (playing()) e.preventDefault(); }
+    else if (k === 'ArrowRight' || k === 'd' || k === 'D') { keyR = true; if (playing()) e.preventDefault(); }
+    else if ((k === ' ' || k === 'Enter') && !$('#app').hidden) { if (!$('#endOv').hidden || !$('#startOv').hidden) { e.preventDefault(); start(); } else if (paused) { e.preventDefault(); resume(); } else if (playing() && k === ' ') e.preventDefault(); }
+    else if ((k === 'p' || k === 'Escape') && playing()) pause();
+  });
+  addEventListener('keyup', e => { const k = e.key; if (k === 'ArrowLeft' || k === 'a' || k === 'A') keyL = false; if (k === 'ArrowRight' || k === 'd' || k === 'D') keyR = false; });
+  const stage = $('#stage'), ptr = new Map();
+  const setPadFromPtrs = () => { let d = 0; for (const v of ptr.values()) d = v; padDir = d; };
+  stage.addEventListener('pointerdown', e => { if (!playing() || e.target.closest('.over')) return; const r = stage.getBoundingClientRect(); ptr.set(e.pointerId, e.clientX - r.left < r.width / 2 ? -1 : 1); setPadFromPtrs(); e.preventDefault(); });
+  stage.addEventListener('pointermove', e => { if (!ptr.has(e.pointerId)) return; const r = stage.getBoundingClientRect(); ptr.set(e.pointerId, e.clientX - r.left < r.width / 2 ? -1 : 1); setPadFromPtrs(); });
+  const up = e => { ptr.delete(e.pointerId); setPadFromPtrs(); }; stage.addEventListener('pointerup', up); stage.addEventListener('pointercancel', up); stage.addEventListener('pointerleave', up);
+  document.querySelectorAll('#pad button').forEach(b => { const d = +b.dataset.d; b.addEventListener('pointerdown', e => { e.preventDefault(); dir = d; }); const off = () => { if (dir === d) dir = 0; }; b.addEventListener('pointerup', off); b.addEventListener('pointercancel', off); b.addEventListener('pointerleave', off); });
+  function pause() { if (!playing()) return; paused = true; $('#pauseOv').hidden = false; }
+  function resume() { paused = false; $('#pauseOv').hidden = true; }
+  document.addEventListener('visibilitychange', () => { if (document.hidden) pause(); });
+  $('#playBtn').onclick = start; $('#againBtn').onclick = start; $('#resumeBtn').onclick = resume;
+
+  /* ---------- leaderboard ---------- */
+  let range = 'today', B = null, meInitial = '?';
+  async function loadBoard() { const r = await api('/api/arcade/board?game=sky'); if (!r.ok) return; B = r.data; if (!seed) seed = B.seed; if (B.today.me) best = Math.max(best, B.today.me.best); setHud(); drawBoard(); }
+  function drawBoard() {
+    if (!B) return; const D = B[range], box = $('#lb'); box.replaceChildren();
+    $('#lbNote').textContent = range === 'today' ? 'Today’s sky resets at midnight.' : 'Best jump of the week, Monday to Sunday.';
+    if (!D.top.length) box.appendChild(el('p', 'small muted', 'Nobody has jumped yet. Be the first!'));
+    D.top.forEach(x => { const row = el('div', 'row' + (x.me ? ' me' : '')); const av = el('span', 'av'); if (window.ecAv) window.ecAv(av, x.look, x.name); else av.textContent = x.name[0];
+      const nm = el('span', 'nm', x.name); const tt = window.ecTitle && window.ecTitle(x.look); if (tt) nm.appendChild(tt);
+      row.append(el('span', 'rk', ['🥇', '🥈', '🥉'][x.rank - 1] || String(x.rank)), av, nm, el('span', 'sc', fmt(x.best))); box.appendChild(row); });
+    $('#lbMe').textContent = D.me && D.me.rank > 20 ? 'You: #' + D.me.rank + ' with ' + fmt(D.me.best) : '';
+  }
+  document.querySelectorAll('.lbtabs button').forEach(b => b.onclick = () => { range = b.dataset.r; document.querySelectorAll('.lbtabs button').forEach(x => x.classList.toggle('on', x === b)); drawBoard(); });
+
+  /* ---------- start up ---------- */
+  (async () => {
+    const me = await api('/api/me'); if (me.status === 401) { location.replace('/?next=arcade'); return; }
+    $('#loading').hidden = true;
+    const j = window.ecLive ? await window.ecLive() : null;
+    if (j && j.study && j.study.study) { $('#closedBox').hidden = false; return; } // 📚 closed in study mode
+    look = j && j.me ? j.me.look : null; meInitial = me.ok ? String(me.data.username || '?').charAt(0).toUpperCase() : '?';
+    $('#app').hidden = false; fit(); addEventListener('resize', fit);
+    await loadBoard(); if (!seed) seed = new Date().toISOString().slice(0, 10);
+    $('#skyName').textContent = 'Today’s sky: ' + new Date(seed + 'T00:00:00').toLocaleDateString('en-AU', { weekday: 'long', day: 'numeric', month: 'long' });
+    reset(); draw();
+  })();
+})();
+</script>
+</body>
+</html>

@@ -33,6 +33,8 @@ import chatHtml from '../public/chat/index.html';
 import boardHtml from '../public/leaderboard/index.html';
 import playHtml from '../public/play/index.html';
 import challengeHtml from '../public/challenge/index.html';
+import arcadeHtml from '../public/arcade/index.html';
+import { handleArcade } from './arcade.js';
 import newsHtml from '../public/news/index.html';
 import manifestJson from '../public/manifest.webmanifest';
 import swJs from '../public/sw.js';
@@ -78,6 +80,7 @@ const PAGES = {
   '/icons/icon-192.png': [icon192, 'image/png'], '/icons/icon-512.png': [icon512, 'image/png'], '/icons/maskable-512.png': [iconMask, 'image/png'], '/icons/apple-touch-icon.png': [iconApple, 'image/png'], '/apple-touch-icon.png': [iconApple, 'image/png'], '/favicon.ico': [iconFav, 'image/png'], '/icons/favicon-32.png': [iconFav, 'image/png'],
   '/news/': [newsHtml, HTML], '/news/index.html': [newsHtml, HTML],
   '/challenge/': [challengeHtml, HTML], '/challenge/index.html': [challengeHtml, HTML],
+  '/arcade/': [arcadeHtml, HTML], '/arcade/index.html': [arcadeHtml, HTML],
   '/play/': [playHtml, HTML], '/play/index.html': [playHtml, HTML], '/play/sci.js': [playSciJs, 'text/javascript; charset=utf-8'], '/play/maths.js': [playMathsJs, 'text/javascript; charset=utf-8'],
   '/maths/': [mathsHtml, HTML], '/maths/index.html': [mathsHtml, HTML], '/maths/app.js': [mathsJs, 'text/javascript; charset=utf-8'],
   '/english/': [englishHtml, HTML], '/english/index.html': [englishHtml, HTML],
@@ -110,7 +113,7 @@ BODY['/theme.js'] = BODY['/theme.js'].replace("src + '?v=' + (document.documentE
 function servePage(url) {
   // "Message Beau" is now the ✉️ Beau tab of the Chat page
   if (url.pathname === '/message' || url.pathname.startsWith('/message/')) { const q = new URLSearchParams(url.search); q.set('tab', 'beau'); return Response.redirect(url.origin + '/chat/?' + q, 302); }
-  if (['/maths', '/science', '/english', '/admin', '/feedback', '/chat', '/privacy', '/me', '/teacher', '/leaderboard', '/play', '/challenge', '/news'].includes(url.pathname)) return Response.redirect(url.origin + url.pathname + '/' + url.search, 301);
+  if (['/maths', '/science', '/english', '/admin', '/feedback', '/chat', '/privacy', '/me', '/teacher', '/leaderboard', '/play', '/challenge', '/news', '/arcade'].includes(url.pathname)) return Response.redirect(url.origin + url.pathname + '/' + url.search, 301);
   const page = PAGES[url.pathname];
   if (!page) return new Response(notFoundHtml, { status: 404, headers: { 'content-type': HTML, ...SECURITY_HEADERS } });
   const type = page[1];
@@ -484,6 +487,7 @@ async function handleApi(req, env, url) {
   // 🎉 the reward pop-ups have been shown
   // 📈 answer log, your stats, My mistakes and the 🎯 daily challenge
   const insight = await handleInsights(req, env, url, user); if (insight) return insight;
+  if (path.startsWith('/api/arcade/')) { const ar = await handleArcade(req, env, url, user); if (ar) return ar; } // 🕹️ just for fun: never touches points or study time
   const nws = await handleNews(req, env, url, user); if (nws) return nws; // 📰 News and 🏠 home shortcuts
   if (path === '/api/rewards/seen' && method === 'POST') { await env.DB.prepare('UPDATE users SET rewards_new = NULL WHERE id = ?').bind(user.id).run(); return json({ ok: true }); }
   // 🎨 choose your picture, frame and title (only from what you've unlocked)
@@ -1367,6 +1371,7 @@ async function nightly(env) {
     env.DB.prepare('DELETE FROM dm_messages WHERE created_at < ?').bind(cut),
     env.DB.prepare('DELETE FROM answers WHERE at < ?').bind(now() - 365 * 86400), // the answer log keeps a year
     env.DB.prepare('DELETE FROM drop_log WHERE at < ?').bind(now() - 60 * 86400), // 🍀 weekly luck only needs recent pulls
+    env.DB.prepare('DELETE FROM arcade_runs WHERE started_at < ?').bind(now() - 2 * 86400), // 🕹️ unfinished games
     env.DB.prepare('DELETE FROM challenge WHERE day < ?').bind(dayKey(now() - 400 * 86400)),
     env.DB.prepare('DELETE FROM rate_hits WHERE at < ?').bind(now() - 2 * 86400)
   ]);

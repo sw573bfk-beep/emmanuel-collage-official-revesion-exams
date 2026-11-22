@@ -16,7 +16,7 @@ async function body(req) {
 }
 const fmt = n => Number(n).toLocaleString('en-AU');
 export const ADMIN_CHIPS = ['a_online', 'a_feedback', 'a_chats', 'a_broadcast', 'a_people', 'a_ratings', 'a_problems', 'a_news', 'a_admin', 'a_none'];
-export const CHIP_IDS = ['streak', 'today', 'week', 'goal', 'timer', 'acc20', 'challenge', 'mistakes', 'leaderboard', 'chat', 'play', 'news', 'profile', 'feedback', 'maths', 'science', 'english'];
+export const CHIP_IDS = ['arcade', 'streak', 'today', 'week', 'goal', 'timer', 'acc20', 'challenge', 'mistakes', 'leaderboard', 'chat', 'play', 'news', 'profile', 'feedback', 'maths', 'science', 'english'];
 
 // newest news id (cached for 30 s): for the red dot on every page
 let latest = { at: 0, id: 0 };

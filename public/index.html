@@ -200,6 +200,7 @@ a.chip{text-decoration:none}a.chip:hover{border-color:var(--accent);color:var(--
     </div>
     <div class="tiles" id="homeTiles">
       <a class="card tile" href="/challenge/" id="chTile"><span class="tic" aria-hidden="true">⚡</span><span class="tx"><b>Daily challenge</b><span class="small muted" id="chLine">5 mixed questions · up to 30 points</span></span><span class="go" aria-hidden="true">→</span></a>
+      <a class="card tile" href="/arcade/"><span class="tic" aria-hidden="true">🎈</span><span class="tx"><b>Arcade: Sky Jumper</b><span class="small muted">Just for fun: bounce as high as you can. Same sky for everyone each day.</span></span><span class="go" aria-hidden="true">→</span></a>
       <a class="card tile" href="/leaderboard/"><span class="tic" aria-hidden="true">🏆</span><span class="tx"><b>Leaderboard</b><span class="small muted" id="lbLine">See the top studiers and your place.</span></span><span class="go" aria-hidden="true">→</span></a>
       <a class="card tile ec-hide-study" href="/chat/" data-chat><span class="tic" aria-hidden="true">💬</span><span class="tx"><b>Chat</b><span class="small muted" id="chatLine">Your friends, and a private chat with Beau.</span></span><span class="nb" id="chatN" hidden></span><span class="go" aria-hidden="true">→</span></a>
     </div>
@@ -264,7 +265,7 @@ a.chip{text-decoration:none}a.chip:hover{border-color:var(--accent);color:var(--
     if (su) { $('#password').value = ''; $('#confirm').value = ''; } else fillSaved();
   }
   function picked(me) {
-    if (['maths', 'science', 'english', 'feedback', 'message', 'chat', 'leaderboard', 'play', 'me', 'teacher', 'challenge', 'news'].includes(next)) { location.replace('/' + next + '/'); return; }
+    if (['maths', 'science', 'english', 'feedback', 'message', 'chat', 'leaderboard', 'play', 'me', 'teacher', 'challenge', 'news', 'arcade'].includes(next)) { location.replace('/' + next + '/'); return; }
     if (next === 'admin' && me.admin) { location.replace('/admin/'); return; }
     $('#who').textContent = me.username;
     const yr = me.year || 8; $('#mark').textContent = 'EC Revisions · Year ' + yr;
@@ -327,7 +328,7 @@ a.chip{text-decoration:none}a.chip:hover{border-color:var(--accent);color:var(--
     ['a_people', '👥 Everyone', '/admin/#people'], ['a_ratings', '⭐ Site ratings', '/admin/#ratings'], ['a_problems', '🧩 Problem questions', '/admin/#problems'], ['a_news', '📰 Post news', '/admin/#newsAdmin'], ['a_admin', '🛠️ Admin dashboard', '/admin/']];
   let IS_OWNER = false;
   const NUMS = [['streak', '🔥 Streak'], ['today', '⏱ Minutes today'], ['week', '🏆 Place this week'], ['goal', '🎯 Weekly goal'], ['acc20', '✅ Last 20 questions'], ['challenge', '⚡ Daily challenge'], ['mistakes', '❌ Mistakes to fix']];
-  const LINKS = [['timer', '⏲️ Study timer', '#timer'], ['leaderboard', '🏆 Leaderboard', '/leaderboard/'], ['chat', '💬 Chat', '/chat/'], ['play', '🎮 Play with friends', '/play/'], ['news', '📰 News', '/news/'], ['profile', '👤 My profile', '/me/'], ['feedback', '💡 Feedback', '/feedback/'], ['maths', '📐 Maths', '/maths/'], ['science', '🧪 Science', '/science/'], ['english', '📖 English', '/english/']];
+  const LINKS = [['timer', '⏲️ Study timer', '#timer'], ['leaderboard', '🏆 Leaderboard', '/leaderboard/'], ['chat', '💬 Chat', '/chat/'], ['play', '🎮 Play with friends', '/play/'], ['news', '📰 News', '/news/'], ['arcade', '🎈 Arcade', '/arcade/'], ['profile', '👤 My profile', '/me/'], ['feedback', '💡 Feedback', '/feedback/'], ['maths', '📐 Maths', '/maths/'], ['science', '🧪 Science', '/science/'], ['english', '📖 English', '/english/']];
   let chips = DEFAULT_CHIPS.slice(), editing = null; const DATA = {};
   async function need(id) {
     if (id === 'acc20' && !DATA.stats) { try { const r = await api('/api/mystats'); if (r.ok) DATA.stats = r.data.stats; } catch (e) { /* offline */ } }
