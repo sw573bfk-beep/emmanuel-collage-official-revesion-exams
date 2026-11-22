@@ -213,6 +213,20 @@
     document.body.appendChild(f);
   };
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', foot); else foot();
+  // ← Home: the same easy-to-find button at the top of every page except Home, the subjects and the admin page
+  const back = () => {
+    const path = location.pathname; if (path === '/' || path === '/index.html' || SUBJECT_PAGE || path.startsWith('/admin') || document.getElementById('ecBack')) return;
+    const main = document.querySelector('main'); if (!main) return;
+    const st = document.createElement('style');
+    st.textContent = '.ec-back{display:inline-flex;align-items:center;gap:6px;align-self:flex-start;width:max-content;font:inherit;font-weight:600;font-size:.9375rem;color:var(--ink,#111);background:var(--card,#fff);border:1.5px solid var(--rule,#ccc);border-radius:999px;padding:6px 14px 6px 10px;min-height:40px;text-decoration:none;margin:0 0 10px}.ec-back:hover{border-color:var(--accent,#2453d6)}.ec-back .ar{font-size:1.1rem;line-height:1}';
+    document.head.appendChild(st);
+    const from = new URLSearchParams(location.search).get('from'), SUBJ = { maths: 'Maths', science: 'Science', english: 'English' }; // came from a subject? go back to it
+    const a = document.createElement('a'); a.id = 'ecBack'; a.className = 'ec-back'; a.href = SUBJ[from] ? '/' + from + '/' : '/';
+    a.innerHTML = '<span class="ar" aria-hidden="true">←</span> ' + (SUBJ[from] ? 'Back to ' + SUBJ[from] : 'Home');
+    a.setAttribute('aria-label', SUBJ[from] ? 'Back to ' + SUBJ[from] : 'Back to the home page');
+    main.insertBefore(a, main.firstChild);
+  };
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', back); else back();
   // pop-up messages from Beau ("Message everyone") on every page
   ['/notice.js', '/study.js'].forEach(src => { const nj = document.createElement('script'); nj.src = src + '?v=' + (document.documentElement.dataset.build || '1'); nj.defer = true; document.head.appendChild(nj); });
 })();
