@@ -15,6 +15,7 @@ async function body(req) {
   const t = await req.text(); if (t.length > 6000) throw new Error('big'); return JSON.parse(t);
 }
 const fmt = n => Number(n).toLocaleString('en-AU');
+export const ADMIN_CHIPS = ['a_online', 'a_feedback', 'a_chats', 'a_broadcast', 'a_people', 'a_ratings', 'a_problems', 'a_news', 'a_admin', 'a_none'];
 export const CHIP_IDS = ['streak', 'today', 'week', 'goal', 'timer', 'acc20', 'challenge', 'mistakes', 'leaderboard', 'chat', 'play', 'news', 'profile', 'feedback', 'maths', 'science', 'english'];
 
 // newest news id (cached for 30 s): for the red dot on every page
@@ -126,7 +127,8 @@ export async function handleNews(req, env, url, user) {
   // 🏠 the shortcuts at the top of your home page
   if (path === '/api/home-chips' && method === 'POST') {
     let b; try { b = await body(req); } catch { return err(400, 'Bad request'); }
-    const list = Array.isArray(b.chips) ? [...new Set(b.chips.map(String).filter(x => CHIP_IDS.includes(x)))].slice(0, 15) : null;
+    const owner = user.username.toLowerCase() === String(env.ADMIN_USERNAME || '').toLowerCase(); // 📌 the admin shortcuts are Beau's only
+    const list = Array.isArray(b.chips) ? [...new Set(b.chips.map(String).filter(x => CHIP_IDS.includes(x) || (owner && ADMIN_CHIPS.includes(x))))].slice(0, 20) : null;
     if (!list) return err(400, 'Bad request');
     await env.DB.prepare('UPDATE users SET home_chips = ? WHERE id = ?').bind(JSON.stringify(list), user.id).run();
     return json({ ok: true, chips: list });

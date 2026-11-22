@@ -116,7 +116,16 @@ details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
 .bubble.askcard{background:var(--warn-soft);border:2px solid var(--warn);color:var(--ink);white-space:normal}
 .prev.ask{color:var(--warn);font-weight:700}
 /* menu + foldable sections */
-.amenu{position:sticky;top:0;z-index:30;display:flex;gap:6px;align-items:center;overflow-x:auto;scrollbar-width:thin;padding:8px 2px;margin:-4px 0;background:var(--paper)}
+.amenu{display:flex;flex-direction:column;gap:8px;padding:12px 14px;border:1.5px solid var(--rule);border-radius:16px;background:var(--card)}
+.amenu .mrow{display:grid;grid-template-columns:120px 1fr;gap:10px;align-items:center}.amenu .mrow[hidden]{display:none}
+.amenu .mlab{font-weight:700;font-size:.9375rem;color:var(--muted)}
+.amenu .mchips{display:flex;gap:6px;flex-wrap:wrap}
+.amenu .mfoot{display:flex;justify-content:flex-end;border-top:1px solid var(--rule);padding-top:8px}
+@media (max-width:600px){.amenu .mrow{grid-template-columns:1fr;gap:4px}.amenu .mchips{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;padding-bottom:2px}}
+h2.grp{margin:14px 0 -6px;font-size:1rem;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);display:flex;align-items:center;gap:10px}h2.grp::after{content:"";flex:1;height:1.5px;background:var(--rule)}h2.grp[hidden]{display:none}
+h2.grp:first-child{margin-top:0}
+.upbtn{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(16px + env(safe-area-inset-bottom,0px));z-index:40;font:600 .9375rem var(--f-body);border:1.5px solid var(--rule);background:var(--card);color:var(--ink);border-radius:999px;padding:9px 16px;box-shadow:0 6px 18px rgb(0 0 0 / .18);cursor:pointer}
+.upbtn[hidden]{display:none}
 .amenu button{font:inherit;font-size:.9375rem;font-weight:600;white-space:nowrap;display:flex;align-items:center;gap:6px;border:1.5px solid var(--rule);background:var(--card);color:var(--ink);border-radius:999px;padding:7px 14px;min-height:40px;cursor:pointer}
 .amenu button:hover{border-color:var(--accent)}
 .amenu button.off{color:var(--muted);border-style:dashed}
@@ -167,7 +176,7 @@ details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
 .sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
 .conv .top,.cl .top{background:none;border:0}
 .bc-custom select{font:inherit;color:var(--ink);background:var(--card);border:2px solid var(--field);border-radius:10px;padding:8px 10px;min-height:44px}
-@media (min-width:900px){.amenu{flex-wrap:wrap;overflow:visible}}
+
 @media (max-width:600px){.sec-tog .hint{display:none}.tiles{grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}.tile{padding:10px 12px}.tile .v{font-size:1.6rem}.sec-tog h2{font-size:1.2rem}}
 .ctabs .chip{display:flex;align-items:center;gap:6px;min-height:38px;font-size:.9375rem}
 </style>
@@ -363,10 +372,14 @@ details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
     return { ok: r.ok, status: r.status, data: j };
   }
   /* ---------- foldable sections + the menu at the top ---------- */
-  const HKEY = 'ec-admin-closed';
-  let closedSecs; try { closedSecs = JSON.parse(localStorage.getItem(HKEY)); } catch (e) { closedSecs = null; }
-  if (!Array.isArray(closedSecs)) closedSecs = $$('.sec[data-closed]').map(x => x.id);
-  const saveClosed = () => { try { localStorage.setItem(HKEY, JSON.stringify(closedSecs)); } catch (e) { /* fine */ } };
+  let closedSecs = $$('.sec').map(x => x.id).filter(id => id !== 'overview');
+  const saveClosed = () => {};
+  // 🗂️ the sections, in 5 groups (the page and the menu both follow this order)
+  const GROUPS = [['🏠 Today', ['overview', 'broadcast', 'study']], ['💬 Messages', ['chats', 'feedback', 'ratings']],
+    ['👥 Students', ['moderate', 'people', 'security', 'laptops', 'codes']], ['🏫 School', ['examsAdmin', 'classReports', 'yearAdmin', 'problems']], ['🔧 Site', ['newsAdmin', 'usage', 'stats']]];
+  { const dash = $('#dash'), seen = new Set(); GROUPS.forEach(([name, ids], gi) => { const h = document.createElement('h2'); h.className = 'grp'; h.id = 'grp' + gi; h.textContent = name; dash.appendChild(h);
+      ids.forEach(id => { const x = document.getElementById(id); if (x) { dash.appendChild(x); seen.add(id); } }); });
+    $$('.sec').forEach(x => { if (!seen.has(x.id)) dash.appendChild(x); }); }
   const menu = $('#amenu'), SEC = {}; let allBtn = null;
   $$('.sec').forEach(sec => {
     const id = sec.id, bodyEl = document.createElement('div'); bodyEl.className = 'sec-body stack'; bodyEl.id = id + '-body';
@@ -384,8 +397,18 @@ details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
     tog.onclick = () => setOpen(id, sec.classList.contains('closed'));
     setOpen(id, !closedSecs.includes(id), true);
   });
-  const sp = document.createElement('span'); sp.className = 'sp'; menu.appendChild(sp);
-  allBtn = document.createElement('button'); allBtn.type = 'button'; allBtn.className = 'all'; menu.appendChild(allBtn);
+  { const rows = GROUPS.map(([name, ids]) => { const r = document.createElement('div'); r.className = 'mrow'; const l = document.createElement('span'); l.className = 'mlab'; l.textContent = name; const c = document.createElement('div'); c.className = 'mchips'; ids.forEach(id => { if (SEC[id]) c.appendChild(SEC[id].mb); }); r.append(l, c); return r; });
+    menu.replaceChildren(...rows); }
+  const sp = document.createElement('div'); sp.className = 'mrow mfoot'; menu.appendChild(sp);
+  allBtn = document.createElement('button'); allBtn.type = 'button'; allBtn.className = 'all'; sp.appendChild(allBtn);
+  // hide a group (in the menu and on the page) when none of its sections are shown to this person
+  function tidyGroups() { GROUPS.forEach(([, ids], gi) => { const any = ids.some(id => SEC[id] && !SEC[id].sec.hidden && !SEC[id].mb.hidden); const h = document.getElementById('grp' + gi); if (h) h.hidden = !any; const row = menu.children[gi]; if (row) row.hidden = !any; }); }
+  // ↑ back to the menu, once you've scrolled down
+  const upBtn = document.createElement('button'); upBtn.type = 'button'; upBtn.className = 'upbtn'; upBtn.textContent = '↑ Sections'; upBtn.hidden = true; upBtn.onclick = () => menu.scrollIntoView({ behavior: 'smooth', block: 'start' }); document.body.appendChild(upBtn);
+  window.addEventListener('scroll', () => { upBtn.hidden = window.scrollY < 700; }, { passive: true });
+  // 📌 opened from a home-screen shortcut (/admin/#feedback): open that section
+  const fromHash = () => { const id = location.hash.slice(1); if (SEC[id] && !SEC[id].sec.hidden) setTimeout(() => openSec(id, true), 400); };
+  window.addEventListener('hashchange', fromHash);
   const allLabel = () => { allBtn.textContent = closedSecs.length ? 'Open all' : 'Fold all'; };
   allBtn.onclick = () => { const open = !!closedSecs.length; Object.keys(SEC).forEach(id => setOpen(id, open)); };
   function setOpen(id, open, quiet) {
@@ -396,9 +419,11 @@ details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
     if (open && id === 'stats' && data && data.days) drawCharts();
   }
   function openSec(id, scroll) { setOpen(id, true); if (scroll) SEC[id].sec.scrollIntoView({ behavior: 'smooth', block: 'start' }); }
-  function setBadge(id, n) { SEC[id].badges.forEach(b => { b.hidden = !n; b.textContent = n > 99 ? '99+' : n; }); }
+  const autoOpened = new Set();
+  function setBadge(id, n) { SEC[id].badges.forEach(b => { b.hidden = !n; b.textContent = n > 99 ? '99+' : n; }); if (n && !autoOpened.has(id)) { autoOpened.add(id); setOpen(id, true, true); } }
   allLabel();
   SEC.moderate.mb.hidden = true; // only the helpers' dashboard shows this section
+  tidyGroups();
   $$('[data-go]').forEach(t => t.onclick = () => { if (t.dataset.tab) pickChatTab(t.dataset.tab); openSec(t.dataset.go, true); });
   const tip = $('#tip');
   function showTip(e, html) { tip.innerHTML = html; tip.hidden = false; const r = (e.target.getBoundingClientRect ? e.target.getBoundingClientRect() : { left: e.clientX, top: e.clientY, width: 0 }); const x = Math.min(window.innerWidth - tip.offsetWidth - 8, Math.max(8, r.left + r.width / 2 - tip.offsetWidth / 2)); tip.style.left = x + 'px'; tip.style.top = Math.max(8, r.top - tip.offsetHeight - 8) + 'px'; }
@@ -455,13 +480,13 @@ details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
       staffReady = true;
       document.querySelector('.head h1').textContent = 'EC Revisions ' + (ROLE === 'top' ? '⭐ Top tier admin' : '🛡️ Basic admin');
       ['overview', 'broadcast', 'people', 'codes', 'security', 'ratings', 'problems', 'examsAdmin', 'classReports', 'yearAdmin', 'laptops', 'usage', 'stats'].forEach(id => { if (SEC[id]) { SEC[id].sec.hidden = true; SEC[id].mb.hidden = true; } });
-      SEC.moderate.sec.hidden = false; SEC.moderate.mb.hidden = false;
+      SEC.moderate.sec.hidden = false; SEC.moderate.mb.hidden = false; tidyGroups(); setOpen('moderate', true, true);
       const mt = document.querySelector('#chatTabs [data-c="messages"]'); if (mt) mt.hidden = true;
       pickChatTab('access');
       const note = mk('p', 'small muted'); note.textContent = ROLE === 'top' ? 'You can restrict and approve: approve or say no to chats, pause chatting, study mode on and off, delete and restore messages.' : 'You can restrict: say no to or end chats, pause chatting, put people in study mode and delete messages. Only Beau or a Top tier admin can undo these.';
       document.querySelector('.head > div').appendChild(note);
     }
-    $('#dash').hidden = false; $('#amenu').hidden = false;
+    $('#dash').hidden = false; $('#amenu').hidden = false; if (!load.hashed) { load.hashed = true; fromHash(); }
     await Promise.all([loadChats(), loadStudy(), loadFeedback()]); drawModerate();
     $('#updated').textContent = 'Updated ' + new Date().toLocaleTimeString('en-AU', { timeZone: TZ, hour: 'numeric', minute: '2-digit' }) + '. Refreshes every 30 seconds.';
   }
@@ -475,7 +500,7 @@ details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
     if (r.data.staff) return loadStaff(r.data);
     ROLE = 'owner';
     data = r.data; const T = data.totals;
-    $('#dash').hidden = false; $('#amenu').hidden = false;
+    $('#dash').hidden = false; $('#amenu').hidden = false; if (!load.hashed) { load.hashed = true; fromHash(); }
     $('#tOnline').textContent = T.online; $('#tUsers').textContent = T.users; $('#tUsersL').textContent = 'accounts (' + T.signupsToday + ' new today, ' + T.signupsWeek + ' this week)' + (T.leftOut ? ' · ' + T.leftOut + ' left out of stats' : '');
     $('#tToday').textContent = T.activeToday; $('#tWeek').textContent = T.activeWeek; $('#tTimeToday').textContent = dur(T.secondsToday); $('#tTimeWeek').textContent = dur(T.secondsWeek); $('#tTimeAll').textContent = dur(T.secondsAll); $('#tQs').textContent = T.questions; $('#tSciQs').textContent = T.scienceQuestions; $('#tFb').textContent = T.feedbackNew; $('#tFbL').textContent = 'new feedback (' + T.feedback + ' total)'; $('#tCodes').textContent = T.codesUsed + '/' + T.codesTotal; $('#tCodesL').textContent = 'unlock codes used (' + T.unlocked + ' accounts unlocked)';
     const on = data.users.filter(u => u.online && u.inStats); const ol = $('#onlineList'); ol.replaceChildren();

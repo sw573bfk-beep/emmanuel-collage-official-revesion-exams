@@ -1022,6 +1022,15 @@ async function handleAdmin(req, env, path, method, me, role = 'owner') {
   const cma = await handleCommunityAdmin(req, env, url, role); if (cma) return cma;
   const nwa = await handleNewsAdmin(req, env, url, me, role); if (nwa) return nwa; // 📰 any admin level can post news
   const ina = await handleInsightsAdmin(req, env, url); if (ina) return ina; // 📈 Beau only (helpers are stopped above)
+  // 📌 Beau's home-screen shortcuts: who's on, new feedback and unread messages (small and quick)
+  if (path === '/api/admin/pulse' && method === 'GET') {
+    const [on, fb, msg] = await env.DB.batch([
+      env.DB.prepare('SELECT COUNT(*) AS n FROM users WHERE last_seen >= ? AND last_subject IS NOT NULL AND in_stats = 1').bind(t - 120),
+      env.DB.prepare("SELECT COUNT(*) AS n FROM feedback WHERE status = 'new'"),
+      env.DB.prepare('SELECT COUNT(*) AS n FROM messages WHERE from_admin = 0 AND read_at IS NULL')
+    ]);
+    return json({ online: on.results[0].n || 0, feedbackNew: fb.results[0].n || 0, unread: msg.results[0].n || 0 });
+  }
   if (path === '/api/admin/overview' && method === 'GET') {
     const since30 = dayKey(t - 29 * 86400), since7 = dayKey(t - 6 * 86400);
     const [users, perUser, perUser7, today_, visits, daily, signups, progress, sciProgress, unlockRows, codeCount, fbCount] = await env.DB.batch([
