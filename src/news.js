@@ -83,13 +83,13 @@ export async function autoNews(env, force) {
     env.DB.prepare("SELECT date(at + 36000, 'unixepoch') AS d, COUNT(*) AS n FROM answers WHERE at >= ? GROUP BY d ORDER BY n DESC LIMIT 1").bind(t - 40 * 86400)
   ]);
   const MS = [
-    ['accounts', acc.results[0].n, [25, 50, 100, 150, 200, 250, 300, 400, 500, 750, 1000], n => '🎉 ' + fmt(n) + ' accounts!', n => 'EC Revisions now has ' + fmt(n) + ' student accounts. Thanks for spreading the word!'],
-    ['questions', qs.results[0].n, [1000, 2500, 5000, 10000, 25000, 50000, 100000, 250000], n => '🎉 ' + fmt(n) + ' questions answered!', n => 'Together you’ve answered ' + fmt(n) + ' questions on EC Revisions. Keep it up!'],
-    ['hours', Math.floor(hrs.results[0].n), [50, 100, 250, 500, 1000, 2500, 5000], n => '🎉 ' + fmt(n) + ' hours of studying!', n => 'Everyone together has now studied for more than ' + fmt(n) + ' hours on EC Revisions.']
+    ['accounts', acc.results[0].n, [25, 50, 100, 150, 200, 250, 300, 400, 500, 750, 1000], n => '🎉 ' + fmt(n) + ' accounts!', (n, v) => 'EC Revisions has passed ' + fmt(n) + ' student accounts' + (v > n ? ' (it’s at ' + fmt(v) + ' now)' : '') + '. Thanks for spreading the word!'],
+    ['questions', qs.results[0].n, [1000, 2500, 5000, 10000, 25000, 50000, 100000, 250000], n => '🎉 ' + fmt(n) + ' questions answered!', (n, v) => 'Together you’ve answered more than ' + fmt(n) + ' questions on EC Revisions' + (v > n ? ' (' + fmt(v) + ' so far)' : '') + '. Keep it up!'],
+    ['hours', Math.floor(hrs.results[0].n), [50, 100, 250, 500, 1000, 2500, 5000], n => '🎉 ' + fmt(n) + ' hours of studying!', (n, v) => 'Everyone together has now studied for more than ' + fmt(n) + ' hours on EC Revisions' + (v > n ? ' (' + fmt(v) + ' hours so far)' : '') + '.']
   ];
   for (const [k, val, steps, title, text] of MS) {
     const hit = steps.filter(s => val >= s).pop(); if (!hit) continue;
-    await post(env, { kind: 'milestone', title: title(hit), body: text(hit), key: 'milestone:' + k + ':' + hit });
+    await post(env, { kind: 'milestone', title: title(hit), body: text(hit, val), key: 'milestone:' + k + ':' + hit });
   }
   // 📊 record: most questions answered in one day (checked for finished days only)
   const dq = dayQ.results[0];
