@@ -49,7 +49,7 @@ const ONLINE_SECS = 180; // friends count as online if seen in the last 3 minute
 const GAME_MSG = /^\[game:(\d{6}):(speed|treasure|parkour):(science|maths)\]$/; // a game invite sent from Play with friends
 
 // The leaderboard for this week (from Monday, Queensland time) or all time, and your place in it
-export async function leaderboard(env, me, range, admin) {
+export async function leaderboard(env, me, range, admin, scope) {
   const t = now(); const dow = new Date((t + QLD) * 1000).getUTCDay();
   const from = range === 'all' ? '0000-00-00' : dayKey(t - ((dow + 6) % 7) * 86400); // Monday (Queensland time)
   const [people, mins, pts] = await env.DB.batch([
@@ -63,6 +63,11 @@ export async function leaderboard(env, me, range, admin) {
     const minutes = Math.floor((M[u.id] || 0) / 60), correct = (P[u.id] || {}).c || 0, booklet = (P[u.id] || {}).b || 0, qpts = (P[u.id] || {}).q || 0;
     return { id: u.id, name: u.username, look: lookView(u.look), minutes, correct, booklet, qpts, points: minutes + qpts + booklet, hidden: !!u.lb_hidden }; // right answers: 1-5 points each by difficulty
   }).filter(r => r.points > 0 && (!r.hidden || r.id === me || admin)).sort((a, b) => b.points - a.points || b.minutes - a.minutes || a.name.localeCompare(b.name));
+  if (scope === 'friends') { // 👥 just you and your friends
+    const fr = await env.DB.prepare("SELECT CASE WHEN a = ?1 THEN b ELSE a END AS f FROM dm_threads WHERE status = 'active' AND (a = ?1 OR b = ?1)").bind(me).all();
+    const ids = new Set(fr.results.map(r => r.f)); ids.add(me);
+    for (let i = rows.length - 1; i >= 0; i--) if (!ids.has(rows[i].id)) rows.splice(i, 1);
+  }
   let rank = 0, prev = null;
   rows.forEach((r, i) => { if (r.points !== prev) { rank = i + 1; prev = r.points; } r.rank = rank; });
   const mine = rows.find(r => r.id === me);
@@ -71,8 +76,30 @@ export async function leaderboard(env, me, range, admin) {
     range, from, total: rows.length,
     top: rows.slice(0, 50).map(r => ({ rank: r.rank, id: r.id, name: r.name, look: r.look, points: r.points, minutes: r.minutes, correct: r.correct, booklet: r.booklet, me: r.id === me, hidden: r.hidden })),
     me: mine ? { rank: mine.rank, points: mine.points, minutes: mine.minutes, correct: mine.correct, booklet: mine.booklet } : null,
-    leftOut: !meUser || !meUser.in_stats || admin, admin, meHidden: !!(meUser && meUser.lb_hidden)
+    leftOut: !meUser || !meUser.in_stats || admin, admin, meHidden: !!(meUser && meUser.lb_hidden), scope: scope || 'all'
   };
+}
+
+// 🏫 class vs class: each teacher's class (the students they added on their Teacher page) is a team.
+// Classes are ranked by AVERAGE points per student, so a small class can beat a big one.
+export async function classBoard(env, me, range, fromDay, toDay) {
+  const t = now(), dow = new Date((t + QLD) * 1000).getUTCDay();
+  const from = fromDay || (range === 'all' ? '0000-00-00' : dayKey(t - ((dow + 6) % 7) * 86400)), to = toDay || '9999-99-99';
+  const [teachers, members, mins, pts] = await env.DB.batch([
+    env.DB.prepare('SELECT id, username FROM users WHERE teacher = 1'),
+    env.DB.prepare('SELECT ts.teacher_id AS t, ts.student_id AS s FROM teacher_students ts JOIN users u ON u.id = ts.student_id AND u.in_stats = 1'),
+    env.DB.prepare('SELECT user_id, SUM(seconds) AS s FROM daily WHERE day >= ? AND day <= ? GROUP BY user_id').bind(from, to),
+    env.DB.prepare('SELECT user_id, SUM(qpts) AS q, SUM(booklet) AS b FROM points_daily WHERE day >= ? AND day <= ? GROUP BY user_id').bind(from, to)
+  ]);
+  const M = Object.fromEntries(mins.results.map(r => [r.user_id, r.s || 0])), P = Object.fromEntries(pts.results.map(r => [r.user_id, (r.q || 0) + (r.b || 0)]));
+  const pointsOf = id => Math.floor((M[id] || 0) / 60) + (P[id] || 0);
+  const classes = teachers.results.map(tc => {
+    const ids = members.results.filter(m => m.t === tc.id).map(m => m.s);
+    const total = ids.reduce((a, id) => a + pointsOf(id), 0), active = ids.filter(id => pointsOf(id) > 0).length;
+    return { id: tc.id, name: tc.username + '’s class', students: ids.length, active, total, avg: ids.length ? Math.round(total / ids.length) : 0, mine: ids.includes(me) };
+  }).filter(c => c.students > 0).sort((a, b) => b.avg - a.avg || b.total - a.total);
+  classes.forEach((c, i) => { c.rank = i + 1; });
+  return { range, from, classes };
 }
 
 export async function handleCommunity(req, env, url, user) {
@@ -80,7 +107,8 @@ export async function handleCommunity(req, env, url, user) {
   const me = user.id, admin = isAdmin(user, env);
 
   /* ---------- leaderboard ---------- */
-  if (path === '/api/leaderboard' && method === 'GET') return json(await leaderboard(env, me, url.searchParams.get('range') === 'all' ? 'all' : 'week', admin));
+  if (path === '/api/leaderboard' && method === 'GET') return json(await leaderboard(env, me, url.searchParams.get('range') === 'all' ? 'all' : 'week', admin, url.searchParams.get('scope') === 'friends' ? 'friends' : null));
+  if (path === '/api/leaderboard/classes' && method === 'GET') return json(await classBoard(env, me, url.searchParams.get('range') === 'all' ? 'all' : 'week'));
 
   if (!path.startsWith('/api/chat/')) return null;
 

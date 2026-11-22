@@ -3,6 +3,7 @@
 //   📊 records (most people studying at once, most questions in a day) · ⚡ yesterday's challenge stars
 // Also: 🏠 saving each student's home-page shortcuts.
 import { checkText } from './filter.js';
+import { classBoard } from './community.js';
 
 const now = () => Math.floor(Date.now() / 1000);
 const QLD = 10 * 3600;
@@ -14,7 +15,7 @@ async function body(req) {
   const t = await req.text(); if (t.length > 6000) throw new Error('big'); return JSON.parse(t);
 }
 const fmt = n => Number(n).toLocaleString('en-AU');
-export const CHIP_IDS = ['streak', 'today', 'week', 'acc20', 'challenge', 'mistakes', 'leaderboard', 'chat', 'play', 'news', 'profile', 'feedback', 'maths', 'science', 'english'];
+export const CHIP_IDS = ['streak', 'today', 'week', 'goal', 'timer', 'acc20', 'challenge', 'mistakes', 'leaderboard', 'chat', 'play', 'news', 'profile', 'feedback', 'maths', 'science', 'english'];
 
 // newest news id (cached for 30 s): for the red dot on every page
 let latest = { at: 0, id: 0 };
@@ -63,6 +64,13 @@ export async function autoNews(env, force) {
     if (top.length) {
       const medal = ['🥇', '🥈', '🥉'], when = new Date(lastMon + 'T00:00:00Z').toLocaleDateString('en-AU', { day: 'numeric', month: 'short', timeZone: 'UTC' }) + ' – ' + new Date(lastSun + 'T00:00:00Z').toLocaleDateString('en-AU', { day: 'numeric', month: 'short', timeZone: 'UTC' });
       await post(env, { kind: 'winners', title: '🏆 Last week’s winners: ' + top[0].name + (top.length > 1 ? ', ' + top.slice(1).map(x => x.name).join(' and ') : ''), body: top.map((x, i) => medal[i] + ' ' + x.name + ': ' + fmt(Math.floor(x.pts)) + ' points').join('\n') + '\n\nThe leaderboard week ' + when + '. Well done! A new week has started, so everyone’s back to 0.', key: 'winners:' + lastMon });
+    }
+  }
+  // 🏫 last week's class of the week (needs 2+ classes)
+  if (!(await hasKey(env, 'classes:' + lastMon))) {
+    const cb = await classBoard(env, 0, 'week', lastMon, lastSun), cl = cb.classes.filter(c => c.total > 0);
+    if (cb.classes.length >= 2 && cl.length) {
+      await post(env, { kind: 'winners', title: '🏫 Class of the week: ' + cl[0].name, body: cb.classes.slice(0, 5).map((c, i) => (['🥇', '🥈', '🥉'][i] || (i + 1) + '.') + ' ' + c.name + ': ' + fmt(c.avg) + ' points per student (' + c.students + ' students)').join('\n') + '\n\nClasses are ranked by average points per student, so every class has a fair chance.', key: 'classes:' + lastMon });
     }
   }
   // ⚡ yesterday's challenge stars

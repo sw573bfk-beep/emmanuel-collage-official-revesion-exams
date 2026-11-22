@@ -27,6 +27,7 @@ import privacyHtml from '../public/privacy/index.html';
 import meHtml from '../public/me/index.html';
 import teacherHtml from '../public/teacher/index.html';
 import studyJs from '../public/study.js';
+import timerJs from '../public/timer.js';
 import msgJs from '../public/msg.js';
 import chatHtml from '../public/chat/index.html';
 import boardHtml from '../public/leaderboard/index.html';
@@ -68,6 +69,7 @@ const PAGES = {
   '/me/': [meHtml, HTML], '/me/index.html': [meHtml, HTML],
   '/teacher/': [teacherHtml, HTML], '/teacher/index.html': [teacherHtml, HTML],
   '/study.js': [studyJs, 'text/javascript; charset=utf-8'],
+  '/timer.js': [timerJs, 'text/javascript; charset=utf-8'],
   '/chat/': [chatHtml, HTML], '/chat/index.html': [chatHtml, HTML],
   '/leaderboard/': [boardHtml, HTML], '/leaderboard/index.html': [boardHtml, HTML],
   // 📲 install like an app: the app description, the offline helper and the icons
@@ -93,17 +95,17 @@ const SECURITY_HEADERS = { 'x-content-type-options': 'nosniff', 'referrer-policy
 // page as it's served. Browsers keep these files (so moving between pages costs almost no requests), and the
 // moment a file changes its URL changes too, so nobody is ever stuck with an old copy.
 const fp = t => { let h = 2166136261; for (let i = 0; i < t.length; i++) h = Math.imul(h ^ t.charCodeAt(i), 16777619); return (h >>> 0).toString(36); };
-const SHARED = ['/acct.js', '/theme.js', '/msg.js', '/help.js', '/tabbar.js', '/notice.js', '/study.js', '/site.css', '/theme.css'];
+const SHARED = ['/acct.js', '/theme.js', '/msg.js', '/help.js', '/tabbar.js', '/notice.js', '/study.js', '/timer.js', '/site.css', '/theme.css'];
 const VER = Object.fromEntries(SHARED.map(f => [f, fp(PAGES[f][0])]));
 // theme.js loads notice.js and study.js, so its own fingerprint must change when they change too.
 // (Otherwise browsers keep an old theme.js for a week and it keeps loading the old study.js.)
-VER['/theme.js'] = fp(PAGES['/theme.js'][0] + VER['/notice.js'] + VER['/study.js']);
+VER['/theme.js'] = fp(PAGES['/theme.js'][0] + VER['/notice.js'] + VER['/study.js'] + VER['/timer.js']);
 const SHARED_RE = /(["'])\/(acct|theme|msg|help|tabbar|notice|study)\.js(?:\?v=[^"']*)?\1|(["'])\/(site|theme)\.css(?:\?v=[^"']*)?\3/g;
 const versioned = html => html.replace(SHARED_RE, (m, q1, js, q2, css) => js ? q1 + '/' + js + '.js?v=' + VER['/' + js + '.js'] + q1 : q2 + '/' + css + '.css?v=' + VER['/' + css + '.css'] + q2);
 const BODY = {};
 for (const [k, [body, type]] of Object.entries(PAGES)) BODY[k] = type === HTML ? versioned(body) : body;
 // theme.js loads notice.js and study.js itself: give it their fingerprints too
-BODY['/theme.js'] = BODY['/theme.js'].replace("src + '?v=' + (document.documentElement.dataset.build || '1')", "src + '?v=' + ({ '/notice.js': '" + VER['/notice.js'] + "', '/study.js': '" + VER['/study.js'] + "' })[src]");
+BODY['/theme.js'] = BODY['/theme.js'].replace("src + '?v=' + (document.documentElement.dataset.build || '1')", "src + '?v=' + ({ '/notice.js': '" + VER['/notice.js'] + "', '/study.js': '" + VER['/study.js'] + "', '/timer.js': '" + VER['/timer.js'] + "' })[src]");
 function servePage(url) {
   // "Message Beau" is now the ✉️ Beau tab of the Chat page
   if (url.pathname === '/message' || url.pathname.startsWith('/message/')) { const q = new URLSearchParams(url.search); q.set('tab', 'beau'); return Response.redirect(url.origin + '/chat/?' + q, 302); }

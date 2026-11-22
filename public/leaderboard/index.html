@@ -38,6 +38,13 @@ dialog.card-dlg::backdrop{background:rgb(10 14 30 / .5)}
 .pcard{display:flex;flex-direction:column;align-items:center;gap:10px;padding:24px 20px;text-align:center}
 .pcard .av{width:84px;height:84px;border-radius:50%;display:grid;place-items:center;font-size:2.6rem;font-weight:800;background:var(--accent);color:var(--accent-ink);margin:6px 0}
 .pcard h2{margin:0}.pcard .pics{display:flex;flex-wrap:wrap;gap:6px;justify-content:center;font-size:1.4rem}
+.scope{display:flex;gap:6px;flex-wrap:wrap;margin:10px 0 4px}
+.scope button{font:inherit;font-size:.9375rem;font-weight:600;border:1.5px solid var(--rule);background:var(--card);color:var(--ink);border-radius:999px;padding:6px 14px;cursor:pointer}
+.scope button.on{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.cls{display:grid;grid-template-columns:40px minmax(0,1fr) auto;gap:12px;align-items:center;border:1.5px solid var(--rule);border-radius:12px;padding:10px 14px;margin-top:8px}
+.cls.me{border-color:var(--accent);background:var(--accent-soft)}
+.cls .rk{font-family:var(--f-display);font-weight:800;font-size:1.3rem;text-align:center}
+.cls .pts{text-align:right;font-variant-numeric:tabular-nums}.cls .pts b{font-size:1.2rem;display:block}
 </style>
 <script src="/theme.js"></script>
 <link rel="stylesheet" href="/theme.css?v=1">
@@ -46,6 +53,11 @@ dialog.card-dlg::backdrop{background:rgb(10 14 30 / .5)}
 <main class="wrap">
   <div class="brand"><span class="mark">EC Revisions</span><h1>🏆 Leaderboard</h1><p>Earn points by studying. The top 50 studiers are shown, and you can always see your own place.</p></div>
   <div class="tabs2" role="tablist"><button type="button" role="tab" id="tWeek" class="on">This week</button><button type="button" role="tab" id="tAll">All time</button></div>
+  <div class="scope" role="group" aria-label="Who to show"><button type="button" data-s="all" class="on">🌍 Everyone</button><button type="button" data-s="friends">👥 Friends</button><button type="button" data-s="classes">🏫 Classes</button></div>
+  <section class="card stack" id="classCard" hidden>
+    <div class="row" style="justify-content:space-between"><h3 id="classTitle">🏫 Class vs class</h3><span class="small muted">Ranked by average points per student</span></div>
+    <div id="classBody"></div>
+  </section>
   <p id="loading" class="muted">Loading…</p>
   <div id="mine" class="mine" hidden></div>
   <section class="card stack" id="boardCard" hidden>
@@ -71,15 +83,33 @@ dialog.card-dlg::backdrop{background:rgb(10 14 30 / .5)}
   const from = new URLSearchParams(location.search).get('from');
   if (from === 'maths' || from === 'science') { $('#back').href = '/' + from + '/'; $('#back').textContent = 'Back to ' + (from === 'maths' ? 'Maths' : 'Science'); }
   const el = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
-  let range = 'week';
+  let range = 'week', scope = 'all';
+  document.querySelectorAll('.scope button').forEach(b => b.onclick = () => { scope = b.dataset.s; document.querySelectorAll('.scope button').forEach(x => { x.classList.toggle('on', x === b); x.setAttribute('aria-pressed', String(x === b)); }); load(); });
+  // 🏫 class vs class (classes are made by teachers on their Teacher page)
+  async function loadClasses() {
+    $('#boardCard').hidden = true; $('#mine').hidden = true; $('#classCard').hidden = false; $('#loading').hidden = true;
+    let r; try { r = await fetch('/api/leaderboard/classes?range=' + range, { credentials: 'same-origin' }); } catch (e) { return; }
+    if (r.status === 401) { location.replace('/?next=leaderboard'); return; }
+    const d = await r.json(), box = $('#classBody'); box.replaceChildren();
+    $('#classTitle').textContent = '🏫 Class vs class ' + (range === 'week' ? 'this week' : 'of all time');
+    if (!d.classes || !d.classes.length) { box.appendChild(el('p', 'muted', 'No classes yet. Teachers make a class by adding their students on the Teacher page, then their class shows up here.')); return; }
+    d.classes.forEach(c => {
+      const row = el('div', 'cls' + (c.mine ? ' me' : '')); row.appendChild(el('span', 'rk', c.rank <= 3 ? ['🥇', '🥈', '🥉'][c.rank - 1] : String(c.rank)));
+      const nm = el('div'); nm.appendChild(el('b', '', c.name + (c.mine ? ' (your class)' : ''))); nm.appendChild(el('div', 'small muted', c.students + (c.students === 1 ? ' student' : ' students') + ' · ' + c.active + ' earned points'));
+      const pt = el('div', 'pts'); pt.appendChild(el('b', '', String(c.avg))); pt.appendChild(el('span', 'small muted', 'avg points · ' + c.total + ' total'));
+      row.append(nm, pt); box.appendChild(row);
+    });
+  }
   async function load() {
-    let r; try { r = await fetch('/api/leaderboard?range=' + range, { credentials: 'same-origin' }); } catch (e) { $('#loading').textContent = 'Can’t reach the server. Check your connection and reload.'; return; }
+    if (scope === 'classes') return loadClasses();
+    $('#classCard').hidden = true;
+    let r; try { r = await fetch('/api/leaderboard?range=' + range + (scope === 'friends' ? '&scope=friends' : ''), { credentials: 'same-origin' }); } catch (e) { $('#loading').textContent = 'Can’t reach the server. Check your connection and reload.'; return; }
     if (r.status === 401) { location.replace('/?next=leaderboard'); return; }
     const d = await r.json();
     if (!r.ok) { $('#loading').textContent = d.error || 'Couldn’t load the leaderboard.'; return; }
     $('#loading').hidden = true; $('#boardCard').hidden = false;
     const when = range === 'week' ? 'this week' : 'of all time';
-    $('#boardTitle').textContent = 'Top 50 ' + when;
+    $('#boardTitle').textContent = (scope === 'friends' ? 'You and your friends, ' : 'Top 50 ') + when;
     $('#boardSub').textContent = d.total + (d.total === 1 ? ' studier' : ' studiers') + ' with points';
     const mine = $('#mine'); mine.innerHTML = ''; mine.hidden = false;
     if (d.leftOut) mine.appendChild(el('p', '', 'Your account isn’t on the leaderboard (it’s left out of the stats).'));
@@ -98,7 +128,7 @@ dialog.card-dlg::backdrop{background:rgb(10 14 30 / .5)}
       mine.appendChild(hb);
     }
     const tb = $('#rows'); tb.innerHTML = '';
-    if (!d.top.length) { const tr = el('tr'); const td = el('td', 'muted', 'No points yet ' + when + '. Be the first!'); td.colSpan = 7; tr.appendChild(td); tb.appendChild(tr); }
+    if (!d.top.length) { const tr = el('tr'); const td = el('td', 'muted', scope === 'friends' ? 'None of your friends have points ' + when + ' yet. Add friends in 💬 Chat, then race each other!' : 'No points yet ' + when + '. Be the first!'); td.colSpan = 7; tr.appendChild(td); tb.appendChild(tr); }
     d.top.forEach(p => {
       const tr = el('tr', p.me ? 'me' : '');
       const medal = p.rank === 1 ? '🥇' : p.rank === 2 ? '🥈' : p.rank === 3 ? '🥉' : '';

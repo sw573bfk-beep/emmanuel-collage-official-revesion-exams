@@ -104,6 +104,18 @@ export async function handleInsights(req, env, url, user) {
     const rows = (await env.DB.prepare('SELECT id, at, subject, topic, gen, gname, ok, q, given, correct FROM answers WHERE user_id = ? AND at > ? ORDER BY id DESC LIMIT 3000').bind(uid, t - 60 * 86400).all()).results;
     return json({ now: t, ...mistakesOf(rows) });
   }
+  // 🎯 weekly goals: minutes and/or questions this week (Monday to Sunday, Queensland time)
+  if (path === '/api/goals') {
+    if (method === 'POST') {
+      let b; try { b = await body(req); } catch { return err(400, 'Bad request'); }
+      const mins = Math.max(0, Math.min(1500, Math.round(+b.minutes || 0))), qs = Math.max(0, Math.min(2000, Math.round(+b.questions || 0)));
+      await env.DB.prepare('UPDATE users SET goals = ? WHERE id = ?').bind(mins || qs ? JSON.stringify({ minutes: mins, questions: qs }) : null, uid).run();
+    }
+    const dow = new Date((t + QLD) * 1000).getUTCDay(), mon = dayKey(t - ((dow + 6) % 7) * 86400), monStart = Math.floor(Date.parse(mon + 'T00:00:00Z') / 1000) - QLD;
+    const [g, m, q] = await env.DB.batch([env.DB.prepare('SELECT goals FROM users WHERE id = ?').bind(uid), env.DB.prepare('SELECT COALESCE(SUM(seconds), 0) AS s FROM daily WHERE user_id = ? AND day >= ?').bind(uid, mon), env.DB.prepare('SELECT COUNT(*) AS n FROM answers WHERE user_id = ? AND at >= ?').bind(uid, monStart)]);
+    let goals = null; try { goals = g.results[0] && g.results[0].goals ? JSON.parse(g.results[0].goals) : null; } catch { goals = null; }
+    return json({ goals, minutes: Math.floor(m.results[0].s / 60), questions: q.results[0].n, daysLeft: 7 - ((dow + 6) % 7) });
+  }
   // 🔁 Revisit today: up to 3 topics with mistakes made 1+ days ago that you haven't got right since (oldest first)
   if (path === '/api/revisit' && method === 'GET') {
     const rows = (await env.DB.prepare('SELECT id, at, subject, topic, gen, gname, ok, q, given, correct FROM answers WHERE user_id = ? AND at > ? ORDER BY id DESC LIMIT 3000').bind(uid, t - 45 * 86400).all()).results;

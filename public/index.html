@@ -87,6 +87,12 @@ a.chip{text-decoration:none}a.chip:hover{border-color:var(--accent);color:var(--
   <div class="top">
     <div class="brand"><span class="mark" id="mark">year 8 · week 7</span><h1 id="title">EC Revisions</h1><p id="tagline">Year 8 Maths, Science and English exam revision. Make a free account so your progress is saved and follows you to any device.</p>
       <div class="today" id="today" hidden aria-label="Your numbers and shortcuts"></div>
+      <section class="card stack chip-edit" id="goalEdit" hidden aria-label="Your weekly goal">
+        <div class="row" style="justify-content:space-between;align-items:center"><b>🎯 Your goal for this week</b><span class="small muted">Monday to Sunday</span></div>
+        <div><span class="small muted">Minutes of study</span><div class="row ce-row" id="geMin"></div></div>
+        <div><span class="small muted">Questions answered</span><div class="row ce-row" id="geQ"></div></div>
+        <div class="row"><button class="btn sm" type="button" id="geSave">Save goal</button><button class="btn quiet sm" type="button" id="geCancel">Cancel</button><span class="small" id="geMsg" role="status"></span></div>
+      </section>
       <section class="card stack chip-edit" id="chipEdit" hidden aria-label="Choose your shortcuts">
         <div class="row" style="justify-content:space-between;align-items:center"><b>✏️ Choose what shows here</b><span class="small muted">Tap to add ✓ or remove</span></div>
         <div><span class="small muted">Your numbers</span><div class="row ce-row" id="ceNums"></div></div>
@@ -295,12 +301,13 @@ a.chip{text-decoration:none}a.chip:hover{border-color:var(--accent);color:var(--
     } catch (e) { /* offline */ }
   }
   // 🏠 your numbers and shortcuts (saved on your account; tap ✏️ Edit to add or remove)
-  const DEFAULT_CHIPS = ['streak', 'today', 'week'];
-  const NUMS = [['streak', '🔥 Streak'], ['today', '⏱ Minutes today'], ['week', '🏆 Place this week'], ['acc20', '✅ Last 20 questions'], ['challenge', '⚡ Daily challenge'], ['mistakes', '❌ Mistakes to fix']];
-  const LINKS = [['leaderboard', '🏆 Leaderboard', '/leaderboard/'], ['chat', '💬 Chat', '/chat/'], ['play', '🎮 Play with friends', '/play/'], ['news', '📰 News', '/news/'], ['profile', '👤 My profile', '/me/'], ['feedback', '💡 Feedback', '/feedback/'], ['maths', '📐 Maths', '/maths/'], ['science', '🧪 Science', '/science/'], ['english', '📖 English', '/english/']];
+  const DEFAULT_CHIPS = ['streak', 'today', 'week', 'goal'];
+  const NUMS = [['streak', '🔥 Streak'], ['today', '⏱ Minutes today'], ['week', '🏆 Place this week'], ['goal', '🎯 Weekly goal'], ['acc20', '✅ Last 20 questions'], ['challenge', '⚡ Daily challenge'], ['mistakes', '❌ Mistakes to fix']];
+  const LINKS = [['timer', '⏲️ Study timer', '#timer'], ['leaderboard', '🏆 Leaderboard', '/leaderboard/'], ['chat', '💬 Chat', '/chat/'], ['play', '🎮 Play with friends', '/play/'], ['news', '📰 News', '/news/'], ['profile', '👤 My profile', '/me/'], ['feedback', '💡 Feedback', '/feedback/'], ['maths', '📐 Maths', '/maths/'], ['science', '🧪 Science', '/science/'], ['english', '📖 English', '/english/']];
   let chips = DEFAULT_CHIPS.slice(), editing = null; const DATA = {};
   async function need(id) {
     if (id === 'acc20' && !DATA.stats) { try { const r = await api('/api/mystats'); if (r.ok) DATA.stats = r.data.stats; } catch (e) { /* offline */ } }
+    if (id === 'goal' && !DATA.goal) { try { const r = await api('/api/goals'); if (r.ok) DATA.goal = r.data; } catch (e) { /* offline */ } }
     if (id === 'mistakes' && !DATA.mk) { try { const r = await api('/api/mistakes'); if (r.ok) DATA.mk = r.data; } catch (e) { /* offline */ } }
   }
   function chipEl(id) {
@@ -312,6 +319,12 @@ a.chip{text-decoration:none}a.chip:hover{border-color:var(--accent);color:var(--
     else if (id === 'acc20') { const s = DATA.stats && DATA.stats.last20; set('/me/', '✅ ' + b(s && s.n ? s.c + '/' + s.n : '—') + ' right lately'); }
     else if (id === 'challenge') { const c = DATA.ch; set('/challenge/', '⚡ ' + (c && c.done ? b(c.score + '/5') + ' today' : b('Challenge') + ' to do')); }
     else if (id === 'mistakes') { const m = DATA.mk; set('/me/#mistakes', '❌ ' + b(m ? m.todo.length : '—') + ' to fix'); }
+    else if (id === 'goal') { // 🎯 this week's goal (tap to set or change it)
+      const g = DATA.goal, G = g && g.goals; a.href = '#goal'; a.onclick = e => { e.preventDefault(); openGoal(); };
+      if (!G) a.innerHTML = '🎯 ' + b('Set a goal') + ' this week';
+      else { const parts = []; if (G.minutes) parts.push(Math.min(g.minutes, 9999) + '/' + G.minutes + ' min'); if (G.questions) parts.push(Math.min(g.questions, 9999) + '/' + G.questions + ' questions'); const done = (!G.minutes || g.minutes >= G.minutes) && (!G.questions || g.questions >= G.questions); a.innerHTML = (done ? '✅ ' : '🎯 ') + b(parts.join(' · ')) + (done ? ' goal reached!' : ' goal'); }
+    }
+    else if (id === 'timer') { a.href = '#timer'; a.onclick = e => { e.preventDefault(); if (window.ecTimer) window.ecTimer.open(); }; a.innerHTML = '⏲️ ' + b('Study timer'); }
     else { const L = LINKS.find(x => x[0] === id); if (!L) return null; const sp = L[1].indexOf(' '); set(L[2], L[1].slice(0, sp) + ' ' + b(L[1].slice(sp + 1))); if (id === 'chat' && DATA.chatN) a.insertAdjacentHTML('beforeend', ' <span class="nb">' + (DATA.chatN > 99 ? '99+' : DATA.chatN) + '</span>'); if (id === 'chat' || id === 'play' || id === 'feedback') a.classList.add('ec-hide-study'); }
     return a;
   }
@@ -327,6 +340,22 @@ a.chip{text-decoration:none}a.chip:hover{border-color:var(--accent);color:var(--
     row($('#ceNums'), NUMS); row($('#ceLinks'), LINKS);
   }
   function openEdit() { const e = $('#chipEdit'); if (!e.hidden) { e.hidden = true; return drawChips(); } editing = chips.slice(); $('#ceMsg').textContent = ''; drawEdit(); e.hidden = false; drawChips(); }
+  // 🎯 the weekly goal editor
+  let gMin = 0, gQ = 0;
+  function drawGoal() {
+    const row = (box, list, cur, set, unit) => { box.replaceChildren(); list.forEach(v => { const bt = document.createElement('button'); bt.type = 'button'; bt.className = v === cur ? 'on' : ''; bt.textContent = v ? v + unit : 'No goal'; bt.setAttribute('aria-pressed', String(v === cur)); bt.onclick = () => { set(v); drawGoal(); }; box.appendChild(bt); }); };
+    row($('#geMin'), [0, 30, 60, 90, 120, 180, 300], gMin, v => { gMin = v; }, ' min'); row($('#geQ'), [0, 25, 50, 100, 150, 200], gQ, v => { gQ = v; }, ' questions');
+  }
+  async function openGoal() {
+    const e = $('#goalEdit'); if (!e.hidden) { e.hidden = true; return; }
+    if (!DATA.goal) { try { const r = await api('/api/goals'); if (r.ok) DATA.goal = r.data; } catch (x) { /* offline */ } }
+    const G = DATA.goal && DATA.goal.goals; gMin = G ? G.minutes || 0 : 60; gQ = G ? G.questions || 0 : 50; $('#geMsg').textContent = ''; drawGoal(); $('#chipEdit').hidden = true; e.hidden = false;
+  }
+  $('#geCancel').onclick = () => { $('#goalEdit').hidden = true; };
+  $('#geSave').onclick = async () => {
+    const r = await api('/api/goals', 'POST', { minutes: gMin, questions: gQ }); if (!r.ok) { $('#geMsg').textContent = r.data.error || 'Couldn’t save. Try again.'; return; }
+    DATA.goal = r.data; $('#goalEdit').hidden = true; if (!chips.includes('goal')) { chips = chips.concat('goal'); api('/api/home-chips', 'POST', { chips }); } await drawChips();
+  };
   $('#ceReset').onclick = () => { editing = DEFAULT_CHIPS.slice(); drawEdit(); };
   $('#ceSave').onclick = async () => {
     const r = await api('/api/home-chips', 'POST', { chips: editing });
