@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<script src="/acct.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>News · EC Revisions</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Lexend:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="/site.css">
+<style>
+.wrap{max-width:760px}
+main.wrap>.top{background:none;border:0}
+.filters{display:flex;gap:6px;flex-wrap:wrap}
+.filters button{font:inherit;font-size:.9375rem;font-weight:600;border:1.5px solid var(--rule);background:var(--card);color:var(--ink);border-radius:999px;padding:6px 14px;cursor:pointer}
+.filters button.on{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.feed{display:flex;flex-direction:column;gap:14px}
+.post{display:grid;grid-template-columns:48px 1fr;gap:14px;align-items:start}
+.post .ic{width:48px;height:48px;border-radius:14px;display:grid;place-items:center;font-size:1.5rem;background:var(--accent-soft)}
+.post.winners .ic{background:#fff4cc}.post.milestone .ic{background:#ffe6f0}.post.record .ic{background:#e3f7ec}.post.idea .ic{background:#fff0d9}.post.challenge .ic{background:#efe6ff}
+[data-theme="dark"] .post .ic{background:var(--card-2,#232a3a)}
+.post h2{font-size:1.15rem;margin:0 0 4px;line-height:1.35}
+.post .meta{font-size:.8125rem;color:var(--muted);display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.post .bd{margin:8px 0 0;white-space:pre-wrap;line-height:1.55}
+.tag-new{font-size:.75rem;font-weight:800;color:#fff;background:var(--pen,#b3261e);border-radius:999px;padding:1px 8px}
+.tag-pin{font-size:.75rem;font-weight:700;color:var(--accent);background:var(--accent-soft);border-radius:999px;padding:1px 8px}
+</style>
+<script src="/theme.js"></script>
+<link rel="stylesheet" href="/theme.css?v=1">
+</head>
+<body>
+<main class="wrap">
+  <div class="top"><div class="brand"><span class="mark">EC Revisions</span><h1>📰 News</h1><p>What’s new on the site, last week’s winners, milestones, records and shout-outs for your ideas. Got an idea? Send it with <a href="/feedback/">Feedback</a>, and if it gets added your name goes up here.</p></div></div>
+  <div class="filters" role="toolbar" aria-label="Show" id="filters"></div>
+  <p id="loading" class="muted">Loading…</p>
+  <div class="feed" id="feed" aria-live="polite"></div>
+</main>
+<script>
+(function () {
+  const $ = s => document.querySelector(s);
+  const el = (t, c, x) => { const e = document.createElement(t); if (c) e.className = c; if (x != null) e.textContent = x; return e; };
+  const ICON = { update: '📢', idea: '💡', shout: '🙌', winners: '🏆', milestone: '🎉', record: '📊', challenge: '⚡' };
+  const AUTHOR = { winners: 'Leaderboard', milestone: 'EC Revisions', record: 'EC Revisions', challenge: 'Daily challenge' };
+  const F = [['all', 'All'], ['update', '📢 Updates'], ['winners', '🏆 Winners'], ['big', '🎉 Milestones & records'], ['idea', '💡 Your ideas'], ['challenge', '⚡ Challenge']];
+  let D = null, f = 'all';
+  const ago = (t, now) => { const s = now - t; if (s < 3600) return Math.max(1, Math.round(s / 60)) + ' min ago'; if (s < 86400) return Math.round(s / 3600) + ' h ago'; if (s < 7 * 86400) return Math.round(s / 86400) + (Math.round(s / 86400) === 1 ? ' day ago' : ' days ago'); return new Date(t * 1000).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' }); };
+  function draw() {
+    const fl = $('#filters'); fl.replaceChildren();
+    F.forEach(([k, l]) => { const b = el('button', k === f ? 'on' : '', l); b.type = 'button'; b.setAttribute('aria-pressed', String(k === f)); b.onclick = () => { f = k; draw(); }; fl.appendChild(b); });
+    const feed = $('#feed'); feed.replaceChildren();
+    const list = D.list.filter(p => f === 'all' || (f === 'big' ? p.kind === 'milestone' || p.kind === 'record' : f === 'idea' ? p.kind === 'idea' || p.kind === 'shout' : p.kind === f));
+    if (!list.length) feed.appendChild(el('p', 'muted', 'Nothing here yet.'));
+    list.forEach(p => {
+      const c = el('article', 'card post ' + p.kind), ic = el('span', 'ic', ICON[p.kind] || '📰'), m = el('div');
+      ic.setAttribute('aria-hidden', 'true');
+      const meta = el('div', 'meta'); if (p.pinned) meta.appendChild(el('span', 'tag-pin', '📌 Pinned')); if (p.id > D.seen) meta.appendChild(el('span', 'tag-new', 'NEW')); meta.appendChild(el('span', '', (p.author || AUTHOR[p.kind] || 'EC Revisions') + ' · ' + ago(p.created_at, D.now)));
+      m.append(el('h2', '', p.title), meta); if (p.body) m.appendChild(el('p', 'bd', p.body));
+      c.append(ic, m); feed.appendChild(c);
+    });
+  }
+  (async () => {
+    const r = await fetch('/api/news', { credentials: 'same-origin', cache: 'no-store' });
+    if (r.status === 401) { location.replace('/?next=news'); return; }
+    $('#loading').hidden = true; if (!r.ok) { $('#feed').textContent = 'Couldn’t load the news. Try again soon.'; return; }
+    D = await r.json(); draw();
+    try { await fetch('/api/news/seen', { method: 'POST', credentials: 'same-origin', headers: { 'content-type': 'application/json' }, body: '{}' }); const dot = document.querySelector('#ecNews .dot'); if (dot) dot.hidden = true; } catch (e) { /* offline */ }
+  })();
+})();
+</script>
+<script src="/help.js" defer></script>
+</body>
+</html>

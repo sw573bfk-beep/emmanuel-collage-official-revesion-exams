@@ -288,6 +288,18 @@ details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
       <div id="rateList" class="stack" style="gap:10px"></div>
     </section>
 
+    <section class="card stack sec" id="newsAdmin" data-title="📰 News" data-hint="post updates and credit people's ideas">
+      <p class="small muted">Everyone sees News from the <b>📰 News</b> button next to their profile (with a red dot when there’s something new). Weekly winners, milestones, records and challenge stars go up by themselves. Any admin can post here.</p>
+      <form id="nwForm" class="stack" style="gap:8px" novalidate>
+        <div class="row" style="gap:6px" id="nwKind"></div>
+        <label class="small" id="nwWhoL" hidden>Whose idea was it? <input id="nwWho" maxlength="60" placeholder="e.g. Connor" style="font:inherit;padding:8px 10px;border:1.5px solid var(--rule);border-radius:10px;background:var(--card);color:var(--ink);width:100%"></label>
+        <input id="nwTitle" maxlength="120" placeholder="Title, e.g. 🆕 Dark mode is here" aria-label="Title" style="font:inherit;padding:10px 12px;border:1.5px solid var(--rule);border-radius:10px;background:var(--card);color:var(--ink)">
+        <textarea id="nwBody" maxlength="1500" rows="4" placeholder="What’s new? (optional)" aria-label="Post" style="font:inherit;padding:10px 12px;border:1.5px solid var(--rule);border-radius:10px;background:var(--card);color:var(--ink);resize:vertical"></textarea>
+        <label class="small row" style="gap:6px"><input type="checkbox" id="nwPin"> 📌 Pin it to the top</label>
+        <div class="row"><button class="btn" type="submit">Post to News</button><span class="small" id="nwMsg" role="status"></span></div>
+      </form>
+      <div id="nwList" class="stack" style="gap:8px"></div>
+    </section>
     <section class="card stack sec" id="problems" data-title="🧩 Problem questions" data-hint="questions students get wrong or report most">
       <p class="small muted">The kinds of question students get wrong most (last 60 days, at least 8 answers), plus any with 🚩 reports. A very high wrong % or lots of the <b>same wrong answer</b> can mean the question or the marking has a mistake. Reported ones with open reports come first.</p>
       <div id="probList" class="stack" style="gap:10px"><p class="small muted">Loading…</p></div>
@@ -1109,6 +1121,41 @@ details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
   $('#stuFind').oninput = () => { clearTimeout(tm); tm = setTimeout(search, 250); };
   const rf = $('#refresh'); if (rf) rf.addEventListener('click', go);
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', go); else go();
+})();
+</script>
+
+<script>
+/* 📰 News: post, pin and delete (any admin level) */
+(function () {
+  const $ = s => document.querySelector(s); if (!$('#nwForm')) return;
+  const mk = (t, c, x) => { const e = document.createElement(t); if (c) e.className = c; if (x != null) e.textContent = x; return e; };
+  const ICON = { update: '📢', idea: '💡', shout: '🙌', winners: '🏆', milestone: '🎉', record: '📊', challenge: '⚡' };
+  const KINDS = [['update', '📢 Update'], ['idea', '💡 Idea credit'], ['shout', '🙌 Shout-out']]; let kind = 'update';
+  const send = async (body) => { const r = await fetch('/api/admin/news', { method: 'POST', credentials: 'same-origin', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }); let j = {}; try { j = await r.json(); } catch (e) { /* empty */ } return { ok: r.ok, data: j }; };
+  function kinds() { const k = $('#nwKind'); k.replaceChildren(); KINDS.forEach(([id, l]) => { const b = mk('button', 'chip' + (id === kind ? ' on' : ''), l); b.type = 'button'; b.onclick = () => { kind = id; kinds(); }; k.appendChild(b); }); $('#nwWhoL').hidden = kind !== 'idea'; $('#nwTitle').placeholder = kind === 'idea' ? 'Title, e.g. 💡 You can now press Enter to answer' : kind === 'shout' ? 'Title, e.g. 🙌 Huge effort from Sam this week' : 'Title, e.g. 🆕 Dark mode is here'; }
+  async function load() {
+    const r = await fetch('/api/admin/news', { credentials: 'same-origin', cache: 'no-store' }); if (!r.ok) return; const d = await r.json();
+    const box = $('#nwList'); box.replaceChildren(); box.appendChild(mk('b', '', 'Posts (' + d.list.length + ')'));
+    d.list.forEach(p => {
+      const c = mk('div', 'card stack'); c.style.cssText = 'gap:4px;padding:10px 12px';
+      c.appendChild(mk('b', '', (ICON[p.kind] || '📰') + ' ' + (p.pinned ? '📌 ' : '') + p.title));
+      c.appendChild(mk('span', 'small muted', (p.author || 'automatic') + ' · ' + new Date(p.created_at * 1000).toLocaleString('en-AU', { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' })));
+      if (p.body) { const bd = mk('span', 'small', p.body.length > 220 ? p.body.slice(0, 220) + '…' : p.body); bd.style.whiteSpace = 'pre-wrap'; c.appendChild(bd); }
+      const row = mk('div', 'row'); row.style.gap = '6px';
+      const pin = mk('button', 'btn quiet sm', p.pinned ? 'Unpin' : '📌 Pin'); pin.type = 'button'; pin.onclick = async () => { await send({ action: 'pin', id: p.id, pinned: !p.pinned }); load(); };
+      let armed = false; const del = mk('button', 'btn quiet sm', 'Delete'); del.type = 'button'; del.onclick = async () => { if (!armed) { armed = true; del.textContent = 'Tap again to delete'; setTimeout(() => { armed = false; del.textContent = 'Delete'; }, 4000); return; } await send({ action: 'delete', id: p.id }); load(); };
+      row.append(pin, del); c.appendChild(row); box.appendChild(c);
+    });
+  }
+  $('#nwForm').onsubmit = async e => {
+    e.preventDefault(); const m = $('#nwMsg'); m.textContent = '';
+    const r = await send({ kind, title: $('#nwTitle').value, body: $('#nwBody').value, who: $('#nwWho').value, pinned: $('#nwPin').checked });
+    if (!r.ok) { m.textContent = r.data.error || 'Couldn’t post it.'; m.style.color = 'var(--pen)'; return; }
+    m.textContent = '✅ Posted. Everyone will see a red dot on 📰 News.'; m.style.color = 'var(--good)';
+    $('#nwTitle').value = ''; $('#nwBody').value = ''; $('#nwWho').value = ''; $('#nwPin').checked = false; load();
+  };
+  kinds(); load();
+  const rf = $('#refresh'); if (rf) rf.addEventListener('click', load);
 })();
 </script>
 </body>

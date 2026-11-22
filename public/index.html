@@ -42,6 +42,15 @@ main.wrap>.top{background:none;border:0}
 .today{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}
 .today .chip{display:inline-flex;align-items:center;gap:6px;background:var(--card,#fff);border:1.5px solid var(--rule);border-radius:999px;padding:6px 14px;font-size:.9375rem;color:var(--muted)}
 .today .chip b{color:var(--ink);font-variant-numeric:tabular-nums}
+a.chip{text-decoration:none}a.chip:hover{border-color:var(--accent);color:var(--ink)}
+.today .chip.edit{cursor:pointer;font:inherit;font-size:.9375rem;border-style:dashed}
+.today .chip .nb{min-width:20px;height:20px;padding:0 6px;border-radius:999px;background:var(--pen,#b3261e);color:#fff;font-size:.75rem;font-weight:700;display:inline-grid;place-items:center}
+.chip-edit{margin-top:12px;max-width:760px}
+.ce-row{gap:6px;margin-top:6px}
+.ce-row button{font:inherit;font-size:.9375rem;border:1.5px solid var(--rule);background:var(--card);color:var(--ink);border-radius:999px;padding:6px 12px;cursor:pointer}
+.ce-row button.on{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.subject.humanities .shead{background:linear-gradient(135deg,#c2620a,#e8a13a)}
+.subject .soon-box{border:1.5px dashed var(--rule);border-radius:12px;padding:14px;text-align:center;font-size:1.05rem}
 .subject.card{padding:0;gap:0;border-top:0!important}
 .subject .shead{display:flex;align-items:center;gap:14px;padding:18px 20px;color:#fff}
 .subject.maths .shead{background:linear-gradient(135deg,var(--accent),#5b86ea)}
@@ -73,7 +82,13 @@ main.wrap>.top{background:none;border:0}
 <main class="wrap">
   <div class="top">
     <div class="brand"><span class="mark" id="mark">year 8 · week 7</span><h1 id="title">EC Revisions</h1><p id="tagline">Year 8 Maths, Science and English exam revision. Make a free account so your progress is saved and follows you to any device.</p>
-      <div class="today" id="today" hidden aria-label="Your studying"><span class="chip">🔥 <b id="tStreak">0 days</b> streak</span><span class="chip">⏱ <b id="tMin">0 min</b> today</span><span class="chip">🏆 <b id="tRank">—</b> this week</span></div></div>
+      <div class="today" id="today" hidden aria-label="Your numbers and shortcuts"></div>
+      <section class="card stack chip-edit" id="chipEdit" hidden aria-label="Choose your shortcuts">
+        <div class="row" style="justify-content:space-between;align-items:center"><b>✏️ Choose what shows here</b><span class="small muted">Tap to add ✓ or remove</span></div>
+        <div><span class="small muted">Your numbers</span><div class="row ce-row" id="ceNums"></div></div>
+        <div><span class="small muted">Shortcuts</span><div class="row ce-row" id="ceLinks"></div></div>
+        <div class="row"><button class="btn sm" type="button" id="ceSave">Done</button><button class="btn quiet sm" type="button" id="ceReset">Back to the usual</button><span class="small" id="ceMsg" role="status"></span></div>
+      </section></div>
     <div class="row" id="whoBox" hidden><span class="muted small">Logged in as <b id="who"></b></span><button class="btn quiet sm" type="button" id="switchBtn" aria-expanded="false" aria-controls="acctsCard">Switch account</button><a class="btn quiet sm" href="/leaderboard/">🏆 Leaderboard</a><a class="btn quiet sm" href="/chat/" data-chat>💬 Chat</a><a class="btn quiet sm" href="/feedback/">Feedback</a><button class="btn quiet sm" type="button" id="logout">Log out</button></div>
   </div>
 
@@ -153,6 +168,13 @@ main.wrap>.top{background:none;border:0}
         <a class="btn eng" href="/english/">Study English →</a>
         </div>
       </article>
+      <article class="card subject humanities">
+        <div class="shead"><span class="sic" aria-hidden="true">🌏</span><div><span class="glyph">HASS</span><h2>Humanities</h2></div></div>
+        <div class="sbody">
+        <div class="soon-box">🚧 <b>Nothing up yet.</b><br><span class="muted">Check back later!</span></div>
+        <span class="btn" aria-disabled="true" style="opacity:.5;cursor:not-allowed;background:#9a6a2e;border-color:#9a6a2e">Coming soon</span>
+        </div>
+      </article>
     </div>
     <div class="tiles" id="homeTiles">
       <a class="card tile" href="/challenge/" id="chTile"><span class="tic" aria-hidden="true">⚡</span><span class="tx"><b>Daily challenge</b><span class="small muted" id="chLine">5 mixed questions · up to 30 points</span></span><span class="go" aria-hidden="true">→</span></a>
@@ -220,7 +242,7 @@ main.wrap>.top{background:none;border:0}
     if (su) { $('#password').value = ''; $('#confirm').value = ''; } else fillSaved();
   }
   function picked(me) {
-    if (['maths', 'science', 'english', 'feedback', 'message', 'chat', 'leaderboard', 'play', 'me', 'teacher', 'challenge'].includes(next)) { location.replace('/' + next + '/'); return; }
+    if (['maths', 'science', 'english', 'feedback', 'message', 'chat', 'leaderboard', 'play', 'me', 'teacher', 'challenge', 'news'].includes(next)) { location.replace('/' + next + '/'); return; }
     if (next === 'admin' && me.admin) { location.replace('/admin/'); return; }
     $('#who').textContent = me.username;
     $('#mark').textContent = 'EC Revisions · Year 8'; $('#title').textContent = 'Hi, ' + me.username.split(' ')[0] + ' 👋'; $('#title').classList.add('hi'); $('#tagline').hidden = true;
@@ -246,19 +268,55 @@ main.wrap>.top{background:none;border:0}
     const started = me.subjects && Object.keys(me.subjects).length;
     if (!seen && !started && !me.admin) $('#welcome').hidden = false;
     $('#welcomeOk').onclick = () => { $('#welcome').hidden = true; try { localStorage.setItem(wk, '1'); } catch (e) { /* storage blocked */ } };
+    chips = Array.isArray(me.homeChips) ? me.homeChips : DEFAULT_CHIPS.slice();
     try {
       const r = await api('/api/profile');
-      if (r.ok) {
-        const d = r.data, t = d.time || {}, w = d.leaderboard && d.leaderboard.week;
-        $('#tStreak').textContent = (t.streak || 0) + (t.streak === 1 ? ' day' : ' days'); $('#tMin').textContent = fmtMin(t.today || 0);
-        $('#tRank').textContent = w ? '#' + w.rank + ' · ' + w.points + ' pts' : '—'; $('#today').hidden = false;
-        $('#lbLine').textContent = w ? 'You’re #' + w.rank + ' this week with ' + w.points + ' points.' : 'Study to get on the board this week.';
-      }
+      if (r.ok) { const d = r.data, w = d.leaderboard && d.leaderboard.week; DATA.time = d.time || {}; DATA.week = w; $('#lbLine').textContent = w ? 'You’re #' + w.rank + ' this week with ' + w.points + ' points.' : 'Study to get on the board this week.'; }
     } catch (e) { /* offline */ }
-    try { const ch = await api('/api/challenge'); if (ch.ok) { const d = ch.data; $('#chLine').textContent = d.done ? '✅ Done today: ' + d.score + '/5 · 🔥 ' + d.streak + '-day streak' : (d.streak ? '🔥 ' + d.streak + '-day streak: keep it going!' : '5 mixed questions · up to 30 points'); } } catch (e) { /* offline */ }
+    try { const ch = await api('/api/challenge'); if (ch.ok) { const d = ch.data; DATA.ch = d; $('#chLine').textContent = d.done ? '✅ Done today: ' + d.score + '/5 · 🔥 ' + d.streak + '-day streak' : (d.streak ? '🔥 ' + d.streak + '-day streak: keep it going!' : '5 mixed questions · up to 30 points'); } } catch (e) { /* offline */ }
     const j = window.ecLive ? await window.ecLive() : null, c = j && j.chat;
-    if (c) { const n = c.admin ? c.beau : c.requests + c.unreadDm + c.beau; $('#chatN').hidden = !n; $('#chatN').textContent = n > 99 ? '99+' : n; $('#chatLine').textContent = n ? n + ' new — tap to read.' : 'Your friends, and a private chat with Beau.'; }
+    if (c) { const n = c.admin ? c.beau : c.requests + c.unreadDm + c.beau; DATA.chatN = n; $('#chatN').hidden = !n; $('#chatN').textContent = n > 99 ? '99+' : n; $('#chatLine').textContent = n ? n + ' new — tap to read.' : 'Your friends, and a private chat with Beau.'; }
+    await drawChips();
   }
+  // 🏠 your numbers and shortcuts (saved on your account; tap ✏️ Edit to add or remove)
+  const DEFAULT_CHIPS = ['streak', 'today', 'week'];
+  const NUMS = [['streak', '🔥 Streak'], ['today', '⏱ Minutes today'], ['week', '🏆 Place this week'], ['acc20', '✅ Last 20 questions'], ['challenge', '⚡ Daily challenge'], ['mistakes', '❌ Mistakes to fix']];
+  const LINKS = [['leaderboard', '🏆 Leaderboard', '/leaderboard/'], ['chat', '💬 Chat', '/chat/'], ['play', '🎮 Play with friends', '/play/'], ['news', '📰 News', '/news/'], ['profile', '👤 My profile', '/me/'], ['feedback', '💡 Feedback', '/feedback/'], ['maths', '📐 Maths', '/maths/'], ['science', '🧪 Science', '/science/'], ['english', '📖 English', '/english/']];
+  let chips = DEFAULT_CHIPS.slice(), editing = null; const DATA = {};
+  async function need(id) {
+    if (id === 'acc20' && !DATA.stats) { try { const r = await api('/api/mystats'); if (r.ok) DATA.stats = r.data.stats; } catch (e) { /* offline */ } }
+    if (id === 'mistakes' && !DATA.mk) { try { const r = await api('/api/mistakes'); if (r.ok) DATA.mk = r.data; } catch (e) { /* offline */ } }
+  }
+  function chipEl(id) {
+    const a = document.createElement('a'); a.className = 'chip'; const set = (href, html) => { a.href = href; a.innerHTML = html; };
+    const t = DATA.time || {}, w = DATA.week, b = x => '<b>' + String(x).replace(/[<>&]/g, '') + '</b>';
+    if (id === 'streak') set('/me/', '🔥 ' + b((t.streak || 0) + (t.streak === 1 ? ' day' : ' days')) + ' streak');
+    else if (id === 'today') set('/me/', '⏱ ' + b(fmtMin(t.today || 0)) + ' today');
+    else if (id === 'week') set('/leaderboard/', '🏆 ' + b(w ? '#' + w.rank + ' · ' + w.points + ' pts' : '—') + ' this week');
+    else if (id === 'acc20') { const s = DATA.stats && DATA.stats.last20; set('/me/', '✅ ' + b(s && s.n ? s.c + '/' + s.n : '—') + ' right lately'); }
+    else if (id === 'challenge') { const c = DATA.ch; set('/challenge/', '⚡ ' + (c && c.done ? b(c.score + '/5') + ' today' : b('Challenge') + ' to do')); }
+    else if (id === 'mistakes') { const m = DATA.mk; set('/me/#mistakes', '❌ ' + b(m ? m.todo.length : '—') + ' to fix'); }
+    else { const L = LINKS.find(x => x[0] === id); if (!L) return null; const sp = L[1].indexOf(' '); set(L[2], L[1].slice(0, sp) + ' ' + b(L[1].slice(sp + 1))); if (id === 'chat' && DATA.chatN) a.insertAdjacentHTML('beforeend', ' <span class="nb">' + (DATA.chatN > 99 ? '99+' : DATA.chatN) + '</span>'); if (id === 'chat' || id === 'play' || id === 'feedback') a.classList.add('ec-hide-study'); }
+    return a;
+  }
+  async function drawChips() {
+    for (const id of chips) await need(id);
+    const box = $('#today'); box.replaceChildren();
+    chips.forEach(id => { const c = chipEl(id); if (c) box.appendChild(c); });
+    const ed = document.createElement('button'); ed.type = 'button'; ed.className = 'chip edit'; ed.innerHTML = '✏️ <b>Edit</b>'; ed.setAttribute('aria-expanded', String(!$('#chipEdit').hidden)); ed.onclick = openEdit;
+    box.appendChild(ed); box.hidden = false;
+  }
+  function drawEdit() {
+    const row = (box, list) => { box.replaceChildren(); list.forEach(([id, label]) => { const on = editing.includes(id), b = document.createElement('button'); b.type = 'button'; b.className = on ? 'on' : ''; b.textContent = (on ? '✓ ' : '+ ') + label; b.setAttribute('aria-pressed', String(on)); b.onclick = () => { editing = on ? editing.filter(x => x !== id) : editing.concat(id); drawEdit(); }; box.appendChild(b); }); };
+    row($('#ceNums'), NUMS); row($('#ceLinks'), LINKS);
+  }
+  function openEdit() { const e = $('#chipEdit'); if (!e.hidden) { e.hidden = true; return drawChips(); } editing = chips.slice(); $('#ceMsg').textContent = ''; drawEdit(); e.hidden = false; drawChips(); }
+  $('#ceReset').onclick = () => { editing = DEFAULT_CHIPS.slice(); drawEdit(); };
+  $('#ceSave').onclick = async () => {
+    const r = await api('/api/home-chips', 'POST', { chips: editing });
+    if (!r.ok) { $('#ceMsg').textContent = r.data.error || 'Couldn’t save. Try again.'; return; }
+    chips = r.data.chips.length ? r.data.chips : []; $('#chipEdit').hidden = true; await drawChips();
+  };
   $('#switchBtn').onclick = () => { const c = $('#acctsCard'); c.hidden = !c.hidden; $('#switchBtn').setAttribute('aria-expanded', !c.hidden); if (!c.hidden) { refreshAccounts(); c.scrollIntoView({ block: 'nearest' }); } };
   $('#addAcct').onclick = addAccount;
   $('#tabLogin').onclick = () => setMode('login');

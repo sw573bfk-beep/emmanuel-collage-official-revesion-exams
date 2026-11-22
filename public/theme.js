@@ -90,6 +90,10 @@
       + '.ec-menu .it:hover,.ec-menu .it:focus-visible{background:var(--accent-soft,#e8eefc);outline:none}.ec-menu .it .ic{width:24px;text-align:center;flex:none}.ec-menu .it .nb{margin-left:auto;min-width:22px;height:22px;padding:0 6px;border-radius:999px;background:var(--pen,#b3261e);color:var(--card,#fff);font-size:.8125rem;font-weight:700;display:inline-grid;place-items:center}'
       + '.ec-menu .it[hidden]{display:none}.ec-menu .it.out{color:var(--pen,#b3261e)}.ec-menu hr{border:0;border-top:1px solid var(--rule,#ddd);margin:4px 6px}'
       + 'html.ec-menu-on .theme-btn.float{display:none}'
+      + '.ec-topr{position:absolute;top:calc(12px + env(safe-area-inset-top,0px));right:14px;z-index:20;display:flex;gap:8px;align-items:center}.ec-topr .ec-prof.float{position:static}'
+      + '.ec-news{position:relative;display:inline-flex;align-items:center;gap:6px;font:inherit;font-weight:600;font-size:.9375rem;color:var(--ink,#111);background:var(--card,#fff);border:1.5px solid var(--rule,#ccc);border-radius:999px;padding:4px 14px;min-height:40px;text-decoration:none;white-space:nowrap}'
+      + '.ec-news:hover{border-color:var(--accent,#2453d6)}.ec-news .dot{position:absolute;top:-2px;right:-2px;width:12px;height:12px;border-radius:50%;background:var(--pen,#b3261e);border:2px solid var(--card,#fff)}.ec-news .dot[hidden]{display:none}'
+      + '@media (max-width:560px){.ec-news .nt{display:none}.ec-news{padding:4px 10px;font-size:1.05rem}}html.ec-focus #ecNews{display:none!important}'
       + '.ec-tabs{display:none}@media (max-width:700px){html.ec-has-tabs body{padding-bottom:calc(66px + env(safe-area-inset-bottom,0px))}'
       + '.ec-tabs{display:grid;grid-template-columns:repeat(4,1fr);position:fixed;left:0;right:0;bottom:0;z-index:950;background:var(--card,#fff);border-top:1.5px solid var(--rule,#ddd);padding:4px 4px calc(4px + env(safe-area-inset-bottom,0px));box-shadow:0 -4px 16px rgb(0 0 0 / .08)}'
       + '.ec-tabs a{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;min-height:52px;border-radius:12px;text-decoration:none;color:var(--muted,#555);font-size:.75rem;font-weight:700}'
@@ -153,11 +157,16 @@
       else { a.type = 'button'; a.setAttribute('aria-haspopup', 'menu'); a.setAttribute('aria-expanded', 'false'); a.setAttribute('aria-controls', 'ecMenu'); a.title = 'Menu: profile, leaderboard, chat and more'; a.onclick = toggleMenu; }
       a.innerHTML = '<span class="av" aria-hidden="true"></span><span class="nm"></span><span class="nb" hidden></span>' + (SUBJECT_PAGE ? '' : '<span class="car" aria-hidden="true">▾</span>');
       window.ecAv(a.querySelector('.av'), j.me.look, j.me.name); a.querySelector('.nm').textContent = SUBJECT_PAGE ? (j.me.admin ? 'Dashboard' : 'Profile') : 'Menu';
-      a.classList.add('float'); document.body.appendChild(a); // always the top right corner of the page
+      a.classList.add('float'); // always the top right corner of the page, with 📰 News next to it
+      const wrap = document.createElement('div'); wrap.className = 'ec-topr'; wrap.id = 'ecTopRight';
+      const nw = document.createElement('a'); nw.id = 'ecNews'; nw.className = 'ec-news'; nw.href = '/news/'; nw.innerHTML = '<span aria-hidden="true">📰</span><span class="nt">News</span><span class="dot" hidden></span>';
+      wrap.append(nw, a); document.body.appendChild(wrap);
       if (!SUBJECT_PAGE) { document.body.appendChild(buildMenu(j)); root.classList.add('ec-menu-on'); buildTabs(j); }
     }
     const a = document.getElementById('ecProfile'), c = j.chat, n = c ? (c.admin ? c.beau : c.requests + c.unreadDm + c.beau) : 0, nb = a.querySelector('.nb');
     nb.hidden = !n; nb.textContent = n > 99 ? '99+' : n; a.setAttribute('aria-label', (SUBJECT_PAGE ? (j.me.admin ? 'Admin dashboard' : 'My profile') : 'Menu') + (n ? ', ' + n + ' new' : ''));
+    const nd = document.querySelector('#ecNews .dot'), fresh = !!(j.news && j.news.latest > j.news.seen) && !location.pathname.startsWith('/news');
+    if (nd) { nd.hidden = !fresh; document.getElementById('ecNews').setAttribute('aria-label', fresh ? 'News: something new' : 'News'); }
     for (const id of ['ecMenuChatN', 'ecTabChatN']) { const x = document.getElementById(id); if (x) { x.hidden = !n; x.textContent = n > 99 ? '99+' : n; } }
   };
   window.ecProfileCheck = profile;

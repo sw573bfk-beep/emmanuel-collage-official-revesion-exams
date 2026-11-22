@@ -32,6 +32,7 @@ import chatHtml from '../public/chat/index.html';
 import boardHtml from '../public/leaderboard/index.html';
 import playHtml from '../public/play/index.html';
 import challengeHtml from '../public/challenge/index.html';
+import newsHtml from '../public/news/index.html';
 import manifestJson from '../public/manifest.webmanifest';
 import swJs from '../public/sw.js';
 import icon192 from '../public/icons/icon-192.png';
@@ -49,6 +50,7 @@ import { TOPICS as MATHS_TOPICS } from './gen/maths-game.js';
 import { TOPICS as SCI_TOPICS } from './gen/sci-game.js';
 import { handleGames } from './games.js';
 import { handleInsights, handleInsightsAdmin } from './insights.js';
+import { handleNews, handleNewsAdmin, latestNewsId, autoNews, checkOnlineRecord } from './news.js';
 import { rewardStatus, keepIds, canUse, lookView, lookIds, savedRewards, rewardPopup } from './rewards.js';
 
 const HTML = 'text/html; charset=utf-8';
@@ -71,6 +73,7 @@ const PAGES = {
   // 📲 install like an app: the app description, the offline helper and the icons
   '/manifest.webmanifest': [manifestJson, 'application/manifest+json; charset=utf-8'], '/sw.js': [swJs, 'text/javascript; charset=utf-8'],
   '/icons/icon-192.png': [icon192, 'image/png'], '/icons/icon-512.png': [icon512, 'image/png'], '/icons/maskable-512.png': [iconMask, 'image/png'], '/icons/apple-touch-icon.png': [iconApple, 'image/png'], '/apple-touch-icon.png': [iconApple, 'image/png'], '/favicon.ico': [iconFav, 'image/png'], '/icons/favicon-32.png': [iconFav, 'image/png'],
+  '/news/': [newsHtml, HTML], '/news/index.html': [newsHtml, HTML],
   '/challenge/': [challengeHtml, HTML], '/challenge/index.html': [challengeHtml, HTML],
   '/play/': [playHtml, HTML], '/play/index.html': [playHtml, HTML], '/play/sci.js': [playSciJs, 'text/javascript; charset=utf-8'], '/play/maths.js': [playMathsJs, 'text/javascript; charset=utf-8'],
   '/maths/': [mathsHtml, HTML], '/maths/index.html': [mathsHtml, HTML], '/maths/app.js': [mathsJs, 'text/javascript; charset=utf-8'],
@@ -104,7 +107,7 @@ BODY['/theme.js'] = BODY['/theme.js'].replace("src + '?v=' + (document.documentE
 function servePage(url) {
   // "Message Beau" is now the ✉️ Beau tab of the Chat page
   if (url.pathname === '/message' || url.pathname.startsWith('/message/')) { const q = new URLSearchParams(url.search); q.set('tab', 'beau'); return Response.redirect(url.origin + '/chat/?' + q, 302); }
-  if (['/maths', '/science', '/english', '/admin', '/feedback', '/chat', '/privacy', '/me', '/teacher', '/leaderboard', '/play', '/challenge'].includes(url.pathname)) return Response.redirect(url.origin + url.pathname + '/' + url.search, 301);
+  if (['/maths', '/science', '/english', '/admin', '/feedback', '/chat', '/privacy', '/me', '/teacher', '/leaderboard', '/play', '/challenge', '/news'].includes(url.pathname)) return Response.redirect(url.origin + url.pathname + '/' + url.search, 301);
   const page = PAGES[url.pathname];
   if (!page) return new Response(notFoundHtml, { status: 404, headers: { 'content-type': HTML, ...SECURITY_HEADERS } });
   const type = page[1];
@@ -314,9 +317,9 @@ async function startSession(env, userId, url, slot = 0, days = SESSION_DAYS) {
 }
 async function currentUser(req, env, slot = slotOf(req)) {
   const token = getCookie(req, sidName(slot)); if (!token || !/^[0-9a-f]{64}$/.test(token)) return null;
-  const row = await env.DB.prepare('SELECT u.id, u.username, u.prev_name, u.role, u.tester, u.teacher, u.focus_until, u.look, u.rewards_new, s.expires_at FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token_hash = ?').bind(await sha256(token)).first();
+  const row = await env.DB.prepare('SELECT u.id, u.username, u.prev_name, u.role, u.tester, u.teacher, u.focus_until, u.look, u.rewards_new, u.news_seen, u.home_chips, s.expires_at FROM sessions s JOIN users u ON u.id = s.user_id WHERE s.token_hash = ?').bind(await sha256(token)).first();
   if (!row || row.expires_at < now()) return null;
-  return { id: row.id, username: row.username, prevName: row.prev_name || null, role: row.role || null, tester: !!row.tester, teacher: !!row.teacher, focus_until: row.focus_until || 0, look: row.look || null, rewardsNew: row.rewards_new || null, tokenHash: await sha256(token) };
+  return { id: row.id, username: row.username, prevName: row.prev_name || null, role: row.role || null, tester: !!row.tester, teacher: !!row.teacher, focus_until: row.focus_until || 0, look: row.look || null, rewardsNew: row.rewards_new || null, newsSeen: row.news_seen || 0, homeChips: row.home_chips || null, tokenHash: await sha256(token) };
 }
 // 🎉 look for newly unlocked rewards (at most every 90 seconds per person): after saving answers and while studying.
 // Same numbers as the profile, minus leaderboard ranks (those unlock when the profile or leaderboard is opened).
@@ -434,7 +437,7 @@ async function handleApi(req, env, url) {
     if (!user) return err(401, 'Not logged in');
     if (!isAdmin(user, env)) await seenOn(env, user.id, deviceOf_(req));
     const rows = await env.DB.prepare('SELECT subject, updated_at FROM progress WHERE user_id = ?').bind(user.id).all();
-    return json({ username: user.username, prevName: user.prevName, admin: isAdmin(user, env), role: staffRole(user, env), tester: user.tester, teacher: user.teacher, subjects: Object.fromEntries(rows.results.map(r => [r.subject, r.updated_at])) });
+    return json({ username: user.username, prevName: user.prevName, admin: isAdmin(user, env), role: staffRole(user, env), tester: user.tester, teacher: user.teacher, homeChips: (() => { try { return user.homeChips ? JSON.parse(user.homeChips) : null; } catch { return null; } })(), subjects: Object.fromEntries(rows.results.map(r => [r.subject, r.updated_at])) });
   }
   if (path === '/api/logout' && method === 'POST') {
     if (user) await env.DB.prepare('DELETE FROM sessions WHERE token_hash = ?').bind(user.tokenHash).run();
@@ -447,6 +450,7 @@ async function handleApi(req, env, url) {
     if (user) {
       out.me = { name: user.username, admin: isAdmin(user, env), role: staffRole(user, env), look: lookView(user.look) };
       out.study = await studyPayload(env, user);
+      out.news = { latest: await latestNewsId(env), seen: user.newsSeen || 0 }; // 📰 red dot when there's news you haven't seen
       out.chat = await liveChat(env, user);
       if (out.study.study) { out.chat.requests = 0; out.chat.unreadDm = 0; } // in study mode only Beau's messages count
       out.focus = focusOf(user);
@@ -465,6 +469,7 @@ async function handleApi(req, env, url) {
   // 🎉 the reward pop-ups have been shown
   // 📈 answer log, your stats, My mistakes and the 🎯 daily challenge
   const insight = await handleInsights(req, env, url, user); if (insight) return insight;
+  const nws = await handleNews(req, env, url, user); if (nws) return nws; // 📰 News and 🏠 home shortcuts
   if (path === '/api/rewards/seen' && method === 'POST') { await env.DB.prepare('UPDATE users SET rewards_new = NULL WHERE id = ?').bind(user.id).run(); return json({ ok: true }); }
   // 🎨 choose your picture, frame and title (only from what you've unlocked)
   if (path === '/api/look' && method === 'POST') {
@@ -637,6 +642,7 @@ async function handleApi(req, env, url) {
     if (add > 0) stmts.push(env.DB.prepare('INSERT INTO daily (user_id, day, subject, seconds) VALUES (?, ?, ?, ?) ON CONFLICT(user_id, day, subject) DO UPDATE SET seconds = seconds + excluded.seconds').bind(user.id, dayKey(t), subject, add));
     await env.DB.batch(stmts);
     if (add > 0) await checkRewards(env, user); // study time can unlock rewards too
+    if (add > 0) { try { await checkOnlineRecord(env); } catch (e) { console.error('online record', e); } } // 📊 most people studying at once
     return json({ ok: true, counted: add });
   }
 
@@ -978,9 +984,10 @@ async function handleAdmin(req, env, path, method, me, role = 'owner') {
   const t = now(), today = dayKey(t), url = new URL(req.url);
   // Helpers (Top tier and Basic admins) only get chat moderation, study mode and feedback. Everything else is Beau's.
   const owner = role === 'owner';
-  if (!owner && !/^\/api\/admin\/(overview|chat\/|study|study-all|feedback|feedback-status)$/.test(path) && !path.startsWith('/api/admin/chat/')) return err(403, 'Only Beau can do this.');
+  if (!owner && !/^\/api\/admin\/(overview|chat\/|study|study-all|feedback|feedback-status|news)$/.test(path) && !path.startsWith('/api/admin/chat/')) return err(403, 'Only Beau can do this.');
   if (!owner && path === '/api/admin/overview') return json({ now: t, role, roleName: ROLE_NAME[role], staff: true });
   const cma = await handleCommunityAdmin(req, env, url, role); if (cma) return cma;
+  const nwa = await handleNewsAdmin(req, env, url, me, role); if (nwa) return nwa; // 📰 any admin level can post news
   const ina = await handleInsightsAdmin(req, env, url); if (ina) return ina; // 📈 Beau only (helpers are stopped above)
   if (path === '/api/admin/overview' && method === 'GET') {
     const since30 = dayKey(t - 29 * 86400), since7 = dayKey(t - 6 * 86400);
@@ -1305,6 +1312,7 @@ async function handleAdmin(req, env, path, method, me, role = 'owner') {
 // privacy page), with any reports about them, and old rate-limit records are tidied away.
 const CHAT_KEEP_DAYS = 21;
 async function nightly(env) {
+  try { await autoNews(env, true); } catch (e) { console.error('autoNews', e); } // 📰 weekly winners, milestones, records, challenge stars
   const cut = now() - CHAT_KEEP_DAYS * 86400;
   await env.DB.batch([
     env.DB.prepare("DELETE FROM chat_reports WHERE kind = 'dm' AND message_id IN (SELECT id FROM dm_messages WHERE created_at < ?)").bind(cut),
