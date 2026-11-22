@@ -6,7 +6,12 @@ const state = { learn: store.get('learnTopic', 'C1'), practice: 'mix', tool: 'so
 const tstats = store.get('tstats', {});
 // leaderboard points for a right answer: harder and typed answers earn more (easy multiple choice 1 … hard typed 5)
 function qPoints(Q) { if (!Q) return 1; if (Q.type === 'long') return 5; const lvl = Q.diff || (typeof diffOf === 'function' && Q.gen ? diffOf(Q.gen) : 'm'); return ({ e: 1, m: 2, h: 4 })[lvl] + (Q.type === 'mcq' ? 0 : 1) || 2; }
-function record(topic, ok, Q) { const s = tstats[topic] || (tstats[topic] = { a: 0, c: 0 }); s.a++; if (ok) { s.c++; s.p = (s.p || 0) + qPoints(Q); } store.set('tstats', tstats); if (ok) planTick('right', topic); }
+// 📈 each answer also goes to the server's answer log (your stats, My mistakes, and Beau's problem-question list)
+function logAns(topic, ok, Q) {
+  if (!Q || !Q.gen) return;
+  try { fetch('/api/answer', { method: 'POST', credentials: 'same-origin', keepalive: true, headers: { 'content-type': 'application/json' }, body: JSON.stringify({ subject: 'science', topic: String(topic), gen: Q.gen, gname: Q.gname || '', diff: Q.diff || (typeof diffOf === 'function' ? diffOf(Q.gen) : 'm'), ok: !!ok, type: Q.type, q: String(Q.q || '').slice(0, 1500), given: Q._given == null ? '' : String(Q._given).slice(0, 400), correct: String(Q.ansText || '').slice(0, 400) }) }).catch(() => {}); } catch (e) { /* offline */ }
+}
+function record(topic, ok, Q) { logAns(topic, ok, Q); const s = tstats[topic] || (tstats[topic] = { a: 0, c: 0 }); s.a++; if (ok) { s.c++; s.p = (s.p || 0) + qPoints(Q); } store.set('tstats', tstats); if (ok) planTick('right', topic); }
 /* ---------- today's plan (Home) ---------- */
 const todayKey = () => { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
 function pickFocus() {
@@ -91,7 +96,7 @@ function questionCard(Q, opts = {}) {
     fb.appendChild(h('<div class="fb bad tmp"><b>Not quite.</b> ' + (r.msg ? r.msg + ' ' : '') + 'Have another go, or tap “Show answer &amp; working”.</div>'));
   }
   function finalize(r) {
-    if (el.dataset.done) return r; el.dataset.done = '1'; $('.tmp', fb)?.remove(); $('.confirm-row', el)?.remove();
+    if (el.dataset.done) return r; el.dataset.done = '1'; if (Q._given == null) Q._given = Q.type === 'mcq' ? (sel == null ? '' : Q.choices[sel]) : (input ? input.value : ''); $('.tmp', fb)?.remove(); $('.confirm-row', el)?.remove();
     if (r.empty) r = { ok: false, msg: 'No answer given.' };
     if (Q.type === 'mcq') $$('.choice', el).forEach((b, i) => { b.disabled = true; if (i === Q.ans) b.classList.add('right'); else if (i === sel) b.classList.add('wrong'); });
     if (!exam && Q.type === 'mcq' && (!document.activeElement || document.activeElement === document.body || el.contains(document.activeElement))) { el.tabIndex = -1; el.style.outline = 'none'; el.focus({ preventScroll: true }); } // so Enter can go to the next question

@@ -37,6 +37,15 @@
 .topic .bar{grid-column:1 / -1;height:8px;border-radius:99px;background:var(--card-2);overflow:hidden;border:1px solid var(--rule)}
 .topic .bar i{display:block;height:100%}
 .list{display:flex;flex-direction:column;gap:8px}
+.bars2{display:flex;flex-direction:column;gap:8px}
+.bar2{display:grid;grid-template-columns:90px 1fr 64px;gap:10px;align-items:center;font-size:.9375rem}
+.bar2 .tr{height:12px;border-radius:99px;background:var(--card-2,#eef1f6);border:1px solid var(--rule);overflow:hidden}.bar2 .tr i{display:block;height:100%;border-radius:99px;background:var(--accent)}
+.bar2 .tr i.lo{background:var(--pen)}.bar2 .tr i.mid{background:var(--warn)}.bar2 .tr i.hi{background:var(--good)}
+.bar2 .pc{text-align:right;font-weight:700;font-variant-numeric:tabular-nums}
+.tp{display:flex;justify-content:space-between;gap:10px;align-items:center;border:1.5px solid var(--rule);border-radius:12px;padding:8px 12px;font-size:.9375rem}
+.mk{border:1.5px solid var(--rule);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:6px}
+.mk .q{font-weight:600}.mk .you{color:var(--pen)}.mk .ans{color:var(--good)}
+.trend.up{color:var(--good)}.trend.down{color:var(--pen)}
 .conv{display:flex;align-items:center;gap:12px;border:1.5px solid var(--rule);border-radius:14px;padding:12px 14px;background:var(--card);color:var(--ink);text-decoration:none}
 .conv:hover{border-color:var(--accent);background:var(--accent-soft)}
 .conv .av{flex:none;position:relative;width:42px;height:42px;border-radius:50%;background:var(--accent-soft);color:var(--accent);display:grid;place-items:center;font-weight:800;font-family:var(--f-display)}
@@ -96,6 +105,25 @@
         <div class="stats" id="timeStats"></div>
         <div><span class="small muted">The last 14 days (minutes)</span><div class="bars" id="bars" aria-label="Minutes studied in the last 14 days"></div></div>
         <p class="small muted" style="margin:0">Study time counts while Maths or Science is open and you’re active. Your streak counts days in a row with at least 1 minute.</p>
+      </div>
+      <div class="card stack" id="statsCard">
+        <h2 style="margin:0;font-size:1.3rem">📈 Your question stats</h2>
+        <p class="small muted" style="margin:0" id="stNote">Every Maths and Science question you answer counts here.</p>
+        <div class="stats" id="stTop"></div>
+        <div class="grid2">
+          <div class="stack" style="gap:8px"><b>By difficulty</b><div class="bars2" id="stDiff"></div></div>
+          <div class="stack" style="gap:8px"><b>By subject</b><div class="bars2" id="stSubj"></div></div>
+        </div>
+        <div class="grid2">
+          <div class="stack" style="gap:6px"><b>💪 Strongest topics</b><div class="list" id="stStrong"></div></div>
+          <div class="stack" style="gap:6px"><b>🎯 Topics to work on</b><div class="list" id="stWeak"></div></div>
+        </div>
+      </div>
+      <div class="card stack" id="mistakes">
+        <div class="row" style="justify-content:space-between;align-items:center"><h2 style="margin:0;font-size:1.3rem">❌ My mistakes</h2><span class="small muted" id="mkCount"></span></div>
+        <p class="small muted" style="margin:0">Questions you got wrong and haven’t got right since (one of each kind). Practise the topic and get one right to clear it.</p>
+        <div class="list" id="mkList"></div>
+        <button class="btn quiet sm" type="button" id="mkMore" hidden style="align-self:flex-start">Show all</button>
       </div>
       <div class="grid2">
         <div class="card stack" id="lbCard"><h2 style="margin:0;font-size:1.3rem">🏆 Leaderboard</h2><div class="stats" id="lbStats"></div><a class="btn quiet sm" href="/leaderboard/" style="align-self:flex-start">Open the leaderboard →</a></div>
@@ -261,6 +289,59 @@
   };
   load();
   setInterval(() => { if (document.visibilityState === 'visible') load(); }, 60000);
+})();
+</script>
+<script>
+/* 📈 Your question stats and ❌ My mistakes (from the answer log) */
+(function () {
+  const $ = s => document.querySelector(s);
+  const el = (t, c, x) => { const e = document.createElement(t); if (c) e.className = c; if (x != null) e.textContent = x; return e; };
+  const pc = (c, n) => n ? Math.round(c * 100 / n) : null;
+  const stat = (v, l) => { const d = el('div', 'stat'); d.append(el('span', 'v', v), el('span', 'l', l)); return d; };
+  const bar = (label, x) => { const p = pc(x.c, x.n), d = el('div', 'bar2'), tr = el('div', 'tr'), i = el('i', p == null ? '' : p < 50 ? 'lo' : p < 75 ? 'mid' : 'hi'); i.style.width = (p || 0) + '%'; tr.appendChild(i); d.append(el('span', '', label), tr, el('span', 'pc', p == null ? '—' : p + '%')); d.title = x.n ? x.c + ' right out of ' + x.n : 'No questions yet'; return d; };
+  const sub = s => s === 'maths' ? '📐' : '🧪';
+  async function get(path) { const r = await fetch(path, { credentials: 'same-origin', cache: 'no-store' }); return r.ok ? r.json() : null; }
+  (async () => {
+    const d = await get('/api/mystats'); if (!d) { $('#statsCard').hidden = true; return; }
+    const S = d.stats, top = $('#stTop'); top.replaceChildren();
+    if (!S.all.n) { $('#stNote').textContent = 'Answer some Maths or Science questions and your stats will show up here.'; }
+    else $('#stNote').textContent = 'From ' + S.all.n + ' questions since ' + new Date(S.since * 1000).toLocaleDateString('en-AU', { day: 'numeric', month: 'short' }) + '.';
+    const l20 = S.last20, p20 = pc(l20.c, l20.n), prev = pc(S.prev20.c, S.prev20.n);
+    const s1 = stat(l20.n ? l20.c + ' / ' + l20.n : '—', 'right in your last ' + (l20.n || 20) + ' questions' + (p20 != null ? ' (' + p20 + '%)' : ''));
+    if (p20 != null && prev != null && S.prev20.n >= 10) { const diff = p20 - prev, t = el('span', 'l trend ' + (diff > 0 ? 'up' : diff < 0 ? 'down' : ''), diff > 0 ? '▲ up ' + diff + '% on the 20 before' : diff < 0 ? '▼ down ' + (-diff) + '% on the 20 before' : 'same as the 20 before'); s1.appendChild(t); }
+    top.append(s1,
+      stat(S.today.n ? S.today.c + ' / ' + S.today.n : '0', 'right today'),
+      stat(S.week.n ? pc(S.week.c, S.week.n) + '%' : '—', 'right this week (' + S.week.n + ' questions)'),
+      stat(S.all.n ? pc(S.all.c, S.all.n) + '%' : '—', 'right overall'),
+      stat(String(S.bestRun), 'best run of right answers in a row'),
+      stat(String(S.currentRun), 'right in a row right now'),
+      stat(String(S.perDay), 'questions per study day'),
+      stat((d.challenge.streak || 0) + (d.challenge.streak === 1 ? ' day' : ' days'), '⚡ daily challenge streak'));
+    const di = $('#stDiff'); di.replaceChildren(bar('Easy', S.byDiff.e), bar('Medium', S.byDiff.m), bar('Hard', S.byDiff.h));
+    const su = $('#stSubj'); su.replaceChildren(bar('📐 Maths', S.bySubject.maths), bar('🧪 Science', S.bySubject.science));
+    const tl = (box, list, empty) => { box.replaceChildren(); if (!list.length) box.appendChild(el('p', 'small muted', empty)); list.forEach(x => { const r = el('div', 'tp'); r.append(el('span', '', sub(x.subject) + ' ' + x.name), el('b', '', x.p + '%')); box.appendChild(r); }); };
+    tl($('#stStrong'), S.strongest, 'Answer 5+ questions in a topic to see it here.'); tl($('#stWeak'), S.weakest.filter(x => x.p < 100), 'Nothing yet: keep practising!');
+  })();
+  (async () => {
+    const d = await get('/api/mistakes'); if (!d) { $('#mistakes').hidden = true; return; }
+    const box = $('#mkList'), all = d.todo;
+    $('#mkCount').textContent = all.length ? all.length + ' to fix' + (d.fixed.length ? ' · ' + d.fixed.length + ' fixed ✅' : '') : (d.fixed.length ? d.fixed.length + ' fixed ✅' : '');
+    const draw = n => {
+      box.replaceChildren();
+      if (!all.length) box.appendChild(el('p', 'small muted', d.fixed.length ? '🎉 No mistakes left to fix. Nice work!' : 'No mistakes yet. Questions you get wrong will show up here.'));
+      all.slice(0, n).forEach(m => {
+        const c = el('div', 'mk');
+        c.append(el('span', 'small muted', sub(m.subject) + ' ' + m.topicName + (m.gname ? ' · ' + m.gname : '')), el('span', 'q', m.q));
+        if (m.given) c.appendChild(el('span', 'small you', '✗ You said: ' + m.given));
+        if (m.correct) c.appendChild(el('span', 'small ans', '✓ Answer: ' + m.correct));
+        const a = el('a', 'btn sm', 'Practise this topic →'); a.href = '/' + m.subject + '/#practice-' + m.topic; a.style.alignSelf = 'flex-start'; c.appendChild(a);
+        box.appendChild(c);
+      });
+      $('#mkMore').hidden = all.length <= n;
+    };
+    draw(5); $('#mkMore').onclick = () => draw(1000);
+    if (location.hash === '#mistakes') setTimeout(() => $('#mistakes').scrollIntoView({ behavior: 'smooth' }), 300);
+  })();
 })();
 </script>
 <script>

@@ -89,6 +89,23 @@ dialog::backdrop{background:rgb(0 0 0 / .45)}
 .kv div{border:1px solid var(--rule);border-radius:8px;padding:8px 10px}
 .kv b{display:block;font-size:1.15rem;font-variant-numeric:tabular-nums}
 .kv span{font-size:.875rem;color:var(--muted)}
+.ins-h{margin:0;font-size:1.05rem}
+.ins-bars{display:grid;grid-template-columns:repeat(24,minmax(0,1fr));gap:3px;align-items:end;height:90px;border-bottom:1px solid var(--rule)}
+.ins-bars.w7{grid-template-columns:repeat(7,minmax(0,1fr))}
+.ins-bars i{display:block;background:var(--accent);border-radius:4px 4px 0 0;min-height:2px}
+.ins-lab{display:grid;grid-template-columns:repeat(24,minmax(0,1fr));gap:3px;font-size:.6875rem;color:var(--muted);text-align:center}
+.ins-lab.w7{grid-template-columns:repeat(7,minmax(0,1fr))}
+.ins-list{display:flex;flex-direction:column;gap:6px}
+.ins-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center;border:1px solid var(--rule);border-radius:10px;padding:7px 10px;font-size:.9rem}
+.ins-row .pc{font-weight:700;font-variant-numeric:tabular-nums}
+.ins-two{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:16px}
+#stuFind{font:inherit;padding:10px 12px;border:1.5px solid var(--rule);border-radius:10px;background:var(--card);color:var(--ink);max-width:420px}
+.stu-card{border:2px solid var(--accent);border-radius:14px;padding:14px;display:flex;flex-direction:column;gap:12px}
+.ans-t{width:100%;border-collapse:collapse;font-size:.85rem}.ans-t td,.ans-t th{border-bottom:1px solid var(--rule);padding:6px;text-align:left;vertical-align:top}
+.prob{border:1px solid var(--rule);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:6px}
+.prob.hot{border-color:var(--pen);border-width:2px}
+.prob .wa{display:flex;gap:6px;flex-wrap:wrap}.prob .wa span{font-size:.8125rem;background:var(--pen-soft);color:var(--pen);border-radius:999px;padding:2px 10px}
+.pbar{height:8px;border-radius:99px;background:var(--card-2,#eef1f6);overflow:hidden;max-width:320px}.pbar i{display:block;height:100%;background:var(--pen)}
 table.mini{border-collapse:collapse;width:100%;font-size:.86rem;font-variant-numeric:tabular-nums}
 table.mini td,table.mini th{border-bottom:1px solid var(--rule);padding:5px 6px;text-align:left}
 .chip{font:inherit;font-size:.85rem;border:1.5px solid var(--rule);background:var(--card);color:var(--ink);border-radius:999px;padding:4px 12px;cursor:pointer}
@@ -186,6 +203,13 @@ details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
           <div class="tile"><span class="v" id="tSciQs">0</span><span class="l">science questions answered</span></div>
           <div class="tile"><span class="v" id="tCodes">0</span><span class="l" id="tCodesL">unlock codes used</span></div>
         </div>
+        <div id="insBox" class="stack" style="gap:16px;margin-top:16px"><p class="small muted">Loading more numbers…</p></div>
+        <div class="stack ins-search" style="gap:10px;margin-top:18px">
+          <h3 style="margin:0">🔎 Look up a student</h3>
+          <input id="stuFind" type="search" autocomplete="off" placeholder="Type a name…" aria-label="Search for a student">
+          <div id="stuFound" class="row" style="gap:6px"></div>
+          <div id="stuView" class="stack" style="gap:12px"></div>
+        </div>
       </details>
     </section>
 
@@ -264,6 +288,10 @@ details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
       <div id="rateList" class="stack" style="gap:10px"></div>
     </section>
 
+    <section class="card stack sec" id="problems" data-title="🧩 Problem questions" data-hint="questions students get wrong or report most">
+      <p class="small muted">The kinds of question students get wrong most (last 60 days, at least 8 answers), plus any with 🚩 reports. A very high wrong % or lots of the <b>same wrong answer</b> can mean the question or the marking has a mistake. Reported ones with open reports come first.</p>
+      <div id="probList" class="stack" style="gap:10px"><p class="small muted">Loading…</p></div>
+    </section>
     <section class="card stack sec" id="laptops" data-title="💻 Same laptop" data-hint="accounts made or used on the same laptop">
       <p class="small muted">Each laptop (really each browser) can only <b>make one account</b>. Anyone can still <b>log in</b> on any laptop. These are the laptops used by more than one account: <b>🆕 made here</b> means the account was created on that laptop, <b>🔑 logs in here</b> means it only logs in there. Someone who clears their browser, uses a private window or another browser counts as a new laptop. Accounts made before this was added count the first laptop they were seen on.</p>
       <div id="lapBody" class="stack" style="gap:10px"></div>
@@ -395,7 +423,7 @@ details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
     if (!staffReady) {
       staffReady = true;
       document.querySelector('.head h1').textContent = 'EC Revisions ' + (ROLE === 'top' ? '⭐ Top tier admin' : '🛡️ Basic admin');
-      ['overview', 'broadcast', 'people', 'codes', 'security', 'ratings', 'laptops', 'usage', 'stats'].forEach(id => { if (SEC[id]) { SEC[id].sec.hidden = true; SEC[id].mb.hidden = true; } });
+      ['overview', 'broadcast', 'people', 'codes', 'security', 'ratings', 'problems', 'laptops', 'usage', 'stats'].forEach(id => { if (SEC[id]) { SEC[id].sec.hidden = true; SEC[id].mb.hidden = true; } });
       SEC.moderate.sec.hidden = false; SEC.moderate.mb.hidden = false;
       const mt = document.querySelector('#chatTabs [data-c="messages"]'); if (mt) mt.hidden = true;
       pickChatTab('access');
@@ -971,6 +999,116 @@ details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
   };
   pickChatTab('messages');
   load().then(() => { const h = location.hash.slice(1); if (h === 'messages' || h === 'chats') { pickChatTab('messages'); openSec('chats', true); } else if (SEC[h]) openSec(h, true); }); setInterval(() => { if (document.visibilityState === 'visible') load(); }, 30000);
+})();
+</script>
+
+<script>
+/* 📈 More numbers (from the answer log), 🔎 look up a student, and 🧩 problem questions. Beau only: helpers get a 403 and see nothing. */
+(function () {
+  const $ = s => document.querySelector(s);
+  const mk = (t, c, x) => { const e = document.createElement(t); if (c) e.className = c; if (x != null) e.textContent = x; return e; };
+  const pc = (c, n) => n ? Math.round((c || 0) * 100 / n) : null;
+  const dur = s => { s = Math.round(s || 0); if (s < 60) return s ? '<1 min' : '0 min'; const m = Math.round(s / 60); if (m < 60) return m + ' min'; return Math.floor(m / 60) + ' h ' + (m % 60) + ' min'; };
+  const ago = (t, now) => { const s = now - t; if (s < 120) return 'just now'; if (s < 3600) return Math.round(s / 60) + ' min ago'; if (s < 86400) return Math.round(s / 3600) + ' h ago'; return Math.round(s / 86400) + ' days ago'; };
+  const when = t => new Date(t * 1000).toLocaleString('en-AU', { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' });
+  const get = async p => { const r = await fetch(p, { credentials: 'same-origin', cache: 'no-store' }); return r.ok ? r.json() : null; };
+  const tile = (v, l) => { const d = mk('div', 'tile'); d.append(mk('span', 'v', v), mk('span', 'l', l)); return d; };
+  const tiles = list => { const d = mk('div', 'tiles'); list.forEach(x => d.appendChild(tile(...x))); return d; };
+  const sub = s => s === 'maths' ? '📐' : s === 'science' ? '🧪' : '';
+  const rows = (list, empty) => { const b = mk('div', 'ins-list'); if (!list.length) b.appendChild(mk('p', 'small muted', empty)); list.forEach(([a, c]) => { const r = mk('div', 'ins-row'); r.append(mk('span', '', a), mk('span', 'pc', c)); b.appendChild(r); }); return b; };
+  function bars(vals, labels, cls) {
+    const w = mk('div', 'stack'), b = mk('div', 'ins-bars' + (cls ? ' ' + cls : '')), l = mk('div', 'ins-lab' + (cls ? ' ' + cls : '')), max = Math.max(1, ...vals);
+    vals.forEach((v, i) => { const x = mk('i'); x.style.height = (v / max * 100) + '%'; x.title = labels[i] + ': ' + v; b.appendChild(x); l.appendChild(mk('span', '', labels[i])); });
+    w.style.gap = '4px'; w.append(b, l); return w;
+  }
+  async function loadInsights() {
+    const box = $('#insBox'); if (!box) return;
+    const d = await get('/api/admin/insights'); if (!d) { box.replaceChildren(); return; }
+    const A = d.answers, S = d.study, P = d.people;
+    box.replaceChildren();
+    box.append(mk('h3', 'ins-h', '✏️ Questions answered'), tiles([
+      [String(A.today.n || 0), 'today (' + (pc(A.today.c, A.today.n) ?? '—') + '% right, ' + (A.today.p || 0) + ((A.today.p || 0) === 1 ? ' student)' : ' students)')],
+      [String(A.week.n || 0), 'last 7 days (' + (pc(A.week.c, A.week.n) ?? '—') + '% right, ' + (A.week.p || 0) + ((A.week.p || 0) === 1 ? ' student)' : ' students)')],
+      [String(A.all.n || 0), 'all time' + (A.all.since ? ' (since ' + new Date(A.all.since * 1000).toLocaleDateString('en-AU', { day: 'numeric', month: 'short' }) + ')' : '')],
+      ...A.bySubject.map(x => [(pc(x.c, x.n) ?? '—') + '%', sub(x.subject) + ' ' + x.subject + ' right this week (' + x.n + ')']),
+      [String(d.challenge.n || 0), '⚡ did today’s challenge' + (d.challenge.avg != null ? ' (avg ' + d.challenge.avg + '/5)' : '')]
+    ]));
+    box.append(mk('h3', 'ins-h', '⏱ Studying'), tiles([
+      [String(S.today.p || 0), 'studied today (' + dur(S.today.s) + ' in total)'],
+      [String(S.week.p || 0), 'studied in the last 7 days (' + dur(S.week.s) + ')'],
+      [dur(S.week.p ? S.week.s / S.week.p : 0), 'average per student this week'],
+      [dur(S.medianWeek), 'middle student this week (median)'],
+      [dur(S.topWeek), 'most by one student this week'],
+      [String(S.threePlusDays), 'studied on 3+ days this week'],
+      [String(P.day || 0), 'on the site in the last 24 h'],
+      [String(P.week || 0), 'on the site in the last 7 days'],
+      [String(d.pointsWeek), 'answer points earned this week'],
+      [String(d.chatToday), 'chat messages today'],
+      [d.ratings.avg != null ? d.ratings.avg + ' ⭐' : '—', 'average rating (' + (d.ratings.n || 0) + ' ratings)'],
+      [String(d.feedbackOpen), 'feedback not dealt with yet']
+    ]));
+    const H = A.hours.map(String), hl = A.hours.map((_, i) => i % 3 === 0 ? (i === 0 ? '12a' : i < 12 ? i + 'a' : i === 12 ? '12p' : (i - 12) + 'p') : '');
+    const two = mk('div', 'ins-two');
+    const c1 = mk('div', 'stack'); c1.append(mk('b', '', '🕐 Busiest times (questions answered, last 7 days)'), bars(A.hours, hl)); const peak = A.hours.indexOf(Math.max(...A.hours)); if (Math.max(...A.hours) > 0) c1.appendChild(mk('span', 'small muted', 'Busiest hour: ' + (peak % 12 || 12) + (peak < 12 ? ' am' : ' pm')));
+    const c2 = mk('div', 'stack'); c2.append(mk('b', '', '📅 Busiest days (last 30 days)'), bars(A.weekdays, ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'], 'w7'));
+    two.append(c1, c2); box.appendChild(two);
+    const two2 = mk('div', 'ins-two');
+    const t1 = mk('div', 'stack'); t1.append(mk('b', '', '🔥 Most practised topics this week'), rows(d.topics.map(x => [sub(x.subject) + ' ' + x.name, x.n + ' · ' + x.p + '% right']), 'No answers yet this week.'));
+    const t2 = mk('div', 'stack'); t2.append(mk('b', '', '🧗 Hardest topics (last 30 days)'), rows(d.hardest.map(x => [sub(x.subject) + ' ' + x.name, x.p + '% right of ' + x.n]), 'Not enough answers yet (needs 15+ per topic).'));
+    const t3 = mk('div', 'stack'); t3.append(mk('b', '', '🆕 New accounts (last 7 days)'), rows(d.newAccounts.map(x => [new Date(x.d + 'T00:00:00').toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' }), String(x.n)]), 'No new accounts this week.'));
+    two2.append(t1, t2, t3); box.appendChild(two2);
+  }
+  // 🔎 look up a student
+  let tm = null, seq = 0;
+  async function search() {
+    const q = $('#stuFind').value.trim(), out = $('#stuFound'), my = ++seq; if (!q) { out.replaceChildren(); return; }
+    const d = await get('/api/admin/student-search?q=' + encodeURIComponent(q)); if (!d || my !== seq) return;
+    out.replaceChildren(); if (!d.people.length) out.appendChild(mk('span', 'small muted', 'No one called “' + q + '”.'));
+    d.people.forEach(p => { const b = mk('button', 'btn quiet sm', p.username); b.type = 'button'; b.onclick = () => show(p.id); out.appendChild(b); });
+  }
+  async function show(id) {
+    const v = $('#stuView'); v.replaceChildren(mk('p', 'small muted', 'Loading…'));
+    const d = await get('/api/admin/student/' + id); if (!d) { v.replaceChildren(mk('p', 'small muted', 'Couldn’t load that student.')); return; }
+    const u = d.user, S = d.stats, c = mk('div', 'stu-card');
+    const head = mk('div', 'row'); head.style.justifyContent = 'space-between'; head.append(mk('h3', '', '👤 ' + u.username), mk('span', 'small muted', 'Joined ' + new Date(u.created_at * 1000).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' }) + ' · last on ' + (u.last_seen ? ago(u.last_seen, d.now) : 'never') + (u.last_subject ? ' (' + u.last_subject + ')' : '') + (u.lb_hidden ? ' · 🙈 hidden on leaderboard' : '') + (u.in_stats ? '' : ' · left out of stats')));
+    c.appendChild(head);
+    c.appendChild(tiles([
+      [dur(d.study.today), 'studied today'], [dur(d.study.week), 'studied last 7 days'], [dur(d.study.all), 'studied all time'],
+      [S.last20.n ? S.last20.c + '/' + S.last20.n : '—', 'right in last ' + (S.last20.n || 20) + ' questions'],
+      [S.today.n ? S.today.c + '/' + S.today.n : '0', 'right today'], [(pc(S.week.c, S.week.n) ?? '—') + '%', 'right this week (' + S.week.n + ')'],
+      [(pc(S.all.c, S.all.n) ?? '—') + '%', 'right overall (' + S.all.n + ' questions)'], [String(S.bestRun), 'best run in a row'],
+      [String(d.points.week), 'points this week'], [String(d.points.answers + d.points.booklet), 'answer + booklet points all time'],
+      [(d.challenge.streak || 0) + (d.challenge.streak === 1 ? ' day' : ' days'), '⚡ challenge streak (' + d.challenge.total + ' done)'], [String(S.activeDays), 'days with questions answered']
+    ]));
+    const two = mk('div', 'ins-two');
+    const a1 = mk('div', 'stack'); a1.append(mk('b', '', 'By difficulty and subject'), rows([['Easy', (pc(S.byDiff.e.c, S.byDiff.e.n) ?? '—') + '% of ' + S.byDiff.e.n], ['Medium', (pc(S.byDiff.m.c, S.byDiff.m.n) ?? '—') + '% of ' + S.byDiff.m.n], ['Hard', (pc(S.byDiff.h.c, S.byDiff.h.n) ?? '—') + '% of ' + S.byDiff.h.n], ['📐 Maths', (pc(S.bySubject.maths.c, S.bySubject.maths.n) ?? '—') + '% of ' + S.bySubject.maths.n], ['🧪 Science', (pc(S.bySubject.science.c, S.bySubject.science.n) ?? '—') + '% of ' + S.bySubject.science.n]], ''));
+    const a2 = mk('div', 'stack'); a2.append(mk('b', '', '🎯 Weakest topics'), rows(S.weakest.map(x => [sub(x.subject) + ' ' + x.name, x.p + '% of ' + x.n]), 'Not enough answers yet.'));
+    const a3 = mk('div', 'stack'); a3.append(mk('b', '', '📅 Study time, last 14 days'), rows(d.study.days.map(x => [new Date(x.day + 'T00:00:00').toLocaleDateString('en-AU', { weekday: 'short', day: 'numeric', month: 'short' }), dur(x.s)]), 'No study time yet.'));
+    two.append(a1, a2, a3); c.appendChild(two);
+    c.appendChild(mk('b', '', '🕘 Last 25 answers'));
+    if (!d.recent.length) c.appendChild(mk('p', 'small muted', 'No answers logged yet (answers are logged from now on).'));
+    else { const w = mk('div', 'tablewrap'), t = mk('table', 'ans-t'); t.innerHTML = '<tr><th></th><th>When</th><th>Question</th><th>Their answer</th><th>Right answer</th></tr>';
+      d.recent.forEach(r => { const tr = mk('tr'); [r.ok ? '✅' : '❌', ago(r.at, d.now), sub(r.subject) + ' ' + (r.gname || r.topicName) + ': ' + (r.q || ''), r.given || '—', r.correct || '—'].forEach((x, i) => { const td = mk('td', i === 2 ? '' : 'small', x); tr.appendChild(td); }); t.appendChild(tr); });
+      w.appendChild(t); c.appendChild(w); }
+    v.replaceChildren(c); c.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+  // 🧩 problem questions
+  async function loadProblems() {
+    const box = $('#probList'); if (!box) return;
+    const d = await get('/api/admin/problems'); if (!d) { box.replaceChildren(); return; }
+    box.replaceChildren(); if (!d.list.length) box.appendChild(mk('p', 'small muted', 'Nothing yet: question types show up here once they’ve been answered 8+ times (answers are logged from now on).'));
+    d.list.forEach(x => {
+      const c = mk('div', 'prob' + (x.open || (x.wrongPct != null && x.wrongPct >= 70) ? ' hot' : ''));
+      c.append(mk('b', '', (sub(x.subject) + ' ' + x.gname).trim() + (x.topicName ? ' · ' + x.topicName : '')), mk('span', 'small muted', (x.n ? x.n + ' answers · ' + x.wrongPct + '% wrong' : 'Not answered enough yet') + (x.reports ? ' · 🚩 ' + x.reports + ' report' + (x.reports === 1 ? '' : 's') + (x.open ? ' (' + x.open + ' open)' : '') : '')));
+      if (x.n) { const b = mk('div', 'pbar'), i = mk('i'); i.style.width = x.wrongPct + '%'; b.appendChild(i); c.appendChild(b); }
+      if (x.wrongAnswers && x.wrongAnswers.length) { c.appendChild(mk('span', 'small', 'Most common wrong answers' + (x.wrongAnswers[0].correct ? ' (e.g. the right answer was “' + x.wrongAnswers[0].correct + '”)' : '') + ':')); const wa = mk('div', 'wa'); x.wrongAnswers.forEach(w => wa.appendChild(mk('span', '', '“' + w.given + '” ×' + w.k))); c.appendChild(wa); }
+      box.appendChild(c);
+    });
+  }
+  const go = () => { loadInsights(); loadProblems(); };
+  $('#stuFind').oninput = () => { clearTimeout(tm); tm = setTimeout(search, 250); };
+  const rf = $('#refresh'); if (rf) rf.addEventListener('click', go);
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', go); else go();
 })();
 </script>
 </body>

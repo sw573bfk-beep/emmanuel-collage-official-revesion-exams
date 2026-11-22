@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<script src="/acct.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<title>Daily challenge · EC Revisions</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Lexend:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
+<link rel="stylesheet" href="/site.css">
+<style>
+/* svg */
+svg{max-width:100%;height:auto}
+.grid-svg,.nl,.dia{display:block}
+.gl{stroke:var(--line);stroke-width:1}
+.dia .gl,.grid-svg .gl{stroke:var(--rule);stroke-opacity:.55}
+.ax{stroke:var(--ink);stroke-width:1.5;fill:none}
+.tk{fill:var(--muted);font-size:10px;font-family:var(--f-mono);text-anchor:middle}
+.axl{fill:var(--ink);font-size:12px;font-style:italic;font-family:var(--f-body)}
+.pl{stroke:var(--accent);stroke-width:2.5;fill:none}
+.pl.b,.poly.b{stroke:var(--pen)}
+.pl.c,.poly.c{stroke:var(--good)}
+.pl.d,.poly.d{stroke:var(--warn)}
+.poly{stroke:var(--accent);stroke-width:2;fill:var(--accent);fill-opacity:.12}
+.poly.b{fill:var(--pen)}
+.poly.c{fill:var(--good)}
+.poly.d{fill:var(--warn)}
+.pt{fill:var(--accent)}
+.pt.b{fill:var(--pen)} .pt.c{fill:var(--good)} .pt.d{fill:var(--warn)}
+.ptl{fill:var(--ink);font-size:11px;font-weight:600;font-family:var(--f-body)}
+.mirror{stroke:var(--warn);stroke-width:2;stroke-dasharray:6 4}
+.nl .sol-line{stroke:var(--pen);stroke-width:4}
+.nl .arrowh{fill:var(--pen)}
+.nl .dot{stroke:var(--pen);stroke-width:2.5}
+.nl .dot.closed{fill:var(--pen)}
+.nl .dot.open{fill:var(--card)}
+.nl .axh{fill:var(--ink)}
+.dia .edge{stroke:var(--accent);stroke-width:2;fill:none}
+.dia .edge.dash{stroke-dasharray:5 4}
+.dia .fillt{fill:var(--accent);fill-opacity:.08;stroke:var(--accent);stroke-width:2}
+.dia text{fill:var(--ink);font-size:12px;font-family:var(--f-body)}
+.dia .lbl{font-weight:700}
+.dia .it{font-style:italic}
+.dia .ra{fill:none;stroke:var(--ink);stroke-width:1.2}
+.dia .tick{stroke:var(--pen);stroke-width:1.6}
+.dia .pt3{fill:var(--accent)}
+.chart-svg .pl{stroke-width:2.2}
+.wrap{max-width:760px}
+.dots{display:flex;gap:8px}
+.dots span{width:34px;height:8px;border-radius:99px;background:var(--rule)}
+.dots span.now{background:var(--accent)}.dots span.ok{background:var(--good)}.dots span.no{background:var(--pen)}
+.qtag{display:inline-flex;gap:6px;align-items:center;font-size:.875rem;font-weight:600;color:var(--muted)}
+.qtag b{color:var(--accent)}
+.qtext{font-size:1.15rem;line-height:1.55}
+.qfig{display:flex;justify-content:center}
+.choices{display:flex;flex-direction:column;gap:10px}
+.choice{display:flex;align-items:center;gap:12px;text-align:left;font:inherit;font-size:1.05rem;color:var(--ink);background:var(--card);border:2px solid var(--rule);border-radius:14px;padding:12px 14px;cursor:pointer;min-height:54px}
+.choice .lt{flex:none;width:32px;height:32px;border-radius:50%;display:grid;place-items:center;font-weight:800;background:var(--card-2,#eef1f6);color:var(--muted)}
+.choice:hover:not(:disabled){border-color:var(--accent)}
+.choice.sel{border-color:var(--accent);background:var(--accent-soft)}.choice.sel .lt{background:var(--accent);color:var(--accent-ink)}
+.choice.right{border-color:var(--good);background:var(--good-soft)}.choice.right .lt{background:var(--good);color:#fff}
+.choice.wrong{border-color:var(--pen);background:var(--pen-soft)}.choice.wrong .lt{background:var(--pen);color:#fff}
+.choice:disabled{cursor:default}
+.fbk{border-radius:12px;padding:12px 14px;font-size:1.02rem}
+.fbk.good{background:var(--good-soft);color:var(--good);border:1.5px solid var(--good)}.fbk.bad{background:var(--pen-soft);color:var(--pen);border:1.5px solid var(--pen)}
+.sol{margin:6px 0 0;padding-left:1.2em;color:var(--ink);display:flex;flex-direction:column;gap:4px}
+.sol .why{color:var(--muted);font-size:.9em}
+.big{font-family:var(--f-display);font-size:3rem;font-weight:800;line-height:1}
+.statrow{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.stat{border:1.5px solid var(--rule);border-radius:12px;padding:10px 12px;display:flex;flex-direction:column}
+.stat b{font-size:1.3rem;font-family:var(--f-display)}.stat span{font-size:.875rem;color:var(--muted)}
+.rev{display:flex;flex-direction:column;gap:8px}
+.rev>div{border:1.5px solid var(--rule);border-radius:12px;padding:10px 12px;display:flex;gap:10px;align-items:flex-start}
+main.wrap>.top{background:none;border:0}
+.rev .mk{flex:none;font-size:1.2rem}
+.rules{margin:0;padding-left:1.2em;display:flex;flex-direction:column;gap:4px}
+</style>
+<script src="/theme.js"></script>
+<link rel="stylesheet" href="/theme.css?v=1">
+</head>
+<body>
+<main class="wrap">
+  <div class="top"><div class="brand"><span class="mark">EC Revisions</span><h1>⚡ Daily challenge</h1><p>5 mixed Maths and Science questions. Everyone gets the same ones today, and you get one go at each.</p></div></div>
+  <p id="loading" class="muted">Loading…</p>
+  <section id="intro" class="card stack" hidden>
+    <div class="statrow"><div class="stat"><b id="iStreak">0 days</b><span>🔥 your challenge streak</span></div><div class="stat"><b id="iDone">0</b><span>👥 people done today</span></div></div>
+    <div><b>Points</b><ul class="rules"><li>4 points for every right answer</li><li>+5 for finishing all 5</li><li>+5 bonus for getting 5 out of 5 (up to 30 points)</li></ul></div>
+    <button class="btn" type="button" id="startBtn" style="align-self:flex-start;font-size:1.1rem;padding:12px 22px">Start today’s challenge →</button>
+  </section>
+  <section id="qv" class="card stack" hidden>
+    <div class="row" style="justify-content:space-between;align-items:center"><div class="dots" id="dots" aria-hidden="true"></div><span class="small muted" id="qnum"></span></div>
+    <span class="qtag" id="qtag"></span>
+    <div class="qtext" id="qtext"></div>
+    <div class="qfig" id="qfig"></div>
+    <div class="choices" id="choices" role="radiogroup" aria-label="Answers"></div>
+    <div id="fbk" aria-live="polite"></div>
+    <div class="row"><button class="btn" type="button" id="confirmBtn" disabled>Confirm</button><button class="btn" type="button" id="nextBtn" hidden>Next question →</button></div>
+  </section>
+  <section id="done" class="card stack" hidden>
+    <span class="eyebrow">Today’s result</span>
+    <div class="row" style="align-items:baseline;gap:14px"><span class="big" id="dScore"></span><span class="muted" id="dPts"></span></div>
+    <p id="dMsg" style="margin:0"></p>
+    <div class="statrow"><div class="stat"><b id="dStreak"></b><span>🔥 challenge streak</span></div><div class="stat"><b id="dEveryone"></b><span>👥 everyone’s average today</span></div><div class="stat"><b id="dNext"></b><span>⏰ new questions in</span></div></div>
+    <h3 style="margin:6px 0 0">Your answers</h3>
+    <div class="rev" id="rev"></div>
+    <div class="row"><a class="btn quiet" href="/">← Home</a><a class="btn quiet" href="/me/#mistakes">❌ My mistakes</a></div>
+  </section>
+</main>
+<script>
+(function () {
+  const $ = s => document.querySelector(s);
+  const el = (t, c, html) => { const e = document.createElement(t); if (c) e.className = c; if (html != null) e.innerHTML = html; return e; };
+  const txt = (t, c, s) => { const e = document.createElement(t); if (c) e.className = c; e.textContent = s; return e; };
+  let D = null, cur = 0, sel = null;
+  const left = s => { const h = Math.floor(s / 3600), m = Math.ceil(s % 3600 / 60); return h ? h + ' h ' + m + ' min' : m + ' min'; };
+  async function api(path, body) {
+    const r = await fetch(path, { method: body ? 'POST' : 'GET', credentials: 'same-origin', cache: 'no-store', headers: body ? { 'content-type': 'application/json' } : {}, body: body ? JSON.stringify(body) : undefined });
+    if (r.status === 401) { location.replace('/?next=challenge'); throw new Error('login'); }
+    let j = {}; try { j = await r.json(); } catch (e) { /* empty */ } return { ok: r.ok, data: j };
+  }
+  const show = id => ['intro', 'qv', 'done'].forEach(x => { $('#' + x).hidden = x !== id; });
+  function dots() { const d = $('#dots'); d.innerHTML = ''; D.questions.forEach((q, i) => d.appendChild(el('span', q.pick != null ? (q.right ? 'ok' : 'no') : i === cur ? 'now' : ''))); }
+  function renderQ() {
+    const q = D.questions[cur]; sel = null;
+    dots(); $('#qnum').textContent = 'Question ' + (cur + 1) + ' of ' + D.questions.length;
+    $('#qtag').innerHTML = ''; $('#qtag').append(el('b', '', q.subject === 'maths' ? '📐 Maths' : '🧪 Science'), txt('span', '', '· ' + q.topicName));
+    $('#qtext').innerHTML = q.q; $('#qfig').innerHTML = q.fig || '';
+    const box = $('#choices'); box.innerHTML = '';
+    q.choices.forEach((c, i) => { const b = el('button', 'choice', '<span class="lt">' + 'ABCDE'[i] + '</span><span>' + c + '</span>'); b.type = 'button'; b.setAttribute('role', 'radio'); b.setAttribute('aria-checked', 'false');
+      b.onclick = () => { if (q.pick != null) return; sel = i; [...box.children].forEach((x, k) => { x.classList.toggle('sel', k === i); x.setAttribute('aria-checked', String(k === i)); }); $('#confirmBtn').disabled = false; };
+      b.onkeydown = e => { if (e.key === 'Enter' && sel === i && q.pick == null) { e.preventDefault(); confirm(); } };
+      box.appendChild(b); });
+    $('#fbk').innerHTML = ''; $('#confirmBtn').hidden = false; $('#confirmBtn').disabled = true; $('#nextBtn').hidden = true;
+    show('qv'); window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+  function feedback(q, r) {
+    [...$('#choices').children].forEach((b, k) => { b.disabled = true; b.classList.remove('sel'); if (k === r.ans) b.classList.add('right'); else if (k === q.pick) b.classList.add('wrong'); });
+    const f = el('div', 'fbk ' + (r.right ? 'good' : 'bad'), r.right ? '<b>✅ Correct!</b> +4 points' : '<b>❌ Not this time.</b> The answer is <b></b>');
+    if (!r.right) f.querySelector('b + b').textContent = r.ansText;
+    $('#fbk').innerHTML = ''; $('#fbk').appendChild(f);
+    if (r.sol && r.sol.length) { const d = el('details', '', '<summary>Show the working</summary>'); const ol = el('ol', 'sol'); r.sol.forEach(s => ol.appendChild(el('li', '', s))); d.appendChild(ol); $('#fbk').appendChild(d); if (!r.right) d.open = true; }
+  }
+  async function confirm() {
+    if (sel == null) return; const q = D.questions[cur]; $('#confirmBtn').disabled = true;
+    const r = await api('/api/challenge/answer', { i: cur, pick: sel }); if (!r.ok) { $('#fbk').textContent = r.data.error || 'Couldn’t send it. Try again.'; $('#confirmBtn').disabled = false; return; }
+    Object.assign(q, { pick: sel, right: r.data.right, ans: r.data.ans, ansText: r.data.ansText, sol: r.data.sol });
+    feedback(q, r.data); dots();
+    $('#confirmBtn').hidden = true; const nb = $('#nextBtn'); nb.hidden = false;
+    if (r.data.done) { D.done = true; D.score = r.data.score; D.pts = r.data.pts; nb.textContent = 'See my score →'; } else nb.textContent = 'Next question →';
+    nb.focus();
+  }
+  $('#confirmBtn').onclick = confirm;
+  $('#nextBtn').onclick = async () => { if (D.done) { const r = await api('/api/challenge'); D = r.data; return renderDone(); } cur = D.questions.findIndex(q => q.pick == null); renderQ(); };
+  function renderDone() {
+    $('#dScore').textContent = D.score + ' / ' + D.questions.length; $('#dPts').textContent = '+' + D.pts + ' leaderboard points';
+    $('#dMsg').textContent = D.score === 5 ? '🌟 Perfect! Every question right.' : D.score >= 3 ? '👍 Nice work. Check the ones you missed below.' : 'Keep going: practise the topics you missed and try again tomorrow.';
+    $('#dStreak').textContent = D.streak + (D.streak === 1 ? ' day' : ' days'); $('#dEveryone').textContent = D.everyone.avg != null ? D.everyone.avg + ' / 5 (' + D.everyone.done + (D.everyone.done === 1 ? ' person)' : ' people)') : '—'; $('#dNext').textContent = left(D.resetIn);
+    const rev = $('#rev'); rev.innerHTML = '';
+    D.questions.forEach((q, i) => { const d = el('div'); d.appendChild(txt('span', 'mk', q.right ? '✅' : '❌')); const b = el('div', '', ''); b.style.cssText = 'border:0;padding:0;display:block'; const tmp = el('div', '', q.q); b.appendChild(txt('b', '', (i + 1) + '. ' + tmp.textContent.slice(0, 140) + (tmp.textContent.length > 140 ? '…' : ''))); const c2 = el('div', 'small muted', ''); const you = el('span', '', q.choices[q.pick]); c2.append('You: ' + you.textContent + (q.right ? '' : ' · Answer: ' + q.ansText)); b.appendChild(c2); d.appendChild(b); rev.appendChild(d); });
+    show('done');
+  }
+  $('#startBtn').onclick = () => { cur = 0; renderQ(); };
+  document.addEventListener('keydown', e => { if (e.key === 'Enter' && !$('#qv').hidden && !$('#nextBtn').hidden && document.activeElement !== $('#nextBtn')) { e.preventDefault(); $('#nextBtn').click(); } });
+  (async () => {
+    const r = await api('/api/challenge'); $('#loading').hidden = true; if (!r.ok) { $('#loading').hidden = false; $('#loading').textContent = r.data.error || 'Couldn’t load the challenge.'; return; }
+    D = r.data;
+    if (D.done) return renderDone();
+    const next = D.questions.findIndex(q => q.pick != null) >= 0 ? D.questions.findIndex(q => q.pick == null) : -1;
+    if (next >= 0) { cur = next; return renderQ(); }
+    $('#iStreak').textContent = D.streak + (D.streak === 1 ? ' day' : ' days'); $('#iDone').textContent = D.everyone.done; show('intro');
+  })();
+})();
+</script>
+<script src="/help.js" defer></script>
+</body>
+</html>

@@ -154,9 +154,10 @@ main.wrap>.top{background:none;border:0}
         </div>
       </article>
     </div>
-    <div class="tiles ec-hide-study" id="homeTiles">
+    <div class="tiles" id="homeTiles">
+      <a class="card tile" href="/challenge/" id="chTile"><span class="tic" aria-hidden="true">⚡</span><span class="tx"><b>Daily challenge</b><span class="small muted" id="chLine">5 mixed questions · up to 30 points</span></span><span class="go" aria-hidden="true">→</span></a>
       <a class="card tile" href="/leaderboard/"><span class="tic" aria-hidden="true">🏆</span><span class="tx"><b>Leaderboard</b><span class="small muted" id="lbLine">See the top studiers and your place.</span></span><span class="go" aria-hidden="true">→</span></a>
-      <a class="card tile" href="/chat/" data-chat><span class="tic" aria-hidden="true">💬</span><span class="tx"><b>Chat</b><span class="small muted" id="chatLine">Your friends, and a private chat with Beau.</span></span><span class="nb" id="chatN" hidden></span><span class="go" aria-hidden="true">→</span></a>
+      <a class="card tile ec-hide-study" href="/chat/" data-chat><span class="tic" aria-hidden="true">💬</span><span class="tx"><b>Chat</b><span class="small muted" id="chatLine">Your friends, and a private chat with Beau.</span></span><span class="nb" id="chatN" hidden></span><span class="go" aria-hidden="true">→</span></a>
     </div>
   </section>
 
@@ -219,7 +220,7 @@ main.wrap>.top{background:none;border:0}
     if (su) { $('#password').value = ''; $('#confirm').value = ''; } else fillSaved();
   }
   function picked(me) {
-    if (['maths', 'science', 'english', 'feedback', 'message', 'chat', 'leaderboard', 'play', 'me', 'teacher'].includes(next)) { location.replace('/' + next + '/'); return; }
+    if (['maths', 'science', 'english', 'feedback', 'message', 'chat', 'leaderboard', 'play', 'me', 'teacher', 'challenge'].includes(next)) { location.replace('/' + next + '/'); return; }
     if (next === 'admin' && me.admin) { location.replace('/admin/'); return; }
     $('#who').textContent = me.username;
     $('#mark').textContent = 'EC Revisions · Year 8'; $('#title').textContent = 'Hi, ' + me.username.split(' ')[0] + ' 👋'; $('#title').classList.add('hi'); $('#tagline').hidden = true;
@@ -254,6 +255,7 @@ main.wrap>.top{background:none;border:0}
         $('#lbLine').textContent = w ? 'You’re #' + w.rank + ' this week with ' + w.points + ' points.' : 'Study to get on the board this week.';
       }
     } catch (e) { /* offline */ }
+    try { const ch = await api('/api/challenge'); if (ch.ok) { const d = ch.data; $('#chLine').textContent = d.done ? '✅ Done today: ' + d.score + '/5 · 🔥 ' + d.streak + '-day streak' : (d.streak ? '🔥 ' + d.streak + '-day streak: keep it going!' : '5 mixed questions · up to 30 points'); } } catch (e) { /* offline */ }
     const j = window.ecLive ? await window.ecLive() : null, c = j && j.chat;
     if (c) { const n = c.admin ? c.beau : c.requests + c.unreadDm + c.beau; $('#chatN').hidden = !n; $('#chatN').textContent = n > 99 ? '99+' : n; $('#chatLine').textContent = n ? n + ' new — tap to read.' : 'Your friends, and a private chat with Beau.'; }
   }

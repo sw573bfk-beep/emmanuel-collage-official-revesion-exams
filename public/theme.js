@@ -8,6 +8,24 @@
   const mq = window.matchMedia ? matchMedia('(prefers-color-scheme: dark)') : null;
   const isDark = () => root.getAttribute('data-theme') === 'dark' || (!root.getAttribute('data-theme') && mq && mq.matches);
   window.ecTheme = { apply, isDark };
+  // 📲 install like an app: the app description and icons on every page, and the small offline helper
+  (() => {
+    const add = (tag, attrs) => { const e = document.createElement(tag); Object.entries(attrs).forEach(([k, v]) => e.setAttribute(k, v)); document.head.appendChild(e); };
+    if (!document.querySelector('link[rel="manifest"]')) add('link', { rel: 'manifest', href: '/manifest.webmanifest' });
+    add('meta', { name: 'theme-color', content: '#2453d6' }); add('link', { rel: 'apple-touch-icon', href: '/icons/apple-touch-icon.png' });
+    add('meta', { name: 'apple-mobile-web-app-capable', content: 'yes' }); add('meta', { name: 'apple-mobile-web-app-title', content: 'EC Revisions' });
+    if (!document.querySelector('link[rel="icon"]')) add('link', { rel: 'icon', type: 'image/png', href: '/icons/favicon-32.png' });
+    if ('serviceWorker' in navigator) window.addEventListener('load', () => { navigator.serviceWorker.register('/sw.js').catch(() => {}); });
+    window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); window.ecInstallPrompt = e; const it = document.getElementById('ecMenuInstall'); if (it) it.hidden = false; });
+    window.addEventListener('appinstalled', () => { window.ecInstallPrompt = null; const it = document.getElementById('ecMenuInstall'); if (it) it.hidden = true; });
+  })();
+  const standalone = () => (window.matchMedia && matchMedia('(display-mode: standalone)').matches) || window.navigator.standalone === true;
+  const isIOS = () => /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+  async function installApp() {
+    if (window.ecInstallPrompt) { const p = window.ecInstallPrompt; window.ecInstallPrompt = null; p.prompt(); try { await p.userChoice; } catch (e) { /* closed */ } const it = document.getElementById('ecMenuInstall'); if (it) it.hidden = true; return; }
+    const msg = isIOS() ? 'On iPhone or iPad (in Safari): tap the Share button (the square with an arrow), then “Add to Home Screen”.' : 'In Chrome or Edge: open the browser menu (⋮), then “Install EC Revisions” or “Add to Home screen”. On a laptop there may also be an install icon at the right of the address bar.';
+    if (window.ecConfirm) await window.ecConfirm({ title: '📲 Install EC Revisions', text: msg, yes: 'Got it', no: 'Close' }); else alert(msg);
+  }
   function label(b) {
     const d = isDark();
     b.innerHTML = '<span aria-hidden="true">' + (d ? '☀️' : '🌙') + '</span><span class="tl">' + (d ? 'Light' : 'Dark') + '</span>';
@@ -92,6 +110,7 @@
     if (!home) m.appendChild(menuItem('🏠', 'Home (subjects)', '/'));
     if (!admin) m.appendChild(menuItem('👤', 'My profile', '/me/'));
     if (staff) m.appendChild(menuItem('🛠️', 'Admin dashboard', '/admin/'));
+    m.appendChild(menuItem('⚡', 'Daily challenge', '/challenge/'));
     m.appendChild(menuItem('🏆', 'Leaderboard', '/leaderboard/'));
     const cn = mkEl('span', 'nb'); cn.hidden = true; cn.id = 'ecMenuChatN'; m.appendChild(menuItem('💬', 'Chat', '/chat/', cn));
     m.appendChild(menuItem('🎮', 'Play with friends', '/play/'));
@@ -100,6 +119,7 @@
     const fo = menuItem('🎯', 'Focus mode', () => { closeMenu(); const f = document.getElementById('ecFocusBtn'); if (f) f.click(); }); fo.id = 'ecMenuFocus'; fo.hidden = true; m.appendChild(fo);
     const dk = menuItem(isDark() ? '☀️' : '🌙', isDark() ? 'Light mode' : 'Dark mode', () => { const t = isDark() ? 'light' : 'dark'; apply(t); try { localStorage.setItem(KEY, t); } catch (e) { /* storage blocked */ } const b = document.querySelector('.theme-btn'); if (b) label(b); dk.querySelector('.ic').textContent = isDark() ? '☀️' : '🌙'; dk.lastChild.textContent = isDark() ? 'Light mode' : 'Dark mode'; });
     m.appendChild(dk);
+    const inst = menuItem('📲', 'Install the app', () => { closeMenu(); installApp(); }); inst.id = 'ecMenuInstall'; inst.hidden = standalone() || !(window.ecInstallPrompt || isIOS()); m.appendChild(inst);
     m.appendChild(menuItem('🔁', 'Switch account', () => { closeMenu(); if (window.ecSwitchAccounts) window.ecSwitchAccounts(); else location.href = '/?switch=1'; }));
     const out = menuItem('🚪', 'Log out', () => { closeMenu(); if (window.ecLogout) window.ecLogout(); else location.href = '/?logout=1'; }); out.classList.add('out'); m.appendChild(out);
     return m;

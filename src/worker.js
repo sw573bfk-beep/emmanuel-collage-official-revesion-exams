@@ -31,6 +31,14 @@ import msgJs from '../public/msg.js';
 import chatHtml from '../public/chat/index.html';
 import boardHtml from '../public/leaderboard/index.html';
 import playHtml from '../public/play/index.html';
+import challengeHtml from '../public/challenge/index.html';
+import manifestJson from '../public/manifest.webmanifest';
+import swJs from '../public/sw.js';
+import icon192 from '../public/icons/icon-192.png';
+import icon512 from '../public/icons/icon-512.png';
+import iconMask from '../public/icons/maskable-512.png';
+import iconApple from '../public/icons/apple-touch-icon.png';
+import iconFav from '../public/icons/favicon-32.png';
 import englishHtml from '../public/english/index.html';
 import { HUGO } from './english/hugo.js';
 import playSciJs from '../public/play/sci.js';
@@ -40,6 +48,7 @@ import { handleCommunity, handleCommunityAdmin, addPoints, logBlocked, FAKE_NOTE
 import { TOPICS as MATHS_TOPICS } from './gen/maths-game.js';
 import { TOPICS as SCI_TOPICS } from './gen/sci-game.js';
 import { handleGames } from './games.js';
+import { handleInsights, handleInsightsAdmin } from './insights.js';
 import { rewardStatus, keepIds, canUse, lookView, lookIds, savedRewards, rewardPopup } from './rewards.js';
 
 const HTML = 'text/html; charset=utf-8';
@@ -59,6 +68,10 @@ const PAGES = {
   '/study.js': [studyJs, 'text/javascript; charset=utf-8'],
   '/chat/': [chatHtml, HTML], '/chat/index.html': [chatHtml, HTML],
   '/leaderboard/': [boardHtml, HTML], '/leaderboard/index.html': [boardHtml, HTML],
+  // 📲 install like an app: the app description, the offline helper and the icons
+  '/manifest.webmanifest': [manifestJson, 'application/manifest+json; charset=utf-8'], '/sw.js': [swJs, 'text/javascript; charset=utf-8'],
+  '/icons/icon-192.png': [icon192, 'image/png'], '/icons/icon-512.png': [icon512, 'image/png'], '/icons/maskable-512.png': [iconMask, 'image/png'], '/icons/apple-touch-icon.png': [iconApple, 'image/png'], '/apple-touch-icon.png': [iconApple, 'image/png'], '/favicon.ico': [iconFav, 'image/png'], '/icons/favicon-32.png': [iconFav, 'image/png'],
+  '/challenge/': [challengeHtml, HTML], '/challenge/index.html': [challengeHtml, HTML],
   '/play/': [playHtml, HTML], '/play/index.html': [playHtml, HTML], '/play/sci.js': [playSciJs, 'text/javascript; charset=utf-8'], '/play/maths.js': [playMathsJs, 'text/javascript; charset=utf-8'],
   '/maths/': [mathsHtml, HTML], '/maths/index.html': [mathsHtml, HTML], '/maths/app.js': [mathsJs, 'text/javascript; charset=utf-8'],
   '/english/': [englishHtml, HTML], '/english/index.html': [englishHtml, HTML],
@@ -69,7 +82,7 @@ const PAGES = {
 // Browser protections on every page: no framing (clickjacking), no scripts or connections to other sites,
 // HTTPS only, no camera/mic/location. Pages only ever talk to this site.
 const CSP = ["default-src 'self'", "script-src 'self' 'unsafe-inline'", "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com", "font-src 'self' https://fonts.gstatic.com",
-  "img-src 'self' data: blob:", "connect-src 'self'", "object-src 'none'", "base-uri 'none'", "form-action 'self'", "frame-ancestors 'none'", "worker-src 'none'", "manifest-src 'self'"].join('; ');
+  "img-src 'self' data: blob:", "connect-src 'self'", "object-src 'none'", "base-uri 'none'", "form-action 'self'", "frame-ancestors 'none'", "worker-src 'self'", "manifest-src 'self'"].join('; ');
 const SECURITY_HEADERS = { 'x-content-type-options': 'nosniff', 'referrer-policy': 'same-origin', 'x-frame-options': 'DENY', 'content-security-policy': CSP,
   'strict-transport-security': 'max-age=31536000; includeSubDomains', 'permissions-policy': 'camera=(), microphone=(), geolocation=(), payment=(), usb=()',
   'cross-origin-opener-policy': 'same-origin', 'cross-origin-resource-policy': 'same-origin' };
@@ -91,7 +104,7 @@ BODY['/theme.js'] = BODY['/theme.js'].replace("src + '?v=' + (document.documentE
 function servePage(url) {
   // "Message Beau" is now the ✉️ Beau tab of the Chat page
   if (url.pathname === '/message' || url.pathname.startsWith('/message/')) { const q = new URLSearchParams(url.search); q.set('tab', 'beau'); return Response.redirect(url.origin + '/chat/?' + q, 302); }
-  if (['/maths', '/science', '/english', '/admin', '/feedback', '/chat', '/privacy', '/me', '/teacher', '/leaderboard', '/play'].includes(url.pathname)) return Response.redirect(url.origin + url.pathname + '/' + url.search, 301);
+  if (['/maths', '/science', '/english', '/admin', '/feedback', '/chat', '/privacy', '/me', '/teacher', '/leaderboard', '/play', '/challenge'].includes(url.pathname)) return Response.redirect(url.origin + url.pathname + '/' + url.search, 301);
   const page = PAGES[url.pathname];
   if (!page) return new Response(notFoundHtml, { status: 404, headers: { 'content-type': HTML, ...SECURITY_HEADERS } });
   const type = page[1];
@@ -450,6 +463,8 @@ async function handleApi(req, env, url) {
   }
   if (!user) return err(401, 'Not logged in');
   // 🎉 the reward pop-ups have been shown
+  // 📈 answer log, your stats, My mistakes and the 🎯 daily challenge
+  const insight = await handleInsights(req, env, url, user); if (insight) return insight;
   if (path === '/api/rewards/seen' && method === 'POST') { await env.DB.prepare('UPDATE users SET rewards_new = NULL WHERE id = ?').bind(user.id).run(); return json({ ok: true }); }
   // 🎨 choose your picture, frame and title (only from what you've unlocked)
   if (path === '/api/look' && method === 'POST') {
@@ -966,6 +981,7 @@ async function handleAdmin(req, env, path, method, me, role = 'owner') {
   if (!owner && !/^\/api\/admin\/(overview|chat\/|study|study-all|feedback|feedback-status)$/.test(path) && !path.startsWith('/api/admin/chat/')) return err(403, 'Only Beau can do this.');
   if (!owner && path === '/api/admin/overview') return json({ now: t, role, roleName: ROLE_NAME[role], staff: true });
   const cma = await handleCommunityAdmin(req, env, url, role); if (cma) return cma;
+  const ina = await handleInsightsAdmin(req, env, url); if (ina) return ina; // 📈 Beau only (helpers are stopped above)
   if (path === '/api/admin/overview' && method === 'GET') {
     const since30 = dayKey(t - 29 * 86400), since7 = dayKey(t - 6 * 86400);
     const [users, perUser, perUser7, today_, visits, daily, signups, progress, sciProgress, unlockRows, codeCount, fbCount] = await env.DB.batch([
@@ -1293,6 +1309,8 @@ async function nightly(env) {
   await env.DB.batch([
     env.DB.prepare("DELETE FROM chat_reports WHERE kind = 'dm' AND message_id IN (SELECT id FROM dm_messages WHERE created_at < ?)").bind(cut),
     env.DB.prepare('DELETE FROM dm_messages WHERE created_at < ?').bind(cut),
+    env.DB.prepare('DELETE FROM answers WHERE at < ?').bind(now() - 365 * 86400), // the answer log keeps a year
+    env.DB.prepare('DELETE FROM challenge WHERE day < ?').bind(dayKey(now() - 400 * 86400)),
     env.DB.prepare('DELETE FROM rate_hits WHERE at < ?').bind(now() - 2 * 86400)
   ]);
 }

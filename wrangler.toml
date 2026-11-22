@@ -19,7 +19,12 @@ D1_DATABASE_ID = "b7b26faf-65cf-4d7b-98ad-da731ff695c3"
 # so a deploy is a single upload.
 [[rules]]
 type = "Text"
-globs = ["**/*.html", "**/*.css", "**/public/**/*.js", "**/public/*.js"]
+globs = ["**/*.html", "**/*.css", "**/public/**/*.js", "**/public/*.js", "**/*.webmanifest"]
+fallthrough = false
+
+[[rules]]
+type = "Data"
+globs = ["**/*.png"]
 fallthrough = false
 
 # Created with:  npx wrangler d1 create ec-revisions-db --location oc (Oceania, close to Queensland)
