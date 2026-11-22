@@ -5,7 +5,7 @@
 <script src="/acct.js"></script>
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex">
-<title>Peak Rider · Arcade</title>
+<title>Neon Rush · Arcade</title>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Lexend:wght@400;500;600&family=JetBrains+Mono:wght@400;600&display=swap">
 <link rel="stylesheet" href="/site.css">
@@ -13,42 +13,36 @@
 .wrap{max-width:1280px}
 main > .ec-back{align-self:flex-start}
 .ar-top h1{margin:0;font-size:clamp(1.8rem,5vw,2.6rem)}
-.stage{position:relative;width:100%;aspect-ratio:16/9;max-height:calc(100vh - 40px);border-radius:18px;overflow:hidden;background:#0b1530;box-shadow:0 14px 40px rgb(0 0 0 / .3);touch-action:none;user-select:none;-webkit-user-select:none}
+.stage{position:relative;width:100%;aspect-ratio:16/9;max-height:calc(100vh - 40px);border-radius:18px;overflow:hidden;background:#07031a;box-shadow:0 14px 40px rgb(0 0 0 / .35);touch-action:none;user-select:none;-webkit-user-select:none}
 .stage:fullscreen{border-radius:0;max-height:none;width:100vw;height:100vh;aspect-ratio:auto}
 .stage canvas{display:block;width:100%;height:100%;outline:none}
-.hud{position:absolute;inset:0;pointer-events:none;color:#fff;font-family:var(--f-display);text-shadow:0 2px 6px rgb(0 0 0 / .55)}
+.hud{position:absolute;inset:0;pointer-events:none;color:#fff;font-family:var(--f-display);text-shadow:0 0 10px rgb(255 60 220 / .6),0 2px 4px rgb(0 0 0 / .6)}
 .hud[hidden]{display:none}
-.hud .tl{position:absolute;left:16px;top:12px}.hud .tr{position:absolute;right:16px;top:12px;text-align:right}
-.hud .spd{position:absolute;left:16px;bottom:14px}.hud .spd b{font-size:clamp(2rem,5vw,3.4rem);line-height:1}.hud .spd span{font:700 .9rem var(--f-body);opacity:.9;margin-left:4px}
-.hud .score{font-size:clamp(1.4rem,3.4vw,2.2rem);font-weight:800;line-height:1}.hud small{display:block;font:600 .8rem var(--f-body);opacity:.92}
-.hud .combo{position:absolute;right:16px;bottom:16px;font-size:clamp(1.4rem,3.6vw,2.4rem);font-weight:800;color:#ffd84d}
-.hud .prog{position:absolute;left:50%;top:14px;transform:translateX(-50%);width:min(40%,360px);height:8px;border-radius:99px;background:rgb(255 255 255 / .25);overflow:hidden}.hud .prog i{display:block;height:100%;width:0;background:linear-gradient(90deg,#7dd3fc,#fff)}
-.trick{position:absolute;left:50%;top:30%;transform:translate(-50%,-50%);text-align:center;font-weight:800;font-size:clamp(1.4rem,4.4vw,3rem);opacity:0;transition:opacity .25s,transform .25s;white-space:nowrap}
-.trick.show{opacity:1;transform:translate(-50%,-60%)}.trick small{font:700 clamp(.9rem,2vw,1.2rem) var(--f-body)}.trick.bad{color:#ff8a8a}
-.count{position:absolute;left:50%;top:42%;transform:translate(-50%,-50%);font:800 clamp(3rem,10vw,7rem) var(--f-display);color:#fff;text-shadow:0 4px 18px rgb(0 0 0 / .5)}
-.count[hidden]{display:none}
-.over{position:absolute;inset:0;display:grid;place-items:center;padding:16px;background:rgb(6 10 30 / .5);backdrop-filter:blur(2px);overflow:auto}
+.hud .tl{position:absolute;left:18px;top:12px}.hud .tr{position:absolute;right:18px;top:12px;text-align:right}
+.hud .big{font-size:clamp(1.6rem,4vw,2.6rem);font-weight:800;line-height:1}.hud small{display:block;font:600 .8rem var(--f-body);opacity:.9}
+.hud .coins{font:800 clamp(1.1rem,2.6vw,1.6rem) var(--f-display);color:#ffe066;margin-top:6px}
+.hud .spd{position:absolute;left:18px;bottom:14px;font:800 clamp(1.3rem,3vw,2rem) var(--f-display)}.hud .spd span{font:600 .8rem var(--f-body);opacity:.85}
+.pups{position:absolute;right:18px;bottom:16px;display:flex;flex-direction:column;gap:6px;align-items:flex-end}
+.pup{display:flex;align-items:center;gap:8px;font:700 .9rem var(--f-body);background:rgb(0 0 0 / .35);border-radius:999px;padding:4px 10px 4px 6px}
+.pup i{display:block;width:70px;height:6px;border-radius:9px;background:rgb(255 255 255 / .2);overflow:hidden}.pup i b{display:block;height:100%;background:currentColor}
+.toast{position:absolute;left:50%;top:26%;transform:translateX(-50%);font:800 clamp(1.3rem,3.6vw,2.4rem) var(--f-display);opacity:0;transition:opacity .2s;white-space:nowrap}
+.toast.show{opacity:1}
+.over{position:absolute;inset:0;display:grid;place-items:center;padding:16px;background:rgb(7 3 26 / .55);backdrop-filter:blur(3px);overflow:auto}
 .over[hidden]{display:none}
-.panel{width:100%;max-width:760px;background:var(--card);color:var(--ink);border-radius:20px;padding:20px;display:flex;flex-direction:column;gap:12px;box-shadow:0 14px 40px rgb(0 0 0 / .4)}
-.panel h2{margin:0;font-size:1.7rem}
-.maps{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
-@media (max-width:640px){.maps{grid-template-columns:1fr}}
-.map{position:relative;border:0;border-radius:16px;padding:14px;min-height:150px;color:#fff;text-align:left;cursor:pointer;display:flex;flex-direction:column;justify-content:flex-end;gap:4px;font:inherit;box-shadow:inset 0 -60px 60px -20px rgb(0 0 0 / .45);transition:transform .12s}
-.map:hover,.map:focus-visible{transform:translateY(-3px)}
-.map b{font:800 1.3rem var(--f-display)}.map span{font-size:.85rem;opacity:.95}.map .lvl{position:absolute;top:10px;left:12px;font:700 .75rem var(--f-body);background:rgb(0 0 0 / .35);border-radius:99px;padding:3px 9px}
-.map .pb{position:absolute;top:10px;right:12px;font:700 .75rem var(--f-body);background:rgb(255 255 255 / .9);color:#111;border-radius:99px;padding:3px 9px}
-.keys{font-size:.875rem;color:var(--muted);line-height:1.6}
-.kbd{display:inline-block;border:1.5px solid var(--rule);border-bottom-width:3px;border-radius:6px;padding:0 6px;font:600 .8rem var(--f-mono);background:var(--card-2);color:var(--ink)}
-.opts{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.panel{width:100%;max-width:520px;background:var(--card);color:var(--ink);border-radius:20px;padding:22px;display:flex;flex-direction:column;gap:12px;box-shadow:0 14px 40px rgb(0 0 0 / .45);text-align:center}
+.panel h2{margin:0;font-size:2rem}
+.logo{font:800 clamp(2.2rem,6vw,3.6rem)/1 var(--f-display);background:linear-gradient(90deg,#20e3ff,#ff3fd8 60%,#ffd23f);-webkit-background-clip:text;background-clip:text;color:transparent;filter:drop-shadow(0 0 12px rgb(255 63 216 / .45))}
+.keys{font-size:.9rem;color:var(--muted);line-height:1.7}
+.kbd{display:inline-block;min-width:1.6em;border:1.5px solid var(--rule);border-bottom-width:3px;border-radius:6px;padding:0 6px;font:600 .85rem var(--f-mono);background:var(--card-2);color:var(--ink)}
+.panel .btn{justify-content:center;font-size:1.15rem;min-height:52px}
+.opts{display:flex;gap:8px;flex-wrap:wrap;align-items:center;justify-content:center}
 .seg{display:inline-flex;border:1.5px solid var(--rule);border-radius:10px;overflow:hidden}.seg button{font:inherit;font-weight:600;background:var(--card);color:var(--ink);border:0;padding:7px 12px;cursor:pointer}.seg button+button{border-left:1.5px solid var(--rule)}.seg button.on{background:var(--accent);color:var(--accent-ink,#fff)}
-.res{display:grid;grid-template-columns:1fr auto;gap:4px 16px;font-size:1rem}.res .tot{font:800 1.6rem var(--f-display);border-top:1.5px solid var(--rule);padding-top:6px}
-.newbest{font-weight:800;color:#b45309;background:#fef3c7;border-radius:999px;padding:4px 12px;align-self:flex-start}
-.newbest[hidden]{display:none}
+.res{display:grid;grid-template-columns:1fr auto;gap:4px 16px;text-align:left}.res .tot{font:800 1.6rem var(--f-display);border-top:1.5px solid var(--rule);padding-top:6px}
+.newbest{font-weight:800;color:#b45309;background:#fef3c7;border-radius:999px;padding:4px 12px;align-self:center}.newbest[hidden]{display:none}
 .pad{position:absolute;bottom:14px;display:none;gap:10px;pointer-events:auto}
 .pad.l{left:14px}.pad.r{right:14px}
-.pad button{width:64px;height:64px;border-radius:50%;border:2px solid rgb(255 255 255 / .6);background:rgb(0 0 0 / .28);color:#fff;font-size:1.5rem;touch-action:none}
-.pad button.big{width:78px;height:78px;font-size:1rem;font-weight:800}
-.coarse .pad{display:flex}.coarse .hud .spd{bottom:96px}.coarse .hud .combo{bottom:110px}
+.pad button{width:66px;height:66px;border-radius:50%;border:2px solid rgb(255 255 255 / .55);background:rgb(0 0 0 / .3);color:#fff;font:800 1rem var(--f-body);touch-action:none}
+.coarse .pad{display:flex}.coarse .hud .spd{bottom:96px}.coarse .pups{bottom:100px}
 .side{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,300px),1fr));gap:14px}
 .lbtabs{display:flex;gap:6px;flex-wrap:wrap}.lbtabs button{font:inherit;font-weight:600;border:1.5px solid var(--rule);background:var(--card);color:var(--ink);border-radius:999px;padding:6px 12px;cursor:pointer}
 .lbtabs button.on{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
@@ -57,66 +51,63 @@ main > .ec-back{align-self:flex-start}
 .lb .row.me{border-color:var(--accent);background:var(--accent-soft)}
 .lb .rk{font:800 1rem var(--f-display);text-align:center}.lb .av{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;background:var(--accent);color:var(--accent-ink);font-weight:800}
 .lb .nm{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:600}.lb .sc{font:700 .95rem var(--f-mono)}
-.iconbtn{position:absolute;top:66px;right:16px;pointer-events:auto;border:0;border-radius:10px;background:rgb(0 0 0 / .35);color:#fff;font:600 .85rem var(--f-body);padding:6px 10px;cursor:pointer}
+.iconbtn{position:absolute;top:12px;left:50%;transform:translateX(-50%);pointer-events:auto;border:0;border-radius:10px;background:rgb(0 0 0 / .35);color:#fff;font:600 .85rem var(--f-body);padding:6px 10px;cursor:pointer}
+.flash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none;transition:opacity .35s}
 </style>
 <script src="/theme.js"></script>
 <link rel="stylesheet" href="/theme.css?v=1">
 </head>
 <body>
 <main class="wrap stack">
-  <div class="ar-top"><span class="mark">EC Revisions · Arcade</span><h1>🏂 Peak Rider</h1><p class="muted" style="margin:4px 0 0">Ride down the mountain, build speed, land big tricks. Highest score on each track wins. Just for fun: it doesn’t change your points, study time or anything on your account.</p></div>
-  <p id="loading" class="muted">Loading the mountain…</p>
+  <div class="ar-top"><span class="mark">EC Revisions · Arcade</span><h1>⚡ Neon Rush</h1><p class="muted" style="margin:4px 0 0">Hoverboard through the neon city. It starts easy and gets faster and faster: how long can you last? Just for fun: it doesn’t change your points, study time or anything on your account.</p></div>
+  <p id="loading" class="muted">Powering up…</p>
   <div id="closedBox" class="card stack" hidden style="text-align:center"><h2>📚 Study mode is on</h2><p class="muted">The arcade is closed while Beau has study mode on. Come back later!</p><a class="btn" href="/" style="align-self:center">Back to studying</a></div>
-  <div id="noGl" class="card stack" hidden><h2>😕 This device can’t show 3D</h2><p class="muted">Peak Rider needs WebGL (3D graphics). Try a different browser or computer.</p></div>
+  <div id="noGl" class="card stack" hidden><h2>😕 This device can’t show 3D</h2><p class="muted">Neon Rush needs WebGL (3D graphics). Try a different browser or computer.</p></div>
   <div id="app" class="stack" hidden>
     <div class="stage" id="stage">
-      <canvas id="cv" tabindex="0" aria-label="Peak Rider 3D snowboarding game"></canvas>
+      <canvas id="cv" tabindex="0" aria-label="Neon Rush 3D runner game"></canvas>
+      <div class="flash" id="flash"></div>
       <div class="hud" id="hud" hidden>
-        <div class="prog"><i id="hProg"></i></div>
-        <div class="tl"><div class="score" id="hScore">0</div><small>score</small></div>
-        <div class="tr"><div class="score" id="hTime">0.0</div><small id="hMap"></small></div>
+        <div class="tl"><div class="big" id="hScore">0</div><small>score</small><div class="coins" id="hCoins">🪙 0</div></div>
+        <div class="tr"><div class="big" id="hDist">0 m</div><small>distance</small></div>
         <button class="iconbtn" type="button" id="pauseBtn" aria-label="Pause">⏸ Pause</button>
-        <div class="spd"><b id="hSpd">0</b><span>km/h</span></div>
-        <div class="combo" id="hCombo"></div>
-        <div class="trick" id="trick"></div>
-        <div class="count" id="count" hidden></div>
+        <div class="spd"><span id="hSpd">0</span> <span>km/h</span></div>
+        <div class="pups" id="pups"></div>
+        <div class="toast" id="toast"></div>
       </div>
-      <div class="pad l" id="padL"><button type="button" data-k="left" aria-label="Left">◀</button><button type="button" data-k="right" aria-label="Right">▶</button></div>
-      <div class="pad r" id="padR"><button type="button" data-k="flip" aria-label="Flip or tuck">↻</button><button type="button" class="big" data-k="jump" aria-label="Jump">JUMP</button></div>
-      <div class="over" id="menuOv"><div class="panel">
-        <h2>🏂 Pick a track</h2>
-        <div class="maps" id="maps"></div>
-        <div class="keys"><b>Controls:</b> <span class="kbd">←</span> <span class="kbd">→</span> carve (in the air: spin) · <span class="kbd">↓</span> tuck for speed (in the air: backflip) · <span class="kbd">↑</span> frontflip · hold <span class="kbd">Space</span> and let go to jump (longer hold = higher) · <span class="kbd">R</span> restart · <span class="kbd">Esc</span> pause<br>
-          <b>Tips:</b> land straight (spins in halves: 180, 360, 540…) to keep your combo and get a speed boost. Fly through 🟡 rings, grind the rails, dodge the rocks.</div>
-        <div class="opts"><span class="small muted">Graphics:</span><div class="seg" id="qSeg"><button type="button" data-q="720">720p</button><button type="button" data-q="1080">1080p</button></div>
-          <button class="btn quiet sm" type="button" id="fsBtn">⛶ Full screen</button><label class="small"><input type="checkbox" id="ghostChk" checked> 👻 Race my best run</label></div>
+      <div class="pad l"><button type="button" data-k="left" aria-label="Steer left">◀</button><button type="button" data-k="right" aria-label="Steer right">▶</button></div>
+      <div class="pad r"><button type="button" data-k="down" aria-label="Slide">SLIDE</button><button type="button" data-k="up" aria-label="Jump">JUMP</button></div>
+      <div class="over" id="startOv"><div class="panel">
+        <div class="logo">NEON RUSH</div>
+        <p class="keys" style="margin:0"><span class="kbd">A</span> <span class="kbd">D</span> steer · <span class="kbd">W</span> or <span class="kbd">Space</span> jump · <span class="kbd">S</span> slide (in the air: drop fast) · <span class="kbd">Esc</span> pause<br>
+          Jump the 🟧 barriers, slide under the 🔴 lasers, dodge the blocks, cars and drones. Grab 🪙 coins and power-ups: 🧲 magnet · 🛡️ shield · ⚡ boost.</p>
+        <button class="btn" type="button" id="playBtn">▶ Play</button>
+        <div class="opts"><span class="small muted">Graphics:</span><div class="seg" id="qSeg"><button type="button" data-q="720">720p</button><button type="button" data-q="1080">1080p</button></div><button class="btn quiet sm" type="button" id="fsBtn">⛶ Full screen</button></div>
+        <p class="small muted" id="bestLine" style="margin:0"></p>
       </div></div>
-      <div class="over" id="endOv" hidden><div class="panel" style="max-width:440px">
-        <h2 id="endTitle">🏁 Finished!</h2>
+      <div class="over" id="endOv" hidden><div class="panel" style="max-width:420px">
+        <h2 id="endTitle">💥 Wiped out!</h2>
         <div class="res" id="endRes"></div>
-        <span class="newbest" id="newBest" hidden>🎉 New personal best!</span>
+        <span class="newbest" id="newBest" hidden>🎉 New best today!</span>
         <p class="small muted" id="endRank" style="margin:0"></p>
-        <div class="row" style="gap:8px"><button class="btn" type="button" id="againBtn">↻ Ride again</button><button class="btn quiet" type="button" id="menuBtn">🗺️ Tracks</button></div>
-        <p class="keys" style="margin:0">or press <span class="kbd">Space</span> to ride again</p>
+        <button class="btn" type="button" id="againBtn">↻ Run again</button>
+        <p class="keys" style="margin:0">or press <span class="kbd">Space</span></p>
       </div></div>
-      <div class="over" id="pauseOv" hidden><div class="panel" style="max-width:340px;text-align:center"><h2>⏸ Paused</h2>
-        <button class="btn" type="button" id="resumeBtn">▶ Keep riding</button><button class="btn quiet" type="button" id="restartBtn">↻ Restart</button><button class="btn quiet" type="button" id="quitBtn">🗺️ Tracks</button></div></div>
+      <div class="over" id="pauseOv" hidden><div class="panel" style="max-width:320px"><h2>⏸ Paused</h2><button class="btn" type="button" id="resumeBtn">▶ Keep going</button><button class="btn quiet" type="button" id="quitBtn">↻ Restart</button></div></div>
     </div>
     <div class="side">
       <section class="card stack">
-        <div class="row" style="justify-content:space-between;align-items:center;gap:8px"><h2 style="margin:0;font-size:1.2rem">🏆 Leaderboards</h2><div class="lbtabs" id="rangeTabs"><button type="button" data-r="all" class="on">All time</button><button type="button" data-r="week">This week</button></div></div>
-        <div class="lbtabs" id="trackTabs"></div>
+        <div class="row" style="justify-content:space-between;align-items:center;gap:8px"><h2 style="margin:0;font-size:1.2rem">🏆 Top runners</h2><div class="lbtabs" id="rangeTabs"><button type="button" data-r="today" class="on">Today</button><button type="button" data-r="week">This week</button></div></div>
         <div class="lb" id="lb"></div>
         <p class="small" id="lbMe" style="margin:0"></p>
       </section>
       <section class="card stack" style="gap:6px">
-        <h2 style="margin:0;font-size:1.1rem">🤙 Trick list</h2>
-        <p class="small muted" style="margin:0">Spin with ← → in the air: <b>180</b>, <b>360</b>, <b>540</b>, <b>720</b>… · Flip with ↑ ↓: <b>Frontflip</b>, <b>Backflip</b>, doubles and triples · Spin <b>and</b> flip together for a <b>Cork</b> (like a Cork 720) · Land on a rail to <b>grind</b>. Clean landings build your combo (up to ×10) and your speed. Crash and the combo’s gone.</p>
-        <p class="small muted" style="margin:0">🏁 Faster finishes get a time bonus too. 🔜 Live races with friends are coming next.</p>
+        <h2 style="margin:0;font-size:1.1rem">⚡ How it works</h2>
+        <p class="small muted" style="margin:0">Your score is your distance plus 10 for every coin (power-ups like ⚡ boost double it for a few seconds). You start slow, but the city keeps getting faster. 🧲 pulls coins to you · 🛡️ saves you from one hit · ⚡ makes you smash through everything.</p>
       </section>
     </div>
   </div>
 </main>
-<script type="module" src="/arcade/rider.js?v=1"></script>
+<script type="module" src="/arcade/runner.js?v=1"></script>
 </body>
 </html>

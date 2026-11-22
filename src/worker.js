@@ -34,7 +34,7 @@ import boardHtml from '../public/leaderboard/index.html';
 import playHtml from '../public/play/index.html';
 import challengeHtml from '../public/challenge/index.html';
 import arcadeHtml from '../public/arcade/index.html';
-import riderJs from '../public/arcade/rider.js';
+import runnerJs from '../public/arcade/runner.js';
 import threeJs from '../public/arcade/three.min.js';
 import { handleArcade } from './arcade.js';
 import newsHtml from '../public/news/index.html';
@@ -83,7 +83,7 @@ const PAGES = {
   '/news/': [newsHtml, HTML], '/news/index.html': [newsHtml, HTML],
   '/challenge/': [challengeHtml, HTML], '/challenge/index.html': [challengeHtml, HTML],
   '/arcade/': [arcadeHtml, HTML], '/arcade/index.html': [arcadeHtml, HTML],
-  '/arcade/rider.js': [riderJs, 'text/javascript; charset=utf-8'], '/arcade/three.min.js': [threeJs, 'text/javascript; charset=utf-8'],
+  '/arcade/runner.js': [runnerJs, 'text/javascript; charset=utf-8'], '/arcade/three.min.js': [threeJs, 'text/javascript; charset=utf-8'],
   '/play/': [playHtml, HTML], '/play/index.html': [playHtml, HTML], '/play/sci.js': [playSciJs, 'text/javascript; charset=utf-8'], '/play/maths.js': [playMathsJs, 'text/javascript; charset=utf-8'],
   '/maths/': [mathsHtml, HTML], '/maths/index.html': [mathsHtml, HTML], '/maths/app.js': [mathsJs, 'text/javascript; charset=utf-8'],
   '/english/': [englishHtml, HTML], '/english/index.html': [englishHtml, HTML],
@@ -112,7 +112,7 @@ const versioned = html => html.replace(SHARED_RE, (m, q1, js, q2, css) => js ? q
 const BODY = {};
 for (const [k, [body, type]] of Object.entries(PAGES)) BODY[k] = type === HTML ? versioned(body) : body;
 // 🏂 the arcade game script gets a fingerprint too, so a new version reaches everyone straight away
-for (const k of ['/arcade/', '/arcade/index.html']) BODY[k] = BODY[k].replace('/arcade/rider.js?v=1', '/arcade/rider.js?v=' + fp(riderJs));
+for (const k of ['/arcade/', '/arcade/index.html']) BODY[k] = BODY[k].replace('/arcade/runner.js?v=1', '/arcade/runner.js?v=' + fp(runnerJs));
 // theme.js loads notice.js and study.js itself: give it their fingerprints too
 BODY['/theme.js'] = BODY['/theme.js'].replace("src + '?v=' + (document.documentElement.dataset.build || '1')", "src + '?v=' + ({ '/notice.js': '" + VER['/notice.js'] + "', '/study.js': '" + VER['/study.js'] + "', '/timer.js': '" + VER['/timer.js'] + "' })[src]");
 function servePage(url) {
