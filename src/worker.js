@@ -40,8 +40,6 @@ import { handleCommunity, handleCommunityAdmin, addPoints, logBlocked, FAKE_NOTE
 import { TOPICS as MATHS_TOPICS } from './gen/maths-game.js';
 import { TOPICS as SCI_TOPICS } from './gen/sci-game.js';
 import { handleGames } from './games.js';
-import { handleBase } from './base/api.js';
-import baseHtml from '../public/base/index.html';
 import { rewardStatus, keepIds, canUse, lookView, lookIds, savedRewards, rewardPopup } from './rewards.js';
 
 const HTML = 'text/html; charset=utf-8';
@@ -452,8 +450,6 @@ async function handleApi(req, env, url) {
   }
   if (!user) return err(401, 'Not logged in');
   // 🎉 the reward pop-ups have been shown
-  // 🏰 Study Base: Beau only while it's being tested
-  if (path === '/api/base' || path.startsWith('/api/base/')) { if (!isAdmin(user, env)) return err(404, 'Not found'); return handleBase(req, env, url, user); }
   if (path === '/api/rewards/seen' && method === 'POST') { await env.DB.prepare('UPDATE users SET rewards_new = NULL WHERE id = ?').bind(user.id).run(); return json({ ok: true }); }
   // 🎨 choose your picture, frame and title (only from what you've unlocked)
   if (path === '/api/look' && method === 'POST') {
@@ -1309,13 +1305,6 @@ export default {
       catch (e) { console.error(e); return err(500, 'Something went wrong on the server. Try again.'); }
     }
     if (req.method !== 'GET' && req.method !== 'HEAD') return new Response('Method not allowed', { status: 405 });
-    if (url.pathname === '/admin/base' || url.pathname.startsWith('/admin/base/')) { // 🏰 Study Base: Beau only while it's being tested
-      let owner = false; // Beau may be logged in on any of the account slots (the account switcher), so check them all
-      for (let s = 0; s < MAX_SLOTS && !owner; s++) owner = isAdmin(await currentUser(req, env, s), env);
-      if (!owner) return Response.redirect(url.origin + '/', 302);
-      if (url.pathname !== '/admin/base/') return Response.redirect(url.origin + '/admin/base/', 302);
-      return new Response(versioned(baseHtml), { headers: { 'content-type': HTML, 'cache-control': 'no-store', ...SECURITY_HEADERS } });
-    }
     return servePage(url);
   }
 };

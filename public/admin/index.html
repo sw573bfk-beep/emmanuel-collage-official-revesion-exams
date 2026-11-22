@@ -161,7 +161,7 @@ details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
 <main class="wrap">
   <div class="head">
     <div><span class="mark">admin</span><h1>EC Revisions dashboard</h1><p class="muted small" id="updated">Loading…</p></div>
-    <div class="row"><a class="btn sm" href="/admin/base/" id="baseLink" hidden>🏰 Study Base (test)</a><button class="btn quiet sm" type="button" id="refresh">↻ Refresh</button><a class="btn quiet sm" href="/">Back to subjects</a></div>
+    <div class="row"><button class="btn quiet sm" type="button" id="refresh">↻ Refresh</button><a class="btn quiet sm" href="/">Back to subjects</a></div>
   </div>
   <div id="denied" class="card stack" hidden><h2>Admin only</h2><p class="muted">This page is only for the site admin. Log in with the admin account to see it.</p><a class="btn" href="/" style="align-self:flex-start">Go to EC Revisions</a></div>
   <nav class="amenu" id="amenu" aria-label="Jump to a section" hidden></nav>
@@ -414,7 +414,7 @@ details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
     if (r.status === 403) { $('#denied').hidden = false; $('#updated').textContent = ''; return; }
     if (!r.ok) { $('#updated').textContent = 'Couldn’t load. Retrying in 30 seconds.'; return; }
     if (r.data.staff) return loadStaff(r.data);
-    ROLE = 'owner'; $('#baseLink').hidden = false; // 🏰 the base game test: Beau only
+    ROLE = 'owner';
     data = r.data; const T = data.totals;
     $('#dash').hidden = false; $('#amenu').hidden = false;
     $('#tOnline').textContent = T.online; $('#tUsers').textContent = T.users; $('#tUsersL').textContent = 'accounts (' + T.signupsToday + ' new today, ' + T.signupsWeek + ' this week)' + (T.leftOut ? ' · ' + T.leftOut + ' left out of stats' : '');
