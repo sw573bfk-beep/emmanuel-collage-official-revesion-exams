@@ -51,25 +51,30 @@ const wallMat = new THREE.ShaderMaterial({ side: THREE.BackSide, transparent: tr
     float h21(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7))) * 43758.5453); }
     float n2(vec2 p){ vec2 i = floor(p), f = fract(p); f = f*f*(3.0-2.0*f); return mix(mix(h21(i), h21(i+vec2(1,0)), f.x), mix(h21(i+vec2(0,1)), h21(i+vec2(1,1)), f.x), f.y); }
     float fbm(vec2 p){ float a = 0.5, s = 0.0; for (int i = 0; i < 4; i++){ s += a * n2(p); p *= 2.03; a *= 0.5; } return s; }
-    void main(){ float th = atan(vP.x, -vP.y); float u = th * R; float s = vP.z - dist; vec3 c; float a = 1.0;
+    void main(){ float th = atan(vP.x, -vP.y); float u = th * R; float s = vP.z - dist; vec3 c; float a = 1.0; float C = 6.2831853 * R, t01 = (th + 3.14159265) / 6.2831853;
       if (mode < 0.5) { // RETRO: dark tube, glowing grid, pink/cyan bands
-        vec2 g = vec2(u / 2.4, s / 2.4); vec2 f = abs(fract(g) - 0.5); float l = smoothstep(0.46, 0.5, max(f.x, f.y));
+        vec2 g = vec2(u / (C / 16.0), s / 2.4); vec2 f = abs(fract(g) - 0.5); float l = smoothstep(0.46, 0.5, max(f.x, f.y));
         vec3 lc = mix(vec3(1.0,0.25,0.85), vec3(0.13,0.89,1.0), 0.5 + 0.5 * sin(th));
         float band = smoothstep(0.92, 1.0, abs(sin(s * 0.13)));
         c = vec3(0.03,0.01,0.08) + lc * (l * 0.9 + band * 0.35);
+        float lane = smoothstep(0.455, 0.49, abs(fract(u / (C / 8.0)) - 0.5)) * step(0.55, fract(s / 3.0)); c += vec3(1.0,0.95,1.0) * lane * 0.8; // light dashes rushing past
       } else if (mode < 1.5) { // WOODS: bark and roots, moss, sunlight through gaps in the leaves
-        float b = fbm(vec2(u * 0.35, s * 0.08)); float root = smoothstep(0.75, 0.95, abs(sin(u * 0.9 + fbm(vec2(u * 0.2, s * 0.05)) * 6.0)));
-        vec3 bark = mix(vec3(0.16,0.10,0.06), vec3(0.32,0.22,0.13), b); vec3 moss = vec3(0.14,0.32,0.10) * (0.6 + 0.6 * fbm(vec2(u * 0.6, s * 0.2)));
-        c = mix(bark, moss, smoothstep(0.45, 0.7, fbm(vec2(u * 0.25 + 3.0, s * 0.06)))) + root * vec3(0.18,0.12,0.06);
-        float top = smoothstep(0.2, -0.9, cos(th)); float leaf = smoothstep(0.55, 0.8, fbm(vec2(u * 0.5, s * 0.12 + time * 0.1)));
-        c = mix(c, vec3(0.35,0.62,0.18), top * leaf * 0.8) + vec3(1.0,0.85,0.45) * top * smoothstep(0.78, 0.9, fbm(vec2(u * 0.4 + 7.0, s * 0.1))) * 0.6;
+        #define FW(su, ss, o) mix(fbm(vec2(t01 * C * su + o, s * ss)), fbm(vec2((t01 - 1.0) * C * su + o, s * ss)), t01)
+        float b = FW(0.35, 0.08, 0.0); float root = smoothstep(0.75, 0.95, abs(sin(u * 1.0 + FW(0.2, 0.05, 11.0) * 6.0)));
+        vec3 bark = mix(vec3(0.16,0.10,0.06), vec3(0.32,0.22,0.13), b); vec3 moss = vec3(0.14,0.32,0.10) * (0.6 + 0.6 * FW(0.6, 0.2, 5.0));
+        c = mix(bark, moss, smoothstep(0.45, 0.7, FW(0.25, 0.06, 3.0))) + root * vec3(0.18,0.12,0.06);
+        float top = smoothstep(0.2, -0.9, cos(th)); float leaf = smoothstep(0.55, 0.8, mix(fbm(vec2(t01 * C * 0.5, s * 0.12 + time * 0.1)), fbm(vec2((t01 - 1.0) * C * 0.5, s * 0.12 + time * 0.1)), t01));
+        c = mix(c, vec3(0.35,0.62,0.18), top * leaf * 0.8) + vec3(1.0,0.85,0.45) * top * smoothstep(0.78, 0.9, FW(0.4, 0.1, 7.0)) * 0.6;
         c *= 1.15;
+        float slit = smoothstep(0.93, 1.0, sin(s * 0.55 + sin(th * 3.0) * 0.8)); c += vec3(1.0,0.8,0.4) * slit * 0.22; // shafts of light every few metres
+        vec2 gc = vec2(u / (C / 24.0), s / 2.2); float glow = step(0.9, h21(vec2(mod(floor(gc.x), 24.0), floor(gc.y)))) * smoothstep(0.35, 0.0, length(fract(gc) - 0.5)); c += vec3(0.6,1.0,0.4) * glow * 1.3; // glowing fungi
       } else { // OCEAN: a glass tube: frames, caustics, see-through
-        vec2 g = vec2(u / 3.2, s / 3.0); vec2 f = abs(fract(g) - 0.5); float fr = smoothstep(0.47, 0.5, max(f.x, f.y));
-        float ca = pow(abs(sin(u * 0.7 + sin(s * 0.3 + time) * 1.5) * sin(s * 0.5 + cos(u * 0.4 - time * 0.8))), 3.0);
+        vec2 g = vec2(u / (C / 12.0), s / 3.0); vec2 f = abs(fract(g) - 0.5); float fr = smoothstep(0.47, 0.5, max(f.x, f.y));
+        float ca = pow(abs(sin(th * 4.0 + sin(s * 0.3 + time) * 1.5) * sin(s * 0.5 + cos(th * 2.0 - time * 0.8))), 3.0);
         float up = smoothstep(0.3, -1.0, cos(th));
         c = vec3(0.10,0.45,0.70) * (0.55 + up * 0.6) + vec3(0.6,0.95,1.0) * ca * 0.35 + vec3(0.85,0.97,1.0) * fr * 0.9;
         a = 0.28 + fr * 0.6 + ca * 0.15;
+        float dots = smoothstep(0.18, 0.0, length(vec2(fract(u / (C / 12.0)) - 0.5, (fract(s / 1.8) - 0.5) * 1.6))) * step(0.5, fract(u / (C / 6.0))); c += vec3(1.0,0.95,0.7) * dots * 1.4; a = max(a, dots); // running lights
       }
       float fog = smoothstep(30.0, 170.0, vD); gl_FragColor = vec4(mix(c, fogc, fog), mode > 1.5 ? mix(a, 1.0, fog) : 1.0); }` });
 const wallGeo = new THREE.CylinderGeometry(RAD, RAD, LEN, 112, 1, true); wallGeo.rotateX(Math.PI / 2); wallGeo.translate(0, 0, -LEN / 2 + 20);
@@ -99,6 +104,9 @@ const sparkle = floaters(deco.retro, 160, 0xff9af0, 0.16, 0.5, RAD - 0.3);
 // leaf clusters on the woods rings
 const leafMat = new THREE.SpriteMaterial({ map: DOT, color: 0x5fae3a, transparent: true, opacity: 0.85, depthWrite: false }), leaves = [];
 for (let i = 0; i < RINGS; i++) for (let k = 0; k < 7; k++) { const sp = new THREE.Sprite(leafMat); const th = Math.PI + (R0() - 0.5) * 3.4; sp.userData = { i, th }; sp.scale.set(2.6, 2.0, 1); deco.woods.add(sp); leaves.push(sp); }
+// wall lamps (tiny glowing tiles stuck to the walls: they whip past and sell the speed)
+const WL = 150, wlMat = new THREE.MeshBasicMaterial({ color: 0xffffff }), wallLamps = new THREE.InstancedMesh(new THREE.BoxGeometry(0.14, 0.04, 2.6), wlMat, WL); wallLamps.frustumCulled = false; scene.add(wallLamps);
+const wlData = []; for (let i = 0; i < WL; i++) wlData.push({ th: R0() * TAU, z: -R0() * 175 });
 // speed lines
 const SL = 80, slMat = new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false });
 const speedLines = new THREE.InstancedMesh(new THREE.BoxGeometry(0.025, 0.025, 5), slMat, SL); speedLines.frustumCulled = false; scene.add(speedLines);
@@ -165,6 +173,7 @@ function applyWorld() {
   Object.entries(deco).forEach(([k, g]) => { g.visible = k === world; });
   OM.block.color.set(P.block); OM.block.emissive.set(P.blockE); OM.block.emissiveIntensity = 0.25; OM.blockE.color.set(P.edge); OM.edge2.color.set(P.edge2); OM.barrier.color.set(P.barrier); OM.barrier.emissive.set(P.barrier); OM.barrier.emissiveIntensity = 0.3; OM.barrierTop.color.set(P.edge2);
   OM.gate.color.set(P.gate); OM.gate.emissive.set(P.gateE); OM.gate.emissiveIntensity = 0.12; OM.gateE.color.set(P.gateE); OM.pod.color.set(P.pod); OM.podE.color.set(P.podE); OM.spin.color.set(P.spin); OM.spin.emissive.set(P.spin);
+  wlMat.color.set(world === 'retro' ? 0xff7af0 : world === 'woods' ? 0xc8ff6a : 0xfff2b0);
   edgeMat.color.set(P.trail); under.material.color.set(P.trail); trail.material.uniforms.color.value.set(P.trail); boardMat.emissive.set(P.trail);
 }
 
@@ -173,15 +182,15 @@ const S = { running: false, paused: false, dead: false, t: 0, dist: 0, sd: 0, co
 let keys = {}, token = null, best = 0;
 function resetRun() {
   for (const o of active.splice(0)) freeObs(o); coins.forEach(c => { c.on = false; }); pupItems.forEach(p => { p.on = false; p.g.visible = false; });
-  Object.assign(S, { running: true, paused: false, dead: false, t: 0, dist: 0, sd: 0, coins: 0, bonus: 0, v: 15, th: 0, w: 0, h: 0, vh: 0, inv: 0, shield: false, magnet: 0, boost: 0, nextSpawn: 130, nextPup: 450 + R0() * 200, freeTh: 0, deathT: 0, lastMark: 0, shake: 0, jumpBuf: 0, tpCool: 0, camTh: 0, warp: 0 });
+  Object.assign(S, { running: true, paused: false, dead: false, t: 0, dist: 0, sd: 0, coins: 0, bonus: 0, v: 22, th: 0, w: 0, h: 0, vh: 0, inv: 0, shield: false, magnet: 0, boost: 0, nextSpawn: 170, nextPup: 450 + R0() * 200, freeTh: 0, deathT: 0, lastMark: 0, shake: 0, jumpBuf: 0, tpCool: 0, camTh: 0, warp: 0, airT: 0, flip: 0, big: false, squash: 0, thump: 0, tp: null });
   keys = {}; trailAl.fill(0); spLife.fill(0);
   for (let i = 0; i < 16; i++) addCoin(i * 0.4, 0.9, -40 - i * 5); // a spiral of coins to get you started: ride up the wall!
 }
-const speedAt = t => 15 + 57 * (1 - Math.exp(-t / 95));
+const speedAt = t => 22 + 52 * (1 - Math.exp(-t / 80)); // m/s: about 80 km/h at the start, building fast
 function toast(t, col) { const e = $('#toast'); e.textContent = t; e.style.color = col || '#fff'; e.classList.add('show'); clearTimeout(toast.t); toast.t = setTimeout(() => e.classList.remove('show'), 1100); }
 // ✨ one set of obstacles, always with a way through (and sometimes the quickest way is to teleport)
 function spawnRow(z) {
-  const d = clamp((S.v - 15) / 57, 0, 1), roll = R0(); let ft = S.freeTh + (R0() - 0.5) * (1.2 + d * 2); S.freeTh = ft;
+  const d = clamp((S.v - 22) / 52, 0, 1), roll = R0(); let ft = S.freeTh + (R0() - 0.5) * (1.2 + d * 2); S.freeTh = ft;
   const coinLine = (th, n, h = 0.9) => { for (let i = 0; i < n; i++) addCoin(th, h, z + 6 - i * 3); };
   const spiral = (th0, n, dir) => { for (let i = 0; i < n; i++) addCoin(th0 + dir * i * 0.22, 0.9, z + 8 - i * 2.4); };
   if (roll < 0.26) { // ▣ blocks around the ring
@@ -211,7 +220,9 @@ function hitTest(o) {
 function smash(o) { o.smashed = true; burst(onWall(S.th, 1, o.z, V2), 40, 9); o.g.visible = false; S.bonus += 50; }
 function die() { if (S.dead) return; S.dead = true; S.deathT = 0; S.shake = 0.5; burst(onWall(S.th, 1, 0, V2), 90, 11); flash(0.7); }
 function flash(op) { const f = $('#flash'); f.style.transition = 'none'; f.style.opacity = op; requestAnimationFrame(() => { f.style.transition = 'opacity .35s'; f.style.opacity = 0; }); }
-function teleport() { if (S.tpCool > 0 || S.dead) return; burst(onWall(S.th, 0.8, 0, V2), 24, 6); S.th += Math.PI; S.camTh += Math.PI; S.tpCool = 0.45; S.warp = 1; burst(onWall(S.th, 0.8, 0, V2), 24, 6); flash(0.35); }
+function teleport() { if (S.tpCool > 0 || S.dead || S.tp) return; burst(onWall(S.th, 0.6, 0, V2), 24, 6); S.tp = { t: 0, dur: 0.3, from: S.th, dir: S.w >= 0 ? 1 : -1 }; S.h = 0; S.vh = 0; S.big = false; S.flip = 0; S.tpCool = 0.55; S.warp = 1; }
+const ease = t => t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+const tpPos = (T, k, lift, v = new THREE.Vector3()) => { const a = onWall(T.from, lift, 0, new THREE.Vector3()), b = onWall(T.from + Math.PI, lift, 0, new THREE.Vector3()); return v.copy(a).lerp(b, k); }; // straight across, through the middle
 function step(dt) {
   if (S.dead) { S.deathT += dt; S.v *= Math.exp(-dt * 6); if (S.deathT > 0.9 && S.running) endRun(); }
   else {
@@ -219,18 +230,23 @@ function step(dt) {
     const steer = (keys.right ? 1 : 0) - (keys.left ? 1 : 0), lat = 10 + S.v * 0.08; // m/s round the tube
     S.w += clamp(steer * lat - S.w, -80 * dt, 80 * dt); S.th += S.w / RAD * dt;
     if (S.jumpBuf > 0) S.jumpBuf -= dt; if (S.tpCool > 0) S.tpCool -= dt;
-    if (S.h <= 0 && S.jumpBuf > 0) { S.vh = 10.5; S.h = 0.001; S.jumpBuf = 0; burst(onWall(S.th, 0.2, 0.4, V2), 10, 3); }
-    if (S.h > 0 || S.vh > 0) { S.vh -= (S.vh > 0 ? 34 : 40) * dt; S.h += S.vh * dt; if (S.h <= 0) { S.h = 0; S.vh = 0; } }
+    if (S.h <= 0 && S.jumpBuf > 0 && !S.tp) { S.vh = 8.2; S.h = 0.001; S.jumpBuf = 0; S.airT = 0; S.flip = 0; S.squash = -0.35; burst(onWall(S.th, 0.2, 0.4, V2), 12, 3); }
+    if (S.h > 0 || S.vh > 0) { S.airT += dt;
+      const hold = keys.up && S.vh > 0 && S.airT < 0.42; // keep holding W: you float up higher
+      S.vh -= (hold ? 13 : S.vh > 0 ? 34 : 42) * dt; S.h += S.vh * dt;
+      if (hold && S.airT > 0.16) S.big = true; if (S.big) S.flip = Math.min(TAU, S.flip + dt * 9.5); // a big jump gets a 360 spin
+      if (S.h <= 0) { S.h = 0; const hard = -S.vh; S.vh = 0; S.big = false; S.flip = 0; S.squash = clamp(hard / 30, 0.15, 0.45); S.thump = clamp(hard / 40, 0.1, 0.35); burst(onWall(S.th, 0.1, 0.2, V2), 16 + Math.round(hard), 4); } }
+    if (S.tp) { S.tp.t += dt; if (S.tp.t >= S.tp.dur) { S.th = S.tp.from + Math.PI; S.camTh = S.th; S.tp = null; S.squash = 0.3; S.thump = 0.2; burst(onWall(S.th, 0.3, 0, V2), 30, 6); } }
     S.dist += S.v * dt; S.sd += S.v * dt * (S.boost > 0 ? 2 : 1);
     if (S.inv > 0) S.inv -= dt; if (S.magnet > 0) S.magnet -= dt; if (S.boost > 0) { S.boost -= dt; if (S.boost <= 0) S.inv = 1; }
     const mark = Math.floor(S.dist / 1000); if (mark > S.lastMark) { S.lastMark = mark; toast('🚀 ' + nf(mark * 1000) + ' m!', '#7df9ff'); }
   }
   const move = S.v * dt;
-  S.nextSpawn -= move; if (!S.dead && S.nextSpawn <= 0) { spawnRow(SPAWN_Z); const d = clamp((S.v - 15) / 57, 0, 1); S.nextSpawn = Math.max(18, S.v * lerp(1.35, 0.68, d)); }
+  S.nextSpawn -= move; if (!S.dead && S.nextSpawn <= 0) { spawnRow(SPAWN_Z); const d = clamp((S.v - 22) / 52, 0, 1); S.nextSpawn = Math.max(20, S.v * lerp(1.25, 0.66, d)); }
   S.nextPup -= move; if (!S.dead && S.nextPup <= 0) { S.nextPup = 520 + R0() * 380; const kinds = Object.keys(PU); addPup(kinds[Math.floor(R0() * kinds.length)], S.freeTh, SPAWN_Z + 30); }
   for (let i = active.length - 1; i >= 0; i--) { const o = active[i]; o.z += move + o.vz * dt; if (o.spin) o.g.rotation.z += o.spin * dt; o.g.position.z = o.z;
     if (o.z > 12) { active.splice(i, 1); freeObs(o); continue; }
-    if (!S.dead && !o.smashed && hitTest(o)) { if (S.boost > 0) smash(o); else if (S.inv > 0) { /* flashing after a hit */ } else if (S.shield) { S.shield = false; S.inv = 1.2; smash(o); toast('🛡️ Shield saved you!', '#7df9ff'); } else die(); } }
+    if (!S.dead && !o.smashed && !S.tp && hitTest(o)) { if (S.boost > 0) smash(o); else if (S.inv > 0) { /* flashing after a hit */ } else if (S.shield) { S.shield = false; S.inv = 1.2; smash(o); toast('🛡️ Shield saved you!', '#7df9ff'); } else die(); } }
   for (const c of coins) if (c.on) { c.z += move; if (S.magnet > 0 && c.z > -30 && c.z < 2) { c.th += angDiff(S.th, c.th) * Math.min(1, dt * 8); c.h += (S.h + 0.9 - c.h) * Math.min(1, dt * 8); c.z += -c.z * Math.min(1, dt * 5); }
     if (!S.dead && Math.abs(c.z) < 0.8 && Math.abs(angDiff(c.th, S.th)) * RAD < 0.8 && c.h > S.h - 0.3 && c.h < S.h + 1.9) { c.on = false; S.coins++; S.bonus += S.boost > 0 ? 10 : 0; burst(onWall(c.th, c.h, c.z, V2), 6, 3); }
     else if (c.z > 8) c.on = false; }
@@ -266,12 +282,15 @@ function frame(ts) {
   else if (!S.running && !S.dead) { const m = 16 * dt; wallMat.uniforms.dist.value -= m; menuDist += m; S.th += dt * 0.25; S.camTh = S.th; } // a gentle ride round the tube behind the menu
   const dist = -wallMat.uniforms.dist.value, mv = (S.running && !S.paused ? S.v : 16) * dt;
   // the rider stands on the wall at angle th, rotated so its "up" points to the middle of the tube
-  const bob = S.h > 0 ? 0 : Math.sin(tAll * 7) * 0.04; player.position.copy(onWall(S.th, S.h + 0.15 + bob, 0, V)); player.rotation.set(0, 0, S.th);
-  rig.rotation.z = -S.w * 0.035; rig.rotation.y = -S.w * 0.02; body.rotation.z = S.h > 0 ? Math.min(0.5, S.vh * -0.03) : 0;
+  const bob = S.h > 0 ? 0 : Math.sin(tAll * 7) * 0.04, tk = S.tp ? ease(Math.min(1, S.tp.t / S.tp.dur)) : 0;
+  if (S.tp) { tpPos(S.tp, tk, 0.15, player.position); player.rotation.set(0, 0, S.tp.from + Math.PI * tk * S.tp.dir); } else { player.position.copy(onWall(S.th, S.h + 0.15 + bob, 0, V)); player.rotation.set(0, 0, S.th); }
+  S.squash *= Math.exp(-dt * 9); S.thump *= Math.exp(-dt * 10);
+  const st = S.h > 0 ? clamp(S.vh * 0.025, -0.12, 0.2) : 0; rig.scale.set(1 + S.squash * 0.6 - st * 0.4, 1 - S.squash + st, 1 + S.squash * 0.6 - st * 0.4); rig.rotation.x = -S.flip; rig.position.set(0, 0.8 - 0.8 * Math.cos(S.flip), 0.8 * Math.sin(S.flip)); // spin round the middle of the body, not the feet
+  rig.rotation.z = -S.w * 0.035; rig.rotation.y = -S.w * 0.02 + (S.tp ? tk * TAU : 0); body.rotation.z = S.h > 0 ? Math.min(0.5, S.vh * -0.03) : 0;
   player.visible = view === 'third' && !(S.inv > 0 && !S.boost && Math.floor(tAll * 14) % 2 === 0) && !(S.dead && S.deathT > 0.05);
   shieldBall.visible = S.shield || S.boost > 0; shieldBall.material.color.set(S.boost > 0 ? 0xffd23f : 0x20e3ff);
   // trail and sparks
-  trailI = (trailI + 1) % TR; onWall(S.th, S.h + 0.2, 0.8, V2); trailPos[trailI * 3] = V2.x; trailPos[trailI * 3 + 1] = V2.y; trailPos[trailI * 3 + 2] = V2.z; for (let i = 0; i < TR; i++) { trailPos[i * 3 + 2] += mv * 0.9; trailAl[i] = Math.max(0, trailAl[i] - dt * 2.4); } trailAl[trailI] = S.dead || !S.running ? 0 : 0.85;
+  trailI = (trailI + 1) % TR; if (S.tp) { tpPos(S.tp, tk, 0.4, V2); burst(V2, 2, 1.5); } else onWall(S.th, S.h + 0.2, 0.8, V2); trailPos[trailI * 3] = V2.x; trailPos[trailI * 3 + 1] = V2.y; trailPos[trailI * 3 + 2] = V2.z; for (let i = 0; i < TR; i++) { trailPos[i * 3 + 2] += mv * 0.9; trailAl[i] = Math.max(0, trailAl[i] - dt * 2.4); } trailAl[trailI] = S.dead || !S.running ? 0 : 0.85;
   trailGeo.attributes.position.needsUpdate = true; trailGeo.attributes.alpha.needsUpdate = true;
   for (let i = 0; i < SP; i++) { if (spLife[i] > 0) { spLife[i] -= dt; spPos[i * 3] += spVel[i * 3] * dt; spPos[i * 3 + 1] += spVel[i * 3 + 1] * dt; spPos[i * 3 + 2] += spVel[i * 3 + 2] * dt + mv; spAl[i] = clamp(spLife[i] * 2, 0, 1); } else spAl[i] = 0; }
   spGeo.attributes.position.needsUpdate = true; spGeo.attributes.alpha.needsUpdate = true;
@@ -289,15 +308,16 @@ function frame(ts) {
   if (world === 'ocean') for (let i = 0; i < FISH; i++) { const f = fishData[i]; f.z += mv * 0.92 - f.sp * dt; if (f.z > 20) f.z -= 220; if (f.z < -200) f.z += 220; const th = f.th + Math.sin(tAll * 0.3 + f.wob) * 0.1;
     Q.setFromAxisAngle(YA, Math.sin(tAll * 3 + f.wob) * 0.25); M4.compose(V.set(Math.sin(th) * f.r, -Math.cos(th) * f.r + Math.sin(tAll + f.wob), f.z), Q, V2.set(f.s, f.s, f.s)); fish.setMatrixAt(i, M4); }
   if (world === 'ocean') fish.instanceMatrix.needsUpdate = true;
+  for (let i = 0; i < WL; i++) { const w = wlData[i]; w.z += mv; if (w.z > 10) { w.z -= 185; w.th = R0() * TAU; } Q.setFromAxisAngle(ZA, w.th); M4.compose(onWall(w.th, 0.03, w.z, V), Q, SC); wallLamps.setMatrixAt(i, M4); } wallLamps.instanceMatrix.needsUpdate = true;
   // speed lines
-  slMat.opacity = clamp((S.v - 26) / 45, 0, 0.5) * (S.running ? 1 : 0); for (let i = 0; i < SL; i++) { const p = slPos[i]; p.z += S.v * dt * 1.7; if (p.z > 8) { p.z -= 90; p.th = R0() * TAU; p.r = 1.5 + R0() * (RAD - 2); } M4.makeTranslation(Math.sin(p.th) * p.r, -Math.cos(p.th) * p.r, p.z); speedLines.setMatrixAt(i, M4); } speedLines.instanceMatrix.needsUpdate = true;
+  slMat.opacity = clamp((S.v - 20) / 40, 0.12, 0.55) * (S.running ? 1 : 0); for (let i = 0; i < SL; i++) { const p = slPos[i]; p.z += S.v * dt * 1.7; if (p.z > 8) { p.z -= 90; p.th = R0() * TAU; p.r = 1.5 + R0() * (RAD - 2); } M4.makeTranslation(Math.sin(p.th) * p.r, -Math.cos(p.th) * p.r, p.z); speedLines.setMatrixAt(i, M4); } speedLines.instanceMatrix.needsUpdate = true;
   // 🎥 camera: rolls with you so the wall under your board is always "down" (third person, or C for first person)
-  S.camTh += angDiff(S.th, S.camTh) * Math.min(1, dt * 14); if (S.warp > 0) S.warp = Math.max(0, S.warp - dt * 3);
-  const up = outward(S.camTh).negate(), base = onWall(S.camTh, S.h, 0, V2);
+  if (S.tp) S.camTh = S.tp.from + Math.PI * tk * S.tp.dir; else S.camTh += angDiff(S.th, S.camTh) * Math.min(1, dt * 14); if (S.warp > 0) S.warp = Math.max(0, S.warp - dt * 2.5);
+  const up = outward(S.camTh).negate(), base = S.tp ? tpPos(S.tp, tk, 0, V2) : onWall(S.camTh, S.h * (view === 'first' ? 0.85 : 0.3) - S.thump * 0.6, 0, V2);
   if (view === 'first') { camera.position.copy(base).addScaledVector(up, 1.55); camera.position.z = 0.25; } else { camera.position.copy(base).addScaledVector(up, 2.35); camera.position.z = 3.9; }
   if (S.shake > 0) { S.shake -= dt; camera.position.x += (R0() - 0.5) * S.shake; camera.position.y += (R0() - 0.5) * S.shake; }
-  camera.up.copy(up); const look = onWall(S.camTh, S.h + (view === 'first' ? 1.35 : 2.3), -16, new THREE.Vector3()); camera.lookAt(look); // (aimed high so your rider sits low on screen)
-  const fov = 68 + clamp((S.v - 15) / 57, 0, 1) * 20 + (S.boost > 0 ? 6 : 0) + S.warp * 14; if (Math.abs(camera.fov - fov) > 0.05) { camera.fov += (fov - camera.fov) * Math.min(1, dt * 6); camera.updateProjectionMatrix(); }
+  camera.up.copy(up); const look = S.tp ? tpPos(S.tp, tk, 0, new THREE.Vector3()).addScaledVector(up, 2.3).setZ(-16) : onWall(S.camTh, S.h * (view === 'first' ? 0.85 : 0.3) + (view === 'first' ? 1.35 : 2.3), -16, new THREE.Vector3()); camera.lookAt(look); // (aimed high so your rider sits low on screen)
+  const fov = 70 + clamp((S.v - 22) / 52, 0, 1) * 20 + (S.boost > 0 ? 6 : 0) + S.warp * 14; if (Math.abs(camera.fov - fov) > 0.05) { camera.fov += (fov - camera.fov) * Math.min(1, dt * 6); camera.updateProjectionMatrix(); }
   wallMat.uniforms.time.value = tAll; key.position.copy(camera.position);
   if (S.running && ts - lastHud > 90) { lastHud = ts; hud(); }
   renderer.render(scene, camera);
