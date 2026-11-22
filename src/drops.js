@@ -35,6 +35,7 @@ export async function roll(env, user, n, kind = 'answer', force = null) {
   // 🎉 something dropped: count it, unlock it (and the frame + picture for EPIC and rarer), keep an equipped title's ×count fresh
   const kept = new Set(parse(u.rewards, [])), look = parse(u.look, null);
   const counts = {}; pulled.forEach(d => { counts[d.id] = (counts[d.id] || 0) + 1; });
+  pulled.forEach(d => W.push(env.DB.prepare('INSERT INTO drop_log (user_id, id, rar, at) VALUES (?, ?, ?, ?)').bind(uid, d.id, d.rar, t))); // 🍀 for "Luckiest of the week"
   for (const [id, c] of Object.entries(counts)) W.push(env.DB.prepare('INSERT INTO drops (user_id, id, n, first_at, last_at) VALUES (?, ?, ?, ?, ?) ON CONFLICT(user_id, id) DO UPDATE SET n = n + excluded.n, last_at = excluded.last_at').bind(uid, id, c, t, t));
   await env.DB.batch(W);
   const have = Object.fromEntries((await env.DB.prepare('SELECT id, n FROM drops WHERE user_id = ? AND id IN (' + Object.keys(counts).map(() => '?').join(',') + ')').bind(uid, ...Object.keys(counts)).all()).results.map(r => [r.id, r.n]));

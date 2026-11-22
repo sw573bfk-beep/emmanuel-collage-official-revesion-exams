@@ -88,6 +88,9 @@
 .dr{display:flex;flex-direction:column;align-items:center;text-align:center;gap:4px;border:2px solid var(--rc);border-radius:14px;padding:12px 8px;background:var(--card);color:var(--ink);font:inherit;cursor:pointer;position:relative}
 .dr .ic{font-size:2.1rem;line-height:1.15}.dr b{font-size:.9rem}.dr span{font-size:.75rem;color:var(--muted);line-height:1.3}
 .dr .n{position:absolute;top:6px;right:8px;font:800 .8rem var(--f-body);color:#fff;background:var(--rc);border-radius:999px;padding:2px 7px}
+.dr .pb{width:100%;height:5px;border-radius:99px;background:var(--card-2);overflow:hidden;border:1px solid var(--rule)}.dr .pb i{display:block;height:100%;background:linear-gradient(90deg,#f5c518,#fff3b0)}
+.dr .sh{font:800 .7rem var(--f-body);letter-spacing:.08em;color:#7a5a00;background:linear-gradient(90deg,#f5c518,#fff3b0,#f5c518);border-radius:999px;padding:2px 8px}
+.dr.shiny{box-shadow:0 0 0 2px #f5c518,0 0 14px 2px rgb(245 197 24 / .5)}
 .dr.lock{border-style:dashed;cursor:default;opacity:.7}.dr.lock .ic{filter:grayscale(1);opacity:.5}
 .dr.sel{box-shadow:0 0 0 3px var(--rc)}
 .cz-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:10px}
@@ -326,7 +329,7 @@
     const pulls = r => D.list.filter(x => x.rar === r).reduce((a, x) => a + x.n, 0);
     sum.append(stat('🎲 ' + nf(D.rolls), 'rolls ever'), stat(nf(D.today.a) + ' / ' + nf(D.today.cap), 'answer rolls today'), stat(D.today.tests + ' / ' + D.today.testCap, 'test bonuses today'),
       stat(nf(D.list.reduce((a, x) => a + x.n, 0)), 'drops pulled'));
-    const how = el('p', 'small muted'); how.innerHTML = '<b>How to roll:</b> every right answer in Maths, Science or the ⚡ daily challenge is 1 roll (up to ' + nf(D.today.cap) + ' a day). Finishing the daily challenge is <b>+' + D.bonus.challenge + '</b> rolls, and finishing a test is <b>+' + D.bonus.test + '</b> (up to ' + D.today.testCap + ' tests a day). Only titles you wear are seen by other people.';
+    const how = el('p', 'small muted'); how.innerHTML = '<b>How to roll:</b> every right answer in Maths, Science or the ⚡ daily challenge is 1 roll (up to ' + nf(D.today.cap) + ' a day). Finishing the daily challenge is <b>+' + D.bonus.challenge + '</b> rolls, and finishing a test is <b>+' + D.bonus.test + '</b> (up to ' + D.today.testCap + ' tests a day). Pull the same drop <b>5 times</b> and it turns <b>✨ shiny</b> (it sparkles wherever you wear it). Only titles you wear are seen by other people. Every Monday, 📰 News names last week’s 🍀 luckiest.';
     const exp = D.rolls / 100, luck = el('p', 'small'); luck.textContent = D.rolls >= 50 ? '🍀 Your luck: about ' + exp.toFixed(1) + ' RARE pulls were expected and you got ' + pulls('rare') + '. ' + (pulls('rare') >= exp ? 'Lucky!' : 'Keep rolling, it evens out.') : '🍀 Roll 50 times to see your luck.';
     g.append(sum, how, luck);
     D.rarities.forEach(R => {
@@ -339,7 +342,8 @@
         const own = x.n > 0, slot = d.look.t === x.id ? 1 : d.look.t2 === x.id ? 2 : 0, b = el('button', 'dr' + (own ? '' : ' lock') + (slot ? ' sel' : '')); b.type = 'button'; b.disabled = !own;
         b.append(el('span', 'ic', own ? x.ic : '❔'), el('b', '', x.name || '???'), el('span', '', own ? (slot ? '✅ Title ' + slot : 'Tap to wear as title ' + tSlot) : 'Not pulled yet'),
           el('span', '', x.people ? 'Pulled by ' + x.people + (x.people === 1 ? ' person' : ' people') : 'Nobody has pulled this yet'));
-        if (own) { b.appendChild(el('span', 'n', '×' + nf(x.n))); b.onclick = () => wear(d, slotKey(), x.id); }
+        if (own) { b.appendChild(el('span', 'n', '×' + nf(x.n))); b.onclick = () => wear(d, slotKey(), x.id);
+          if (x.n >= 5) { b.classList.add('shiny'); b.appendChild(el('span', 'sh', '✨ SHINY')); } else { const pb = el('div', 'pb'), f = el('i'); f.style.width = (x.n / 5 * 100) + '%'; pb.appendChild(f); b.append(pb, el('span', '', x.n + ' / 5 to ✨ shiny')); } }
         grid.appendChild(b);
       });
       sh.appendChild(grid); g.appendChild(sh);

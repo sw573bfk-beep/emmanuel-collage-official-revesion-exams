@@ -1366,6 +1366,7 @@ async function nightly(env) {
     env.DB.prepare("DELETE FROM chat_reports WHERE kind = 'dm' AND message_id IN (SELECT id FROM dm_messages WHERE created_at < ?)").bind(cut),
     env.DB.prepare('DELETE FROM dm_messages WHERE created_at < ?').bind(cut),
     env.DB.prepare('DELETE FROM answers WHERE at < ?').bind(now() - 365 * 86400), // the answer log keeps a year
+    env.DB.prepare('DELETE FROM drop_log WHERE at < ?').bind(now() - 60 * 86400), // 🍀 weekly luck only needs recent pulls
     env.DB.prepare('DELETE FROM challenge WHERE day < ?').bind(dayKey(now() - 400 * 86400)),
     env.DB.prepare('DELETE FROM rate_hits WHERE at < ?').bind(now() - 2 * 86400)
   ]);

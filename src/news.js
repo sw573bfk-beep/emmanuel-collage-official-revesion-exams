@@ -67,6 +67,19 @@ export async function autoNews(env, force) {
       await post(env, { kind: 'winners', title: '🏆 Last week’s winners: ' + top[0].name + (top.length > 1 ? ', ' + top.slice(1).map(x => x.name).join(' and ') : ''), body: top.map((x, i) => medal[i] + ' ' + x.name + ': ' + fmt(Math.floor(x.pts)) + ' points').join('\n') + '\n\nThe leaderboard week ' + when + '. Well done! A new week has started, so everyone’s back to 0.', key: 'winners:' + lastMon });
     }
   }
+  // 🍀 last week's luckiest (from the lucky-drop pulls)
+  if (!(await hasKey(env, 'lucky:' + lastMon))) {
+    const from = Math.floor(Date.parse(lastMon + 'T00:00:00Z') / 1000) - QLD, to = from + 7 * 86400;
+    const rows = (await env.DB.prepare(`SELECT u.username AS name, l.user_id AS uid, l.rar, l.id FROM drop_log l JOIN users u ON u.id = l.user_id
+      WHERE l.at >= ? AND l.at < ? AND u.in_stats = 1 AND lower(u.username) != lower(?)`).bind(from, to, String(env.ADMIN_USERNAME || '')).all()).results;
+    const W = { rare: 1, epic: 10, leg: 100, ins: 1000 }, NAME = { rare: 'RARE', epic: 'EPIC', leg: 'LEGENDARY', ins: 'INSANE' }, P = {};
+    rows.forEach(r => { const x = P[r.uid] || (P[r.uid] = { name: r.name, score: 0, by: {} }); x.score += W[r.rar] || 0; x.by[r.rar] = (x.by[r.rar] || 0) + 1; });
+    const top = Object.values(P).sort((a, b) => b.score - a.score).slice(0, 3);
+    if (top.length) {
+      const line = x => ['ins', 'leg', 'epic', 'rare'].filter(k => x.by[k]).map(k => x.by[k] + ' ' + NAME[k]).join(', ');
+      await post(env, { kind: 'lucky', title: '🍀 Luckiest of the week: ' + top[0].name, body: top.map((x, i) => ['🥇', '🥈', '🥉'][i] + ' ' + x.name + ': ' + line(x)).join('\n') + '\nEvery right answer is a roll. Who’s next?', key: 'lucky:' + lastMon });
+    }
+  }
   // 🏫 last week's class of the week (needs 2+ classes)
   if (!(await hasKey(env, 'classes:' + lastMon))) {
     const cb = await classBoard(env, 0, 'week', lastMon, lastSun), cl = cb.classes.filter(c => c.total > 0);
