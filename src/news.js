@@ -23,7 +23,7 @@ export async function latestNewsId(env) {
   if (Date.now() - latest.at < 30000) return latest.id;
   const r = await env.DB.prepare('SELECT MAX(id) AS id FROM news').first(); latest = { at: Date.now(), id: (r && r.id) || 0 }; return latest.id;
 }
-async function post(env, { kind, title, body: text = '', author = null, authorId = null, key = null, at = now(), pinned = 0 }) {
+export async function post(env, { kind, title, body: text = '', author = null, authorId = null, key = null, at = now(), pinned = 0 }) {
   const r = await env.DB.prepare('INSERT OR IGNORE INTO news (kind, title, body, author, author_id, pinned, key, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)').bind(kind, title, text, author, authorId, pinned, key, at).run();
   latest.at = 0; return r.meta && r.meta.changes;
 }

@@ -60,6 +60,24 @@
     + '.ec-fr-diamond{box-shadow:0 0 0 3px #53c7f0,0 0 0 5px #b8ecff,0 0 10px 3px rgb(83 199 240 / .6)}.ec-fr-fire{box-shadow:0 0 0 3px #ff5a1f,0 0 10px 3px rgb(255 120 30 / .65)}'
     + '.ec-fr-rainbow{animation:ecRainbow 3s linear infinite}@keyframes ecRainbow{0%{box-shadow:0 0 0 3px #ff4d4d,0 0 9px 2px #ff4d4d}20%{box-shadow:0 0 0 3px #ffb700,0 0 9px 2px #ffb700}40%{box-shadow:0 0 0 3px #3ccf4e,0 0 9px 2px #3ccf4e}60%{box-shadow:0 0 0 3px #2fa8ff,0 0 9px 2px #2fa8ff}80%{box-shadow:0 0 0 3px #a34dff,0 0 9px 2px #a34dff}100%{box-shadow:0 0 0 3px #ff4d4d,0 0 9px 2px #ff4d4d}}'
     + '@media (prefers-reduced-motion:reduce){.ec-fr-rainbow{animation:none;box-shadow:0 0 0 3px #a34dff}}'
+
+    // ⭕ frames for questions right (wood → celestial), then the lucky-drop ones
+    + '.ec-fr-wood{box-shadow:0 0 0 3px #8b5a2b,0 0 0 5px #c69c6d}.ec-fr-stone{box-shadow:0 0 0 3px #6f7782,0 0 0 5px #b5bcc6}.ec-fr-copper{box-shadow:0 0 0 3px #c0622d,0 0 0 5px #e9a27a}'
+    + '.ec-fr-plat{box-shadow:0 0 0 3px #c9d6e3,0 0 0 5px #7f97b0,0 0 9px 2px rgb(160 190 220 / .6)}.ec-fr-emerald{box-shadow:0 0 0 3px #12a150,0 0 0 5px #7fe0a8,0 0 10px 2px rgb(18 161 80 / .5)}'
+    + '.ec-fr-sapphire{box-shadow:0 0 0 3px #1f4fd1,0 0 0 5px #7ea2ff,0 0 10px 3px rgb(31 79 209 / .55)}.ec-fr-ruby{box-shadow:0 0 0 3px #c8102e,0 0 0 5px #ff7a8c,0 0 12px 3px rgb(200 16 46 / .55)}'
+    + '.ec-fr-obsidian{box-shadow:0 0 0 3px #1b1030,0 0 0 6px #6b3fa0,0 0 16px 5px rgb(107 63 160 / .7)}'
+    + '.ec-fr-aurora{animation:ecAur 4s ease-in-out infinite}@keyframes ecAur{0%,100%{box-shadow:0 0 0 3px #2fe6a6,0 0 0 6px #1b8cff,0 0 16px 5px rgb(47 230 166 / .7)}50%{box-shadow:0 0 0 3px #a35cff,0 0 0 6px #2fe6a6,0 0 18px 6px rgb(163 92 255 / .7)}}'
+    + '.ec-fr-celestial{animation:ecCel 2.4s ease-in-out infinite}@keyframes ecCel{0%,100%{box-shadow:0 0 0 3px #fff7d1,0 0 0 6px #f4c542,0 0 0 8px #fff,0 0 18px 6px rgb(255 220 120 / .8)}50%{box-shadow:0 0 0 3px #f4c542,0 0 0 6px #fff7d1,0 0 0 8px #f4c542,0 0 26px 10px rgb(255 240 190 / .95)}}'
+    + '.ec-fr-x_epic{animation:ecVoid 1.8s ease-in-out infinite}@keyframes ecVoid{0%,100%{box-shadow:0 0 0 3px #7c3aed,0 0 0 6px #2e1065,0 0 12px 4px rgb(124 58 237 / .7)}50%{box-shadow:0 0 0 3px #c084fc,0 0 0 6px #7c3aed,0 0 24px 9px rgb(192 132 252 / .8)}}'
+    + '.ec-fr-x_leg{animation:ecNova 1.6s ease-in-out infinite}@keyframes ecNova{0%,100%{box-shadow:0 0 0 3px #ffb300,0 0 0 6px #ff5e00,0 0 16px 6px rgb(255 140 0 / .75)}50%{box-shadow:0 0 0 3px #fff3b0,0 0 0 6px #ffb300,0 0 30px 12px rgb(255 200 60 / .9)}}'
+    + '.ec-fr-x_ins{box-shadow:0 0 18px 6px rgb(255 255 255 / .55)}.ec-fr-x_ins::before{content:"";position:absolute;inset:-6px;border-radius:50%;padding:4px;background:conic-gradient(#ff3b3b,#ffb300,#fff200,#3cff6b,#2fd0ff,#4d5bff,#d23bff,#ff3b3b);-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude;animation:ecSpin 2.2s linear infinite;pointer-events:none}@keyframes ecSpin{to{transform:rotate(360deg)}}'
+    + '@media (prefers-reduced-motion:reduce){.ec-fr-aurora,.ec-fr-celestial,.ec-fr-x_epic,.ec-fr-x_leg,.ec-fr-x_ins::before{animation:none}}'
+    // 🎲 lucky-drop titles are coloured by rarity
+    + '.ec-title.r-rare{background:#dbeafe;color:#1d4ed8;box-shadow:inset 0 0 0 1px #60a5fa}.ec-title.r-epic{background:linear-gradient(90deg,#7c3aed,#c026d3);color:#fff}'
+    + '.ec-title.r-leg{background:linear-gradient(90deg,#f59e0b,#fde047,#f59e0b);background-size:200% 100%;color:#3b2300;animation:ecShim 2.5s linear infinite}'
+    + '.ec-title.r-ins{background:linear-gradient(90deg,#ff3b3b,#ffb300,#3cff6b,#2fd0ff,#d23bff,#ff3b3b);background-size:300% 100%;color:#fff;text-shadow:0 1px 2px rgb(0 0 0 / .6);animation:ecShim 3s linear infinite}'
+    + '@keyframes ecShim{to{background-position:-200% 0}}@media (prefers-reduced-motion:reduce){.ec-title.r-leg,.ec-title.r-ins{animation:none}}'
+    + ':root[data-theme="dark"] .ec-title.r-rare{background:#1e3a8a;color:#bfdbfe}@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .ec-title.r-rare{background:#1e3a8a;color:#bfdbfe}}'
     + '.ec-title{display:inline-block;font-size:.75rem;font-weight:700;letter-spacing:.02em;color:var(--accent,#2453d6);background:var(--accent-soft,#e8eefc);border-radius:999px;padding:1px 8px;margin-left:6px;white-space:nowrap;vertical-align:middle}';
   document.head.appendChild(lookCss);
   window.ecAv = (span, look, name) => {
@@ -70,7 +88,42 @@
     if (look && look.f) span.classList.add('ec-fr-' + look.f);
     return span;
   };
-  window.ecTitle = look => { if (!look || !look.t) return null; const s = document.createElement('span'); s.className = 'ec-title'; s.textContent = look.t; return s; };
+  window.ecTitle = look => { if (!look || !look.t) return null; const s = document.createElement('span'); s.className = 'ec-title' + (look.tr ? ' r-' + look.tr : ''); s.textContent = (look.ti ? look.ti + ' ' : '') + look.t + (look.tn > 1 ? ' ×' + look.tn : ''); if (look.tr) s.title = ({ rare: 'RARE drop (1 in 100)', epic: 'EPIC drop (1 in 1,000)', leg: 'LEGENDARY drop (1 in 10,000)', ins: 'INSANE drop (1 in 100,000)' })[look.tr] + (look.tn > 1 ? ', pulled ' + look.tn + ' times' : ''); return s; };
+  // 🍞 a small note at the bottom of the screen
+  window.ecToast = (text, ms = 3500) => { const d = document.createElement('div'); d.setAttribute('role', 'status'); d.textContent = text; d.style.cssText = 'position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:2600;background:var(--ink,#111);color:var(--card,#fff);border-radius:12px;padding:10px 16px;font-weight:600;box-shadow:0 8px 24px rgb(0 0 0 / .25);max-width:calc(100vw - 24px)'; document.body.appendChild(d); setTimeout(() => d.remove(), ms); };
+  // 🎲 LUCKY DROP pop-up. RARE: a card at the bottom. EPIC and rarer: the whole screen, with a burst.
+  const dropQ = []; let dropOn = false;
+  const RAR = { rare: { n: 'RARE', c: '#2563eb', odds: '1 in 100' }, epic: { n: 'EPIC', c: '#9333ea', odds: '1 in 1,000' }, leg: { n: 'LEGENDARY', c: '#f59e0b', odds: '1 in 10,000' }, ins: { n: 'INSANE', c: '#ff3b8d', odds: '1 in 100,000' } };
+  window.ecDrops = list => { (list || []).forEach(d => dropQ.push(d)); if (!dropOn) nextDrop(); };
+  function nextDrop() {
+    const d = dropQ.shift(); if (!d) { dropOn = false; return; } dropOn = true;
+    if (!document.getElementById('ecDropCss')) { const st = document.createElement('style'); st.id = 'ecDropCss';
+      st.textContent = '.ec-drop-bg{position:fixed;inset:0;z-index:2700;display:grid;place-items:center;padding:16px;background:rgb(8 6 20 / .72);animation:ecDf .25s ease-out}'
+        + '.ec-drop{position:relative;width:min(380px,100%);text-align:center;background:var(--card,#fff);color:var(--ink,#111);border-radius:22px;padding:26px 20px 18px;border:3px solid var(--rc);box-shadow:0 0 0 6px color-mix(in srgb,var(--rc) 30%,transparent),0 20px 60px rgb(0 0 0 / .45);animation:ecDp .55s cubic-bezier(.2,1.6,.4,1)}'
+        + '.ec-drop.toast{position:fixed;left:50%;bottom:calc(18px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);z-index:2700;padding:14px 16px;display:flex;align-items:center;gap:12px;text-align:left;animation:ecDt .45s cubic-bezier(.2,1.4,.4,1)}'
+        + '.ec-drop .lab{display:inline-block;font:800 .8rem/1 var(--f-body,system-ui);letter-spacing:.14em;color:#fff;background:var(--rc);border-radius:999px;padding:6px 12px}'
+        + '.ec-drop .big{font-size:4.2rem;line-height:1.1;margin:14px 0 4px;display:block;animation:ecDb 1.4s ease-in-out infinite}.ec-drop.toast .big{font-size:2.2rem;margin:0;animation:none}'
+        + '.ec-drop h2{margin:6px 0 2px;font-size:1.6rem}.ec-drop.toast h2{font-size:1.1rem;margin:4px 0 0}.ec-drop p{margin:4px 0;color:var(--muted,#555);font-size:.95rem}'
+        + '.ec-drop .acts{display:flex;gap:8px;justify-content:center;margin-top:14px}.ec-drop.toast .acts{margin:0;flex:none;flex-direction:column}'
+        + '.ec-drop button{font:700 1rem var(--f-body,system-ui);border-radius:12px;padding:10px 16px;cursor:pointer;border:1.5px solid var(--rule,#ccc);background:var(--card,#fff);color:inherit}.ec-drop button.w{background:var(--rc);border-color:var(--rc);color:#fff}.ec-drop.toast button{padding:7px 12px;font-size:.875rem}'
+        + '.ec-drop .rays{position:absolute;inset:-60px;z-index:-1;border-radius:50%;background:repeating-conic-gradient(from 0deg,color-mix(in srgb,var(--rc) 55%,transparent) 0 10deg,transparent 10deg 20deg);animation:ecSpin 8s linear infinite;-webkit-mask:radial-gradient(closest-side,#000 40%,transparent);mask:radial-gradient(closest-side,#000 40%,transparent)}'
+        + '.ec-drop.ins{background:linear-gradient(160deg,#1a0b2e,#3b0f5c 50%,#0b2a4a);color:#fff}.ec-drop.ins p{color:#e9d5ff}.ec-drop.ins button:not(.w){background:rgb(255 255 255 / .12);color:#fff;border-color:rgb(255 255 255 / .45)}.ec-drop.ins .lab{background:linear-gradient(90deg,#ff3b3b,#ffb300,#3cff6b,#2fd0ff,#d23bff);background-size:300% 100%;animation:ecShim 2s linear infinite}'
+        + '@keyframes ecDf{from{opacity:0}}@keyframes ecDp{from{opacity:0;transform:scale(.4) rotate(-6deg)}}@keyframes ecDt{from{opacity:0;transform:translate(-50%,30px)}}@keyframes ecDb{50%{transform:scale(1.12) rotate(4deg)}}'
+        + '@media (prefers-reduced-motion:reduce){.ec-drop,.ec-drop-bg,.ec-drop .big,.ec-drop .rays{animation:none}}';
+      document.head.appendChild(st); }
+    const R0 = RAR[d.rar] || RAR.rare, big = d.rar !== 'rare';
+    const box = mkEl('div', 'ec-drop' + (big ? '' : ' toast') + (d.rar === 'ins' ? ' ins' : '')); box.style.setProperty('--rc', R0.c); box.setAttribute('role', big ? 'alertdialog' : 'status'); box.setAttribute('aria-label', R0.n + ' drop: ' + d.name);
+    const txt = mkEl('div'); txt.append(mkEl('span', 'lab', '🎲 ' + R0.n + ' DROP'), mkEl('h2', '', d.name), mkEl('p', '', R0.odds + ' per roll · ' + (d.n > 1 ? 'you’ve pulled it ×' + d.n : 'your first one!')));
+    (d.unlocks || []).forEach(u => txt.append(mkEl('p', '', '🔓 Also unlocked the ' + (u.k === 'f' ? 'frame' : 'picture') + ': ' + (u.k === 'a' ? u.v + ' ' : '') + u.name)));
+    const acts = mkEl('div', 'acts'), wear = mkEl('button', 'w', 'Wear it'), ok = mkEl('button', '', big ? 'Nice!' : '✕'); wear.type = ok.type = 'button'; if (!big) ok.setAttribute('aria-label', 'Close');
+    acts.append(wear, ok);
+    let bg = null; const end = () => { clearTimeout(tm); (bg || box).remove(); setTimeout(nextDrop, 350); };
+    wear.onclick = async () => { wear.disabled = true; try { const r = await fetch('/api/look', { method: 'POST', credentials: 'same-origin', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ t: d.id }) }); wear.textContent = r.ok ? '✅ Wearing it' : 'Couldn’t'; if (r.ok && window.ecLive) window.ecLive(true); } catch (e) { wear.textContent = 'Couldn’t'; } setTimeout(end, 900); };
+    ok.onclick = end;
+    if (big) { box.append(mkEl('span', 'rays'), mkEl('span', 'big', d.ic || '🎲'), txt, acts); bg = mkEl('div', 'ec-drop-bg'); bg.appendChild(box); bg.onclick = e => { if (e.target === bg) end(); }; document.body.appendChild(bg); ok.focus(); }
+    else { box.append(mkEl('span', 'big', d.ic || '🎲'), txt, acts); document.body.appendChild(box); }
+    const tm = setTimeout(end, big ? 20000 : 8000);
+  }
   // 👤 Profile button, top right of every page once you're logged in (with a red number for new messages).
   // On Maths, Science and English it's a plain link to your profile (those pages have their own buttons).
   // Everywhere else it opens a menu with everything else, and phones also get a bottom tab bar.
@@ -206,7 +259,7 @@
     for (const r of j.rewards.slice(0, 5)) {
       await new Promise(done => {
         const box = document.createElement('div'); box.className = 'ec-reward'; box.setAttribute('role', 'status');
-        const pic = document.createElement('span'); pic.className = 'pic'; pic.textContent = r.k === 'a' ? r.v : r.k === 'f' ? (FR[r.v] || '⭕') : '🏷️';
+        const pic = document.createElement('span'); pic.className = 'pic'; pic.textContent = r.k === 'a' ? r.v : r.k === 'f' ? ((j.me && j.me.look && j.me.look.a) || '🙂') : '🏷️'; if (r.k === 'f') pic.classList.add('ec-lk', 'ec-fr-' + r.v);
         const tx = document.createElement('div'); tx.className = 'tx';
         const b = document.createElement('b'); b.textContent = '🎉 New ' + KIND[r.k] + ': ' + r.name;
         const w = document.createElement('span'); w.textContent = 'Why: ' + r.why.charAt(0).toLowerCase() + r.why.slice(1);

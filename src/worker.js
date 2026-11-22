@@ -52,7 +52,8 @@ import { TOPICS as SCI_TOPICS } from './gen/sci-game.js';
 import { handleGames } from './games.js';
 import { handleInsights, handleInsightsAdmin } from './insights.js';
 import { handleNews, handleNewsAdmin, latestNewsId, autoNews, checkOnlineRecord } from './news.js';
-import { rewardStatus, keepIds, canUse, lookView, lookIds, savedRewards, rewardPopup } from './rewards.js';
+import { rewardStatus, keepIds, canUse, lookView, lookIds, savedRewards, rewardPopup, streakInfo, GROUPS, DROP_UNLOCKS, rewardById } from './rewards.js';
+import { dropSummary } from './drops.js';
 
 const HTML = 'text/html; charset=utf-8';
 const PAGES = {
@@ -339,7 +340,7 @@ async function currentUser(req, env, slot = slotOf(req)) {
 async function checkRewards(env, user) {
   if (isAdmin(user, env)) return;
   const t = now(), me = user.id;
-  const u = await env.DB.prepare('SELECT rewards, rewards_at, rewards_new FROM users WHERE id = ?').bind(me).first();
+  const u = await env.DB.prepare('SELECT rewards, rewards_at, rewards_new, rolls, ch_done FROM users WHERE id = ?').bind(me).first();
   if (!u || t - (u.rewards_at || 0) < 90) return;
   const [days, prog, pts, fr] = await env.DB.batch([
     env.DB.prepare('SELECT day, SUM(seconds) AS s FROM daily WHERE user_id = ? GROUP BY day ORDER BY day DESC LIMIT 400').bind(me),
@@ -354,7 +355,8 @@ async function checkRewards(env, user) {
   prog.results.forEach(r => { let d = {}; try { d = JSON.parse(r.data); } catch { d = {}; } const m = mathsStats(d); st.answered += m.answered; st.correct += m.correct; st.booklet += m.bookletDone; st.by[r.subject] = m.correct;
     (Array.isArray(d.exams) ? d.exams : []).forEach(e => st.exams.push(e)); Object.entries(d.tstats || {}).forEach(([id, x]) => { if (x && x.a > 0 && st.tried[r.subject]) st.tried[r.subject].add(id); }); });
   const P = pts.results[0] || {};
-  const rs = { correct: P.c || 0, answered: st.answered, streak, hours: secs / 3600, exams: st.exams,
+  const SI = streakInfo(D);
+  const rs = { correct: P.c || 0, answered: st.answered, streak, best: Math.max(SI.best, streak), days: SI.days, rolls: u.rolls || 0, chDone: u.ch_done || 0, hours: secs / 3600, exams: st.exams,
     explorer: Math.max(st.tried.maths.size / MATHS_TOPICS.length, st.tried.science.size / SCI_TOPICS.length) >= 1, booklet: st.booklet, friends: fr.results[0].n,
     points: Math.floor(secs / 60) + (P.q || 0) + (P.b || 0), weekRank: 0, allRank: 0, mathsCorrect: st.by.maths || 0, sciCorrect: st.by.science || 0,
     tester: user.tester, teacher: user.teacher, role: !!staffRole(user, env), owner: false };
@@ -489,12 +491,16 @@ async function handleApi(req, env, url) {
     let b; try { b = await readJson(req); } catch { return err(400, 'Bad request'); }
     const row = await env.DB.prepare('SELECT rewards, look FROM users WHERE id = ?').bind(user.id).first();
     const kept = savedRewards(row.rewards), flags = { tester: user.tester, teacher: user.teacher, role: !!staffRole(user, env), owner: isAdmin(user, env) };
+    if ([b.a, b.f, b.t].some(x => /^[aft]_x_/.test(String(x || '')))) { // 🎲 drop rewards: check the drops table too
+      for (const x of (await env.DB.prepare('SELECT id FROM drops WHERE user_id = ? AND n > 0').bind(user.id).all()).results) { const r = rewardById(x.id); if (r) { kept.add(x.id); (DROP_UNLOCKS[r.rar] || []).forEach(i => kept.add(i)); } }
+    }
     const cur = lookIds(row.look), next = { ...cur };
     for (const [k, pre] of [['a', 'a_'], ['f', 'f_'], ['t', 't_']]) {
       if (b[k] == null) continue; const id = String(b[k]);
       if (!id.startsWith(pre) || !canUse(id, kept, flags)) return err(403, 'You haven’t unlocked that yet.');
       next[k] = id;
     }
+    delete next.tn; if (next.t && next.t.startsWith('t_x_')) { const d = await env.DB.prepare('SELECT n FROM drops WHERE user_id = ? AND id = ?').bind(user.id, next.t).first(); if (d && d.n > 1) next.tn = d.n; }
     await env.DB.prepare('UPDATE users SET look = ? WHERE id = ?').bind(JSON.stringify(next), user.id).run();
     return json({ ok: true, look: next, view: lookView(JSON.stringify(next)) });
   }
@@ -566,7 +572,7 @@ async function handleApi(req, env, url) {
   if (path === '/api/profile' && method === 'GET') {
     const t = now(), me = user.id, today = dayKey(t), study = (await studyState(env, user)).study;
     const [u, days, all, prog, fr, thr, beau, beauN] = await env.DB.batch([
-      env.DB.prepare('SELECT username, created_at, rewards, look FROM users WHERE id = ?').bind(me),
+      env.DB.prepare('SELECT username, created_at, rewards, look, rolls, ch_done FROM users WHERE id = ?').bind(me),
       env.DB.prepare('SELECT day, SUM(seconds) AS s FROM daily WHERE user_id = ? GROUP BY day ORDER BY day DESC LIMIT 400').bind(me),
       env.DB.prepare('SELECT SUM(seconds) AS s FROM daily WHERE user_id = ?').bind(me),
       env.DB.prepare('SELECT subject, data FROM progress WHERE user_id = ?').bind(me),
@@ -614,17 +620,21 @@ async function handleApi(req, env, url) {
     const lbW = await leaderboard(env, me, 'week', isAdmin(user, env)), lb = { week: lbW.me, all: (await leaderboard(env, me, 'all', isAdmin(user, env))).me, hidden: lbW.meHidden };
     // 🎨 rewards: worked out from the same numbers, and anything unlocked before stays unlocked
     const role_ = staffRole(user, env), u0 = u.results[0], kept = savedRewards(u0.rewards);
-    const rs = { correct: lb.all ? lb.all.correct : stats.correct, answered: stats.answered, streak, hours, exams: stats.exams,
+    const SI = streakInfo(D);
+    const rs = { correct: lb.all ? lb.all.correct : stats.correct, answered: stats.answered, streak, best: Math.max(SI.best, streak), days: SI.days, rolls: u0.rolls || 0, chDone: u0.ch_done || 0, hours, exams: stats.exams,
       explorer: Math.max(stats.tried.maths.size / allTopics('maths'), stats.tried.science.size / allTopics('science')) >= 1, booklet: stats.bookletDone, friends: fr.results[0].n,
       points: lb.all ? lb.all.points : 0, weekRank: lb.week ? lb.week.rank : 0, allRank: lb.all ? lb.all.rank : 0, mathsCorrect: stats.bySubj.maths || 0, sciCorrect: stats.bySubj.science || 0,
       tester: user.tester, teacher: user.teacher, role: !!role_, owner: isAdmin(user, env) };
+    // 🎲 lucky drops always count (from the drops table), even if a save ever missed one
+    const DS = await dropSummary(env, me), saved0 = new Set(kept);
+    DS.list.forEach(x => { if (x.n) { kept.add(x.id); (DROP_UNLOCKS[x.rar] || []).forEach(i => kept.add(i)); } });
     const rewards = rewardStatus(rs, kept), keepNow = keepIds(rewards);
-    const fresh = keepNow.filter(id => !kept.has(id));
+    const fresh = keepNow.filter(id => !saved0.has(id));
     if (fresh.length) await env.DB.prepare('UPDATE users SET rewards = ?, rewards_new = ? WHERE id = ?').bind(JSON.stringify([...new Set([...kept, ...keepNow])]), u0.rewards == null ? null : JSON.stringify(fresh), me).run();
     const NOTE = { '[unlock-request]': '🔔 You asked to unlock the booklet', '[unlock-allowed]': '✅ Beau unlocked the booklet', '[unlock-declined]': 'Beau said not yet', '[chat-request]': '🙋 You asked to use Chat', '[chat-allowed]': '✅ Beau let you into Chat', '[chat-declined]': 'Beau said not yet', '[chat-removed]': 'Chat turned off', '[study-request]': '📚 You asked to leave study mode', '[study-allowed]': '✅ Study mode off', '[study-declined]': 'Beau said not yet' };
     const b0 = beau.results[0];
     const tch = await env.DB.prepare('SELECT u.username AS name FROM teacher_students ts JOIN users u ON u.id = ts.teacher_id WHERE ts.student_id = ? ORDER BY u.username').bind(me).all();
-    return json({ now: t, name: u.results[0].username, joined: u.results[0].created_at, rewards, look: lookIds(u0.look), lookView: lookView(u0.look), study, teacher: user.teacher, teachers: tch.results.map(x => x.name), role: staffRole(user, env), roleName: ROLE_NAME[staffRole(user, env)] || null, tester: user.tester, booklet: await hasUnlock(env, user, 'theory'),
+    return json({ now: t, name: u.results[0].username, joined: u.results[0].created_at, rewards, groups: GROUPS, track: { correct: rs.correct, best: rs.best, days: rs.days }, drops: DS, look: lookIds(u0.look), lookView: lookView(u0.look), study, teacher: user.teacher, teachers: tch.results.map(x => x.name), role: staffRole(user, env), roleName: ROLE_NAME[staffRole(user, env)] || null, tester: user.tester, booklet: await hasUnlock(env, user, 'theory'),
       time: { today: D[today] || 0, week: Array.from({ length: 7 }, (_, i) => D[back(i)] || 0).reduce((a, x) => a + x, 0), all: all.results[0].s || 0, last14, streak },
       leaderboard: lb, topics, friends: fr.results[0].n, badges: badges.concat(lb && lb.week && lb.week.rank <= 3 ? [B('🏆', 'Podium', 'Top 3 on this week’s leaderboard', 1, 1)] : []),
       messages: { beau: { last: b0 ? (NOTE[b0.body] || b0.body) : null, mine: b0 ? !b0.from_admin : false, at: b0 ? b0.created_at : null, unread: beauN.results[0].n },

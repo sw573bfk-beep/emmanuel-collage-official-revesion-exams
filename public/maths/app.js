@@ -2626,7 +2626,7 @@ function qPoints(Q) { if (!Q) return 1; if (Q.type === 'long') return 5; const l
 // 📈 each answer also goes to the server's answer log (your stats, My mistakes, and Beau's problem-question list)
 function logAns(topic, ok, Q) {
   if (!Q || !Q.gen) return;
-  try { fetch('/api/answer', { method: 'POST', credentials: 'same-origin', keepalive: true, headers: { 'content-type': 'application/json' }, body: JSON.stringify({ subject: 'maths', topic: String(topic), gen: Q.gen, gname: Q.gname || '', diff: Q.diff || (typeof diffOf === 'function' ? diffOf(Q.gen) : 'm'), ok: !!ok, type: Q.type, q: String(Q.q || '').slice(0, 1500), given: Q._given == null ? '' : String(Q._given).slice(0, 400), correct: String(Q.ansText || '').slice(0, 400) }) }).catch(() => {}); } catch (e) { /* offline */ }
+  try { fetch('/api/answer', { method: 'POST', credentials: 'same-origin', keepalive: true, headers: { 'content-type': 'application/json' }, body: JSON.stringify({ subject: 'maths', topic: String(topic), gen: Q.gen, gname: Q.gname || '', diff: Q.diff || (typeof diffOf === 'function' ? diffOf(Q.gen) : 'm'), ok: !!ok, type: Q.type, q: String(Q.q || '').slice(0, 1500), given: Q._given == null ? '' : String(Q._given).slice(0, 400), correct: String(Q.ansText || '').slice(0, 400) }) }).then(r => r.ok ? r.json() : null).then(j => { if (j && j.drops && j.drops.length && window.ecDrops) window.ecDrops(j.drops); }).catch(() => {}); } catch (e) { /* offline */ } // 🎲 a right answer can pull a lucky drop
 }
 function record(topic, ok, Q) { logAns(topic, ok, Q); noteGen(Q, ok); const s = tstats[topic] || (tstats[topic] = { a: 0, c: 0 }); s.a++; if (ok) { s.c++; s.p = (s.p || 0) + qPoints(Q); } store.set('tstats', tstats); }
 const acc = tid => { const s = tstats[tid]; return s && s.a ? s.c / s.a : null; };
@@ -3114,6 +3114,7 @@ RENDER.exam = () => {
       if (done) return; done = true; clearInterval(examTimer);
       const res = cards.map((c, i) => { const r = c.finalize(); record(Qs[i].topic, !!r.ok, Qs[i]); return !!r.ok; });
       const s = res.filter(Boolean).length, p = Math.round(s / n * 100); const used = Math.round((Date.now() - start) / 1000);
+      setTimeout(() => { fetch('/api/drops/test', { method: 'POST', credentials: 'same-origin', headers: { 'content-type': 'application/json' }, body: '{}' }).then(r => r.ok ? r.json() : null).then(j => { if (j && j.drops && j.drops.length && window.ecDrops) window.ecDrops(j.drops); if (j && j.added && window.ecToast) window.ecToast('🎲 +' + j.added + ' bonus rolls for finishing a test'); }).catch(() => {}); }, 2000); // 🎲 +5 rolls for finishing a test
       const hist = store.get('exams', []); hist.push({ d: new Date().toLocaleDateString('en-AU'), s, n, p, t: Math.floor(used / 60) + 'm ' + used % 60 + 's', lim: mins || 0 }); store.set('exams', hist);
       bar.remove(); bottom.remove();
       const by = {}; Qs.forEach((Q, i) => { const b = by[Q.topic] || (by[Q.topic] = [0, 0]); b[1]++; if (res[i]) b[0]++; });

@@ -5,6 +5,7 @@
 import * as MathsQ from './gen/maths-game.js';
 import * as SciQ from './gen/sci-game.js';
 import { addPoints } from './community.js';
+import { roll, CHALLENGE_BONUS } from './drops.js';
 
 const now = () => Math.floor(Date.now() / 1000);
 const QLD = 10 * 3600;
@@ -92,7 +93,9 @@ export async function handleInsights(req, env, url, user) {
     if (n.n >= 1500) return json({ ok: true, skipped: true }); // far more than anyone really answers in a day
     await env.DB.prepare('INSERT INTO answers (user_id, at, subject, topic, gen, gname, diff, typ, ok, q, given, correct) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
       .bind(uid, t, subject, topic, gen, plain(b.gname, 80), ['e', 'm', 'h'].includes(b.diff) ? b.diff : 'm', plain(b.type, 10), b.ok ? 1 : 0, plain(b.q, 300), plain(b.given, 150), plain(b.correct, 150)).run();
-    return json({ ok: true });
+    if (!b.ok) return json({ ok: true });
+    const d = await roll(env, user, 1, 'answer'); // 🎲 every right answer is a roll
+    return json({ ok: true, rolls: d ? d.rolls : 0, drops: d ? d.drops : [] });
   }
   // 📈 your stats
   if (path === '/api/mystats' && method === 'GET') {
@@ -150,12 +153,23 @@ export async function handleInsights(req, env, url, user) {
     const score = qs.reduce((s, q, k) => s + (given[k] === q.ans ? 1 : 0), 0), done = given.every(g => g != null), pts = done ? CH_POINTS(score) : 0;
     await env.DB.prepare('INSERT INTO challenge (user_id, day, answers, score, pts, done, done_at) VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT(user_id, day) DO UPDATE SET answers = excluded.answers, score = excluded.score, pts = excluded.pts, done = excluded.done, done_at = excluded.done_at')
       .bind(uid, day, JSON.stringify(given), score, pts, done ? 1 : 0, done ? t : null).run();
-    if (done) await addPoints(env, uid, { correct: 0, bookletRight: 0 }, { correct: 0, bookletRight: 0 }, 0, pts);
+    if (done) { await addPoints(env, uid, { correct: 0, bookletRight: 0 }, { correct: 0, bookletRight: 0 }, 0, pts); await env.DB.prepare('UPDATE users SET ch_done = ch_done + 1 WHERE id = ?').bind(uid).run(); }
     const q = qs[i];
     // the challenge counts as practice too (stats and My mistakes)
     await env.DB.prepare('INSERT INTO answers (user_id, at, subject, topic, gen, gname, diff, typ, ok, q, given, correct) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
       .bind(uid, t, q.subject, String(q.topic), String(q.gen), plain(q.gname, 80), 'm', 'mcq', pick === q.ans ? 1 : 0, plain(q.q, 300), plain(q.choices[pick], 150), plain(q.ansText, 150)).run();
-    return json({ right: pick === q.ans, ans: q.ans, ansText: q.ansText, sol: q.sol, done, score, pts });
+    // 🎲 a right answer is a roll, and finishing the challenge is +10 bonus rolls
+    const drops = [];
+    if (pick === q.ans) { const d = await roll(env, user, 1, 'answer'); if (d) drops.push(...d.drops); }
+    if (done) { const d = await roll(env, user, CHALLENGE_BONUS, 'bonus'); if (d) drops.push(...d.drops); }
+    return json({ right: pick === q.ans, ans: q.ans, ansText: q.ansText, sol: q.sol, done, score, pts, drops, bonusRolls: done ? CHALLENGE_BONUS : 0 });
+  }
+  // 🎲 +5 bonus rolls for finishing a test (up to 3 a day; you must have just answered 5+ questions)
+  if (path === '/api/drops/test' && method === 'POST') {
+    const n = await env.DB.prepare('SELECT COUNT(*) AS n FROM answers WHERE user_id = ? AND at > ?').bind(uid, t - 1800).first();
+    if (n.n < 5) return json({ added: 0, drops: [] });
+    const d = await roll(env, user, 0, 'test');
+    return json({ added: d ? d.added : 0, rolls: d ? d.rolls : 0, drops: d ? d.drops : [] });
   }
   return null;
 }

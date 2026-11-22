@@ -18,7 +18,7 @@ main.wrap>.top{background:none;border:0}
 .feed{display:flex;flex-direction:column;gap:14px}
 .post{display:grid;grid-template-columns:48px 1fr;gap:14px;align-items:start}
 .post .ic{width:48px;height:48px;border-radius:14px;display:grid;place-items:center;font-size:1.5rem;background:var(--accent-soft)}
-.post.winners .ic{background:#fff4cc}.post.milestone .ic{background:#ffe6f0}.post.record .ic{background:#e3f7ec}.post.idea .ic{background:#fff0d9}.post.challenge .ic{background:#efe6ff}
+.post.winners .ic{background:#fff4cc}.post.milestone .ic{background:#ffe6f0}.post.record .ic{background:#e3f7ec}.post.idea .ic{background:#fff0d9}.post.challenge .ic{background:#efe6ff}.post.drop .ic{background:linear-gradient(135deg,#ffd6e7,#d6f0ff)}
 [data-theme="dark"] .post .ic{background:var(--card-2,#232a3a)}
 .post h2{font-size:1.15rem;margin:0 0 4px;line-height:1.35}
 .post .meta{font-size:.8125rem;color:var(--muted);display:flex;gap:8px;flex-wrap:wrap;align-items:center}
@@ -40,8 +40,8 @@ main.wrap>.top{background:none;border:0}
 (function () {
   const $ = s => document.querySelector(s);
   const el = (t, c, x) => { const e = document.createElement(t); if (c) e.className = c; if (x != null) e.textContent = x; return e; };
-  const ICON = { update: '📢', idea: '💡', shout: '🙌', winners: '🏆', milestone: '🎉', record: '📊', challenge: '⚡' };
-  const AUTHOR = { winners: 'Leaderboard', milestone: 'EC Revisions', record: 'EC Revisions', challenge: 'Daily challenge' };
+  const ICON = { update: '📢', idea: '💡', shout: '🙌', winners: '🏆', milestone: '🎉', record: '📊', challenge: '⚡', drop: '🌀' };
+  const AUTHOR = { winners: 'Leaderboard', milestone: 'EC Revisions', record: 'EC Revisions', challenge: 'Daily challenge', drop: 'Lucky drops' };
   const F = [['all', 'All'], ['update', '📢 Updates'], ['winners', '🏆 Winners'], ['big', '🎉 Milestones & records'], ['idea', '💡 Your ideas'], ['challenge', '⚡ Challenge']];
   let D = null, f = 'all';
   const ago = (t, now) => { const s = now - t; if (s < 3600) return Math.max(1, Math.round(s / 60)) + ' min ago'; if (s < 86400) return Math.round(s / 3600) + ' h ago'; if (s < 7 * 86400) return Math.round(s / 86400) + (Math.round(s / 86400) === 1 ? ' day ago' : ' days ago'); return new Date(t * 1000).toLocaleDateString('en-AU', { day: 'numeric', month: 'short', year: 'numeric' }); };
@@ -49,7 +49,7 @@ main.wrap>.top{background:none;border:0}
     const fl = $('#filters'); fl.replaceChildren();
     F.forEach(([k, l]) => { const b = el('button', k === f ? 'on' : '', l); b.type = 'button'; b.setAttribute('aria-pressed', String(k === f)); b.onclick = () => { f = k; draw(); }; fl.appendChild(b); });
     const feed = $('#feed'); feed.replaceChildren();
-    const list = D.list.filter(p => f === 'all' || (f === 'big' ? p.kind === 'milestone' || p.kind === 'record' : f === 'idea' ? p.kind === 'idea' || p.kind === 'shout' : p.kind === f));
+    const list = D.list.filter(p => f === 'all' || (f === 'big' ? p.kind === 'milestone' || p.kind === 'record' || p.kind === 'drop' : f === 'idea' ? p.kind === 'idea' || p.kind === 'shout' : p.kind === f));
     if (!list.length) feed.appendChild(el('p', 'muted', 'Nothing here yet.'));
     list.forEach(p => {
       const c = el('article', 'card post ' + p.kind), ic = el('span', 'ic', ICON[p.kind] || '📰'), m = el('div');

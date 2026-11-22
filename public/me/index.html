@@ -67,6 +67,26 @@
 .cz-tabs{display:flex;gap:6px;flex-wrap:wrap}
 .cz-tabs button{font:inherit;font-weight:600;border:1.5px solid var(--rule);background:var(--card);color:var(--ink);border-radius:999px;padding:6px 14px;cursor:pointer}
 .cz-tabs button.on{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.cz-sec{display:flex;flex-direction:column;gap:10px;border-top:1.5px solid var(--rule);padding-top:14px}
+.cz-sec:first-child{border-top:0;padding-top:0}
+.cz-sec h3{margin:0;font-size:1.1rem;display:flex;align-items:center;gap:8px;flex-wrap:wrap}.cz-sec h3 .cnt{font:600 .8125rem var(--f-body);color:var(--muted)}
+.track{display:flex;flex-direction:column;gap:6px;border:1.5px solid var(--rule);border-radius:14px;padding:12px 14px;background:var(--card-2)}
+.track .row1{display:flex;justify-content:space-between;align-items:baseline;gap:10px;flex-wrap:wrap}.track .big{font-family:var(--f-display);font-weight:800;font-size:1.5rem}
+.track .bar{height:12px;border-radius:99px;background:var(--card);border:1px solid var(--rule);overflow:hidden}.track .bar i{display:block;height:100%;background:linear-gradient(90deg,var(--accent),#7c3aed);border-radius:99px;transition:width .6s}
+.track .ladder{display:flex;gap:4px;flex-wrap:wrap}.track .ladder span{width:14px;height:14px;border-radius:50%;background:var(--rule)}.track .ladder span.on{background:var(--accent)}
+.cz-item .pic.ec-lk{margin:6px 0}
+.cz-item:disabled .pic.ec-lk{filter:none;opacity:.55}
+.cz-item .x{font-weight:800;color:var(--accent)}
+.dr-sum{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,140px),1fr));gap:10px}
+.dr-sum .stat{border:1.5px solid var(--rule);border-radius:14px;padding:10px 12px;background:var(--card);display:flex;flex-direction:column}.dr-sum .stat b{font-family:var(--f-display);font-size:1.4rem}.dr-sum .stat span{font-size:.8125rem;color:var(--muted)}
+.shelf{border:2px solid var(--rc);border-radius:16px;padding:12px;display:flex;flex-direction:column;gap:10px;background:color-mix(in srgb,var(--rc) 7%,var(--card))}
+.shelf .sh{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}.shelf .sh .lab{font:800 .8rem/1 var(--f-body);letter-spacing:.12em;color:#fff;background:var(--rc);border-radius:999px;padding:6px 12px}
+.shelf.ins .sh .lab{background:linear-gradient(90deg,#ff3b3b,#ffb300,#3cff6b,#2fd0ff,#d23bff)}
+.dr{display:flex;flex-direction:column;align-items:center;text-align:center;gap:4px;border:2px solid var(--rc);border-radius:14px;padding:12px 8px;background:var(--card);color:var(--ink);font:inherit;cursor:pointer;position:relative}
+.dr .ic{font-size:2.1rem;line-height:1.15}.dr b{font-size:.9rem}.dr span{font-size:.75rem;color:var(--muted);line-height:1.3}
+.dr .n{position:absolute;top:6px;right:8px;font:800 .8rem var(--f-body);color:#fff;background:var(--rc);border-radius:999px;padding:2px 7px}
+.dr.lock{border-style:dashed;cursor:default;opacity:.7}.dr.lock .ic{filter:grayscale(1);opacity:.5}
+.dr.sel{box-shadow:0 0 0 3px var(--rc)}
 .cz-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(132px,1fr));gap:10px}
 .cz-item{display:flex;flex-direction:column;align-items:center;text-align:center;gap:5px;border:2px solid var(--rule);border-radius:14px;padding:12px 8px;background:var(--card);color:var(--ink);font:inherit;cursor:pointer}
 .cz-item:hover:not(:disabled){border-color:var(--accent)}
@@ -148,9 +168,9 @@
       <p class="small muted" style="margin:0">🔒 Only you can see your profile. Your picture, frame and title (below) are the only things other people see, on the leaderboard and in chat.</p>
       <div class="card stack" id="czCard">
         <h2 style="margin:0;font-size:1.3rem">🎨 Customise your profile <span class="small muted" id="czCount" style="font-weight:500"></span></h2>
-        <p class="small muted" style="margin:0">Unlock pictures, frames and titles by studying, then show them off. Everyone sees them next to your name on the 🏆 leaderboard and in 💬 chat. Tap one you’ve unlocked to use it.</p>
+        <p class="small muted" style="margin:0"><b>⭕ Frames</b> come from questions you get right. <b>🖼️ Pictures</b> come from studying day after day. <b>🏷️ Titles</b> come from achievements. <b>🎲 Lucky drops</b> are pure luck: every right answer is a roll. Tap anything you’ve unlocked to wear it. Everyone sees it on the 🏆 leaderboard and in 💬 chat.</p>
         <div class="cz-prev"><span class="av" id="czAv" aria-hidden="true"></span><div><b id="czName"></b><div id="czTitle"></div><span class="small muted" id="czSaved" role="status"></span></div></div>
-        <div class="cz-tabs" role="tablist"><button type="button" data-k="a" class="on">🖼️ Pictures</button><button type="button" data-k="f">⭕ Frames</button><button type="button" data-k="t">🏷️ Titles</button></div>
+        <div class="cz-tabs" role="tablist"><button type="button" data-k="f" class="on">⭕ Frames</button><button type="button" data-k="a">🖼️ Pictures</button><button type="button" data-k="t">🏷️ Titles</button><button type="button" data-k="d">🎲 Lucky drops</button></div>
         <div class="cz-grid" id="czGrid"></div>
       </div>
       <div class="card stack" id="badgesCard">
@@ -227,34 +247,86 @@
   seg('#pfHelp', ls('ec-help-btn', ''), v => { if (window.ecHelpBtnSet) window.ecHelpBtnSet(v); else lset('ec-help-btn', v); });
   $('#pfTimer').onclick = () => { if (window.ecTimer) window.ecTimer.open(); };
   // 🎨 rewards: your picture, frame and title
-  let czTab = 'a', czData = null;
+  let czTab = 'f', czData = null;
   const FRAME_ICON = { none: '⚪', bronze: '🥉', silver: '🥈', gold: '🥇', diamond: '💎', fire: '🔥', rainbow: '🌈' };
-  function viewOf(d) { const by = Object.fromEntries(d.rewards.map(x => [x.id, x])), a = by[d.look.a], f = by[d.look.f], t = by[d.look.t]; return { a: a ? a.v : null, f: f && f.v !== 'none' ? f.v : null, t: t && t.v ? t.v : null }; }
+  function viewOf(d) { if (d.lookView !== undefined) return d.lookView || { a: null, f: null, t: null }; const by = Object.fromEntries(d.rewards.map(x => [x.id, x])), a = by[d.look.a], f = by[d.look.f], t = by[d.look.t]; return { a: a ? a.v : null, f: f && f.v !== 'none' ? f.v : null, t: t && t.v ? t.v : null }; }
   function drawLook(d) {
     const v = viewOf(d); window.ecAv($('#av'), v, d.name); window.ecAv($('#czAv'), v, d.name); $('#czName').textContent = d.name;
     $('#heroTitle').replaceChildren(); $('#czTitle').replaceChildren(); const t1 = window.ecTitle(v), t2 = window.ecTitle(v); if (t1) { t1.style.marginLeft = '0'; $('#heroTitle').append(t1); } if (t2) { t2.style.marginLeft = '0'; $('#czTitle').append(t2); }
   }
+  const RC = { rare: '#2563eb', epic: '#9333ea', leg: '#f59e0b', ins: '#ff3b8d' };
+  const RNAME = { rare: '🔵 RARE', epic: '🟣 EPIC', leg: '🟡 LEGENDARY', ins: '🌈 INSANE' };
+  const nf = n => Number(n || 0).toLocaleString('en-AU');
+  async function wear(d, k, id) {
+    const body = {}; body[k] = id; $('#czSaved').textContent = 'Saving…';
+    let ok = false, j = {}; try { const r = await fetch('/api/look', { method: 'POST', credentials: 'same-origin', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }); ok = r.ok; j = await r.json(); } catch (e) { /* offline */ }
+    if (!ok) { $('#czSaved').textContent = j.error || 'Couldn’t save. Check your connection.'; return; }
+    d.look = j.look; d.lookView = j.view; $('#czSaved').textContent = '✅ Saved. Everyone sees your new look.'; drawLook(d); drawCz(d);
+  }
+  // the progress bar to your next unlock on a track ("188 more right for Silver")
+  function trackBox(items, have, label, unit) {
+    const box = el('div', 'track'), next = items.find(x => !x.earned), got = items.filter(x => x.earned).length;
+    const r1 = el('div', 'row1'); r1.append(el('span', 'big', nf(have) + ' ' + label), el('span', 'small muted', got + ' of ' + items.length + ' unlocked'));
+    const prevN = items.filter(x => x.earned).reduce((m, x) => Math.max(m, x.needN), 0);
+    const bar = el('div', 'bar'), f = el('i'); bar.appendChild(f);
+    if (next) { f.style.width = Math.max(3, Math.min(100, (have - prevN) / Math.max(1, next.needN - prevN) * 100)) + '%'; }
+    else f.style.width = '100%';
+    const lad = el('div', 'ladder'); items.forEach(x => { const dot = el('span', x.earned ? 'on' : ''); dot.title = x.name + ': ' + x.need; lad.appendChild(dot); });
+    box.append(r1, bar, el('span', 'small', next ? 'Next: ' + (next.k === 'a' ? next.v + ' ' : '') + next.name + ' at ' + nf(next.needN) + ' (' + nf(next.needN - have) + ' ' + unit + ' to go)' : '🏆 You’ve unlocked the whole track!'), lad);
+    return box;
+  }
+  function itemBtn(d, x) {
+    const it = el('button', 'cz-item' + (d.look[x.k] === x.id ? ' sel' : '')); it.type = 'button'; it.disabled = !x.earned;
+    const pic = el('span', 'pic');
+    if (x.k === 'a') pic.textContent = x.v;
+    else if (x.k === 'f') { const me = d.rewards.find(r => r.id === d.look.a); pic.textContent = me ? me.v : '🙂'; pic.classList.add('ec-lk'); if (x.v !== 'none') pic.classList.add('ec-fr-' + x.v); }
+    else { const t = window.ecTitle({ t: x.v || 'No title', tr: x.rar, ti: x.ic, tn: x.rar ? (dropN(d, x.id) || 0) : 0 }); pic.replaceChildren(t); pic.style.cssText = 'width:auto;height:auto;border-radius:0;background:none;font-size:1rem;min-height:46px'; t.style.marginLeft = '0'; }
+    it.append(pic, el('b', '', x.k === 't' && !x.v ? 'No title' : x.name), el('span', '', x.earned ? (d.look[x.k] === x.id ? '✅ Wearing this' : x.need === 'Free' ? 'Free' : '🔓 ' + x.need) : '🔒 ' + x.need));
+    if (!x.earned && x.needN > 1) { const pb = el('div', 'pb'), f = el('i'); f.style.width = Math.round(x.have / x.needN * 100) + '%'; pb.appendChild(f); it.append(pb, el('span', '', nf(x.have) + ' / ' + nf(x.needN))); }
+    it.setAttribute('aria-pressed', d.look[x.k] === x.id ? 'true' : 'false');
+    it.onclick = () => wear(d, x.k, x.id);
+    return it;
+  }
+  const dropN = (d, id) => { const x = d.drops && d.drops.list.find(y => y.id === id); return x ? x.n : 0; };
   function drawCz(d) {
-    czData = d; const got = d.rewards.filter(x => x.earned && x.need !== 'Free').length, all = d.rewards.filter(x => x.need !== 'Free').length;
-    $('#czCount').textContent = got + ' of ' + all + ' unlocked';
+    czData = d; const real = d.rewards.filter(x => x.need !== 'Free' && x.g !== 'old'), got = real.filter(x => x.earned).length;
+    $('#czCount').textContent = got + ' of ' + real.length + ' unlocked';
     document.querySelectorAll('.cz-tabs button').forEach(b => { b.classList.toggle('on', b.dataset.k === czTab); b.onclick = () => { czTab = b.dataset.k; drawCz(czData); }; });
-    const g = $('#czGrid'); g.replaceChildren();
-    d.rewards.filter(x => x.k === czTab).sort((a, b) => b.earned - a.earned).forEach(x => {
-      const it = el('button', 'cz-item' + (d.look[czTab] === x.id ? ' sel' : '')); it.type = 'button'; it.disabled = !x.earned;
-      const pic = el('span', 'pic');
-      if (x.k === 'a') pic.textContent = x.v;
-      else if (x.k === 'f') { pic.textContent = d.look.a ? (d.rewards.find(r => r.id === d.look.a) || {}).v || '🙂' : '🙂'; if (x.v !== 'none') pic.classList.add('ec-fr-' + x.v); }
-      else pic.textContent = '🏷️';
-      it.append(pic, el('b', '', x.k === 't' && !x.v ? 'No title' : x.name), el('span', '', x.earned ? (d.look[czTab] === x.id ? '✅ Using this' : x.need === 'Free' ? 'Free' : '🔓 Unlocked') : '🔒 ' + x.need));
-      if (!x.earned && x.needN > 1) { const pb = el('div', 'pb'), f = el('i'); f.style.width = Math.round(x.have / x.needN * 100) + '%'; pb.appendChild(f); it.append(pb, el('span', '', x.have + ' / ' + x.needN)); }
-      it.setAttribute('aria-pressed', d.look[czTab] === x.id ? 'true' : 'false');
-      it.onclick = async () => {
-        const body = {}; body[czTab] = x.id; $('#czSaved').textContent = 'Saving…';
-        let ok = false, j = {}; try { const r = await fetch('/api/look', { method: 'POST', credentials: 'same-origin', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) }); ok = r.ok; j = await r.json(); } catch (e) { /* offline */ }
-        if (!ok) { $('#czSaved').textContent = j.error || 'Couldn’t save. Check your connection.'; return; }
-        d.look = j.look; $('#czSaved').textContent = '✅ Saved. Everyone sees your new look.'; drawLook(d); drawCz(d);
-      };
-      g.appendChild(it);
+    const g = $('#czGrid'); g.replaceChildren(); g.className = 'stack'; g.style.gap = '16px';
+    if (czTab === 'd') return drawDrops(d, g);
+    const TRACK = { 'f:right': [d.track.correct, 'questions right', 'more right'], 'a:streak': [d.track.best, (d.track.best === 1 ? 'day' : 'days') + ' best streak', 'more days in a row'], 'a:days': [d.track.days, (d.track.days === 1 ? 'day' : 'days') + ' studied', 'more days'] };
+    (d.groups[czTab] || []).forEach(([gid, gname]) => {
+      const items = d.rewards.filter(x => x.k === czTab && x.g === gid); if (!items.length) return;
+      const sec = el('section', 'cz-sec'), h = el('h3', '', gname); h.appendChild(el('span', 'cnt', items.filter(x => x.earned).length + ' / ' + items.length)); sec.appendChild(h);
+      const tk = TRACK[czTab + ':' + gid]; if (tk) sec.appendChild(trackBox(items, tk[0], tk[1], tk[2]));
+      if (gid === 'drop') sec.appendChild(el('p', 'small muted', 'Pulled from 🎲 Lucky drops. See the whole collection in the 🎲 tab.'));
+      const grid = el('div', 'cz-grid'); items.forEach(x => grid.appendChild(itemBtn(d, x))); sec.appendChild(grid); g.appendChild(sec);
+    });
+    if (czTab === 't' && !d.rewards.some(x => x.k === 't' && x.g === 'drop')) { const sec = el('section', 'cz-sec'); sec.append(el('h3', '', '🎲 Lucky drops'), el('p', 'small muted', 'No lucky titles yet. Every right answer is a roll: keep going!')); g.appendChild(sec); }
+  }
+  function drawDrops(d, g) {
+    const D = d.drops; if (!D) { g.appendChild(el('p', 'muted', 'Couldn’t load your drops.')); return; }
+    const sum = el('div', 'dr-sum'); const stat = (v, l) => { const x = el('div', 'stat'); x.append(el('b', '', v), el('span', '', l)); return x; };
+    const pulls = r => D.list.filter(x => x.rar === r).reduce((a, x) => a + x.n, 0);
+    sum.append(stat('🎲 ' + nf(D.rolls), 'rolls ever'), stat(nf(D.today.a) + ' / ' + nf(D.today.cap), 'answer rolls today'), stat(D.today.tests + ' / ' + D.today.testCap, 'test bonuses today'),
+      stat(nf(D.list.reduce((a, x) => a + x.n, 0)), 'drops pulled'));
+    const how = el('p', 'small muted'); how.innerHTML = '<b>How to roll:</b> every right answer in Maths, Science or the ⚡ daily challenge is 1 roll (up to ' + nf(D.today.cap) + ' a day). Finishing the daily challenge is <b>+' + D.bonus.challenge + '</b> rolls, and finishing a test is <b>+' + D.bonus.test + '</b> (up to ' + D.today.testCap + ' tests a day). Only titles you wear are seen by other people.';
+    const exp = D.rolls / 100, luck = el('p', 'small'); luck.textContent = D.rolls >= 50 ? '🍀 Your luck: about ' + exp.toFixed(1) + ' RARE pulls were expected and you got ' + pulls('rare') + '. ' + (pulls('rare') >= exp ? 'Lucky!' : 'Keep rolling, it evens out.') : '🍀 Roll 50 times to see your luck.';
+    g.append(sum, how, luck);
+    D.rarities.forEach(R => {
+      const sh = el('section', 'shelf' + (R.id === 'ins' ? ' ins' : '')); sh.style.setProperty('--rc', RC[R.id]);
+      const hd = el('div', 'sh'); hd.append(el('span', 'lab', RNAME[R.id]), el('span', 'small', '1 in ' + nf(R.odds) + ' per roll · you’ve pulled ' + pulls(R.id)));
+      sh.appendChild(hd);
+      if (R.id !== 'rare') sh.appendChild(el('span', 'small muted', 'Any ' + R.name + ' drop also unlocks a picture and an animated frame: ' + ({ epic: '🔮 Crystal Ball + Void', leg: '🌌 Galaxy + Supernova', ins: '🌀 Singularity + Prismatic' })[R.id] + '.'));
+      const grid = el('div', 'cz-grid');
+      D.list.filter(x => x.rar === R.id).forEach(x => {
+        const own = x.n > 0, b = el('button', 'dr' + (own ? '' : ' lock') + (d.look.t === x.id ? ' sel' : '')); b.type = 'button'; b.disabled = !own;
+        b.append(el('span', 'ic', own ? x.ic : '❔'), el('b', '', x.name || '???'), el('span', '', own ? (d.look.t === x.id ? '✅ Wearing this' : 'Tap to wear') : 'Not pulled yet'),
+          el('span', '', x.people ? 'Pulled by ' + x.people + (x.people === 1 ? ' person' : ' people') : 'Nobody has pulled this yet'));
+        if (own) { b.appendChild(el('span', 'n', '×' + nf(x.n))); b.onclick = () => wear(d, 't', x.id); }
+        grid.appendChild(b);
+      });
+      sh.appendChild(grid); g.appendChild(sh);
     });
   }
   async function load() {
