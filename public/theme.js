@@ -120,6 +120,7 @@
     m.appendChild(menuItem('🎮', 'Play with friends', '/play/'));
     m.appendChild(menuItem('💡', 'Feedback', '/feedback/'));
     m.appendChild(mkEl('hr'));
+    const hp = menuItem('❓', 'Help for this page', () => { closeMenu(); if (window.ecHelp) window.ecHelp.open(); }); hp.id = 'ecMenuHelp'; m.appendChild(hp);
     m.appendChild(menuItem('⏲️', 'Study timer', () => { closeMenu(); if (window.ecTimer) window.ecTimer.open(); }));
     const fo = menuItem('🎯', 'Focus mode', () => { closeMenu(); const f = document.getElementById('ecFocusBtn'); if (f) f.click(); }); fo.id = 'ecMenuFocus'; fo.hidden = true; m.appendChild(fo);
     const dk = menuItem(isDark() ? '☀️' : '🌙', isDark() ? 'Light mode' : 'Dark mode', () => { const t = isDark() ? 'light' : 'dark'; apply(t); try { localStorage.setItem(KEY, t); } catch (e) { /* storage blocked */ } const b = document.querySelector('.theme-btn'); if (b) label(b); dk.querySelector('.ic').textContent = isDark() ? '☀️' : '🌙'; dk.lastChild.textContent = isDark() ? 'Light mode' : 'Dark mode'; });
@@ -135,7 +136,7 @@
   function toggleMenu(e) {
     e.preventDefault(); const m = document.getElementById('ecMenu'), b = document.getElementById('ecProfile'); if (!m) return;
     m.hidden = !m.hidden; b.setAttribute('aria-expanded', String(!m.hidden));
-    if (!m.hidden) { const fo = document.getElementById('ecMenuFocus'); if (fo) fo.hidden = !document.getElementById('ecFocusBtn'); const r = b.getBoundingClientRect(); m.style.top = (r.bottom + window.scrollY + 8) + 'px'; const f = m.querySelector('.it'); if (f) f.focus(); }
+    if (!m.hidden) { const fo = document.getElementById('ecMenuFocus'); if (fo) fo.hidden = !document.getElementById('ecFocusBtn'); const hp = document.getElementById('ecMenuHelp'); if (hp) hp.hidden = !window.ecHelp; const r = b.getBoundingClientRect(); m.style.top = (r.bottom + window.scrollY + 8) + 'px'; const f = m.querySelector('.it'); if (f) f.focus(); }
   }
   document.addEventListener('click', e => { const m = document.getElementById('ecMenu'); if (m && !m.hidden && !m.contains(e.target) && !e.target.closest('#ecProfile')) closeMenu(); });
   document.addEventListener('keydown', e => {

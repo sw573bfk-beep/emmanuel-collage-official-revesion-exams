@@ -28,7 +28,7 @@
     { h: 'Switch subject', t: '<b>Subjects</b> takes you back to pick Maths, Science or English. Your progress in each one is kept.', sel: '.top-tools a[href="/"]' },
     { h: 'Your progress is saved', t: 'Everything you do is saved to your account, so it follows you to any phone or computer. Your name shows which account this tab is using, and under it it says when it last saved. To use another account, go to <b>Subjects</b> and tap <b>Switch account</b>.', sel: '.top-tools .acct' }
   ];
-  const helpStep = { h: 'This help button', t: 'Tap this any time to see this help again or take the tour.', sel: '#ecHelpBtn' };
+  const helpStep = { h: 'Help any time', t: 'Tap this any time to see this help again or take the tour. After your first week, Help moves into your profile menu (❓ Help for this page).', sel: ['#ecHelpBtn', '#ecProfile'] };
 
   const GUIDE = {
     start: {
@@ -128,14 +128,14 @@
     },
     me: {
       title: 'Your profile',
-      intro: 'Your stats and your messages in one place. Only you can see your profile.',
+      intro: 'Your stats, your look, your settings and your messages, each in its own tab. Only you can see your profile.',
       steps: [
-        { h: 'Overview and Messages', t: '<b>📊 Overview</b> has your stats. <b>💬 Messages</b> is your inbox: Beau and all your friend chats, newest first.', sel: '.tabs2' },
+        { h: 'Four tabs', t: '<b>📊 Stats</b>: study time, scores and mistakes. <b>🎨 Customise</b>: your picture, frame, title and badges. <b>⚙️ Settings</b>: dark mode, pop-ups, the help button, codes and your password. <b>💬 Messages</b>: your inbox.', sel: '.tabs2' },
         { h: '⏱️ Study time', t: 'Today, the last 7 days and all time, a chart of the last 14 days, and your 🔥 streak (days in a row with at least 1 minute).', sel: '#timeStats' },
         { h: '🏆 Leaderboard', t: 'Your place and points this week and all time.', sel: '#lbCard' },
         { h: '👥 Friends', t: 'How many friends you have. Tap the button to find or add friends.', sel: '#frCard' },
-        { h: '🏅 Badges', t: 'Earn badges for studying: streaks, study time, questions answered, speedruns, top marks and more. Grey ones are still to earn, with a bar showing how close you are.', sel: '#badgesCard' },
-        { h: '🎟️ Codes', t: 'Got a code from Beau? Type it here (5 letters and numbers, any case). Codes can unlock the completed Science booklet, give an admin level or the 🧪 Official tester banner. Each code works once.', sel: '#codesCard' },
+        { h: '🏅 Badges', t: 'Earn badges for studying: streaks, study time, questions answered, speedruns, top marks and more. Grey ones are still to earn, with a bar showing how close you are.', sel: ['#badgesCard', '#tabCz'] },
+        { h: '🎟️ Codes', t: 'Got a code from Beau? Type it here (5 letters and numbers, any case). Codes can unlock the completed Science booklet, give an admin level or the 🧪 Official tester banner. Each code works once. It’s in ⚙️ Settings.', sel: ['#codesCard', '#tabSet'] },
         { h: '🎯 Scores by topic', t: 'Every topic you’ve practised, weakest first. Tap <b>Practise this</b> to jump straight into practice on that topic.', sel: '#topics' },
         { h: '💬 Messages', t: 'Tap a chat to open it. A red number means new messages, and a green dot means your friend is online.', sel: '#tabMsg' },
         helpStep
@@ -198,6 +198,7 @@
   const css = `
 #ecHelpBtn{position:fixed;right:14px;bottom:14px;z-index:900;display:inline-flex;align-items:center;gap:6px;min-height:40px;font:600 .9375rem/1.2 var(--f-body,system-ui,sans-serif);color:var(--accent-ink,#fff);background:var(--accent,#2453d6);border:0;border-radius:999px;padding:8px 14px;cursor:pointer;box-shadow:0 2px 10px rgba(0,0,0,.22)}
 @media (max-width:560px){#ecHelpBtn{width:46px;height:46px;min-height:46px;padding:0;justify-content:center;font-size:1.2rem}#ecHelpBtn span+span{display:none}}
+#ecHelpBtn.mini{width:40px;height:40px;min-height:40px;padding:0;justify-content:center;font-size:1.05rem;opacity:.75}#ecHelpBtn.mini span+span{display:none}#ecHelpBtn.mini:hover,#ecHelpBtn.mini:focus-visible{opacity:1}
 #ecHelpBtn:hover{filter:brightness(1.08)}#ecHelpBtn:focus-visible{outline:3px solid var(--ink,#111);outline-offset:2px}
 
 .ech-panel{position:fixed;top:0;right:0;bottom:0;width:min(400px,100vw);z-index:1000;background:var(--card,#fff);color:var(--ink,#18202f);box-shadow:-6px 0 30px rgba(0,0,0,.18);display:flex;flex-direction:column;font-family:var(--f-body,system-ui,sans-serif);transform:translateX(100%);transition:transform .25s ease;visibility:hidden}
@@ -294,6 +295,14 @@
   let seen = true; try { seen = !!localStorage.getItem(KEY); if (!seen) localStorage.setItem(KEY, '1'); } catch (e) { }
   if (!seen) setTimeout(() => { if (!T) openPanel(); }, PAGE === 'start' || PAGE === 'feedback' ? 600 : 1300);
   window.ecHelp = { open: openPanel, tour: () => tour(0) };
+  // 🤫 quieter: after your first week the floating button hides (Help is still in your profile menu). 'ec-help-btn' = on / off / (auto)
+  let first = 0, pref = ''; try { first = +localStorage.getItem('ec-help-first') || 0; if (!first) { first = Date.now(); localStorage.setItem('ec-help-first', String(first)); } pref = localStorage.getItem('ec-help-btn') || ''; } catch (e) { /* storage blocked: keep showing it */ }
+  window.ecHelpBtnShown = () => pref === 'on' || (pref !== 'off' && Date.now() - (first || Date.now()) < 7 * 86400e3);
+  // Maths, Science and English have no profile menu, so there it shrinks to a small ❓ instead of going away
+  const noMenu = /^\/(maths|science|english)(\/|$)/.test(location.pathname);
+  const place = () => { const on = window.ecHelpBtnShown(); btn.classList.toggle('mini', !on && noMenu && pref !== 'off'); btn.style.display = on || (noMenu && pref !== 'off') ? '' : 'none'; };
+  window.ecHelpBtnSet = v => { pref = v; try { if (v) localStorage.setItem('ec-help-btn', v); else localStorage.removeItem('ec-help-btn'); } catch (e) { /* storage blocked */ } place(); };
+  place();
 })();
 
 /* Shared "Are you sure?" box, used by the Log out buttons. Resolves true or false. */

@@ -216,6 +216,16 @@ export async function handleInsightsAdmin(req, env, url) {
     const cls = await env.DB.prepare('SELECT u.id, u.username, COUNT(ts.student_id) AS n FROM users u LEFT JOIN teacher_students ts ON ts.teacher_id = u.id WHERE u.teacher = 1 GROUP BY u.id ORDER BY u.username').all();
     return json({ today: dayKey(t), list, classes: cls.results.map(c => ({ id: c.id, name: c.username + '’s class', students: c.n })) });
   }
+  // 🎓 school year (Beau)
+  if (path === '/api/admin/year') {
+    if (req.method === 'POST') {
+      let b; try { b = await body(req); } catch { return err(400, 'Bad request'); }
+      const y = +b.year; if (!(Number.isInteger(y) && y >= 7 && y <= 12)) return err(400, 'Pick a year from 7 to 12.');
+      await env.DB.prepare("INSERT INTO settings (key, value) VALUES ('year', ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value").bind(String(y)).run();
+    }
+    const s = await env.DB.prepare("SELECT value FROM settings WHERE key = 'year'").first(); const v = s ? +s.value : 8;
+    return json({ year: v >= 7 && v <= 12 ? v : 8 });
+  }
   if (path === '/api/admin/problems') {
     const since = t - 60 * 86400;
     const [gens, reps] = await env.DB.batch([

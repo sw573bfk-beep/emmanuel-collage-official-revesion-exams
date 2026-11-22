@@ -112,6 +112,19 @@ const PHRASES = ['shut up', 'shutup', 'kill you', 'kill u', 'kill yourself', 'ki
   'gas them', 'gas chamber', 'gas chambers', 'jungle bunny', 'uncle tom', 'master race', 'white trash', 'porch monkey', 'half caste', 'sand n', 'slanty eyes', 'slant eyes', 'ching chong', 'curry muncher', 'get high', 'smoke weed', 'smoke a', 'got high', 'crack cocaine', 'magic mushroom', 'heil hitler', 'sieg heil', 'white power', 'white pride',
   'the f word', 'f off', 'f you', 'f u', 'go f yourself', 'f yourself', 'neck urself', 'neck ur self', 'only fans', 'onlyfans', 'eff off', 'sod off', 'get lost loser', 'your mum', 'ur mum', 'yo mama', 'your mom', 'ur mom', 'suck my', 'suck it', 'blow me', 'up yours', 'screw you', 'screw u', 'drop dead'];
 
+// Crude phrases (no single swear word, but clearly rude). Checked on the cleaned-up words, with spaces around each.
+const CRUDE = [
+  / (jerk|jerks|jerking|jerked|jack|jacks|jacking|jacked|beat|beating|whack|whacking) (it )?off /, // ("jerk off", "jacking off")
+  / (jerk|jack|beat) (off )?(to|on) (it|this|that|u|you|ur|her|him|them|the site|this site) /,
+  / (suck|sucks|sucking|sucked|lick|licks|licking|licked) (on )?(beau|beaus|ur|your|yo|his|her|him|them|me|my|deez|these|dese|those|balls|nuts|toes|feet|d|p|pp) /, // "suck beau" ("this sucks" and "suck at maths" are fine)
+  / (deez|dese|deeze) (nuts|nutz|balls|ballz) /,
+  / (eat|eats|lick|licks|touch|touches|touching|grab|grabs|grabbing|rub|rubs|rubbing) (my|ur|your|his|her|their|beaus) (balls|nuts|butt|bum|booty|chest|boobs|pp|d|private|privates|part|parts) /,
+  / (send|show|post|pic|pics|picture|pictures|photo|photos) (of )?(your|ur|my|her|his) (feet|body|butt|bum|booty|boobs|chest|privates) /,
+  / (send|show me) (nudes|noodz|nudez|pics|feet pics) /, / (feet pics|foot pics|nude pics) /,
+  / (step on me|sit on my face|sit on me|choke me|daddy uwu|uwu daddy|hit it from|smash or pass|wanna smash|want to smash|tap that|thicc) /,
+  / (on|in|to) my (knees|lap) for / , / (turns me on|horny|kinky|freaky) /, / (bust a nut|busting a nut|bust nut|nutted|nutting|i nut|gonna nut) /
+];
+
 // Personal details and ways to contact someone off the site
 const CONTACT = [
   /(?:\+?\d[\s\-().\/]*){8,}/, // phone numbers (8+ digits, with or without spaces)
@@ -174,6 +187,7 @@ export function checkText(text, anyChars) {
   }
   const joined = ' ' + toks.join(' ') + ' ';
   if (PHRASES.some(p => joined.includes(' ' + p + ' '))) return { ok: false, why: 'words', message: FILTER_WORDS_MSG };
+  if (CRUDE.some(re => re.test(joined))) return { ok: false, why: 'words', message: FILTER_WORDS_MSG };
   return { ok: true };
 }
 

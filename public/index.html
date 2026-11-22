@@ -71,6 +71,7 @@ a.chip{text-decoration:none}a.chip:hover{border-color:var(--accent);color:var(--
 .tile .nb{min-width:24px;height:24px;padding:0 7px;border-radius:999px;background:var(--pen,#b3261e);color:var(--card,#fff);font-size:.8125rem;font-weight:700;display:inline-grid;place-items:center}
 .tile .nb[hidden]{display:none}
 .welcome{border:2px solid var(--accent);background:var(--accent-soft)}
+.subject h2 .yr{font:600 .75rem/1.2 var(--f-body);vertical-align:middle;border-radius:999px;padding:3px 8px;background:var(--card-2,#eef1f7);color:var(--muted);border:1px solid var(--rule)}
 .exams{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
 .exams .ex{display:inline-flex;align-items:center;gap:8px;border-radius:12px;padding:8px 14px;font-size:.9375rem;font-weight:600;background:var(--pen-soft,#fdecea);color:var(--pen,#b3261e);border:1.5px solid var(--pen,#b3261e)}
 .exams .ex.far{background:var(--card);color:var(--ink);border-color:var(--rule)}
@@ -263,7 +264,8 @@ a.chip{text-decoration:none}a.chip:hover{border-color:var(--accent);color:var(--
     if (['maths', 'science', 'english', 'feedback', 'message', 'chat', 'leaderboard', 'play', 'me', 'teacher', 'challenge', 'news'].includes(next)) { location.replace('/' + next + '/'); return; }
     if (next === 'admin' && me.admin) { location.replace('/admin/'); return; }
     $('#who').textContent = me.username;
-    $('#mark').textContent = 'EC Revisions · Year 8'; $('#title').textContent = 'Hi, ' + me.username.split(' ')[0] + ' 👋'; $('#title').classList.add('hi'); $('#tagline').hidden = true;
+    const yr = me.year || 8; $('#mark').textContent = 'EC Revisions · Year ' + yr;
+    if (yr !== 8) document.querySelectorAll('.subject.maths h2, .subject.science h2, .subject.english h2').forEach(h => { if (!h.querySelector('.yr')) { const t = document.createElement('span'); t.className = 'yr'; t.textContent = 'Year 8 work'; h.append(' ', t); } }); $('#title').textContent = 'Hi, ' + me.username.split(' ')[0] + ' 👋'; $('#title').classList.add('hi'); $('#tagline').hidden = true;
     homeExtras(me);
     const t = me.subjects && me.subjects.maths;
     $('#mathsLast').textContent = t ? 'Last saved ' + new Date(t * 1000).toLocaleString('en-AU', { weekday: 'short', day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' }) : 'Not started yet';

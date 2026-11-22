@@ -448,8 +448,9 @@ async function handleApi(req, env, url) {
   if (path === '/api/me' && method === 'GET') {
     if (!user) return err(401, 'Not logged in');
     if (!isAdmin(user, env)) await seenOn(env, user.id, deviceOf_(req));
-    const rows = await env.DB.prepare('SELECT subject, updated_at FROM progress WHERE user_id = ?').bind(user.id).all();
-    return json({ username: user.username, prevName: user.prevName, admin: isAdmin(user, env), role: staffRole(user, env), tester: user.tester, teacher: user.teacher, homeChips: (() => { try { return user.homeChips ? JSON.parse(user.homeChips) : null; } catch { return null; } })(), subjects: Object.fromEntries(rows.results.map(r => [r.subject, r.updated_at])) });
+    const [rows, yr] = await env.DB.batch([env.DB.prepare('SELECT subject, updated_at FROM progress WHERE user_id = ?').bind(user.id), env.DB.prepare("SELECT value FROM settings WHERE key = 'year'")]);
+    const year = (() => { const v = yr.results[0] && +yr.results[0].value; return v >= 7 && v <= 12 ? v : 8; })();
+    return json({ year, username: user.username, prevName: user.prevName, admin: isAdmin(user, env), role: staffRole(user, env), tester: user.tester, teacher: user.teacher, homeChips: (() => { try { return user.homeChips ? JSON.parse(user.homeChips) : null; } catch { return null; } })(), subjects: Object.fromEntries(rows.results.map(r => [r.subject, r.updated_at])) });
   }
   if (path === '/api/logout' && method === 'POST') {
     if (user) await env.DB.prepare('DELETE FROM sessions WHERE token_hash = ?').bind(user.tokenHash).run();
@@ -949,15 +950,25 @@ function studentSummary(u, dayRows, progRows, t) {
 async function handleTeacher(req, env, url, user) {
   const path = url.pathname, method = req.method, t = now(), me = user.id;
   if (path === '/api/teacher/class' && method === 'GET') {
-    const st = (await env.DB.prepare('SELECT u.id, u.username, u.last_seen, u.created_at FROM teacher_students ts JOIN users u ON u.id = ts.student_id WHERE ts.teacher_id = ? ORDER BY u.username COLLATE NOCASE').bind(me).all()).results;
-    if (!st.length) return json({ now: t, students: [] });
+    let tid = me, tname = user.username, viewing = false;
+    const want = +url.searchParams.get('teacher') || 0;
+    if (want && want !== me) { // 🖨️ Beau opening a teacher's class report
+      if (!isAdmin(user, env)) return err(403, 'You can only see your own class.');
+      const tu = await env.DB.prepare('SELECT id, username FROM users WHERE id = ? AND teacher = 1').bind(want).first();
+      if (!tu) return err(404, 'That teacher isn’t there any more.');
+      tid = tu.id; tname = tu.username; viewing = true;
+    }
+    const st = (await env.DB.prepare('SELECT u.id, u.username, u.last_seen, u.created_at FROM teacher_students ts JOIN users u ON u.id = ts.student_id WHERE ts.teacher_id = ? ORDER BY u.username COLLATE NOCASE').bind(tid).all()).results;
+    if (!st.length) return json({ now: t, teacher: tname, viewing, students: [] });
     const ids = st.map(x => x.id), ph = ids.map(() => '?').join(',');
-    const [days, prog] = await env.DB.batch([
+    const [days, prog, ans] = await env.DB.batch([
       env.DB.prepare('SELECT user_id, day, SUM(seconds) AS s FROM daily WHERE user_id IN (' + ph + ') GROUP BY user_id, day').bind(...ids),
-      env.DB.prepare('SELECT user_id, subject, data FROM progress WHERE user_id IN (' + ph + ')').bind(...ids)
+      env.DB.prepare('SELECT user_id, subject, data FROM progress WHERE user_id IN (' + ph + ')').bind(...ids),
+      env.DB.prepare('SELECT user_id, COUNT(*) AS n, SUM(ok) AS c FROM answers WHERE at > ? AND user_id IN (' + ph + ') GROUP BY user_id').bind(t - 7 * 86400, ...ids)
     ]);
-    const students = st.map(u => { const s = studentSummary(u, days.results.filter(r => r.user_id === u.id), prog.results.filter(r => r.user_id === u.id), t); delete s.last14; delete s.topics; return s; });
-    return json({ now: t, students });
+    const students = st.map(u => { const s = studentSummary(u, days.results.filter(r => r.user_id === u.id), prog.results.filter(r => r.user_id === u.id), t); delete s.last14; delete s.topics;
+      const a = ans.results.find(r => r.user_id === u.id); s.wkQ = a ? a.n : 0; s.wkC = a ? a.c || 0 : 0; return s; });
+    return json({ now: t, teacher: tname, viewing, students });
   }
   const sm = path.match(/^\/api\/teacher\/student\/(\d+)$/);
   if (sm && method === 'GET') {
@@ -1123,7 +1134,8 @@ async function handleAdmin(req, env, path, method, me, role = 'owner') {
       env.DB.prepare('SELECT id, name, stars, liked, disliked, add_idea, control, other, created_at FROM surveys ORDER BY id DESC LIMIT 300'),
       env.DB.prepare('SELECT stars, COUNT(*) AS n FROM surveys GROUP BY stars')
     ]);
-    return json({ now: t, list: rows.results, counts: Object.fromEntries(sum.results.map(r => [r.stars, r.n])) });
+    const rude = x => ['liked', 'disliked', 'add_idea', 'control', 'other'].some(k => x[k] && !checkWords(x[k]).ok); // 🚩 rude answers start hidden
+    return json({ now: t, list: rows.results.map(x => ({ ...x, flag: rude(x) })), counts: Object.fromEntries(sum.results.map(r => [r.stars, r.n])) });
   }
   if (path === '/api/admin/survey-delete' && method === 'POST') {
     if (!owner) return err(403, 'Only Beau can do this.');

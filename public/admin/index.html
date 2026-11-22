@@ -288,6 +288,14 @@ details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
       <div id="rateList" class="stack" style="gap:10px"></div>
     </section>
 
+    <section class="card stack sec" id="yearAdmin" data-title="🎓 School year" data-hint="move the site up to Year 9 when it's time">
+      <p class="small muted">The year shown on the home page (“EC Revisions · Year 8”). When everyone moves up, change it here: every account, password, point, streak, badge, friend and chat carries over as it is. The Year 8 subjects stay, with a small <b>Year 8 work</b> tag, and new subjects slot in next to them (like Humanities).</p>
+      <div class="row" style="gap:8px;align-items:center"><label class="small" for="yrSel">The site is for</label><select id="yrSel"><option value="7">Year 7</option><option value="8">Year 8</option><option value="9">Year 9</option><option value="10">Year 10</option><option value="11">Year 11</option><option value="12">Year 12</option></select><button class="btn sm" type="button" id="yrSave">Save</button><span class="small" id="yrMsg" role="status"></span></div>
+    </section>
+    <section class="card stack sec" id="classReports" data-title="🖨️ Class reports" data-hint="a printable page for each teacher's class">
+      <p class="small muted">A one-page summary of each teacher’s class: study time, questions answered, scores, hardest topics and who hasn’t studied this week. Teachers can print their own from their class page too.</p>
+      <div id="crList" class="stack" style="gap:6px"><p class="small muted">Loading…</p></div>
+    </section>
     <section class="card stack sec" id="examsAdmin" data-title="📅 Exam dates" data-hint="the countdown on everyone's home page">
       <p class="small muted">Exams added here count down on students’ home pages (“📅 Maths exam in 4 days”). Pick <b>Everyone</b>, or one teacher’s class if their exam is on a different day. Past exams drop off by themselves.</p>
       <form id="exForm" class="row" style="gap:8px;align-items:flex-end" novalidate>
@@ -446,7 +454,7 @@ details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
     if (!staffReady) {
       staffReady = true;
       document.querySelector('.head h1').textContent = 'EC Revisions ' + (ROLE === 'top' ? '⭐ Top tier admin' : '🛡️ Basic admin');
-      ['overview', 'broadcast', 'people', 'codes', 'security', 'ratings', 'problems', 'examsAdmin', 'laptops', 'usage', 'stats'].forEach(id => { if (SEC[id]) { SEC[id].sec.hidden = true; SEC[id].mb.hidden = true; } });
+      ['overview', 'broadcast', 'people', 'codes', 'security', 'ratings', 'problems', 'examsAdmin', 'classReports', 'yearAdmin', 'laptops', 'usage', 'stats'].forEach(id => { if (SEC[id]) { SEC[id].sec.hidden = true; SEC[id].mb.hidden = true; } });
       SEC.moderate.sec.hidden = false; SEC.moderate.mb.hidden = false;
       const mt = document.querySelector('#chatTabs [data-c="messages"]'); if (mt) mt.hidden = true;
       pickChatTab('access');
@@ -806,7 +814,14 @@ details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
       const it = mk('div', 'rate-item'), head = mk('div', 'row'); head.style.justifyContent = 'space-between'; head.style.alignItems = 'center';
       head.append(mk('b', '', '⭐'.repeat(x.stars) + ' ' + x.name), mk('span', 'small muted', fmtC(x.created_at)));
       it.appendChild(head);
-      Q.forEach(([k, l]) => { if (!x[k]) return; const qa = mk('div', 'qa'); qa.append(mk('b', '', l), mk('p', '', x[k])); it.appendChild(qa); });
+      const body = mk('div', 'stack'); body.style.gap = '6px';
+      Q.forEach(([k, l]) => { if (!x[k]) return; const qa = mk('div', 'qa'); qa.append(mk('b', '', l), mk('p', '', x[k])); body.appendChild(qa); });
+      if (x.flag) { // 🚩 rude words: hidden until you choose to look
+        body.hidden = true; const note = mk('div', 'row'); note.style.cssText = 'gap:8px;align-items:center;background:var(--pen-soft,#fdecea);border-radius:10px;padding:8px 12px';
+        const sh = btn('Show anyway', () => { body.hidden = !body.hidden; sh.textContent = body.hidden ? 'Show anyway' : 'Hide'; }, 'quiet');
+        note.append(mk('span', 'small', '🚩 Hidden: this one has rude words in it.'), sh); it.appendChild(note);
+      }
+      it.appendChild(body);
       if (!Q.some(([k]) => x[k])) it.appendChild(mk('span', 'small muted', 'Stars only, no written answers.'));
       let armed = false; const del = btn('Delete', async () => { if (!armed) { armed = true; del.textContent = 'Tap again to delete'; setTimeout(() => { armed = false; del.textContent = 'Delete'; }, 4000); return; } await api('/api/admin/survey-delete', 'POST', { id: x.id }); loadRatings(); }, 'quiet');
       const ar = mk('div', 'row'); ar.appendChild(del); it.appendChild(ar);
@@ -1192,6 +1207,33 @@ details summary{cursor:pointer;color:var(--muted);font-size:.88rem}
     m.textContent = '✅ Added.'; m.style.color = 'var(--good)'; $('#exLabel').value = ''; draw(r.data);
   };
   (async () => { const r = await call(); if (r.ok) draw(r.data); })();
+})();
+</script>
+
+<script>
+/* 🖨️ Class reports (Beau) */
+(function () {
+  const box = document.getElementById('crList'); if (!box) return;
+  const mk = (t, c, x) => { const e = document.createElement(t); if (c) e.className = c; if (x != null) e.textContent = x; return e; };
+  fetch('/api/admin/exams', { credentials: 'same-origin', cache: 'no-store' }).then(r => r.ok ? r.json() : null).then(d => {
+    box.replaceChildren(); if (!d) { box.appendChild(mk('p', 'small muted', 'Couldn’t load the classes.')); return; }
+    if (!d.classes.length) { box.appendChild(mk('p', 'small muted', 'No teacher has added students yet.')); return; }
+    d.classes.forEach(c => { const row = mk('div', 'row'); row.style.cssText = 'justify-content:space-between;align-items:center;border:1px solid var(--rule);border-radius:10px;padding:8px 12px';
+      row.appendChild(mk('span', '', '👩‍🏫 ' + c.name + ' · ' + c.students + (c.students === 1 ? ' student' : ' students')));
+      const acts = mk('span', 'row'); acts.style.gap = '6px';
+      const open = mk('a', 'btn quiet sm', 'Open'); open.href = '/teacher/?t=' + c.id; const pr = mk('a', 'btn sm', '🖨️ Print'); pr.href = '/teacher/?t=' + c.id + '&print=1'; pr.target = '_blank'; pr.rel = 'noopener';
+      acts.append(open, pr); row.appendChild(acts); box.appendChild(row); });
+  }).catch(() => { box.replaceChildren(mk('p', 'small muted', 'Couldn’t load the classes.')); });
+})();
+</script>
+
+<script>
+/* 🎓 School year (Beau) */
+(function () {
+  const sel = document.getElementById('yrSel'); if (!sel) return; const msg = document.getElementById('yrMsg');
+  const call = b => fetch('/api/admin/year', b ? { method: 'POST', credentials: 'same-origin', headers: { 'content-type': 'application/json' }, body: JSON.stringify(b) } : { credentials: 'same-origin', cache: 'no-store' }).then(async r => ({ ok: r.ok, j: await r.json().catch(() => ({})) }));
+  call().then(r => { if (r.ok) sel.value = String(r.j.year); });
+  document.getElementById('yrSave').onclick = async () => { const r = await call({ year: +sel.value }); msg.textContent = r.ok ? '✅ Saved: the site now says Year ' + r.j.year + '.' : (r.j.error || 'Couldn’t save.'); msg.style.color = r.ok ? 'var(--good)' : 'var(--pen)'; };
 })();
 </script>
 </body>

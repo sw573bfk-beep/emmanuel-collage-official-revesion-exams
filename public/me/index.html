@@ -82,6 +82,15 @@
 .badge.on{border-color:var(--warn);background:var(--warn-soft)}
 .badge.off .i{filter:grayscale(1);opacity:.45}
 .badge .pb{width:100%;height:6px;border-radius:99px;background:var(--card-2);overflow:hidden;border:1px solid var(--rule);margin-top:2px}.badge .pb i{display:block;height:100%;background:var(--accent)}
+.tabs2{overflow-x:auto;scrollbar-width:none}.tabs2 button{white-space:nowrap;flex:none}
+@media (max-width:560px){.tabs2{gap:0;justify-content:space-between}.tabs2 button{padding:10px 4px;font-size:.875rem;gap:3px}}
+.prefs{display:flex;flex-direction:column;gap:10px}
+.pref{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;border:1.5px solid var(--rule);border-radius:12px;padding:10px 14px}
+.pref > div:first-child{display:flex;flex-direction:column;gap:2px;min-width:0;flex:1 1 220px}
+.seg{display:inline-flex;border:1.5px solid var(--rule);border-radius:10px;overflow:hidden}
+.seg button{font:inherit;font-weight:600;background:var(--card);color:var(--ink);border:0;padding:8px 14px;cursor:pointer;min-height:40px}
+.seg button + button{border-left:1.5px solid var(--rule)}
+.seg button.on{background:var(--accent);color:var(--accent-ink,#fff)}
 .grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,320px),1fr));gap:16px}
 </style>
 <script src="/theme.js"></script>
@@ -96,8 +105,7 @@
     <div class="row" id="roleRow" hidden style="align-items:center"><span class="role" id="roleName"></span><a class="btn sm" href="/admin/">Open the admin dashboard →</a></div>
     <div class="row" id="teacherRow" hidden style="align-items:center"><span class="role">👩‍🏫 Teacher</span><a class="btn sm" href="/teacher/">Open my class →</a></div>
     <p class="small muted" id="teachersNote" hidden style="margin:0"></p>
-    <p class="small muted" style="margin:0">🔒 Only you can see your profile. Your picture, frame and title (from 🎨 Customise below) are the only things other people see, on the leaderboard and in chat.</p>
-    <div class="tabs2" role="tablist"><button type="button" role="tab" id="tabOv" class="on">📊 Overview</button><button type="button" role="tab" id="tabMsg">💬 Messages <span class="n" id="nMsg" hidden></span></button></div>
+    <div class="tabs2" role="tablist" aria-label="Profile sections"><button type="button" role="tab" id="tabOv" data-v="ov" class="on">📊 Stats</button><button type="button" role="tab" id="tabCz" data-v="cz">🎨 Customise</button><button type="button" role="tab" id="tabSet" data-v="set">⚙️ Settings</button><button type="button" role="tab" id="tabMsg" data-v="msg">💬 Messages <span class="n" id="nMsg" hidden></span></button></div>
 
     <section id="viewOv" class="stack">
       <div class="card stack">
@@ -129,6 +137,15 @@
         <div class="card stack" id="lbCard"><h2 style="margin:0;font-size:1.3rem">🏆 Leaderboard</h2><div class="stats" id="lbStats"></div><a class="btn quiet sm" href="/leaderboard/" style="align-self:flex-start">Open the leaderboard →</a></div>
         <div class="card stack" id="frCard"><h2 style="margin:0;font-size:1.3rem">👥 Friends</h2><div class="stats"><div class="stat"><span class="v" id="frN">0</span><span class="l">friends</span></div></div><a class="btn quiet sm" href="/chat/?tab=mine" style="align-self:flex-start">Find or add friends →</a></div>
       </div>
+      <div class="card stack">
+        <h2 style="margin:0;font-size:1.3rem">🎯 Scores by topic</h2>
+        <p class="small muted" style="margin:0">Your practice scores, weakest first. Tap <b>Practise</b> to work on a topic.</p>
+        <div class="list" id="topics"></div>
+      </div>
+    </section>
+
+    <section id="viewCz" class="stack" hidden>
+      <p class="small muted" style="margin:0">🔒 Only you can see your profile. Your picture, frame and title (below) are the only things other people see, on the leaderboard and in chat.</p>
       <div class="card stack" id="czCard">
         <h2 style="margin:0;font-size:1.3rem">🎨 Customise your profile <span class="small muted" id="czCount" style="font-weight:500"></span></h2>
         <p class="small muted" style="margin:0">Unlock pictures, frames and titles by studying, then show them off. Everyone sees them next to your name on the 🏆 leaderboard and in 💬 chat. Tap one you’ve unlocked to use it.</p>
@@ -140,6 +157,19 @@
         <h2 style="margin:0;font-size:1.3rem">🏅 Badges <span class="small muted" id="badgeCount" style="font-weight:500"></span></h2>
         <div class="badges" id="badges"></div>
       </div>
+    </section>
+
+    <section id="viewSet" class="stack" hidden>
+      <div class="card stack" id="prefsCard">
+        <h2 style="margin:0;font-size:1.3rem">🧩 This device</h2>
+        <p class="small muted" style="margin:0">These are saved on this computer or phone.</p>
+        <div class="prefs">
+          <div class="pref"><div><b>🌙 Dark mode</b><span class="small muted">Easier on your eyes at night.</span></div><div class="seg" id="pfTheme"><button type="button" data-v="">Auto</button><button type="button" data-v="light">Light</button><button type="button" data-v="dark">Dark</button></div></div>
+          <div class="pref"><div><b>🔔 Message pop-ups</b><span class="small muted">A little box when someone messages you.</span></div><div class="seg" id="pfPop"><button type="button" data-v="on">On</button><button type="button" data-v="off">Off</button></div></div>
+          <div class="pref"><div><b>❓ Help button</b><span class="small muted">Auto shows it for your first week, then it moves into your menu (and goes small on Maths, Science and English).</span></div><div class="seg" id="pfHelp"><button type="button" data-v="">Auto</button><button type="button" data-v="on">Always</button><button type="button" data-v="off">Hide</button></div></div>
+          <div class="pref"><div><b>⏲️ Study timer</b><span class="small muted">25 minutes of study, then a 5 minute break.</span></div><button class="btn quiet sm" type="button" id="pfTimer">Open the timer</button></div>
+        </div>
+      </div>
       <div class="card stack" id="codesCard">
         <h2 style="margin:0;font-size:1.3rem">🎟️ Codes</h2>
         <p class="small muted" style="margin:0">Got a code from Beau? Type it here (5 letters and numbers, any case). Each code works once.</p>
@@ -147,14 +177,9 @@
         <div id="codeOut" role="status"></div>
         <div class="have" id="have"></div>
       </div>
-      <div class="card stack">
-        <h2 style="margin:0;font-size:1.3rem">🎯 Scores by topic</h2>
-        <p class="small muted" style="margin:0">Your practice scores, weakest first. Tap <b>Practise</b> to work on a topic.</p>
-        <div class="list" id="topics"></div>
-      </div>
-      <details class="card stack" id="acctSettings">
-        <summary style="cursor:pointer;font-weight:700;font-size:1.1rem">⚙️ Account settings</summary>
-        <div class="grid2" style="margin-top:12px">
+      <div class="card stack" id="acctSettings">
+        <h2 style="margin:0;font-size:1.3rem">🔐 Account</h2>
+        <div class="grid2">
           <form id="pwForm" class="stack" novalidate>
             <b>Change password</b>
             <label class="f">Current password<input id="pwCur" type="password" autocomplete="current-password"></label>
@@ -170,7 +195,7 @@
             <button class="btn danger" type="submit" id="delBtn" style="align-self:flex-start">Delete my account</button>
           </form>
         </div>
-      </details>
+      </div>
     </section>
 
     <section id="viewMsg" class="stack" hidden>
@@ -190,8 +215,17 @@
   const dur = s => { s = Math.round(s || 0); const m = Math.round(s / 60); if (m < 60) return m + ' min'; const h = Math.floor(m / 60); return h + ' h' + (m % 60 ? ' ' + (m % 60) + ' min' : ''); };
   const ago = (t, now) => { if (!t) return ''; const d = now - t; if (d < 60) return 'now'; if (d < 3600) return Math.round(d / 60) + ' min'; if (d < 86400) return Math.round(d / 3600) + ' h'; const n = Math.round(d / 86400); return n + (n === 1 ? ' day' : ' days'); };
   const stat = (v, l, cls) => { const d = el('div', 'stat' + (cls ? ' ' + cls : '')); d.append(el('span', 'v', v), el('span', 'l', l)); return d; };
-  const show = v => { $('#viewOv').hidden = v !== 'ov'; $('#viewMsg').hidden = v !== 'msg'; $('#tabOv').classList.toggle('on', v === 'ov'); $('#tabMsg').classList.toggle('on', v === 'msg'); try { history.replaceState(null, '', v === 'msg' ? '?tab=messages' : location.pathname); } catch (e) { /* fine */ } };
-  $('#tabOv').onclick = () => show('ov'); $('#tabMsg').onclick = () => show('msg');
+  const VIEWS = { ov: ['#viewOv', '#tabOv', ''], cz: ['#viewCz', '#tabCz', 'customise'], set: ['#viewSet', '#tabSet', 'settings'], msg: ['#viewMsg', '#tabMsg', 'messages'] };
+  const show = v => { if (!VIEWS[v]) v = 'ov'; for (const [k, [view, tab]] of Object.entries(VIEWS)) { $(view).hidden = k !== v; $(tab).classList.toggle('on', k === v); $(tab).setAttribute('aria-selected', String(k === v)); }
+    try { history.replaceState(null, '', VIEWS[v][2] ? '?tab=' + VIEWS[v][2] : location.pathname); } catch (e) { /* fine */ } };
+  Object.entries(VIEWS).forEach(([k, [, tab]]) => { $(tab).onclick = () => show(k); });
+  // 🧩 this device: dark mode, message pop-ups, help button, timer
+  const seg = (id, cur, set) => { const box = $(id); const mark = v => box.querySelectorAll('button').forEach(b => b.classList.toggle('on', b.dataset.v === v)); mark(cur); box.querySelectorAll('button').forEach(b => { b.onclick = () => { set(b.dataset.v); mark(b.dataset.v); }; }); };
+  const ls = (k, d) => { try { return localStorage.getItem(k) || d; } catch (e) { return d; } }, lset = (k, v) => { try { if (v) localStorage.setItem(k, v); else localStorage.removeItem(k); } catch (e) { /* storage blocked */ } };
+  seg('#pfTheme', ls('ec-theme', ''), v => { lset('ec-theme', v); window.ecTheme.apply(v); });
+  seg('#pfPop', ls('ec-msgpop', 'on') === 'off' ? 'off' : 'on', v => lset('ec-msgpop', v));
+  seg('#pfHelp', ls('ec-help-btn', ''), v => { if (window.ecHelpBtnSet) window.ecHelpBtnSet(v); else lset('ec-help-btn', v); });
+  $('#pfTimer').onclick = () => { if (window.ecTimer) window.ecTimer.open(); };
   // 🎨 rewards: your picture, frame and title
   let czTab = 'a', czData = null;
   const FRAME_ICON = { none: '⚪', bronze: '🥉', silver: '🥈', gold: '🥇', diamond: '💎', fire: '🔥', rainbow: '🌈' };
@@ -278,7 +312,7 @@
       if (!M.chats.length) cv.appendChild(el('p', 'small muted', 'No friend chats yet. Add a friend; once you both agree and Beau approves, your chat shows up here.'));
       $('#nMsg').hidden = !unread; $('#nMsg').textContent = unread;
     }
-    if (params.get('tab') === 'messages' && d.messages) show('msg');
+    { const tb = params.get('tab'); if (tb === 'messages' && d.messages) show('msg'); else if (tb === 'customise') show('cz'); else if (tb === 'settings') show('set'); }
   }
   $('#codeForm').onsubmit = async e => {
     e.preventDefault(); const out = $('#codeOut'), code = $('#codeIn').value.trim(); out.replaceChildren(); if (!code) return;
