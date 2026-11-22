@@ -51,13 +51,13 @@ const wallMat = new THREE.ShaderMaterial({ side: THREE.BackSide, transparent: tr
     float h21(vec2 p){ return fract(sin(dot(p, vec2(127.1,311.7))) * 43758.5453); }
     float n2(vec2 p){ vec2 i = floor(p), f = fract(p); f = f*f*(3.0-2.0*f); return mix(mix(h21(i), h21(i+vec2(1,0)), f.x), mix(h21(i+vec2(0,1)), h21(i+vec2(1,1)), f.x), f.y); }
     float fbm(vec2 p){ float a = 0.5, s = 0.0; for (int i = 0; i < 4; i++){ s += a * n2(p); p *= 2.03; a *= 0.5; } return s; }
-    void main(){ float th = atan(vP.x, -vP.y); float u = th * R; float s = vP.z - dist; vec3 c; float a = 1.0; float C = 6.2831853 * R, t01 = (th + 3.14159265) / 6.2831853;
+    void main(){ float th = atan(vP.x, -vP.y); float u = th * R; float s = vP.z, sm = vP.z - dist; vec3 c; float a = 1.0; float C = 6.2831853 * R, t01 = (th + 3.14159265) / 6.2831853; // s: the tunnel (still), sm: the white lights (moving)
       if (mode < 0.5) { // RETRO: dark tube, glowing grid, pink/cyan bands
         vec2 g = vec2(u / (C / 16.0), s / 2.4); vec2 f = abs(fract(g) - 0.5); float l = smoothstep(0.46, 0.5, max(f.x, f.y));
         vec3 lc = mix(vec3(1.0,0.25,0.85), vec3(0.13,0.89,1.0), 0.5 + 0.5 * sin(th));
         float band = smoothstep(0.92, 1.0, abs(sin(s * 0.13)));
         c = vec3(0.03,0.01,0.08) + lc * (l * 0.9 + band * 0.35);
-        float lane = smoothstep(0.455, 0.49, abs(fract(u / (C / 8.0)) - 0.5)) * step(0.55, fract(s / 3.0)); c += vec3(1.0,0.95,1.0) * lane * 0.8; // light dashes rushing past
+        float lane = smoothstep(0.455, 0.49, abs(fract(u / (C / 8.0)) - 0.5)) * step(0.55, fract(sm / 3.0)); c += vec3(1.0) * lane * 0.9; // light dashes rushing past
       } else if (mode < 1.5) { // WOODS: bark and roots, moss, sunlight through gaps in the leaves
         #define FW(su, ss, o) mix(fbm(vec2(t01 * C * su + o, s * ss)), fbm(vec2((t01 - 1.0) * C * su + o, s * ss)), t01)
         float b = FW(0.35, 0.08, 0.0); float root = smoothstep(0.75, 0.95, abs(sin(u * 1.0 + FW(0.2, 0.05, 11.0) * 6.0)));
@@ -68,13 +68,14 @@ const wallMat = new THREE.ShaderMaterial({ side: THREE.BackSide, transparent: tr
         c *= 1.15;
         float slit = smoothstep(0.93, 1.0, sin(s * 0.55 + sin(th * 3.0) * 0.8)); c += vec3(1.0,0.8,0.4) * slit * 0.22; // shafts of light every few metres
         vec2 gc = vec2(u / (C / 24.0), s / 2.2); float glow = step(0.9, h21(vec2(mod(floor(gc.x), 24.0), floor(gc.y)))) * smoothstep(0.35, 0.0, length(fract(gc) - 0.5)); c += vec3(0.6,1.0,0.4) * glow * 1.3; // glowing fungi
+        float wl = smoothstep(0.455, 0.49, abs(fract(u / (C / 6.0)) - 0.5)) * step(0.6, fract(sm / 3.5)); c += vec3(1.0) * wl * 0.8; // white lights rushing past
       } else { // OCEAN: a glass tube: frames, caustics, see-through
         vec2 g = vec2(u / (C / 12.0), s / 3.0); vec2 f = abs(fract(g) - 0.5); float fr = smoothstep(0.47, 0.5, max(f.x, f.y));
         float ca = pow(abs(sin(th * 4.0 + sin(s * 0.3 + time) * 1.5) * sin(s * 0.5 + cos(th * 2.0 - time * 0.8))), 3.0);
         float up = smoothstep(0.3, -1.0, cos(th));
         c = vec3(0.10,0.45,0.70) * (0.55 + up * 0.6) + vec3(0.6,0.95,1.0) * ca * 0.35 + vec3(0.85,0.97,1.0) * fr * 0.9;
         a = 0.28 + fr * 0.6 + ca * 0.15;
-        float dots = smoothstep(0.18, 0.0, length(vec2(fract(u / (C / 12.0)) - 0.5, (fract(s / 1.8) - 0.5) * 1.6))) * step(0.5, fract(u / (C / 6.0))); c += vec3(1.0,0.95,0.7) * dots * 1.4; a = max(a, dots); // running lights
+        float dots = smoothstep(0.18, 0.0, length(vec2(fract(u / (C / 12.0)) - 0.5, (fract(sm / 1.8) - 0.5) * 1.6))) * step(0.5, fract(u / (C / 6.0))); c += vec3(1.0) * dots * 1.4; a = max(a, dots); // running lights
       }
       float fog = smoothstep(30.0, 170.0, vD); gl_FragColor = vec4(mix(c, fogc, fog), mode > 1.5 ? mix(a, 1.0, fog) : 1.0); }` });
 const wallGeo = new THREE.CylinderGeometry(RAD, RAD, LEN, 112, 1, true); wallGeo.rotateX(Math.PI / 2); wallGeo.translate(0, 0, -LEN / 2 + 20);
@@ -173,7 +174,7 @@ function applyWorld() {
   Object.entries(deco).forEach(([k, g]) => { g.visible = k === world; });
   OM.block.color.set(P.block); OM.block.emissive.set(P.blockE); OM.block.emissiveIntensity = 0.25; OM.blockE.color.set(P.edge); OM.edge2.color.set(P.edge2); OM.barrier.color.set(P.barrier); OM.barrier.emissive.set(P.barrier); OM.barrier.emissiveIntensity = 0.3; OM.barrierTop.color.set(P.edge2);
   OM.gate.color.set(P.gate); OM.gate.emissive.set(P.gateE); OM.gate.emissiveIntensity = 0.12; OM.gateE.color.set(P.gateE); OM.pod.color.set(P.pod); OM.podE.color.set(P.podE); OM.spin.color.set(P.spin); OM.spin.emissive.set(P.spin);
-  wlMat.color.set(world === 'retro' ? 0xff7af0 : world === 'woods' ? 0xc8ff6a : 0xfff2b0);
+  wlMat.color.set(0xffffff);
   edgeMat.color.set(P.trail); under.material.color.set(P.trail); trail.material.uniforms.color.value.set(P.trail); boardMat.emissive.set(P.trail);
 }
 
@@ -298,14 +299,14 @@ function frame(ts) {
   let k = 0; for (const c of coins) { if (!c.on) continue; Q.setFromAxisAngle(ZA, c.th).multiply(Q2.setFromAxisAngle(YA, tAll * 4 + c.z * 0.1)).multiply(new THREE.Quaternion().setFromAxisAngle(XA, Math.PI / 2)); M4.compose(onWall(c.th, c.h, c.z, V), Q, SC); coinMesh.setMatrixAt(k++, M4); } coinMesh.count = k; coinMesh.instanceMatrix.needsUpdate = true;
   for (const p of pupItems) if (p.on) { p.g.position.copy(onWall(p.th, 1.1 + Math.sin(tAll * 4) * 0.15, p.z, V)); p.g.userData.core.rotation.y += dt * 3; }
   // the world's decorations scroll past
-  const ringZ = i => 12 - (((i * RSP + dist) % (RINGS * RSP)) + RINGS * RSP) % (RINGS * RSP);
+  const ringZ = i => 12 - i * RSP; // the rings are part of the tunnel: they stay still
   const deco1 = WORLDS[world] && world; for (let i = 0; i < RINGS; i++) { M4.makeTranslation(0, 0, ringZ(i)); if (deco1 === 'retro') retroRings.setMatrixAt(i, M4); else if (deco1 === 'woods') woodRings.setMatrixAt(i, M4); else oceanRings.setMatrixAt(i, M4); }
   (world === 'retro' ? retroRings : world === 'woods' ? woodRings : oceanRings).instanceMatrix.needsUpdate = true;
   if (world === 'woods') for (const sp of leaves) { sp.position.copy(onWall(sp.userData.th, 0.5, ringZ(sp.userData.i), V)); }
   const F = world === 'retro' ? sparkle : world === 'woods' ? fireflies : bubbles;
-  for (let i = 0; i < F.n; i++) { F.pos[i * 3 + 2] += mv * (world === 'ocean' ? 1 : 0.95); if (world === 'ocean') F.pos[i * 3 + 1] += dt * 0.8; if (F.pos[i * 3 + 2] > 10) F.pos[i * 3 + 2] -= 200; F.al[i] = world === 'woods' ? 0.4 + 0.6 * Math.max(0, Math.sin(tAll * 2 + F.ph[i])) : world === 'ocean' ? 0.55 : 0.35 + 0.3 * Math.sin(tAll * 5 + F.ph[i]); }
+  for (let i = 0; i < F.n; i++) { if (world === 'ocean') { F.pos[i * 3 + 1] += dt * 0.8; if (F.pos[i * 3 + 1] > RAD + 10) F.pos[i * 3 + 1] -= 2 * (RAD + 10); } F.al[i] = world === 'woods' ? 0.4 + 0.6 * Math.max(0, Math.sin(tAll * 2 + F.ph[i])) : world === 'ocean' ? 0.55 : 0.35 + 0.3 * Math.sin(tAll * 5 + F.ph[i]); }
   F.p.geometry.attributes.position.needsUpdate = true; F.p.geometry.attributes.alpha.needsUpdate = true;
-  if (world === 'ocean') for (let i = 0; i < FISH; i++) { const f = fishData[i]; f.z += mv * 0.92 - f.sp * dt; if (f.z > 20) f.z -= 220; if (f.z < -200) f.z += 220; const th = f.th + Math.sin(tAll * 0.3 + f.wob) * 0.1;
+  if (world === 'ocean') for (let i = 0; i < FISH; i++) { const f = fishData[i]; f.z -= f.sp * dt * 0.3; if (f.z > 20) f.z -= 220; if (f.z < -200) f.z += 220; const th = f.th + Math.sin(tAll * 0.3 + f.wob) * 0.1;
     Q.setFromAxisAngle(YA, Math.sin(tAll * 3 + f.wob) * 0.25); M4.compose(V.set(Math.sin(th) * f.r, -Math.cos(th) * f.r + Math.sin(tAll + f.wob), f.z), Q, V2.set(f.s, f.s, f.s)); fish.setMatrixAt(i, M4); }
   if (world === 'ocean') fish.instanceMatrix.needsUpdate = true;
   for (let i = 0; i < WL; i++) { const w = wlData[i]; w.z += mv; if (w.z > 10) { w.z -= 185; w.th = R0() * TAU; } Q.setFromAxisAngle(ZA, w.th); M4.compose(onWall(w.th, 0.03, w.z, V), Q, SC); wallLamps.setMatrixAt(i, M4); } wallLamps.instanceMatrix.needsUpdate = true;
