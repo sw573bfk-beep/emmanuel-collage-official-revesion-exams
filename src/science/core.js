@@ -568,6 +568,25 @@ function sameTerms(got, expected, fuzzy) {
 const eqText = (r, p) => r.map(x => Array.isArray(x) ? x[0] : x).join(' + ') + ' → ' + p.map(x => Array.isArray(x) ? x[0] : x).join(' + ');
 
 /* ================= science: diagrams ================= */
+// 2H₂ + O₂ → 2H₂O as particles (for "analyse the diagram": count the atoms on each side)
+function waterParticlesSVG() {
+  const H = (x, y) => '<circle cx="' + x + '" cy="' + y + '" r="11" style="fill:#fff;stroke:var(--ink);stroke-width:1.6"/><text x="' + x + '" y="' + (y + 4) + '" text-anchor="middle" style="font-size:11px;font-weight:700">H</text>';
+  const O = (x, y) => '<circle cx="' + x + '" cy="' + y + '" r="16" style="fill:#e5484d;stroke:var(--ink);stroke-width:1.6"/><text x="' + x + '" y="' + (y + 4) + '" text-anchor="middle" style="font-size:12px;font-weight:700;fill:#fff">O</text>';
+  const H2 = (x, y) => H(x, y) + H(x + 20, y), O2 = (x, y) => O(x, y) + O(x + 28, y), W = (x, y) => H(x - 18, y + 14) + H(x + 18, y + 14) + O(x, y);
+  return '<svg class="dia" viewBox="0 0 420 170" style="max-width:420px;width:100%;margin-top:8px" role="img" aria-label="Particle diagram: two hydrogen molecules and one oxygen molecule react to make two water molecules">'
+    + '<rect x="6" y="20" width="170" height="120" rx="12" style="fill:none;stroke:var(--rule);stroke-dasharray:4 4"/><rect x="244" y="20" width="170" height="120" rx="12" style="fill:none;stroke:var(--rule);stroke-dasharray:4 4"/>'
+    + H2(40, 55) + H2(110, 55) + O2(66, 105)
+    + '<line x1="188" y1="80" x2="226" y2="80" style="stroke:var(--ink);stroke-width:2"/><path d="M232 80 l-10 -6 v12z" style="fill:var(--ink)"/>'
+    + W(290, 62) + W(365, 92)
+    + '<text x="91" y="160" text-anchor="middle" class="lbl">Reactants</text><text x="329" y="160" text-anchor="middle" class="lbl">Products</text>'
+    + '<text x="210" y="14" text-anchor="middle" style="font-size:11px;fill:var(--muted)">○ H = hydrogen atom   ● O = oxygen atom</text></svg>';
+}
+// empty energy axes for "complete the graph" questions (the finished diagram is in the answer)
+function blankEnergySVG() {
+  return '<svg class="dia" viewBox="0 0 320 200" style="max-width:320px;width:100%" role="img" aria-label="Empty energy diagram axes to complete"><line class="ax" x1="40" y1="180" x2="40" y2="12"/><path d="M40 8 l-5 9 h10z" style="fill:var(--ink)"/><line class="ax" x1="40" y1="180" x2="305" y2="180"/><path d="M309 180 l-9 -5 v10z" style="fill:var(--ink)"/>'
+    + '<text x="14" y="100" transform="rotate(-90 14 100)" text-anchor="middle">Energy</text><text x="175" y="196" text-anchor="middle">Time (reaction progress)</text>'
+    + '<text x="80" y="30" text-anchor="middle" class="lbl" style="fill:var(--muted)">Reactants</text><text x="270" y="30" text-anchor="middle" class="lbl" style="fill:var(--muted)">Products</text><line x1="80" y1="38" x2="80" y2="170" stroke="var(--rule)" stroke-dasharray="3 4"/><line x1="270" y1="38" x2="270" y2="170" stroke="var(--rule)" stroke-dasharray="3 4"/></svg>';
+}
 function energySVG(type, labels = true) {
   const exo = type === 'exo'; const W = 320, H = 200;
   const yR = exo ? 70 : 140, yP = exo ? 140 : 70, peak = 30;

@@ -1904,11 +1904,11 @@ const BOOKLET = [
   { id: 'B14', part: 'B', star: 'Challenge', text: 'A shop takes 20% off a jacket. At the register, a coupon takes a further 10% off the sale price. Fiona pays $259.20.', parts: [
     { l: 'a', q: 'What was the original price of the jacket?', a: 'Multiplier = 0.8 × 0.9 = 0.72. Original = 259.20 ÷ 0.72 = $360.', n: 360 }, { l: 'b', q: 'What single percentage discount is this equivalent to?', a: '1 − 0.72 = 0.28, so 28% (not 30%)', n: 28 }] },
 
-  { id: 'C1', part: 'C', text: 'Each point is reflected across the axis shown. Write the coordinates of the new point.', parts: [
+  { id: 'C1', part: 'C', text: 'Reflect each point across the axis given. Write the coordinates of the new point.', parts: [
     { l: 'a', q: '(4, 1) is reflected across the x-axis.', a: '(4, −1)', co: [[4, -1]], k: 'reflect (4,1) in the x-axis' }, { l: 'b', q: '(−2, 5) is reflected across the y-axis.', a: '(2, 5)', co: [[2, 5]], k: 'reflect (-2,5) in the y-axis' },
     { l: 'c', q: '(−6, −3) is reflected across the x-axis.', a: '(−6, 3)', co: [[-6, 3]], k: 'reflect (-6,-3) in the x-axis' }, { l: 'd', q: '(7, −2) is reflected across the y-axis.', a: '(−7, −2)', co: [[-7, -2]], k: 'reflect (7,-2) in the y-axis' },
     { l: 'e', q: '(−3, 8) is reflected across the x-axis.', a: '(−3, −8)', co: [[-3, -8]], k: 'reflect (-3,8) in the x-axis' }] },
-  { id: 'C2', part: 'C', text: 'Each shape is translated using the vector shown. Write the coordinates of the new shape.', parts: [
+  { id: 'C2', part: 'C', text: 'Translate each shape using the vector given. Write the coordinates of the new shape.', parts: [
     { l: 'a', q: 'Triangle A(1, 2), B(4, 2), C(3, 5) is translated by the vector (3, −2).', a: 'A′(4, 0), B′(7, 0), C′(6, 3)', co: [[4, 0], [7, 0], [6, 3]] },
     { l: 'b', q: 'Square P(0, 0), Q(2, 0), R(2, 2), S(0, 2) is translated by the vector (−3, 4).', a: 'P′(−3, 4), Q′(−1, 4), R′(−1, 6), S′(−3, 6)', co: [[-3, 4], [-1, 4], [-1, 6], [-3, 6]] },
     { l: 'c', q: 'Triangle D(−2, 3), E(1, 3), F(−2, −1) is translated by the vector (4, −3).', a: 'D′(2, 0), E′(5, 0), F′(2, −4)', co: [[2, 0], [5, 0], [2, -4]] },

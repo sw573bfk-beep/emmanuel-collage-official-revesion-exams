@@ -569,6 +569,25 @@ function sameTerms(got, expected, fuzzy) {
 const eqText = (r, p) => r.map(x => Array.isArray(x) ? x[0] : x).join(' + ') + ' → ' + p.map(x => Array.isArray(x) ? x[0] : x).join(' + ');
 
 /* ================= science: diagrams ================= */
+// 2H₂ + O₂ → 2H₂O as particles (for "analyse the diagram": count the atoms on each side)
+function waterParticlesSVG() {
+  const H = (x, y) => '<circle cx="' + x + '" cy="' + y + '" r="11" style="fill:#fff;stroke:var(--ink);stroke-width:1.6"/><text x="' + x + '" y="' + (y + 4) + '" text-anchor="middle" style="font-size:11px;font-weight:700">H</text>';
+  const O = (x, y) => '<circle cx="' + x + '" cy="' + y + '" r="16" style="fill:#e5484d;stroke:var(--ink);stroke-width:1.6"/><text x="' + x + '" y="' + (y + 4) + '" text-anchor="middle" style="font-size:12px;font-weight:700;fill:#fff">O</text>';
+  const H2 = (x, y) => H(x, y) + H(x + 20, y), O2 = (x, y) => O(x, y) + O(x + 28, y), W = (x, y) => H(x - 18, y + 14) + H(x + 18, y + 14) + O(x, y);
+  return '<svg class="dia" viewBox="0 0 420 170" style="max-width:420px;width:100%;margin-top:8px" role="img" aria-label="Particle diagram: two hydrogen molecules and one oxygen molecule react to make two water molecules">'
+    + '<rect x="6" y="20" width="170" height="120" rx="12" style="fill:none;stroke:var(--rule);stroke-dasharray:4 4"/><rect x="244" y="20" width="170" height="120" rx="12" style="fill:none;stroke:var(--rule);stroke-dasharray:4 4"/>'
+    + H2(40, 55) + H2(110, 55) + O2(66, 105)
+    + '<line x1="188" y1="80" x2="226" y2="80" style="stroke:var(--ink);stroke-width:2"/><path d="M232 80 l-10 -6 v12z" style="fill:var(--ink)"/>'
+    + W(290, 62) + W(365, 92)
+    + '<text x="91" y="160" text-anchor="middle" class="lbl">Reactants</text><text x="329" y="160" text-anchor="middle" class="lbl">Products</text>'
+    + '<text x="210" y="14" text-anchor="middle" style="font-size:11px;fill:var(--muted)">○ H = hydrogen atom   ● O = oxygen atom</text></svg>';
+}
+// empty energy axes for "complete the graph" questions (the finished diagram is in the answer)
+function blankEnergySVG() {
+  return '<svg class="dia" viewBox="0 0 320 200" style="max-width:320px;width:100%" role="img" aria-label="Empty energy diagram axes to complete"><line class="ax" x1="40" y1="180" x2="40" y2="12"/><path d="M40 8 l-5 9 h10z" style="fill:var(--ink)"/><line class="ax" x1="40" y1="180" x2="305" y2="180"/><path d="M309 180 l-9 -5 v10z" style="fill:var(--ink)"/>'
+    + '<text x="14" y="100" transform="rotate(-90 14 100)" text-anchor="middle">Energy</text><text x="175" y="196" text-anchor="middle">Time (reaction progress)</text>'
+    + '<text x="80" y="30" text-anchor="middle" class="lbl" style="fill:var(--muted)">Reactants</text><text x="270" y="30" text-anchor="middle" class="lbl" style="fill:var(--muted)">Products</text><line x1="80" y1="38" x2="80" y2="170" stroke="var(--rule)" stroke-dasharray="3 4"/><line x1="270" y1="38" x2="270" y2="170" stroke="var(--rule)" stroke-dasharray="3 4"/></svg>';
+}
 function energySVG(type, labels = true) {
   const exo = type === 'exo'; const W = 320, H = 200;
   const yR = exo ? 70 : 140, yP = exo ? 140 : 70, peak = 30;
@@ -1402,7 +1421,7 @@ const BOOKLET = [
     { l: '3', q: 'Heating copper carbonate forms copper oxide and carbon dioxide.', a: 'copper carbonate → copper oxide + carbon dioxide', wq: { r: ['copper carbonate'], p: ['copper oxide', 'carbon dioxide'] } },
     { l: '4', q: 'Magnesium ribbon is burned in oxygen. It produces a bright white light and forms a white powder called magnesium oxide.', a: 'magnesium + oxygen → magnesium oxide', wq: { r: ['magnesium', 'oxygen'], p: ['magnesium oxide'] } },
     { l: '5', q: 'Zinc metal is added to hydrochloric acid. Bubbles of hydrogen gas are produced, and zinc chloride remains in the solution.', a: 'zinc + hydrochloric acid → zinc chloride + hydrogen', wq: { r: ['zinc', 'hydrochloric acid'], p: ['zinc chloride', 'hydrogen'] } }] },
-  { id: 'R4', part: 'R', text: 'Hydrogen and oxygen react to produce water (2H₂ + O₂ → 2H₂O). Analyse the diagram and describe what evidence there is that the mass of the reactants would equal the mass of the products.', parts: [
+  { id: 'R4', part: 'R', text: 'Hydrogen and oxygen react to produce water (2H₂ + O₂ → 2H₂O). Analyse the diagram and describe what evidence there is that the mass of the reactants would equal the mass of the products.', dia: () => waterParticlesSVG(), parts: [
     { l: 'a', q: 'How many hydrogen atoms are on each side?', a: '4', n: 4 }, { l: 'b', q: 'How many oxygen atoms are on each side?', a: '2', n: 2 },
     { l: 'c', q: 'Describe the evidence.', a: 'There are 4 hydrogen atoms and 2 oxygen atoms before and after the reaction. The atoms are only rearranged into water molecules; none are created or destroyed, so the total mass stays the same.' }] },
   { id: 'R5', part: 'R', text: 'Bonds task: for each reaction, list the reactants and the products. (Description wording is copied exactly from the booklet.)', parts: [
@@ -1419,7 +1438,9 @@ const BOOKLET = [
   { id: 'N2', part: 'N', text: 'Classify each reaction.', parts: [
     { l: 'a', q: 'A reaction where the temperature rises from 20 °C to 34 °C.', a: 'Exothermic', ch: ['Exothermic', 'Endothermic'], ci: 0 }, { l: 'b', q: 'A reaction where the temperature falls from 21 °C to 12 °C.', a: 'Endothermic', ch: ['Exothermic', 'Endothermic'], ci: 1 },
     { l: 'c', q: 'Burning wood.', a: 'Exothermic', ch: ['Exothermic', 'Endothermic'], ci: 0 }, { l: 'd', q: 'Photosynthesis.', a: 'Endothermic', ch: ['Exothermic', 'Endothermic'], ci: 1 }] },
-  { id: 'N3', part: 'N', text: 'Complete the graphs to show the energy in reactants and products before and after a reaction.', parts: [
+  { id: 'N3', part: 'N', text: 'Complete the graphs to show the energy in reactants and products before and after a reaction. (Sketch them on paper, or say where the reactants and products go, then check the answer.)',
+    dia: () => '<div class="row" style="gap:16px;align-items:flex-start;flex-wrap:wrap;margin-top:8px">' + ['a) Exothermic reaction', 'b) Endothermic reaction'].map(t => '<figure style="margin:0;flex:1 1 220px;max-width:320px"><figcaption class="small" style="font-weight:700;margin-bottom:4px">' + t + '</figcaption>' + blankEnergySVG() + '</figure>').join('') + '</div>',
+    parts: [
     { l: 'a', q: 'Exothermic reaction', a: 'The reactants start high; the line rises a little (to start the reaction) then falls to the products, which are lower. The difference is the energy released.', as: () => energySVG('exo') },
     { l: 'b', q: 'Endothermic reaction', a: 'The reactants start low; the line rises then levels off at the products, which are higher. The difference is the energy absorbed.', as: () => energySVG('endo') }] },
   { id: 'T1', part: 'T', text: 'Corrosion.', parts: [
@@ -1434,7 +1455,7 @@ const BOOKLET = [
     { l: '1', q: 'Which subatomic particles make up the mass number?', a: 'Protons and neutrons', ss: ['protons', 'neutrons'] },
     { l: '2', q: 'Complete the formula: Mass number (A) = …', a: 'protons (Z) + neutrons (N)' },
     { l: '3', q: 'Write the formula for the number of neutrons.', a: 'N = A − Z (mass number − atomic number)' }] },
-  { id: 'M2', part: 'M', text: 'Complete the missing values in the table.', parts: [
+  { id: 'M2', part: 'M', text: 'Complete the missing values for each atom.', parts: [
     { l: '9', q: 'Helium (He): Z = 2, A = 4. Protons and neutrons? (type both, e.g. 2, 2)', a: '2 protons, 2 neutrons', ns: [2, 2] },
     { l: '10', q: 'Carbon (C): Z = 6, 6 protons, 6 neutrons. Mass number?', a: '12', n: 12 },
     { l: '11', q: 'Nitrogen (N): A = 15, 7 protons. Atomic number and neutrons? (type both)', a: 'Z = 7, 8 neutrons', ns: [7, 8] }] },

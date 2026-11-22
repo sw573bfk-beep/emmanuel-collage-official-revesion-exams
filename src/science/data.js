@@ -150,7 +150,7 @@ const BOOKLET = [
     { l: '3', q: 'Heating copper carbonate forms copper oxide and carbon dioxide.', a: 'copper carbonate → copper oxide + carbon dioxide', wq: { r: ['copper carbonate'], p: ['copper oxide', 'carbon dioxide'] } },
     { l: '4', q: 'Magnesium ribbon is burned in oxygen. It produces a bright white light and forms a white powder called magnesium oxide.', a: 'magnesium + oxygen → magnesium oxide', wq: { r: ['magnesium', 'oxygen'], p: ['magnesium oxide'] } },
     { l: '5', q: 'Zinc metal is added to hydrochloric acid. Bubbles of hydrogen gas are produced, and zinc chloride remains in the solution.', a: 'zinc + hydrochloric acid → zinc chloride + hydrogen', wq: { r: ['zinc', 'hydrochloric acid'], p: ['zinc chloride', 'hydrogen'] } }] },
-  { id: 'R4', part: 'R', text: 'Hydrogen and oxygen react to produce water (2H₂ + O₂ → 2H₂O). Analyse the diagram and describe what evidence there is that the mass of the reactants would equal the mass of the products.', parts: [
+  { id: 'R4', part: 'R', text: 'Hydrogen and oxygen react to produce water (2H₂ + O₂ → 2H₂O). Analyse the diagram and describe what evidence there is that the mass of the reactants would equal the mass of the products.', dia: () => waterParticlesSVG(), parts: [
     { l: 'a', q: 'How many hydrogen atoms are on each side?', a: '4', n: 4 }, { l: 'b', q: 'How many oxygen atoms are on each side?', a: '2', n: 2 },
     { l: 'c', q: 'Describe the evidence.', a: 'There are 4 hydrogen atoms and 2 oxygen atoms before and after the reaction. The atoms are only rearranged into water molecules; none are created or destroyed, so the total mass stays the same.' }] },
   { id: 'R5', part: 'R', text: 'Bonds task: for each reaction, list the reactants and the products. (Description wording is copied exactly from the booklet.)', parts: [
@@ -167,7 +167,9 @@ const BOOKLET = [
   { id: 'N2', part: 'N', text: 'Classify each reaction.', parts: [
     { l: 'a', q: 'A reaction where the temperature rises from 20 °C to 34 °C.', a: 'Exothermic', ch: ['Exothermic', 'Endothermic'], ci: 0 }, { l: 'b', q: 'A reaction where the temperature falls from 21 °C to 12 °C.', a: 'Endothermic', ch: ['Exothermic', 'Endothermic'], ci: 1 },
     { l: 'c', q: 'Burning wood.', a: 'Exothermic', ch: ['Exothermic', 'Endothermic'], ci: 0 }, { l: 'd', q: 'Photosynthesis.', a: 'Endothermic', ch: ['Exothermic', 'Endothermic'], ci: 1 }] },
-  { id: 'N3', part: 'N', text: 'Complete the graphs to show the energy in reactants and products before and after a reaction.', parts: [
+  { id: 'N3', part: 'N', text: 'Complete the graphs to show the energy in reactants and products before and after a reaction. (Sketch them on paper, or say where the reactants and products go, then check the answer.)',
+    dia: () => '<div class="row" style="gap:16px;align-items:flex-start;flex-wrap:wrap;margin-top:8px">' + ['a) Exothermic reaction', 'b) Endothermic reaction'].map(t => '<figure style="margin:0;flex:1 1 220px;max-width:320px"><figcaption class="small" style="font-weight:700;margin-bottom:4px">' + t + '</figcaption>' + blankEnergySVG() + '</figure>').join('') + '</div>',
+    parts: [
     { l: 'a', q: 'Exothermic reaction', a: 'The reactants start high; the line rises a little (to start the reaction) then falls to the products, which are lower. The difference is the energy released.', as: () => energySVG('exo') },
     { l: 'b', q: 'Endothermic reaction', a: 'The reactants start low; the line rises then levels off at the products, which are higher. The difference is the energy absorbed.', as: () => energySVG('endo') }] },
   { id: 'T1', part: 'T', text: 'Corrosion.', parts: [
@@ -182,7 +184,7 @@ const BOOKLET = [
     { l: '1', q: 'Which subatomic particles make up the mass number?', a: 'Protons and neutrons', ss: ['protons', 'neutrons'] },
     { l: '2', q: 'Complete the formula: Mass number (A) = …', a: 'protons (Z) + neutrons (N)' },
     { l: '3', q: 'Write the formula for the number of neutrons.', a: 'N = A − Z (mass number − atomic number)' }] },
-  { id: 'M2', part: 'M', text: 'Complete the missing values in the table.', parts: [
+  { id: 'M2', part: 'M', text: 'Complete the missing values for each atom.', parts: [
     { l: '9', q: 'Helium (He): Z = 2, A = 4. Protons and neutrons? (type both, e.g. 2, 2)', a: '2 protons, 2 neutrons', ns: [2, 2] },
     { l: '10', q: 'Carbon (C): Z = 6, 6 protons, 6 neutrons. Mass number?', a: '12', n: 12 },
     { l: '11', q: 'Nitrogen (N): A = 15, 7 protons. Atomic number and neutrons? (type both)', a: 'Z = 7, 8 neutrons', ns: [7, 8] }] },
