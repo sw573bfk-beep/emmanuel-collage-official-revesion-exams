@@ -348,16 +348,22 @@ function hud() {
 const rollQ = th => Q.setFromAxisAngle(ZA, th), V3 = new THREE.Vector3();
 let tPrev = 0, tAll = 0, lastHud = 0, menuDist = 0, dtS = 1 / 60, drift = 0, fpsN = 0, fpsT = 0;
 // 📈 Auto graphics: learn the screen's refresh rate, then step the picture size and glow down (or back up) to keep up with it
-const perf = { hz: [], refresh: 1 / 60, n: 0, t: 0, cool: 3, upWait: 6, fails: {} };
+const perf = { hz: [], refresh: 1 / 60, n: 0, t: 0, cool: 3, upWait: 6, fails: {}, cap: 0, lastDrop: null };
+const sameLook = (a, b) => effH(a) === effH(b) && TIERS[a].aa === TIERS[b].aa && TIERS[a].glow === TIERS[b].glow;
+const downFrom = t => { let d = t - 1; while (d > 0 && sameLook(d, t)) d--; return d; }; // the next level that really is lighter
 function setTier(t) { tier = t; sizeTargets(); if (gfx === 'auto') lset('nr-tier', t); }
 function tune(raw) {
   if (perf.hz.length < 90 && raw > 0.0025 && raw < 0.25) { perf.hz.push(raw); if (perf.hz.length === 90) perf.refresh = Math.min(1 / 60, perf.hz.slice().sort((a, b) => a - b)[9]); } // the quickest frames show the screen's refresh rate (a slow device counts as 60 Hz)
-  fpsN++; fpsT += raw; if (fpsT >= 0.5) { if (showFps) $('#fps').textContent = Math.round(fpsN / fpsT) + ' fps · ' + (rtScene ? rtScene.height : 0) + 'p' + (TIERS[tier].glow ? ' · glow' : '') + (gfx === 'auto' ? ' · auto' : ''); fpsN = 0; fpsT = 0; }
+  fpsN++; fpsT += raw; if (fpsT >= 0.5) { if (showFps) $('#fps').textContent = Math.round(fpsN / fpsT) + ' fps · ' + (rtScene ? rtScene.height : 0) + 'p' + (TIERS[tier].glow ? ' · glow' : '') + (gfx === 'auto' ? ' · auto' : '') + (perf.cap ? ' · limited to ' + perf.cap + ' by the browser/laptop' : ''); fpsN = 0; fpsT = 0; }
   if (gfx !== 'auto' || S.paused || document.hidden || perf.hz.length < 90 || raw > 0.25) { perf.n = 0; perf.t = 0; return; }
   perf.n++; perf.t += raw; perf.cool -= raw; perf.upWait -= raw; if (perf.t < 1) return;
-  const fps = perf.n / perf.t, want = 0.88 * Math.min(1 / perf.refresh, 144); perf.n = 0; perf.t = 0;
-  if (fps < want) { if (perf.cool <= 0 && tier > 0) { perf.fails[tier] = (perf.fails[tier] || 0) + 1; setTier(tier - 1); perf.cool = 1.2; perf.upWait = 10; } }
-  else if (fps >= want * 1.07 && perf.upWait <= 0 && perf.cool <= 0 && tier < TIERS.length - 1 && (perf.fails[tier + 1] || 0) < 2) { const a = TIERS[tier], b = TIERS[tier + 1]; if (effH(tier + 1) > effH(tier) || a.aa !== b.aa || a.glow !== b.glow) { setTier(tier + 1); perf.cool = 1.5; perf.upWait = 6; } }
+  const fps = perf.n / perf.t, want = 0.88 * Math.min(1 / perf.refresh, 144, perf.cap || 1e9); perf.n = 0; perf.t = 0;
+  // 🔒 if lowering the detail didn't make it any faster, something else (battery saver, energy saver) is capping the frame rate:
+  // go back to the nicer picture and stop chasing a number we can't reach
+  if (perf.lastDrop) { const d = perf.lastDrop; perf.lastDrop = null;
+    if (tier === d.to) { if (fps < d.fps * 1.12) { perf.noGain = (perf.noGain || 0) + 1; if (perf.noGain === 1) perf.capFrom = d.from; if (perf.noGain >= 2) { perf.cap = Math.round(Math.max(fps, d.fps)); setTier(perf.capFrom); perf.cool = 2; perf.upWait = 1e9; return; } } else perf.noGain = 0; } } // (two lighter levels in a row that didn't help = a cap)
+  if (fps < want) { if (perf.cool <= 0 && tier > 0) { perf.fails[tier] = (perf.fails[tier] || 0) + 1; const to = downFrom(tier); perf.lastDrop = { from: tier, to, fps }; setTier(to); perf.cool = 1.2; perf.upWait = 10; } }
+  else if (fps >= want * 1.07 && perf.upWait <= 0 && perf.cool <= 0 && tier < TIERS.length - 1 && (perf.fails[tier + 1] || 0) < 2) { const a = TIERS[tier], b = TIERS[tier + 1]; if (!sameLook(tier, tier + 1)) { setTier(tier + 1); perf.cool = 1.5; perf.upWait = 6; } }
 }
 function draw() {
   const T = TIERS[tier], W = WORLDS[world]; renderer.setRenderTarget(rtScene); renderer.render(scene, camera);
