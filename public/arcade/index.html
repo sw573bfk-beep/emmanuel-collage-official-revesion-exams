@@ -57,6 +57,7 @@ main > .ec-back{align-self:flex-start}
 .world b{font:800 1.05rem var(--f-display)}.world span{font-size:.75rem;opacity:.95;line-height:1.3}.world.on{border-color:#fff;box-shadow:0 0 0 3px var(--accent),inset 0 -40px 40px -16px rgb(0 0 0 / .5)}
 @media (max-width:560px){.worlds{grid-template-columns:1fr}}
 .pad button.cool{opacity:.45}
+.fps{position:absolute;left:50%;bottom:10px;transform:translateX(-50%);z-index:3;font:600 .78rem var(--f-mono);color:#fff;background:rgb(0 0 0 / .5);border-radius:8px;padding:3px 8px;pointer-events:none;white-space:nowrap}.fps[hidden]{display:none}
 .flash{position:absolute;inset:0;background:#fff;opacity:0;pointer-events:none;transition:opacity .35s}
 </style>
 <script src="/theme.js"></script>
@@ -70,9 +71,10 @@ main > .ec-back{align-self:flex-start}
   <div id="testersOnly" class="card stack" hidden style="text-align:center"><h2>🧪 Still being tested</h2><p class="muted">Neon Rush is only open to official testers and admins while it’s being tested. Check back later!</p><a class="btn" href="/" style="align-self:center">Back home</a></div>
   <div id="noGl" class="card stack" hidden><h2>😕 This device can’t show 3D</h2><p class="muted">Neon Rush needs WebGL (3D graphics). Try a different browser or computer.</p></div>
   <div id="app" class="stack" hidden>
-    <div class="stage" id="stage">
+    <div class="stage" id="stage" style="background:#000">
       <canvas id="cv" tabindex="0" aria-label="Neon Rush 3D runner game"></canvas>
       <div class="flash" id="flash"></div>
+      <div class="fps" id="fps" hidden></div>
       <div class="hud" id="hud" hidden>
         <div class="tl"><div class="big" id="hScore">0</div><small>score</small><div class="coins" id="hCoins">🪙 0</div></div>
         <div class="tr"><div class="big" id="hDist">0 m</div><small>distance</small></div>
@@ -89,7 +91,7 @@ main > .ec-back{align-self:flex-start}
         <p class="keys" style="margin:0"><span class="kbd">A</span> <span class="kbd">D</span> ride round the tunnel · <span class="kbd">W</span> or <span class="kbd">Space</span> jump (hold for a big jump) · <span class="kbd">S</span> fly across to the opposite side · <span class="kbd">C</span> camera · <span class="kbd">Esc</span> pause<br>
           Jump the 🟧 low walls, find the gap in the 🚪 gates (or teleport!), dodge the blocks, spinning arms and pods. Grab 🪙 coins and power-ups: 🧲 magnet · 🛡️ shield · ⚡ boost.</p>
         <button class="btn" type="button" id="playBtn">▶ Play</button>
-        <div class="opts"><span class="small muted">Graphics:</span><div class="seg" id="qSeg"><button type="button" data-q="720">720p</button><button type="button" data-q="1080">1080p</button></div><span class="small muted">Camera:</span><div class="seg" id="vSeg"><button type="button" data-v="third">Behind</button><button type="button" data-v="first">First person</button></div><button class="btn quiet sm" type="button" id="fsBtn">⛶ Full screen</button></div>
+        <div class="opts"><span class="small muted">Graphics:</span><div class="seg" id="qSeg"><button type="button" data-q="auto" title="Changes the detail to keep the game smooth">Auto</button><button type="button" data-q="fast">Fast</button><button type="button" data-q="sharp">Sharp</button></div><button class="btn quiet sm" type="button" id="fpsBtn" aria-pressed="false">FPS: off</button><span class="small muted">Camera:</span><div class="seg" id="vSeg"><button type="button" data-v="third">Behind</button><button type="button" data-v="first">First person</button></div><button class="btn quiet sm" type="button" id="fsBtn">⛶ Full screen</button></div>
         <p class="small muted" id="bestLine" style="margin:0"></p>
       </div></div>
       <div class="over" id="endOv" hidden><div class="panel" style="max-width:420px">
